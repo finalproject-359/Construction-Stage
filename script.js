@@ -215,10 +215,15 @@ const createValueAxisConfig = (values, { includeZero = false } = {}) => {
   const minValue = Math.min(...numericValues);
   const maxValue = Math.max(...numericValues);
   const range = Math.max(maxValue - minValue, 1);
-  const padding = range * 0.1;
+  const padding = range * 0.15;
 
   let min = minValue - padding;
   let max = maxValue + padding;
+
+  if (minValue === maxValue) {
+    min = minValue - Math.max(minValue * 0.1, 1);
+    max = maxValue + Math.max(maxValue * 0.1, 1);
+  }
 
   if (includeZero) {
     min = Math.min(0, min);
@@ -306,7 +311,7 @@ const renderCharts = (rows) => {
         y: {
           ...createValueAxisConfig(
             rows.flatMap((row) => [row.plannedCost, row.actualCost]),
-            { includeZero: true }
+            { includeZero: false }
           ),
         },
       },
