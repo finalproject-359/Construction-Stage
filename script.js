@@ -200,6 +200,18 @@ const destroyChart = (chart) => {
   if (chart) chart.destroy();
 };
 
+const getNiceStepSize = (range, targetTickCount = 5) => {
+  const safeRange = Math.max(range, 1);
+  const roughStep = safeRange / Math.max(targetTickCount - 1, 1);
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+
+  if (normalized <= 1) return 1 * magnitude;
+  if (normalized <= 2) return 2 * magnitude;
+  if (normalized <= 5) return 5 * magnitude;
+  return 10 * magnitude;
+};
+
 const createValueAxisConfig = (values, { includeZero = false } = {}) => {
   const numericValues = values.filter((value) => Number.isFinite(value));
   if (!numericValues.length) {
@@ -212,29 +224,31 @@ const createValueAxisConfig = (values, { includeZero = false } = {}) => {
     };
   }
 
-  const minValue = Math.min(...numericValues);
-  const maxValue = Math.max(...numericValues);
-  const range = Math.max(maxValue - minValue, 1);
-  const padding = range * 0.15;
-
-  let min = minValue - padding;
-  let max = maxValue + padding;
-
-  if (minValue === maxValue) {
-    min = minValue - Math.max(minValue * 0.1, 1);
-    max = maxValue + Math.max(maxValue * 0.1, 1);
-  }
+  let minValue = Math.min(...numericValues);
+  let maxValue = Math.max(...numericValues);
 
   if (includeZero) {
-    min = Math.min(0, min);
-    max = Math.max(0, max);
+    minValue = Math.min(0, minValue);
+    maxValue = Math.max(0, maxValue);
+  }
+
+  const range = Math.max(maxValue - minValue, 1);
+  const stepSize = getNiceStepSize(range);
+
+  let min = Math.floor(minValue / stepSize) * stepSize;
+  let max = Math.ceil(maxValue / stepSize) * stepSize;
+
+  if (min === max) {
+    min -= stepSize;
+    max += stepSize;
   }
 
   return {
     min,
     max,
     ticks: {
-      maxTicksLimit: 6,
+      stepSize,
+      maxTicksLimit: 8,
       callback: (value) => formatCompactCurrency(Number(value)),
     },
   };
