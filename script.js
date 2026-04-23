@@ -18,6 +18,22 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0);
 
+const formatCompactCurrency = (value) => {
+  const numericValue = Number.isFinite(value) ? value : 0;
+  const absoluteValue = Math.abs(numericValue);
+
+  if (absoluteValue < 1000) {
+    return formatCurrency(numericValue);
+  }
+
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(numericValue);
+};
+
 const parseNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -184,6 +200,41 @@ const destroyChart = (chart) => {
   if (chart) chart.destroy();
 };
 
+const createValueAxisConfig = (values, { includeZero = false } = {}) => {
+  const numericValues = values.filter((value) => Number.isFinite(value));
+  if (!numericValues.length) {
+    return {
+      beginAtZero: includeZero,
+      ticks: {
+        maxTicksLimit: 6,
+        callback: (value) => formatCompactCurrency(Number(value)),
+      },
+    };
+  }
+
+  const minValue = Math.min(...numericValues);
+  const maxValue = Math.max(...numericValues);
+  const range = Math.max(maxValue - minValue, 1);
+  const padding = range * 0.1;
+
+  let min = minValue - padding;
+  let max = maxValue + padding;
+
+  if (includeZero) {
+    min = Math.min(0, min);
+    max = Math.max(0, max);
+  }
+
+  return {
+    min,
+    max,
+    ticks: {
+      maxTicksLimit: 6,
+      callback: (value) => formatCompactCurrency(Number(value)),
+    },
+  };
+};
+
 const renderCharts = (rows) => {
   const labels = rows.map((row) =>
     row.activity !== "Unspecified" ? `${row.activityId} - ${row.activity}` : row.activityId
@@ -215,9 +266,7 @@ const renderCharts = (rows) => {
       },
       scales: {
         y: {
-          ticks: {
-            callback: (value) => formatCurrency(Number(value)),
-          },
+          ...createValueAxisConfig(cvValues, { includeZero: true }),
         },
       },
     },
@@ -255,9 +304,10 @@ const renderCharts = (rows) => {
       },
       scales: {
         y: {
-          ticks: {
-            callback: (value) => formatCurrency(Number(value)),
-          },
+          ...createValueAxisConfig(
+            rows.flatMap((row) => [row.plannedCost, row.actualCost]),
+            { includeZero: true }
+          ),
         },
       },
     },
