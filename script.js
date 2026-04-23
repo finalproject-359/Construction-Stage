@@ -7,9 +7,6 @@ const statusCardEl = document.getElementById("statusCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
 
-let cvChart;
-let planActualChart;
-
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
     style: "currency",
@@ -196,143 +193,6 @@ const renderTable = (rows) => {
     .join("");
 };
 
-const destroyChart = (chart) => {
-  if (chart) chart.destroy();
-};
-
-const getNiceStepSize = (range, targetTickCount = 5) => {
-  const safeRange = Math.max(range, 1);
-  const roughStep = safeRange / Math.max(targetTickCount - 1, 1);
-  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const normalized = roughStep / magnitude;
-
-  if (normalized <= 1) return 1 * magnitude;
-  if (normalized <= 2) return 2 * magnitude;
-  if (normalized <= 5) return 5 * magnitude;
-  return 10 * magnitude;
-};
-
-const createValueAxisConfig = (values, { includeZero = false } = {}) => {
-  const numericValues = values.filter((value) => Number.isFinite(value));
-  if (!numericValues.length) {
-    return {
-      beginAtZero: includeZero,
-      ticks: {
-        maxTicksLimit: 6,
-        callback: (value) => formatCompactCurrency(Number(value)),
-      },
-    };
-  }
-
-  let minValue = Math.min(...numericValues);
-  let maxValue = Math.max(...numericValues);
-
-  if (includeZero) {
-    minValue = Math.min(0, minValue);
-    maxValue = Math.max(0, maxValue);
-  }
-
-  const range = Math.max(maxValue - minValue, 1);
-  const stepSize = getNiceStepSize(range);
-
-  let min = Math.floor(minValue / stepSize) * stepSize;
-  let max = Math.ceil(maxValue / stepSize) * stepSize;
-
-  if (min === max) {
-    min -= stepSize;
-    max += stepSize;
-  }
-
-  return {
-    min,
-    max,
-    ticks: {
-      stepSize,
-      maxTicksLimit: 8,
-      callback: (value) => formatCompactCurrency(Number(value)),
-    },
-  };
-};
-
-const renderCharts = (rows) => {
-  const labels = rows.map((row) =>
-    row.activity !== "Unspecified" ? `${row.activityId} - ${row.activity}` : row.activityId
-  );
-  const cvValues = rows.map((row) => row.cv);
-
-  destroyChart(cvChart);
-  destroyChart(planActualChart);
-
-  cvChart = new Chart(document.getElementById("cvChart"), {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "Cost Variance (CV)",
-          data: cvValues,
-          backgroundColor: cvValues.map((value) => (value >= 0 ? "rgba(5, 150, 105, 0.75)" : "rgba(220, 38, 38, 0.75)")),
-          borderColor: cvValues.map((value) => (value >= 0 ? "rgba(5, 150, 105, 1)" : "rgba(220, 38, 38, 1)")),
-          borderWidth: 1,
-          borderRadius: 4,
-        },
-      ],
-    },
-    options: {
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-      },
-      scales: {
-        y: {
-          ...createValueAxisConfig(cvValues, { includeZero: true }),
-        },
-      },
-    },
-  });
-
-  planActualChart = new Chart(document.getElementById("planActualChart"), {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "Planned Cost",
-          data: rows.map((row) => row.plannedCost),
-          backgroundColor: "rgba(37, 99, 235, 0.75)",
-          borderColor: "rgba(37, 99, 235, 1)",
-          borderWidth: 1,
-          borderRadius: 4,
-        },
-        {
-          label: "Actual Cost",
-          data: rows.map((row) => row.actualCost),
-          backgroundColor: "rgba(245, 158, 11, 0.75)",
-          borderColor: "rgba(245, 158, 11, 1)",
-          borderWidth: 1,
-          borderRadius: 4,
-        },
-      ],
-    },
-    options: {
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: "top",
-        },
-      },
-      scales: {
-        y: {
-          ...createValueAxisConfig(
-            rows.flatMap((row) => [row.plannedCost, row.actualCost]),
-            { includeZero: false }
-          ),
-        },
-      },
-    },
-  });
-};
-
 const showMessage = (text, isError = false) => {
   messageEl.textContent = text;
   messageEl.style.color = isError ? "#dc2626" : "#6b7280";
@@ -355,7 +215,6 @@ const processWorkbook = (arrayBuffer) => {
 
   renderKpis(totals);
   renderTable(rows);
-  renderCharts(rows);
 
   const sourceLabel =
     totalSource === "activity-id-rows"
