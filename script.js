@@ -34,6 +34,8 @@ const normalize = (value, fallback = "N/A") => {
   return String(value).trim() || fallback;
 };
 
+const formatPercent = (value) => `${parseNumber(value).toFixed(1)}%`;
+
 const normalizeHeader = (value) =>
   String(value)
     .toLowerCase()
@@ -110,10 +112,8 @@ const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row) => ({
       projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
-      activityId: normalize(
-        getCell(row, ["activity id", "activity", "activity name", "id", "activityid"]),
-        "Unspecified"
-      ),
+      activityId: normalize(getCell(row, ["activity id", "id", "activityid"]), "Unspecified"),
+      activity: normalize(getCell(row, ["activity", "activity name"]), "Unspecified"),
       plannedCost: parseNumber(
         getCell(row, [
           "planned cost",
@@ -129,7 +129,15 @@ const extractDashboardRows = (rawRows) =>
         getCell(row, ["actual cost", "actual cost (ac)", "actual", "ac", "actualcost"])
       ),
       ev: parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])),
-      cv: parseNumber(getCell(row, ["cost variance (cv)", "cost variance", "cv"])),
+      percentComplete: parseNumber(getCell(row, ["% complete", "percent complete", "complete %"])),
+      cv:
+        parseNumber(getCell(row, ["cost variance (cv)", "cost variance", "cv"])) ||
+        parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])) -
+          parseNumber(getCell(row, ["actual cost", "actual cost (ac)", "actual", "ac", "actualcost"])),
+      costUsedPercent: parseNumber(getCell(row, ["% cost used", "cost used %", "percent cost used"])),
+      budgetVariancePercent: parseNumber(
+        getCell(row, ["budget variance %", "budget variance percent", "variance %"])
+      ),
       budgetStatus: normalize(
         getCell(row, ["budget status", "status"]),
         "Not provided"
@@ -142,7 +150,10 @@ const extractDashboardRows = (rawRows) =>
         row.plannedCost ||
         row.actualCost ||
         row.cv ||
-        row.ev
+        row.ev ||
+        row.percentComplete ||
+        row.costUsedPercent ||
+        row.budgetVariancePercent
     );
 
 const calculateTotalsFromRows = (rows) =>
@@ -222,7 +233,8 @@ const renderKpis = (totals) => {
 
 const renderTable = (rows) => {
   if (!rows.length) {
-    tableBodyEl.innerHTML = '<tr><td colspan="6" class="placeholder">No valid rows found in Dashboard sheet.</td></tr>';
+    tableBodyEl.innerHTML =
+      '<tr><td colspan="10" class="placeholder">No valid rows found in Dashboard sheet.</td></tr>';
     return;
   }
 
@@ -231,10 +243,14 @@ const renderTable = (rows) => {
       (row) => `
       <tr>
         <td>${row.activityId}</td>
+        <td>${row.activity}</td>
         <td>${formatCurrency(row.plannedCost)}</td>
         <td>${formatCurrency(row.actualCost)}</td>
         <td>${formatCurrency(row.ev)}</td>
+        <td>${formatPercent(row.percentComplete)}</td>
         <td>${formatCurrency(row.cv)}</td>
+        <td>${formatPercent(row.costUsedPercent)}</td>
+        <td>${formatPercent(row.budgetVariancePercent)}</td>
         <td>${row.budgetStatus}</td>
       </tr>
     `
@@ -247,7 +263,9 @@ const destroyChart = (chart) => {
 };
 
 const renderCharts = (rows) => {
-  const labels = rows.map((row) => row.activityId);
+  const labels = rows.map((row) =>
+    row.activity !== "Unspecified" ? `${row.activityId} - ${row.activity}` : row.activityId
+  );
   const cvValues = rows.map((row) => row.cv);
 
   destroyChart(cvChart);
