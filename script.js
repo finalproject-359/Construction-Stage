@@ -7,6 +7,11 @@ const statusCardEl = document.getElementById("statusCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
 
+const chartDependencyWarning =
+  typeof window.Chart === "undefined"
+    ? "Chart.js is not available. Charts will be skipped until the dependency loads."
+    : "";
+
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
     style: "currency",
@@ -221,7 +226,8 @@ const processWorkbook = (arrayBuffer) => {
       ? "activity rows with valid Activity ID"
       : "sum of activity rows";
 
-  showMessage(`Loaded ${rows.length} activity row(s). KPI totals source: ${sourceLabel}.`);
+  const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
+  showMessage(`Loaded ${rows.length} activity row(s). KPI totals source: ${sourceLabel}.${dependencySuffix}`);
 };
 
 fileInput.addEventListener("change", async (event) => {
@@ -232,6 +238,11 @@ fileInput.addEventListener("change", async (event) => {
     const buffer = await file.arrayBuffer();
     processWorkbook(buffer);
   } catch (error) {
-    showMessage(`Error reading file: ${error.message}`, true);
+    const isChartReferenceError =
+      error instanceof ReferenceError && /chart is not defined/i.test(error.message);
+    const errorText = isChartReferenceError
+      ? "Error reading file: Chart.js failed to load (Chart is not defined). Please refresh and try again."
+      : `Error reading file: ${error.message}`;
+    showMessage(errorText, true);
   }
 });
