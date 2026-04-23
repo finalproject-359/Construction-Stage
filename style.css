@@ -72,8 +72,7 @@ h1 {
   opacity: 0.95;
 }
 
-.kpi-grid,
-.charts-grid {
+.kpi-grid {
   display: grid;
   gap: 14px;
   margin-top: 14px;
@@ -84,7 +83,6 @@ h1 {
 }
 
 .kpi-card,
-.chart-panel,
 .table-panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -132,11 +130,6 @@ h1 {
   color: var(--red);
 }
 
-.charts-grid {
-  grid-template-columns: repeat(2, minmax(260px, 1fr));
-}
-
-.chart-panel,
 .table-panel {
   padding: 16px;
 }
@@ -151,11 +144,6 @@ h1 {
 h3 {
   margin: 0;
   font-size: 1rem;
-}
-
-.chart-panel canvas {
-  width: 100%;
-  height: 320px;
 }
 
 .table-panel {
@@ -201,10 +189,6 @@ th {
 @media (max-width: 980px) {
   .kpi-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
-  }
-
-  .charts-grid {
-    grid-template-columns: 1fr;
   }
 }
 
