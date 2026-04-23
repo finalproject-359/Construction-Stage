@@ -61,6 +61,17 @@ const normalizeHeader = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const EXPECTED_HEADER_ALIASES = [
+  "activity id",
+  "activity",
+  "planned value",
+  "actual cost",
+  "earned value",
+  "complete",
+  "cost variance",
+  "budget",
+];
+
 const getCell = (row, aliases) => {
   const normalizedAliases = aliases.map((alias) => normalizeHeader(alias));
   for (const key of Object.keys(row)) {
@@ -87,6 +98,37 @@ const isValidActivityId = (value) => {
   const normalizedValue = String(value).trim();
   if (!normalizedValue) return false;
   return !isSummaryLabel(normalizedValue);
+};
+
+const findHeaderRowIndex = (sheet) => {
+  const rows = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    defval: "",
+    blankrows: false,
+    raw: false,
+  });
+
+  if (!rows.length) return 0;
+
+  let bestIndex = 0;
+  let bestScore = 0;
+
+  rows.forEach((row, index) => {
+    const normalizedCells = row.map((cell) => normalizeHeader(cell)).filter(Boolean);
+    if (!normalizedCells.length) return;
+
+    const score = EXPECTED_HEADER_ALIASES.reduce((count, alias) => {
+      const hasAlias = normalizedCells.some((cell) => cell.includes(alias));
+      return count + (hasAlias ? 1 : 0);
+    }, 0);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  return bestIndex;
 };
 
 const extractDashboardRows = (rawRows) =>
@@ -215,7 +257,11 @@ const processWorkbook = (arrayBuffer) => {
     return;
   }
 
-  const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  const headerRowIndex = findHeaderRowIndex(sheet);
+  const rawRows = XLSX.utils.sheet_to_json(sheet, {
+    defval: "",
+    range: headerRowIndex,
+  });
   const { rows, totals, totalSource } = extractMetrics(rawRows);
 
   renderKpis(totals);
@@ -227,7 +273,11 @@ const processWorkbook = (arrayBuffer) => {
       : "sum of activity rows";
 
   const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
-  showMessage(`Loaded ${rows.length} activity row(s). KPI totals source: ${sourceLabel}.${dependencySuffix}`);
+  const headerMessage =
+    headerRowIndex > 0 ? ` Detected headers on row ${headerRowIndex + 1}.` : "";
+  showMessage(
+    `Loaded ${rows.length} activity row(s). KPI totals source: ${sourceLabel}.${headerMessage}${dependencySuffix}`
+  );
 };
 
 fileInput.addEventListener("change", async (event) => {
