@@ -34,10 +34,18 @@ const normalize = (value, fallback = "N/A") => {
   return String(value).trim() || fallback;
 };
 
+const normalizeHeader = (value) =>
+  String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const getCell = (row, aliases) => {
+  const normalizedAliases = aliases.map((alias) => normalizeHeader(alias));
   for (const key of Object.keys(row)) {
-    const normalizedKey = key.toLowerCase().replace(/\s+/g, " ").trim();
-    if (aliases.includes(normalizedKey)) {
+    const normalizedKey = normalizeHeader(key);
+    if (normalizedAliases.includes(normalizedKey)) {
       return row[key];
     }
   }
@@ -101,6 +109,7 @@ const extractTotalsFromSummaryColumns = (row) => {
 const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row) => ({
+      projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
       activityId: normalize(
         getCell(row, ["activity id", "activity", "activity name", "id", "activityid"]),
         "Unspecified"
@@ -126,7 +135,15 @@ const extractDashboardRows = (rawRows) =>
         "Not provided"
       ),
     }))
-    .filter((row) => row.activityId !== "Unspecified" || row.plannedCost || row.actualCost || row.cv || row.ev);
+    .filter(
+      (row) =>
+        row.activityId !== "Unspecified" ||
+        row.projectId !== "Unspecified" ||
+        row.plannedCost ||
+        row.actualCost ||
+        row.cv ||
+        row.ev
+    );
 
 const calculateTotalsFromRows = (rows) =>
   rows.reduce(
@@ -142,8 +159,12 @@ const calculateTotalsFromRows = (rows) =>
 const extractMetrics = (rawRows) => {
   const rows = extractDashboardRows(rawRows);
 
-  const summaryRow = rows.find((row) => isSummaryLabel(row.activityId));
-  const detailRows = rows.filter((row) => !isSummaryLabel(row.activityId));
+  const summaryRow = rows.find(
+    (row) => isSummaryLabel(row.activityId) || isSummaryLabel(row.projectId)
+  );
+  const detailRows = rows.filter(
+    (row) => !isSummaryLabel(row.activityId) && !isSummaryLabel(row.projectId)
+  );
 
   if (summaryRow) {
     return {
