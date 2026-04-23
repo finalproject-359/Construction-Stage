@@ -21,9 +21,12 @@ const formatCurrency = (value) =>
 const parseNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  const cleaned = String(value).replace(/[^0-9.-]/g, "");
+  const stringValue = String(value).trim();
+  const isAccountingNegative = /^\(.*\)$/.test(stringValue);
+  const cleaned = stringValue.replace(/[^0-9.-]/g, "");
   const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : 0;
+  if (!Number.isFinite(parsed)) return 0;
+  return isAccountingNegative ? -Math.abs(parsed) : parsed;
 };
 
 const normalize = (value, fallback = "N/A") => {
@@ -31,10 +34,18 @@ const normalize = (value, fallback = "N/A") => {
   return String(value).trim() || fallback;
 };
 
+const normalizeHeader = (value) =>
+  String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const getCell = (row, aliases) => {
+  const normalizedAliases = aliases.map((alias) => normalizeHeader(alias));
   for (const key of Object.keys(row)) {
-    const normalizedKey = key.toLowerCase().replace(/\s+/g, " ").trim();
-    if (aliases.includes(normalizedKey)) {
+    const normalizedKey = normalizeHeader(key);
+    if (normalizedAliases.includes(normalizedKey)) {
       return row[key];
     }
   }
@@ -55,19 +66,27 @@ const extractTotalsFromSummaryColumns = (row) => {
   const totalPlanned = parseNumber(
     getCell(row, [
       "total planned cost",
+      "total planned value",
+      "total planned value (pv)",
       "planned total",
       "total planned",
       "overall planned cost",
+      "overall planned value",
       "overall planned",
+      "overall pv",
+      "total pv",
     ])
   );
   const totalActual = parseNumber(
     getCell(row, [
       "total actual cost",
+      "total actual cost (ac)",
       "actual total",
       "total actual",
       "overall actual cost",
       "overall actual",
+      "overall ac",
+      "total ac",
     ])
   );
   const totalCv = parseNumber(
@@ -90,14 +109,25 @@ const extractTotalsFromSummaryColumns = (row) => {
 const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row) => ({
+      projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
       activityId: normalize(
-        getCell(row, ["activity id", "activity", "id", "activityid"]),
+        getCell(row, ["activity id", "activity", "activity name", "id", "activityid"]),
         "Unspecified"
       ),
       plannedCost: parseNumber(
-        getCell(row, ["planned cost", "planned", "plannedcost", "budgeted cost"])
+        getCell(row, [
+          "planned cost",
+          "planned value",
+          "planned value (pv)",
+          "planned",
+          "pv",
+          "plannedcost",
+          "budgeted cost",
+        ])
       ),
-      actualCost: parseNumber(getCell(row, ["actual cost", "actual", "actualcost"])),
+      actualCost: parseNumber(
+        getCell(row, ["actual cost", "actual cost (ac)", "actual", "ac", "actualcost"])
+      ),
       ev: parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])),
       cv: parseNumber(getCell(row, ["cost variance (cv)", "cost variance", "cv"])),
       budgetStatus: normalize(
@@ -105,7 +135,15 @@ const extractDashboardRows = (rawRows) =>
         "Not provided"
       ),
     }))
-    .filter((row) => row.activityId !== "Unspecified" || row.plannedCost || row.actualCost || row.cv || row.ev);
+    .filter(
+      (row) =>
+        row.activityId !== "Unspecified" ||
+        row.projectId !== "Unspecified" ||
+        row.plannedCost ||
+        row.actualCost ||
+        row.cv ||
+        row.ev
+    );
 
 const calculateTotalsFromRows = (rows) =>
   rows.reduce(
@@ -121,8 +159,12 @@ const calculateTotalsFromRows = (rows) =>
 const extractMetrics = (rawRows) => {
   const rows = extractDashboardRows(rawRows);
 
-  const summaryRow = rows.find((row) => isSummaryLabel(row.activityId));
-  const detailRows = rows.filter((row) => !isSummaryLabel(row.activityId));
+  const summaryRow = rows.find(
+    (row) => isSummaryLabel(row.activityId) || isSummaryLabel(row.projectId)
+  );
+  const detailRows = rows.filter(
+    (row) => !isSummaryLabel(row.activityId) && !isSummaryLabel(row.projectId)
+  );
 
   if (summaryRow) {
     return {
@@ -289,7 +331,10 @@ const showMessage = (text, isError = false) => {
 
 const processWorkbook = (arrayBuffer) => {
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
-  const sheet = workbook.Sheets["Dashboard"];
+  const preferredSheetName = workbook.SheetNames.find(
+    (name) => name.trim().toLowerCase() === "dashboard"
+  );
+  const sheet = workbook.Sheets[preferredSheetName || "Dashboard"];
 
   if (!sheet) {
     showMessage('Sheet "Dashboard" not found. Please upload the correct file.', true);
