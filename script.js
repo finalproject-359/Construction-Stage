@@ -61,6 +61,8 @@ const normalizeHeader = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const compactHeader = (value) => normalizeHeader(value).replace(/\s+/g, "");
+
 const EXPECTED_HEADER_ALIASES = [
   "activity id",
   "activity",
@@ -74,9 +76,22 @@ const EXPECTED_HEADER_ALIASES = [
 
 const getCell = (row, aliases) => {
   const normalizedAliases = aliases.map((alias) => normalizeHeader(alias));
+  const compactAliases = normalizedAliases.map((alias) => alias.replace(/\s+/g, ""));
   for (const key of Object.keys(row)) {
     const normalizedKey = normalizeHeader(key);
-    if (normalizedAliases.includes(normalizedKey)) {
+    const normalizedKeyCompact = compactHeader(key);
+    const matched = normalizedAliases.some((alias, index) => {
+      const aliasCompact = compactAliases[index];
+      return (
+        normalizedKey === alias ||
+        normalizedKey.includes(alias) ||
+        alias.includes(normalizedKey) ||
+        normalizedKeyCompact === aliasCompact ||
+        normalizedKeyCompact.includes(aliasCompact) ||
+        aliasCompact.includes(normalizedKeyCompact)
+      );
+    });
+    if (matched) {
       return row[key];
     }
   }
@@ -134,7 +149,10 @@ const findHeaderRowIndex = (sheet) => {
 const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row) => {
-      const activityId = normalize(getCell(row, ["activity id", "id", "activityid"]), "");
+      const activityId = normalize(
+        getCell(row, ["activity id", "id", "activityid", "activity code", "wbs", "task id"]),
+        ""
+      );
       if (!isValidActivityId(activityId)) return null;
 
       const plannedCost = parseNumber(
@@ -142,14 +160,24 @@ const extractDashboardRows = (rawRows) =>
           "planned cost",
           "planned value",
           "planned value (pv)",
+          "planned value pv",
           "planned",
           "pv",
           "plannedcost",
+          "budget",
+          "budget value",
           "budgeted cost",
         ])
       );
       const actualCost = parseNumber(
-        getCell(row, ["actual cost", "actual cost (ac)", "actual", "ac", "actualcost"])
+        getCell(row, [
+          "actual cost",
+          "actual cost (ac)",
+          "actual cost ac",
+          "actual",
+          "ac",
+          "actualcost",
+        ])
       );
       const computedCv = plannedCost - actualCost;
 
@@ -159,15 +187,32 @@ const extractDashboardRows = (rawRows) =>
         activity: normalize(getCell(row, ["activity", "activity name"]), "Unspecified"),
         plannedCost,
         actualCost,
-        ev: parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])),
-        percentComplete: parseNumber(getCell(row, ["% complete", "percent complete", "complete %"])),
+        ev: parseNumber(
+          getCell(row, ["earned value (ev)", "earned value ev", "earned value", "ev"])
+        ),
+        percentComplete: parseNumber(
+          getCell(row, [
+            "% complete",
+            "percent complete",
+            "complete %",
+            "completion %",
+            "progress %",
+          ])
+        ),
         cv: computedCv,
         costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
         budgetVariancePercent: plannedCost ? (computedCv / plannedCost) * 100 : 0,
         budgetStatus: computedCv >= 0 ? "On Budget" : "Over Budget",
       };
     })
-    .filter(Boolean);
+    .filter(
+      (row) =>
+        row &&
+        (row.plannedCost !== 0 ||
+          row.actualCost !== 0 ||
+          row.ev !== 0 ||
+          row.percentComplete !== 0)
+    );
 
 const calculateTotalsFromRows = (rows) =>
   rows.reduce(
