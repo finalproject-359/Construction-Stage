@@ -21,9 +21,12 @@ const formatCurrency = (value) =>
 const parseNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  const cleaned = String(value).replace(/[^0-9.-]/g, "");
+  const stringValue = String(value).trim();
+  const isAccountingNegative = /^\(.*\)$/.test(stringValue);
+  const cleaned = stringValue.replace(/[^0-9.-]/g, "");
   const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : 0;
+  if (!Number.isFinite(parsed)) return 0;
+  return isAccountingNegative ? -Math.abs(parsed) : parsed;
 };
 
 const normalize = (value, fallback = "N/A") => {
@@ -55,19 +58,27 @@ const extractTotalsFromSummaryColumns = (row) => {
   const totalPlanned = parseNumber(
     getCell(row, [
       "total planned cost",
+      "total planned value",
+      "total planned value (pv)",
       "planned total",
       "total planned",
       "overall planned cost",
+      "overall planned value",
       "overall planned",
+      "overall pv",
+      "total pv",
     ])
   );
   const totalActual = parseNumber(
     getCell(row, [
       "total actual cost",
+      "total actual cost (ac)",
       "actual total",
       "total actual",
       "overall actual cost",
       "overall actual",
+      "overall ac",
+      "total ac",
     ])
   );
   const totalCv = parseNumber(
@@ -91,13 +102,23 @@ const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row) => ({
       activityId: normalize(
-        getCell(row, ["activity id", "activity", "id", "activityid"]),
+        getCell(row, ["activity id", "activity", "activity name", "id", "activityid"]),
         "Unspecified"
       ),
       plannedCost: parseNumber(
-        getCell(row, ["planned cost", "planned", "plannedcost", "budgeted cost"])
+        getCell(row, [
+          "planned cost",
+          "planned value",
+          "planned value (pv)",
+          "planned",
+          "pv",
+          "plannedcost",
+          "budgeted cost",
+        ])
       ),
-      actualCost: parseNumber(getCell(row, ["actual cost", "actual", "actualcost"])),
+      actualCost: parseNumber(
+        getCell(row, ["actual cost", "actual cost (ac)", "actual", "ac", "actualcost"])
+      ),
       ev: parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])),
       cv: parseNumber(getCell(row, ["cost variance (cv)", "cost variance", "cv"])),
       budgetStatus: normalize(
@@ -289,7 +310,10 @@ const showMessage = (text, isError = false) => {
 
 const processWorkbook = (arrayBuffer) => {
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
-  const sheet = workbook.Sheets["Dashboard"];
+  const preferredSheetName = workbook.SheetNames.find(
+    (name) => name.trim().toLowerCase() === "dashboard"
+  );
+  const sheet = workbook.Sheets[preferredSheetName || "Dashboard"];
 
   if (!sheet) {
     showMessage('Sheet "Dashboard" not found. Please upload the correct file.', true);
