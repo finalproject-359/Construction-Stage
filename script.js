@@ -11,9 +11,9 @@ let cvChart;
 let planActualChart;
 
 const formatCurrency = (value) =>
-  new Intl.NumberFormat("en-US", {
+  new Intl.NumberFormat("en-PH", {
     style: "currency",
-    currency: "USD",
+    currency: "PHP",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0);
@@ -64,57 +64,20 @@ const isSummaryLabel = (value) => {
   );
 };
 
-const extractTotalsFromSummaryColumns = (row) => {
-  const totalPlanned = parseNumber(
-    getCell(row, [
-      "total planned cost",
-      "total planned value",
-      "total planned value (pv)",
-      "planned total",
-      "total planned",
-      "overall planned cost",
-      "overall planned value",
-      "overall planned",
-      "overall pv",
-      "total pv",
-    ])
-  );
-  const totalActual = parseNumber(
-    getCell(row, [
-      "total actual cost",
-      "total actual cost (ac)",
-      "actual total",
-      "total actual",
-      "overall actual cost",
-      "overall actual",
-      "overall ac",
-      "total ac",
-    ])
-  );
-  const totalCv = parseNumber(
-    getCell(row, [
-      "total cost variance",
-      "total cost variance (cv)",
-      "total cv",
-      "overall cv",
-      "overall cost variance",
-    ])
-  );
-
-  if (totalPlanned || totalActual || totalCv) {
-    return { planned: totalPlanned, actual: totalActual, cv: totalCv };
-  }
-
-  return null;
+const isValidActivityId = (value) => {
+  if (value === null || value === undefined) return false;
+  const normalizedValue = String(value).trim();
+  if (!normalizedValue) return false;
+  return !isSummaryLabel(normalizedValue);
 };
 
 const extractDashboardRows = (rawRows) =>
   rawRows
-    .map((row) => ({
-      projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
-      activityId: normalize(getCell(row, ["activity id", "id", "activityid"]), "Unspecified"),
-      activity: normalize(getCell(row, ["activity", "activity name"]), "Unspecified"),
-      plannedCost: parseNumber(
+    .map((row) => {
+      const activityId = normalize(getCell(row, ["activity id", "id", "activityid"]), "");
+      if (!isValidActivityId(activityId)) return null;
+
+      const plannedCost = parseNumber(
         getCell(row, [
           "planned cost",
           "planned value",
@@ -124,37 +87,27 @@ const extractDashboardRows = (rawRows) =>
           "plannedcost",
           "budgeted cost",
         ])
-      ),
-      actualCost: parseNumber(
+      );
+      const actualCost = parseNumber(
         getCell(row, ["actual cost", "actual cost (ac)", "actual", "ac", "actualcost"])
-      ),
-      ev: parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])),
-      percentComplete: parseNumber(getCell(row, ["% complete", "percent complete", "complete %"])),
-      cv:
-        parseNumber(getCell(row, ["cost variance (cv)", "cost variance", "cv"])) ||
-        parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])) -
-          parseNumber(getCell(row, ["actual cost", "actual cost (ac)", "actual", "ac", "actualcost"])),
-      costUsedPercent: parseNumber(getCell(row, ["% cost used", "cost used %", "percent cost used"])),
-      budgetVariancePercent: parseNumber(
-        getCell(row, ["budget variance %", "budget variance percent", "variance %"])
-      ),
-      budgetStatus: normalize(
-        getCell(row, ["budget status", "status"]),
-        "Not provided"
-      ),
-    }))
-    .filter(
-      (row) =>
-        row.activityId !== "Unspecified" ||
-        row.projectId !== "Unspecified" ||
-        row.plannedCost ||
-        row.actualCost ||
-        row.cv ||
-        row.ev ||
-        row.percentComplete ||
-        row.costUsedPercent ||
-        row.budgetVariancePercent
-    );
+      );
+      const computedCv = plannedCost - actualCost;
+
+      return {
+        projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
+        activityId,
+        activity: normalize(getCell(row, ["activity", "activity name"]), "Unspecified"),
+        plannedCost,
+        actualCost,
+        ev: parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])),
+        percentComplete: parseNumber(getCell(row, ["% complete", "percent complete", "complete %"])),
+        cv: computedCv,
+        costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
+        budgetVariancePercent: plannedCost ? (computedCv / plannedCost) * 100 : 0,
+        budgetStatus: computedCv >= 0 ? "On Budget" : "Over Budget",
+      };
+    })
+    .filter(Boolean);
 
 const calculateTotalsFromRows = (rows) =>
   rows.reduce(
@@ -169,41 +122,10 @@ const calculateTotalsFromRows = (rows) =>
 
 const extractMetrics = (rawRows) => {
   const rows = extractDashboardRows(rawRows);
-
-  const summaryRow = rows.find(
-    (row) => isSummaryLabel(row.activityId) || isSummaryLabel(row.projectId)
-  );
-  const detailRows = rows.filter(
-    (row) => !isSummaryLabel(row.activityId) && !isSummaryLabel(row.projectId)
-  );
-
-  if (summaryRow) {
-    return {
-      rows: detailRows,
-      totals: {
-        planned: summaryRow.plannedCost,
-        actual: summaryRow.actualCost,
-        cv: summaryRow.cv,
-      },
-      totalSource: "summary-row",
-    };
-  }
-
-  for (const rawRow of rawRows) {
-    const totals = extractTotalsFromSummaryColumns(rawRow);
-    if (totals) {
-      return {
-        rows: detailRows.length ? detailRows : rows,
-        totals,
-        totalSource: "summary-columns",
-      };
-    }
-  }
-
   return {
-    rows: detailRows.length ? detailRows : rows,
-    totals: calculateTotalsFromRows(detailRows.length ? detailRows : rows),
-    totalSource: "detail-sum",
+    rows,
+    totals: calculateTotalsFromRows(rows),
+    totalSource: "activity-id-rows",
   };
 };
 
@@ -220,10 +142,10 @@ const renderKpis = (totals) => {
 
   statusCardEl.classList.remove("status-under", "status-over");
 
-  if (safeTotals.cv > 0) {
+  if (safeTotals.actual < safeTotals.planned) {
     projectStatusEl.textContent = "Under Budget";
     statusCardEl.classList.add("status-under");
-  } else if (safeTotals.cv < 0) {
+  } else if (safeTotals.actual > safeTotals.planned) {
     projectStatusEl.textContent = "Over Budget";
     statusCardEl.classList.add("status-over");
   } else {
@@ -367,11 +289,9 @@ const processWorkbook = (arrayBuffer) => {
   renderCharts(rows);
 
   const sourceLabel =
-    totalSource === "summary-row"
-      ? "Dashboard total row"
-      : totalSource === "summary-columns"
-        ? "Dashboard total columns"
-        : "sum of activity rows";
+    totalSource === "activity-id-rows"
+      ? "activity rows with valid Activity ID"
+      : "sum of activity rows";
 
   showMessage(`Loaded ${rows.length} activity row(s). KPI totals source: ${sourceLabel}.`);
 };
