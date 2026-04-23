@@ -41,6 +41,52 @@ const getCell = (row, aliases) => {
   return null;
 };
 
+const isSummaryLabel = (value) => {
+  const text = normalize(value, "").toLowerCase();
+  return (
+    text.includes("total") ||
+    text.includes("summary") ||
+    text.includes("grand total") ||
+    text.includes("overall")
+  );
+};
+
+const extractTotalsFromSummaryColumns = (row) => {
+  const totalPlanned = parseNumber(
+    getCell(row, [
+      "total planned cost",
+      "planned total",
+      "total planned",
+      "overall planned cost",
+      "overall planned",
+    ])
+  );
+  const totalActual = parseNumber(
+    getCell(row, [
+      "total actual cost",
+      "actual total",
+      "total actual",
+      "overall actual cost",
+      "overall actual",
+    ])
+  );
+  const totalCv = parseNumber(
+    getCell(row, [
+      "total cost variance",
+      "total cost variance (cv)",
+      "total cv",
+      "overall cv",
+      "overall cost variance",
+    ])
+  );
+
+  if (totalPlanned || totalActual || totalCv) {
+    return { planned: totalPlanned, actual: totalActual, cv: totalCv };
+  }
+
+  return null;
+};
+
 const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row) => ({
@@ -61,8 +107,8 @@ const extractDashboardRows = (rawRows) =>
     }))
     .filter((row) => row.activityId !== "Unspecified" || row.plannedCost || row.actualCost || row.cv || row.ev);
 
-const renderKpis = (rows) => {
-  const totals = rows.reduce(
+const calculateTotalsFromRows = (rows) =>
+  rows.reduce(
     (acc, row) => {
       acc.planned += row.plannedCost;
       acc.actual += row.actualCost;
@@ -72,16 +118,59 @@ const renderKpis = (rows) => {
     { planned: 0, actual: 0, cv: 0 }
   );
 
-  totalPlannedEl.textContent = formatCurrency(totals.planned);
-  totalActualEl.textContent = formatCurrency(totals.actual);
-  totalCvEl.textContent = formatCurrency(totals.cv);
+const extractMetrics = (rawRows) => {
+  const rows = extractDashboardRows(rawRows);
+
+  const summaryRow = rows.find((row) => isSummaryLabel(row.activityId));
+  const detailRows = rows.filter((row) => !isSummaryLabel(row.activityId));
+
+  if (summaryRow) {
+    return {
+      rows: detailRows,
+      totals: {
+        planned: summaryRow.plannedCost,
+        actual: summaryRow.actualCost,
+        cv: summaryRow.cv,
+      },
+      totalSource: "summary-row",
+    };
+  }
+
+  for (const rawRow of rawRows) {
+    const totals = extractTotalsFromSummaryColumns(rawRow);
+    if (totals) {
+      return {
+        rows: detailRows.length ? detailRows : rows,
+        totals,
+        totalSource: "summary-columns",
+      };
+    }
+  }
+
+  return {
+    rows: detailRows.length ? detailRows : rows,
+    totals: calculateTotalsFromRows(detailRows.length ? detailRows : rows),
+    totalSource: "detail-sum",
+  };
+};
+
+const renderKpis = (totals) => {
+  const safeTotals = {
+    planned: parseNumber(totals?.planned),
+    actual: parseNumber(totals?.actual),
+    cv: parseNumber(totals?.cv),
+  };
+
+  totalPlannedEl.textContent = formatCurrency(safeTotals.planned);
+  totalActualEl.textContent = formatCurrency(safeTotals.actual);
+  totalCvEl.textContent = formatCurrency(safeTotals.cv);
 
   statusCardEl.classList.remove("status-under", "status-over");
 
-  if (totals.cv > 0) {
+  if (safeTotals.cv > 0) {
     projectStatusEl.textContent = "Under Budget";
     statusCardEl.classList.add("status-under");
-  } else if (totals.cv < 0) {
+  } else if (safeTotals.cv < 0) {
     projectStatusEl.textContent = "Over Budget";
     statusCardEl.classList.add("status-over");
   } else {
@@ -208,13 +297,20 @@ const processWorkbook = (arrayBuffer) => {
   }
 
   const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-  const rows = extractDashboardRows(rawRows);
+  const { rows, totals, totalSource } = extractMetrics(rawRows);
 
-  renderKpis(rows);
+  renderKpis(totals);
   renderTable(rows);
   renderCharts(rows);
 
-  showMessage(`Loaded ${rows.length} activity row(s) from Dashboard sheet.`);
+  const sourceLabel =
+    totalSource === "summary-row"
+      ? "Dashboard total row"
+      : totalSource === "summary-columns"
+        ? "Dashboard total columns"
+        : "sum of activity rows";
+
+  showMessage(`Loaded ${rows.length} activity row(s). KPI totals source: ${sourceLabel}.`);
 };
 
 fileInput.addEventListener("change", async (event) => {
