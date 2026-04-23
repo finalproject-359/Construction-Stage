@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BuildFlow | Financial Dashboard</title>
+  <title>Construction Financial Analytics Dashboard</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,110 +15,76 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">▮▮▮</div>
-        <div>
-          <h1>BuildFlow</h1>
-          <p>Construction Finance</p>
-        </div>
+  <div class="page-shell">
+    <header class="topbar">
+      <div>
+        <h1>Financial Performance Dashboard</h1>
+        <p>Upload an Excel file to visualize pre-computed values from the <strong>Dashboard</strong> sheet.</p>
       </div>
+      <label class="upload-btn" for="fileInput">Upload Excel File</label>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" />
+    </header>
 
-      <nav>
-        <a class="nav-link active" href="#">Dashboard</a>
-        <a class="nav-link" href="#">Projects</a>
-        <a class="nav-link" href="#">Activities</a>
-        <a class="nav-link" href="#">Cost Management</a>
-        <a class="nav-link" href="#">Reports</a>
-      </nav>
+    <section class="kpi-grid">
+      <article class="kpi-card">
+        <h2>Total Planned Cost</h2>
+        <p id="totalPlanned">$0.00</p>
+      </article>
+      <article class="kpi-card">
+        <h2>Total Actual Cost</h2>
+        <p id="totalActual">$0.00</p>
+      </article>
+      <article class="kpi-card">
+        <h2>Total Cost Variance</h2>
+        <p id="totalCv">$0.00</p>
+      </article>
+      <article class="kpi-card status-card" id="statusCard">
+        <h2>Project Status</h2>
+        <p id="projectStatus">Awaiting file upload</p>
+      </article>
+    </section>
 
-      <div class="project-card">
-        <p class="mini-label">Current Project</p>
-        <h3>Highland Office Complex</h3>
-        <p class="mini-muted">Project ID: PRJ-2024-001</p>
+    <section class="charts-grid">
+      <article class="chart-panel">
+        <div class="panel-header">
+          <h3>Cost Variance by Activity</h3>
+        </div>
+        <canvas id="cvChart"></canvas>
+      </article>
+      <article class="chart-panel">
+        <div class="panel-header">
+          <h3>Planned vs Actual Cost by Activity</h3>
+        </div>
+        <canvas id="planActualChart"></canvas>
+      </article>
+    </section>
+
+    <section class="table-panel">
+      <div class="panel-header">
+        <h3>Activity Data (from Dashboard sheet)</h3>
       </div>
-    </aside>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Activity ID</th>
+              <th>Planned Cost</th>
+              <th>Actual Cost</th>
+              <th>Earned Value (EV)</th>
+              <th>Cost Variance (CV)</th>
+              <th>Budget Status</th>
+            </tr>
+          </thead>
+          <tbody id="activityTableBody">
+            <tr>
+              <td colspan="6" class="placeholder">No data loaded yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-    <main class="content">
-      <header class="topbar">
-        <div>
-          <h2>Financial Dashboard</h2>
-          <p>Upload cost data from your Excel file (sheet name must be <strong>Dashboard</strong>).</p>
-        </div>
-        <label class="upload-btn" for="fileInput">Upload File</label>
-        <input type="file" id="fileInput" accept=".xlsx,.xls" />
-      </header>
-
-      <section class="kpi-grid">
-        <article class="kpi-card">
-          <p class="kpi-title">Total Planned Cost</p>
-          <h3 id="totalPlanned">$0.00</h3>
-          <span>Baseline Budget</span>
-        </article>
-
-        <article class="kpi-card">
-          <p class="kpi-title">Total Actual Cost</p>
-          <h3 id="totalActual">$0.00</h3>
-          <span>Actual Cost (AC)</span>
-        </article>
-
-        <article class="kpi-card" id="varianceCard">
-          <p class="kpi-title">Total Cost Variance</p>
-          <h3 id="totalCv">$0.00</h3>
-          <span>Sum of all activity CV</span>
-        </article>
-
-        <article class="kpi-card status-card" id="statusCard">
-          <p class="kpi-title">Project Status</p>
-          <h3 id="projectStatus">Awaiting upload</h3>
-          <span id="statusMeta">Upload a workbook to begin.</span>
-        </article>
-      </section>
-
-      <section class="charts-grid">
-        <article class="panel">
-          <div class="panel-head">
-            <h4>Cost Variance per Activity</h4>
-          </div>
-          <canvas id="cvChart"></canvas>
-        </article>
-
-        <article class="panel">
-          <div class="panel-head">
-            <h4>Planned Cost vs Actual Cost</h4>
-          </div>
-          <canvas id="planActualChart"></canvas>
-        </article>
-      </section>
-
-      <section class="panel table-panel">
-        <div class="panel-head">
-          <h4>Activities Overview</h4>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Activity ID</th>
-                <th>Planned Cost</th>
-                <th>Actual Cost</th>
-                <th>Earned Value (EV)</th>
-                <th>Cost Variance (CV)</th>
-                <th>Budget Status</th>
-              </tr>
-            </thead>
-            <tbody id="activityTableBody">
-              <tr>
-                <td class="placeholder" colspan="6">No workbook loaded yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <p id="message" class="message"></p>
-    </main>
+    <p id="message" class="message"></p>
   </div>
 
   <script src="script.js"></script>

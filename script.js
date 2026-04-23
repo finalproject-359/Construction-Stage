@@ -2,9 +2,7 @@ const fileInput = document.getElementById("fileInput");
 const totalPlannedEl = document.getElementById("totalPlanned");
 const totalActualEl = document.getElementById("totalActual");
 const totalCvEl = document.getElementById("totalCv");
-const varianceCardEl = document.getElementById("varianceCard");
 const projectStatusEl = document.getElementById("projectStatus");
-const statusMetaEl = document.getElementById("statusMeta");
 const statusCardEl = document.getElementById("statusCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
@@ -12,7 +10,7 @@ const tableBodyEl = document.getElementById("activityTableBody");
 let cvChart;
 let planActualChart;
 
-const asCurrency = (value) =>
+const formatCurrency = (value) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -28,105 +26,101 @@ const parseNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const normalizeText = (value, fallback = "Not provided") => {
+const normalize = (value, fallback = "N/A") => {
   if (value === null || value === undefined || value === "") return fallback;
-  const str = String(value).trim();
-  return str || fallback;
+  return String(value).trim() || fallback;
 };
 
-const getValueByAliases = (row, aliases) => {
+const getCell = (row, aliases) => {
   for (const key of Object.keys(row)) {
-    const normalized = key.toLowerCase().replace(/\s+/g, " ").trim();
-    if (aliases.includes(normalized)) {
+    const normalizedKey = key.toLowerCase().replace(/\s+/g, " ").trim();
+    if (aliases.includes(normalizedKey)) {
       return row[key];
     }
   }
-  return "";
+  return null;
 };
 
-const extractRows = (rawRows) =>
+const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row) => ({
-      activityId: normalizeText(getValueByAliases(row, ["activity id", "activity", "activityid", "id"]), "Unspecified"),
-      plannedCost: parseNumber(getValueByAliases(row, ["planned cost", "planned", "plannedcost", "planned cost (pv)", "pv"])),
-      actualCost: parseNumber(getValueByAliases(row, ["actual cost", "actual", "actualcost", "actual cost (ac)", "ac"])),
-      earnedValue: parseNumber(getValueByAliases(row, ["earned value", "earned value (ev)", "ev"])),
-      costVariance: parseNumber(getValueByAliases(row, ["cost variance", "cost variance (cv)", "cv"])),
-      budgetStatus: normalizeText(getValueByAliases(row, ["budget status", "status"])),
+      activityId: normalize(
+        getCell(row, ["activity id", "activity", "id", "activityid"]),
+        "Unspecified"
+      ),
+      plannedCost: parseNumber(
+        getCell(row, ["planned cost", "planned", "plannedcost", "budgeted cost"])
+      ),
+      actualCost: parseNumber(getCell(row, ["actual cost", "actual", "actualcost"])),
+      ev: parseNumber(getCell(row, ["earned value (ev)", "earned value", "ev"])),
+      cv: parseNumber(getCell(row, ["cost variance (cv)", "cost variance", "cv"])),
+      budgetStatus: normalize(
+        getCell(row, ["budget status", "status"]),
+        "Not provided"
+      ),
     }))
-    .filter((row) => row.activityId !== "Unspecified" || row.plannedCost || row.actualCost || row.earnedValue || row.costVariance);
+    .filter((row) => row.activityId !== "Unspecified" || row.plannedCost || row.actualCost || row.cv || row.ev);
 
 const renderKpis = (rows) => {
   const totals = rows.reduce(
     (acc, row) => {
-      acc.totalPlanned += row.plannedCost;
-      acc.totalActual += row.actualCost;
-      acc.totalCv += row.costVariance;
+      acc.planned += row.plannedCost;
+      acc.actual += row.actualCost;
+      acc.cv += row.cv;
       return acc;
     },
-    { totalPlanned: 0, totalActual: 0, totalCv: 0 }
+    { planned: 0, actual: 0, cv: 0 }
   );
 
-  totalPlannedEl.textContent = asCurrency(totals.totalPlanned);
-  totalActualEl.textContent = asCurrency(totals.totalActual);
-  totalCvEl.textContent = asCurrency(totals.totalCv);
+  totalPlannedEl.textContent = formatCurrency(totals.planned);
+  totalActualEl.textContent = formatCurrency(totals.actual);
+  totalCvEl.textContent = formatCurrency(totals.cv);
 
-  varianceCardEl.classList.remove("status-under", "status-over");
   statusCardEl.classList.remove("status-under", "status-over");
 
-  if (totals.totalCv > 0) {
+  if (totals.cv > 0) {
     projectStatusEl.textContent = "Under Budget";
-    statusMetaEl.textContent = "Positive total CV";
     statusCardEl.classList.add("status-under");
-    varianceCardEl.classList.add("status-under");
-  } else if (totals.totalCv < 0) {
+  } else if (totals.cv < 0) {
     projectStatusEl.textContent = "Over Budget";
-    statusMetaEl.textContent = "Negative total CV";
     statusCardEl.classList.add("status-over");
-    varianceCardEl.classList.add("status-over");
   } else {
     projectStatusEl.textContent = "On Budget";
-    statusMetaEl.textContent = "Total CV equals 0";
   }
-};
-
-const statusBadgeClass = (row) => {
-  const value = row.budgetStatus.toLowerCase();
-  if (value.includes("under") || row.costVariance > 0) return "good";
-  if (value.includes("over") || row.costVariance < 0) return "bad";
-  return row.costVariance >= 0 ? "good" : "bad";
 };
 
 const renderTable = (rows) => {
   if (!rows.length) {
-    tableBodyEl.innerHTML = '<tr><td class="placeholder" colspan="6">No valid activity rows found in the Dashboard sheet.</td></tr>';
+    tableBodyEl.innerHTML = '<tr><td colspan="6" class="placeholder">No valid rows found in Dashboard sheet.</td></tr>';
     return;
   }
 
   tableBodyEl.innerHTML = rows
-    .map((row) => `
+    .map(
+      (row) => `
       <tr>
         <td>${row.activityId}</td>
-        <td>${asCurrency(row.plannedCost)}</td>
-        <td>${asCurrency(row.actualCost)}</td>
-        <td>${asCurrency(row.earnedValue)}</td>
-        <td class="${row.costVariance >= 0 ? "cv-good" : "cv-bad"}">${asCurrency(row.costVariance)}</td>
-        <td><span class="badge ${statusBadgeClass(row)}">${row.budgetStatus}</span></td>
+        <td>${formatCurrency(row.plannedCost)}</td>
+        <td>${formatCurrency(row.actualCost)}</td>
+        <td>${formatCurrency(row.ev)}</td>
+        <td>${formatCurrency(row.cv)}</td>
+        <td>${row.budgetStatus}</td>
       </tr>
-    `)
+    `
+    )
     .join("");
 };
 
-const clearChart = (chartRef) => {
-  if (chartRef) chartRef.destroy();
+const destroyChart = (chart) => {
+  if (chart) chart.destroy();
 };
 
 const renderCharts = (rows) => {
-  const labels = rows.map((r) => r.activityId);
-  const cvValues = rows.map((r) => r.costVariance);
+  const labels = rows.map((row) => row.activityId);
+  const cvValues = rows.map((row) => row.cv);
 
-  clearChart(cvChart);
-  clearChart(planActualChart);
+  destroyChart(cvChart);
+  destroyChart(planActualChart);
 
   cvChart = new Chart(document.getElementById("cvChart"), {
     type: "bar",
@@ -134,10 +128,10 @@ const renderCharts = (rows) => {
       labels,
       datasets: [
         {
+          label: "Cost Variance (CV)",
           data: cvValues,
-          label: "Cost Variance",
-          backgroundColor: cvValues.map((v) => (v >= 0 ? "rgba(22, 163, 74, 0.8)" : "rgba(220, 38, 38, 0.8)")),
-          borderColor: cvValues.map((v) => (v >= 0 ? "rgba(22, 163, 74, 1)" : "rgba(220, 38, 38, 1)")),
+          backgroundColor: cvValues.map((value) => (value >= 0 ? "rgba(5, 150, 105, 0.75)" : "rgba(220, 38, 38, 0.75)")),
+          borderColor: cvValues.map((value) => (value >= 0 ? "rgba(5, 150, 105, 1)" : "rgba(220, 38, 38, 1)")),
           borderWidth: 1,
           borderRadius: 4,
         },
@@ -145,74 +139,82 @@ const renderCharts = (rows) => {
     },
     options: {
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+      },
       scales: {
         y: {
-          ticks: { callback: (value) => asCurrency(Number(value)) },
+          ticks: {
+            callback: (value) => formatCurrency(Number(value)),
+          },
         },
       },
     },
   });
 
   planActualChart = new Chart(document.getElementById("planActualChart"), {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [
         {
           label: "Planned Cost",
-          data: rows.map((r) => r.plannedCost),
-          borderColor: "#3d5afe",
-          backgroundColor: "rgba(61, 90, 254, 0.2)",
-          tension: 0.3,
-          fill: false,
-          pointRadius: 3,
+          data: rows.map((row) => row.plannedCost),
+          backgroundColor: "rgba(37, 99, 235, 0.75)",
+          borderColor: "rgba(37, 99, 235, 1)",
+          borderWidth: 1,
+          borderRadius: 4,
         },
         {
           label: "Actual Cost",
-          data: rows.map((r) => r.actualCost),
-          borderColor: "#16a34a",
-          backgroundColor: "rgba(22, 163, 74, 0.2)",
-          tension: 0.3,
-          fill: false,
-          pointRadius: 3,
+          data: rows.map((row) => row.actualCost),
+          backgroundColor: "rgba(245, 158, 11, 0.75)",
+          borderColor: "rgba(245, 158, 11, 1)",
+          borderWidth: 1,
+          borderRadius: 4,
         },
       ],
     },
     options: {
       maintainAspectRatio: false,
-      plugins: { legend: { position: "top" } },
+      plugins: {
+        legend: {
+          position: "top",
+        },
+      },
       scales: {
         y: {
-          ticks: { callback: (value) => asCurrency(Number(value)) },
+          ticks: {
+            callback: (value) => formatCurrency(Number(value)),
+          },
         },
       },
     },
   });
 };
 
-const setMessage = (text, isError = false) => {
+const showMessage = (text, isError = false) => {
   messageEl.textContent = text;
-  messageEl.style.color = isError ? "#dc2626" : "#64748b";
+  messageEl.style.color = isError ? "#dc2626" : "#6b7280";
 };
 
 const processWorkbook = (arrayBuffer) => {
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
-  const dashboardSheet = workbook.Sheets["Dashboard"];
+  const sheet = workbook.Sheets["Dashboard"];
 
-  if (!dashboardSheet) {
-    setMessage('Could not find a sheet named "Dashboard" in this file.', true);
+  if (!sheet) {
+    showMessage('Sheet "Dashboard" not found. Please upload the correct file.', true);
     return;
   }
 
-  const rawRows = XLSX.utils.sheet_to_json(dashboardSheet, { defval: "" });
-  const rows = extractRows(rawRows);
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  const rows = extractDashboardRows(rawRows);
 
   renderKpis(rows);
   renderTable(rows);
   renderCharts(rows);
 
-  setMessage(`Loaded ${rows.length} activity rows from Dashboard.`);
+  showMessage(`Loaded ${rows.length} activity row(s) from Dashboard sheet.`);
 };
 
 fileInput.addEventListener("change", async (event) => {
@@ -220,9 +222,9 @@ fileInput.addEventListener("change", async (event) => {
   if (!file) return;
 
   try {
-    const fileBuffer = await file.arrayBuffer();
-    processWorkbook(fileBuffer);
+    const buffer = await file.arrayBuffer();
+    processWorkbook(buffer);
   } catch (error) {
-    setMessage(`Failed to read the file: ${error.message}`, true);
+    showMessage(`Error reading file: ${error.message}`, true);
   }
 });
