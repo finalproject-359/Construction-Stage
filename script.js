@@ -21,6 +21,47 @@ let dashboardRows = [];
 let varianceChart = null;
 let costChart = null;
 
+const getNiceStep = (rawStep) => {
+  if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
+  const exponent = Math.floor(Math.log10(rawStep));
+  const magnitude = 10 ** exponent;
+  const normalized = rawStep / magnitude;
+
+  if (normalized <= 1) return 1 * magnitude;
+  if (normalized <= 2) return 2 * magnitude;
+  if (normalized <= 5) return 5 * magnitude;
+  return 10 * magnitude;
+};
+
+const buildLinearAxisRange = (values, { includeZero = true, targetTickCount = 6 } = {}) => {
+  const numericValues = values.filter(Number.isFinite);
+  if (!numericValues.length) {
+    return { min: 0, max: 1, stepSize: 1 };
+  }
+
+  let minValue = Math.min(...numericValues);
+  let maxValue = Math.max(...numericValues);
+
+  if (includeZero) {
+    minValue = Math.min(0, minValue);
+    maxValue = Math.max(0, maxValue);
+  }
+
+  if (minValue === maxValue) {
+    const baseline = minValue === 0 ? 1 : Math.abs(minValue);
+    const padding = Math.max(baseline * 0.2, 1);
+    minValue -= padding;
+    maxValue += padding;
+  }
+
+  const rawStep = (maxValue - minValue) / Math.max(targetTickCount - 1, 1);
+  const stepSize = getNiceStep(rawStep);
+  const min = Math.floor(minValue / stepSize) * stepSize;
+  const max = Math.ceil(maxValue / stepSize) * stepSize;
+
+  return { min, max, stepSize };
+};
+
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
     style: "currency",
@@ -277,6 +318,14 @@ const generateChartsFromRange = (startIndex, endIndex) => {
 
   const slicedRows = dashboardRows.slice(startIndex - 1, endIndex);
   const labels = slicedRows.map((row) => row.activity);
+  const varianceValues = slicedRows.map((row) => row.cv);
+  const plannedValues = slicedRows.map((row) => row.plannedCost);
+  const actualValues = slicedRows.map((row) => row.actualCost);
+  const varianceAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
+  const costAxis = buildLinearAxisRange([...plannedValues, ...actualValues], {
+    includeZero: true,
+    targetTickCount: 7,
+  });
 
   destroyCharts();
 
@@ -287,7 +336,7 @@ const generateChartsFromRange = (startIndex, endIndex) => {
       datasets: [
         {
           label: "Cost Variance",
-          data: slicedRows.map((row) => row.cv),
+          data: varianceValues,
           backgroundColor: slicedRows.map((row) => (row.cv >= 0 ? "#22c55e" : "#ef4444")),
           borderRadius: 6,
         },
@@ -298,7 +347,10 @@ const generateChartsFromRange = (startIndex, endIndex) => {
       plugins: { legend: { display: false } },
       scales: {
         y: {
+          min: varianceAxis.min,
+          max: varianceAxis.max,
           ticks: {
+            stepSize: varianceAxis.stepSize,
             callback: (value) => formatCurrency(value),
           },
         },
@@ -313,14 +365,14 @@ const generateChartsFromRange = (startIndex, endIndex) => {
       datasets: [
         {
           label: "Planned Cost (PV)",
-          data: slicedRows.map((row) => row.plannedCost),
+          data: plannedValues,
           borderColor: "#2f55ff",
           backgroundColor: "#2f55ff",
           tension: 0.3,
         },
         {
           label: "Actual Cost (AC)",
-          data: slicedRows.map((row) => row.actualCost),
+          data: actualValues,
           borderColor: "#10b981",
           backgroundColor: "#10b981",
           tension: 0.3,
@@ -331,7 +383,10 @@ const generateChartsFromRange = (startIndex, endIndex) => {
       responsive: true,
       scales: {
         y: {
+          min: costAxis.min,
+          max: costAxis.max,
           ticks: {
+            stepSize: costAxis.stepSize,
             callback: (value) => formatCurrency(value),
           },
         },
