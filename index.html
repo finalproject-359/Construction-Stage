@@ -71,37 +71,6 @@
         <h1>Financial Dashboard</h1>
       </header>
 
-      <section class="filter-panel">
-        <div class="panel-header">
-          <h3>Filters</h3>
-          <p id="lastUpdated">Last updated: —</p>
-        </div>
-        <div class="filter-grid">
-          <label class="filter-field">
-            <span>Activity Search</span>
-            <input id="activitySearchInput" type="search" placeholder="Search activity..." />
-          </label>
-          <label class="filter-field">
-            <span>Budget Status</span>
-            <select id="budgetStatusFilter">
-              <option value="all">All statuses</option>
-              <option value="over">Over Budget</option>
-              <option value="under">Under Budget</option>
-            </select>
-          </label>
-          <label class="filter-field">
-            <span>Variance Severity</span>
-            <select id="varianceSeverityFilter">
-              <option value="all">All bands</option>
-              <option value="severe-over">Severe Overrun (&lt; -5%)</option>
-              <option value="mild-over">Mild Overrun (0% to -5%)</option>
-              <option value="under">On/Under Budget</option>
-            </select>
-          </label>
-          <button id="clearFiltersBtn" class="clear-filters-btn" type="button">Clear Filters</button>
-        </div>
-      </section>
-
 
       <section class="kpi-grid">
         <article class="kpi-card">
@@ -112,7 +81,6 @@
             Total Planned Cost
           </h2>
           <p id="totalPlanned">₱0.00</p>
-          <small id="totalPlannedDelta" class="kpi-delta">Δ —</small>
         </article>
         <article class="kpi-card">
           <h2>
@@ -122,7 +90,6 @@
             Total Actual Cost
           </h2>
           <p id="totalActual">₱0.00</p>
-          <small id="totalActualDelta" class="kpi-delta">Δ —</small>
         </article>
         <article class="kpi-card">
           <h2>
@@ -132,7 +99,6 @@
             Total Cost Variance
           </h2>
           <p id="totalCv">₱0.00</p>
-          <small id="totalCvDelta" class="kpi-delta">Δ —</small>
         </article>
         <article class="kpi-card status-card" id="statusCard">
           <h2>
@@ -268,16 +234,6 @@
               </tr>
             </tbody>
           </table>
-        </div>
-      </section>
-
-      <section class="table-panel">
-        <div class="panel-header">
-          <h3>Activity Drill-down</h3>
-          <p>Click a chart point/bar or table row to inspect details.</p>
-        </div>
-        <div id="activityDetail" class="activity-detail placeholder">
-          Select an activity to view detailed metrics.
         </div>
       </section>
 
