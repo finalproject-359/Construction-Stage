@@ -156,12 +156,16 @@ const findHeaderRowIndex = (sheet) => {
 
 const extractDashboardRows = (rawRows) =>
   rawRows
-    .map((row) => {
-      const activityId = normalize(
+    .map((row, index) => {
+      const detectedActivityId = normalize(
         getCell(row, ["activity id", "id", "activityid", "activity code", "wbs", "task id"]),
         ""
       );
-      if (!isValidActivityId(activityId)) return null;
+      const activity = normalize(getCell(row, ["activity", "activity name"]), "");
+      const hasValidActivityId = isValidActivityId(detectedActivityId);
+      const hasValidActivityName = activity !== "" && !isSummaryLabel(activity);
+
+      if (!hasValidActivityId && !hasValidActivityName) return null;
 
       const plannedCost = parseNumber(
         getCell(row, [
@@ -205,8 +209,8 @@ const extractDashboardRows = (rawRows) =>
 
       return {
         projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
-        activityId,
-        activity: normalize(getCell(row, ["activity", "activity name"]), "Unspecified"),
+        activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,
+        activity: activity || "Unspecified",
         plannedCost,
         actualCost,
         ev: parseNumber(
