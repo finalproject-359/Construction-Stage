@@ -1,0 +1,23 @@
+{
+  "name": "FloodControl Dashboard",
+  "short_name": "FloodControl",
+  "description": "Financial dashboard for monitoring planned vs actual project costs.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6fb",
+  "theme_color": "#2f55ff",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='24' fill='%232f55ff'/%3E%3Cpath fill='white' d='M40 154V65l38-23v112H40Zm52 0V34l38 30v90H92Zm52 0V88l20 16v50h-20Z'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='64' fill='%232f55ff'/%3E%3Cpath fill='white' d='M106 410V174l101-61v297H106Zm138 0V91l101 80v239H244Zm138 0V234l53 42v134h-53Z'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

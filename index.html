@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2f55ff" />
   <title>FloodControl | Pati Piso Limas</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +13,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -68,6 +70,15 @@
       <header class="topbar">
         <h1>Financial Dashboard</h1>
       </header>
+
+
+      <section class="app-actions" aria-label="Application actions">
+        <button id="installButton" class="btn btn-primary" type="button" hidden>Install App</button>
+        <div id="updateBanner" class="update-banner" hidden>
+          <span>A new app version is available.</span>
+          <button id="updateButton" class="btn btn-secondary" type="button">Update now</button>
+        </div>
+      </section>
 
       <section class="kpi-grid">
         <article class="kpi-card">
