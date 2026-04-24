@@ -52,24 +52,42 @@ h1 {
   font-size: 0.95rem;
 }
 
-#fileInput {
-  display: none;
+.source-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-start;
 }
 
-.upload-btn {
-  cursor: pointer;
+.sheet-source {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#sheetUrlInput {
+  width: min(420px, 72vw);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+}
+
+#loadSheetBtn {
   border: none;
   border-radius: 10px;
-  background: var(--primary);
+  background: #111827;
   color: #fff;
   font-weight: 600;
-  padding: 11px 18px;
-  transition: transform 0.15s ease, opacity 0.2s ease;
+  padding: 11px 14px;
+  cursor: pointer;
 }
 
-.upload-btn:hover {
-  transform: translateY(-1px);
-  opacity: 0.95;
+#loadSheetBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .kpi-grid {
@@ -199,5 +217,9 @@ th {
 
   .topbar {
     padding: 16px;
+  }
+
+  .source-controls {
+    justify-content: flex-start;
   }
 }
