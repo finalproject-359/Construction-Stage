@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Construction Financial Analytics Dashboard</title>
+  <title>BuildFlow | Construction Financial Dashboard</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,62 +15,104 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
-      <div>
-        <h1>Financial Performance Dashboard</h1>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <h2>BuildFlow</h2>
+        <p>Construction Finance</p>
       </div>
-    </header>
+      <nav class="menu">
+        <a class="active" href="#">Dashboard</a>
+        <a href="#">Projects</a>
+        <a href="#">Activities</a>
+        <a href="#">Cost Management</a>
+        <a href="#">Reports</a>
+      </nav>
+    </aside>
 
-    <section class="kpi-grid">
-      <article class="kpi-card">
-        <h2>Total Planned Cost</h2>
-        <p id="totalPlanned">₱0.00</p>
-      </article>
-      <article class="kpi-card">
-        <h2>Total Actual Cost</h2>
-        <p id="totalActual">₱0.00</p>
-      </article>
-      <article class="kpi-card">
-        <h2>Total Cost Variance</h2>
-        <p id="totalCv">₱0.00</p>
-      </article>
-      <article class="kpi-card status-card" id="statusCard">
-        <h2>Project Status</h2>
-        <p id="projectStatus">Awaiting file upload</p>
-      </article>
-    </section>
+    <main class="main-content">
+      <header class="topbar">
+        <h1>Financial Dashboard</h1>
+      </header>
 
-    <section class="table-panel">
-      <div class="panel-header">
-        <h3>Activity Data (from Construction Financial Data sheet)</h3>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Activity ID</th>
-              <th>Activity</th>
-              <th>Planned Value (PV)</th>
-              <th>Actual Cost (AC)</th>
-              <th>Earned Value (EV)</th>
-              <th>% Complete</th>
-              <th>Cost Variance</th>
-              <th>% Cost Used</th>
-              <th>Budget Variance %</th>
-              <th>Budget Status</th>
-            </tr>
-          </thead>
-          <tbody id="activityTableBody">
-            <tr>
-              <td colspan="10" class="placeholder">No data loaded yet.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+      <section class="kpi-grid">
+        <article class="kpi-card">
+          <h2>Total Planned Cost</h2>
+          <p id="totalPlanned">₱0.00</p>
+        </article>
+        <article class="kpi-card">
+          <h2>Total Actual Cost</h2>
+          <p id="totalActual">₱0.00</p>
+        </article>
+        <article class="kpi-card">
+          <h2>Total Cost Variance</h2>
+          <p id="totalCv">₱0.00</p>
+        </article>
+        <article class="kpi-card status-card" id="statusCard">
+          <h2>Project Status</h2>
+          <p id="projectStatus">Awaiting data source</p>
+        </article>
+      </section>
 
-    <p id="message" class="message"></p>
+      <section class="chart-panel">
+        <div class="panel-header">
+          <h3>Graph Range Settings</h3>
+          <p>Enter activity row range first, then generate graph.</p>
+        </div>
+        <form id="rangeForm" class="range-form">
+          <label>
+            Start Row
+            <input type="number" id="rangeStart" min="1" placeholder="1" required />
+          </label>
+          <label>
+            End Row
+            <input type="number" id="rangeEnd" min="1" placeholder="10" required />
+          </label>
+          <button type="submit">Generate Graph</button>
+        </form>
+        <div class="chart-grid">
+          <article class="chart-card">
+            <h4>Cost Variance per Activity</h4>
+            <canvas id="varianceChart" height="120"></canvas>
+          </article>
+          <article class="chart-card">
+            <h4>Planned Cost vs Actual Cost</h4>
+            <canvas id="costChart" height="120"></canvas>
+          </article>
+        </div>
+      </section>
+
+      <section class="table-panel">
+        <div class="panel-header">
+          <h3>Activities Overview</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Activity ID</th>
+                <th>Activity</th>
+                <th>Planned Value (PV)</th>
+                <th>Actual Cost (AC)</th>
+                <th>Earned Value (EV)</th>
+                <th>% Complete</th>
+                <th>Cost Variance</th>
+                <th>% Cost Used</th>
+                <th>Budget Variance %</th>
+                <th>Budget Status</th>
+              </tr>
+            </thead>
+            <tbody id="activityTableBody">
+              <tr>
+                <td colspan="10" class="placeholder">No data loaded yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <p id="message" class="message"></p>
+    </main>
   </div>
 
   <script src="script.js"></script>
