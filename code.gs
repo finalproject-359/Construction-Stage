@@ -13,8 +13,10 @@ function doGet() {
     ).setMimeType(ContentService.MimeType.JSON);
   }
 
-  const values = sheet.getDataRange().getDisplayValues();
-  if (!values.length) {
+  const displayValues = sheet.getDataRange().getDisplayValues();
+  const rawValues = sheet.getDataRange().getValues();
+
+  if (!displayValues.length) {
     return ContentService.createTextOutput(JSON.stringify({ rows: [] })).setMimeType(
       ContentService.MimeType.JSON
     );
@@ -60,8 +62,8 @@ function doGet() {
     return bestIndex;
   };
 
-  const headerRowIndex = findHeaderRowIndex(values);
-  const headers = values[headerRowIndex].map((header) => String(header).trim());
+  const headerRowIndex = findHeaderRowIndex(displayValues);
+  const headers = displayValues[headerRowIndex].map((header) => String(header).trim());
 
   if (!headers.some((header) => header)) {
     return ContentService.createTextOutput(
@@ -69,7 +71,7 @@ function doGet() {
     ).setMimeType(ContentService.MimeType.JSON);
   }
 
-  const rows = values.slice(headerRowIndex + 1).reduce((acc, row) => {
+  const rows = rawValues.slice(headerRowIndex + 1).reduce((acc, row) => {
     const rowObj = {};
     headers.forEach((header, index) => {
       rowObj[header] = row[index];
