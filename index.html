@@ -106,6 +106,33 @@
           </h2>
           <p id="projectStatus">Awaiting data source</p>
         </article>
+        <article class="kpi-card">
+          <h2>
+            <span class="kpi-icon planned-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4v16"/></svg>
+            </span>
+            Physical Progress %
+          </h2>
+          <p id="physicalProgress">0.00%</p>
+        </article>
+        <article class="kpi-card">
+          <h2>
+            <span class="kpi-icon actual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 20h16M6 16l3-4 3 2 6-8"/></svg>
+            </span>
+            Cost Spent %
+          </h2>
+          <p id="costSpent">0.00%</p>
+        </article>
+        <article class="kpi-card" id="efficiencyCard">
+          <h2>
+            <span class="kpi-icon variance-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5v14"/></svg>
+            </span>
+            Efficiency Gap %
+          </h2>
+          <p id="efficiencyGap">0.00%</p>
+        </article>
       </section>
 
       <section class="chart-grid">
@@ -155,6 +182,30 @@
             <tbody id="activityTableBody">
               <tr>
                 <td colspan="10" class="placeholder">No data loaded yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="table-panel">
+        <div class="panel-header">
+          <h3>Top 5 Overrun Activities</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Activity</th>
+                <th>Cost Variance</th>
+                <th>Variance %</th>
+                <th>% Complete</th>
+                <th>% Cost Used</th>
+              </tr>
+            </thead>
+            <tbody id="overrunTableBody">
+              <tr>
+                <td colspan="5" class="placeholder">No data loaded yet.</td>
               </tr>
             </tbody>
           </table>

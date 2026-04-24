@@ -3,8 +3,13 @@ const totalActualEl = document.getElementById("totalActual");
 const totalCvEl = document.getElementById("totalCv");
 const projectStatusEl = document.getElementById("projectStatus");
 const statusCardEl = document.getElementById("statusCard");
+const physicalProgressEl = document.getElementById("physicalProgress");
+const costSpentEl = document.getElementById("costSpent");
+const efficiencyGapEl = document.getElementById("efficiencyGap");
+const efficiencyCardEl = document.getElementById("efficiencyCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
+const overrunTableBodyEl = document.getElementById("overrunTableBody");
 
 const DATA_SOURCE_URL =
   "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
@@ -84,6 +89,20 @@ const normalize = (value, fallback = "N/A") => {
 };
 
 const formatPercent = (value) => `${parseNumber(value).toFixed(2)}%`;
+
+const formatSignedPercent = (value) => {
+  const numericValue = parseNumber(value);
+  const sign = numericValue > 0 ? "+" : "";
+  return `${sign}${numericValue.toFixed(2)}%`;
+};
+
+const getVarianceBand = (cv, plannedCost) => {
+  if (!plannedCost) return parseNumber(cv) < 0 ? "severe-over" : "neutral";
+  const variancePercent = (parseNumber(cv) / parseNumber(plannedCost)) * 100;
+  if (variancePercent < -5) return "severe-over";
+  if (variancePercent < 0) return "mild-over";
+  return "under";
+};
 
 const normalizeHeader = (value) =>
   String(value)
@@ -186,8 +205,11 @@ const extractDashboardRows = (rawRows) =>
 
       const plannedCost = parseNumber(getCell(row, ["planned value", "planned cost", "pv", "budget"]));
       const actualCost = parseNumber(getCell(row, ["actual cost", "ac", "actual"]));
-      const providedCv = parseNumber(getCell(row, ["cost variance", "cv"]));
-      const cv = providedCv || plannedCost - actualCost;
+      const rawCv = getCell(row, ["cost variance", "cv"]);
+      const hasProvidedCv =
+        rawCv !== null && rawCv !== undefined && String(rawCv).trim() !== "";
+      const providedCv = parseNumber(rawCv);
+      const cv = hasProvidedCv ? providedCv : plannedCost - actualCost;
 
       return {
         activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,
@@ -219,6 +241,18 @@ const calculateTotalsFromRows = (rows) =>
     { planned: 0, actual: 0, cv: 0 }
   );
 
+const calculateProgressMetrics = (rows, totals) => {
+  const weightedProgressValue = rows.reduce(
+    (acc, row) => acc + row.plannedCost * (row.percentComplete / 100),
+    0
+  );
+  const physicalProgressPercent = totals.planned ? (weightedProgressValue / totals.planned) * 100 : 0;
+  const costSpentPercent = totals.planned ? (totals.actual / totals.planned) * 100 : 0;
+  const efficiencyGapPercent = physicalProgressPercent - costSpentPercent;
+
+  return { physicalProgressPercent, costSpentPercent, efficiencyGapPercent };
+};
+
 const renderKpis = (totals) => {
   const safeTotals = {
     planned: parseNumber(totals?.planned),
@@ -231,6 +265,7 @@ const renderKpis = (totals) => {
   totalCvEl.textContent = formatCurrency(safeTotals.cv);
 
   statusCardEl.classList.remove("status-under", "status-over");
+  efficiencyCardEl.classList.remove("status-under", "status-over");
 
   if (safeTotals.actual < safeTotals.planned) {
     projectStatusEl.textContent = "Under Budget";
@@ -240,6 +275,19 @@ const renderKpis = (totals) => {
     statusCardEl.classList.add("status-over");
   } else {
     projectStatusEl.textContent = "On Budget";
+  }
+};
+
+const renderProgressKpis = (metrics) => {
+  physicalProgressEl.textContent = formatPercent(metrics.physicalProgressPercent);
+  costSpentEl.textContent = formatPercent(metrics.costSpentPercent);
+  efficiencyGapEl.textContent = formatSignedPercent(metrics.efficiencyGapPercent);
+
+  efficiencyCardEl.classList.remove("status-under", "status-over");
+  if (metrics.efficiencyGapPercent < 0) {
+    efficiencyCardEl.classList.add("status-over");
+  } else if (metrics.efficiencyGapPercent > 0) {
+    efficiencyCardEl.classList.add("status-under");
   }
 };
 
@@ -253,7 +301,7 @@ const renderTable = (rows) => {
   tableBodyEl.innerHTML = rows
     .map(
       (row) => `
-      <tr>
+      <tr class="variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}">
         <td>${row.activityId}</td>
         <td>${row.activity}</td>
         <td>${formatCurrency(row.plannedCost)}</td>
@@ -264,6 +312,33 @@ const renderTable = (rows) => {
         <td>${formatPercent(row.costUsedPercent)}</td>
         <td>${formatPercent(row.budgetVariancePercent)}</td>
         <td>${row.budgetStatus}</td>
+      </tr>
+    `
+    )
+    .join("");
+};
+
+const renderOverrunTable = (rows) => {
+  const overrunRows = rows
+    .filter((row) => row.cv < 0)
+    .sort((a, b) => a.cv - b.cv)
+    .slice(0, 5);
+
+  if (!overrunRows.length) {
+    overrunTableBodyEl.innerHTML =
+      '<tr><td colspan="5" class="placeholder">No overrun activities found.</td></tr>';
+    return;
+  }
+
+  overrunTableBodyEl.innerHTML = overrunRows
+    .map(
+      (row) => `
+      <tr>
+        <td>${row.activity}</td>
+        <td>${formatCurrency(row.cv)}</td>
+        <td>${formatPercent(row.budgetVariancePercent)}</td>
+        <td>${formatPercent(row.percentComplete)}</td>
+        <td>${formatPercent(row.costUsedPercent)}</td>
       </tr>
     `
     )
@@ -385,7 +460,9 @@ const processRows = (rawRows, sourceName = "web app") => {
   if (!Array.isArray(rawRows) || !rawRows.length) {
     dashboardRows = [];
     renderKpis({ planned: 0, actual: 0, cv: 0 });
+    renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
     renderTable([]);
+    renderOverrunTable([]);
     destroyCharts();
     showMessage(`No rows detected from ${sourceName}.`, true);
     return;
@@ -394,9 +471,12 @@ const processRows = (rawRows, sourceName = "web app") => {
   const rows = extractDashboardRows(rawRows);
   dashboardRows = rows;
   const totals = calculateTotalsFromRows(rows);
+  const progressMetrics = calculateProgressMetrics(rows, totals);
 
   renderKpis(totals);
+  renderProgressKpis(progressMetrics);
   renderTable(rows);
+  renderOverrunTable(rows);
   generateCharts(rows);
 
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);

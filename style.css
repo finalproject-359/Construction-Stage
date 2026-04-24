@@ -122,7 +122,7 @@ body {
 .kpi-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .kpi-card,
@@ -171,6 +171,8 @@ body {
 .status-over { background: var(--red-soft); border-color: #fecaca; }
 .status-under #projectStatus { color: var(--green); }
 .status-over #projectStatus { color: var(--red); }
+.status-under #efficiencyGap { color: var(--green); }
+.status-over #efficiencyGap { color: var(--red); }
 
 .chart-panel,
 .table-panel { margin-top: 14px; padding: 16px; }
@@ -232,6 +234,22 @@ th, td {
 
 th { color: var(--muted); }
 .placeholder { text-align: center; color: var(--muted); }
+
+.variance-row.variance-severe-over {
+  background: #fff1f2;
+}
+
+.variance-row.variance-mild-over {
+  background: #fff7ed;
+}
+
+.variance-row.variance-under {
+  background: #f0fdf4;
+}
+
+.variance-row.variance-neutral {
+  background: transparent;
+}
 
 .message {
   margin: 12px 2px 0;
