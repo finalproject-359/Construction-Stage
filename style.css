@@ -122,7 +122,7 @@ body {
 .kpi-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .kpi-card,
@@ -232,6 +232,18 @@ th, td {
 
 th { color: var(--muted); }
 .placeholder { text-align: center; color: var(--muted); }
+
+.variance-row.variance-severe-over {
+  background: #fff1f2;
+}
+
+.variance-row.variance-mild-over {
+  background: #fff7ed;
+}
+
+.variance-row.variance-under {
+  background: #f0fdf4;
+}
 
 .message {
   margin: 12px 2px 0;
