@@ -303,18 +303,10 @@ const generateCharts = (rows) => {
   const varianceValues = rows.map((row) => row.cv);
   const varianceAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
 
-  const cumulative = rows.reduce(
-    (acc, row) => {
-      acc.planned += row.plannedCost;
-      acc.actual += row.actualCost;
-      acc.plannedSeries.push(acc.planned);
-      acc.actualSeries.push(acc.actual);
-      return acc;
-    },
-    { planned: 0, actual: 0, plannedSeries: [], actualSeries: [] }
-  );
+  const plannedSeries = rows.map((row) => row.plannedCost);
+  const actualSeries = rows.map((row) => row.actualCost);
 
-  const costAxis = buildLinearAxisRange([...cumulative.plannedSeries, ...cumulative.actualSeries], {
+  const costAxis = buildLinearAxisRange([...plannedSeries, ...actualSeries], {
     includeZero: true,
     targetTickCount: 7,
   });
@@ -357,14 +349,14 @@ const generateCharts = (rows) => {
       datasets: [
         {
           label: "Planned Cost (PV)",
-          data: cumulative.plannedSeries,
+          data: plannedSeries,
           borderColor: "#2f55ff",
           backgroundColor: "#2f55ff",
           tension: 0.3,
         },
         {
           label: "Actual Cost (AC)",
-          data: cumulative.actualSeries,
+          data: actualSeries,
           borderColor: "#10b981",
           backgroundColor: "#10b981",
           tension: 0.3,
@@ -405,7 +397,7 @@ const processRows = (rawRows, sourceName = "web app") => {
   renderTable(rows);
   generateCharts(rows);
 
-  showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts auto-generated.`);
+  showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
 const toGoogleSheetCsvUrl = (inputUrl) => {
