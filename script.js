@@ -306,9 +306,9 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#6b7280";
 };
 
-const processRawRows = (rawRows, sourceName = "data source") => {
-  if (!Array.isArray(rawRows)) {
-    showMessage("Invalid data format. Expected an array of rows.", true);
+const processWorksheet = (sheet, sourceName = "workbook") => {
+  if (!sheet) {
+    showMessage('Sheet "Dashboard" not found. Please upload the correct file.', true);
     return;
   }
 
@@ -324,22 +324,8 @@ const processRawRows = (rawRows, sourceName = "data source") => {
 
   const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
   showMessage(
-    `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${dependencySuffix}`
+    `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${headerMessage}${dependencySuffix}`
   );
-};
-
-const processWorksheet = (sheet, sourceName = "workbook") => {
-  if (!sheet) {
-    showMessage('Sheet "Construction Financial Data" not found. Please use the correct source.', true);
-    return;
-  }
-
-  const headerRowIndex = findHeaderRowIndex(sheet);
-  const rawRows = XLSX.utils.sheet_to_json(sheet, {
-    defval: "",
-    range: headerRowIndex,
-  });
-  processRawRows(rawRows, sourceName);
 };
 
 const toGoogleSheetCsvUrl = (inputUrl) => {
@@ -362,78 +348,40 @@ const toGoogleSheetCsvUrl = (inputUrl) => {
   }
 };
 
-const resolveDataUrl = (inputUrl) => {
-  const trimmed = (inputUrl || "").trim();
-  if (!trimmed) return "";
-
-  if (/docs\.google\.com\/spreadsheets/i.test(trimmed)) {
-    return toGoogleSheetCsvUrl(trimmed);
-  }
-
-  return trimmed;
-};
-
-const extractRowsFromJsonPayload = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.rows)) return payload.rows;
-  if (Array.isArray(payload?.data)) return payload.data;
-  return null;
-};
-
 const loadGoogleSheet = async () => {
-  const rawUrl = (sheetUrlInputEl?.value || "").trim();
-  const dataUrl = resolveDataUrl(rawUrl);
+  const rawUrl = sheetUrlInputEl?.value || "";
+  const csvUrl = toGoogleSheetCsvUrl(rawUrl);
 
-  if (!dataUrl) {
-    showMessage("Invalid URL. Paste an Apps Script Web App URL or Google Sheet link.", true);
+  if (!csvUrl) {
+    showMessage("Invalid Google Sheet URL. Paste a valid sheet link and try again.", true);
     return;
   }
 
   try {
     loadSheetBtnEl.disabled = true;
     loadSheetBtnEl.textContent = "Loading...";
-    showMessage("Loading dashboard data...");
+    showMessage("Loading Google Sheet data...");
 
-    const response = await fetch(dataUrl);
+    const response = await fetch(csvUrl);
     if (!response.ok) {
-      throw new Error(`Unable to fetch source (HTTP ${response.status})`);
+      throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
     }
 
-    const contentType = response.headers.get("content-type") || "";
-    if (/application\/json/i.test(contentType)) {
-      const payload = await response.json();
-      const rows = extractRowsFromJsonPayload(payload);
-      if (!rows) {
-        throw new Error('JSON response must be an array or include a "rows" array');
-      }
-      processRawRows(rows, "Apps Script Web App");
-    } else {
-      const textPayload = await response.text();
-      const jsonGuess = textPayload.trim();
-      if (jsonGuess.startsWith("[") || jsonGuess.startsWith("{")) {
-        const payload = JSON.parse(jsonGuess);
-        const rows = extractRowsFromJsonPayload(payload);
-        if (!rows) {
-          throw new Error('JSON response must be an array or include a "rows" array');
-        }
-        processRawRows(rows, "Apps Script Web App");
-      } else {
-        const workbook = XLSX.read(textPayload, { type: "string" });
-        const firstSheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[firstSheetName];
-        processWorksheet(sheet, `Google Sheet "${firstSheetName}"`);
-      }
-    }
+    const csvText = await response.text();
+    const workbook = XLSX.read(csvText, { type: "string" });
+    const firstSheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[firstSheetName];
 
-    localStorage.setItem("dashboardSheetUrl", rawUrl);
+    processWorksheet(sheet, `Google Sheet "${firstSheetName}"`);
+    localStorage.setItem("dashboardSheetUrl", rawUrl.trim());
   } catch (error) {
     showMessage(
-      `Error loading data source: ${error.message}. Ensure your Apps Script Web App is deployed (or Sheet is published/shared).`,
+      `Error loading Google Sheet: ${error.message}. Ensure the sheet is published/shared for access.`,
       true
     );
   } finally {
     loadSheetBtnEl.disabled = false;
-    loadSheetBtnEl.textContent = "Load Dashboard Data";
+    loadSheetBtnEl.textContent = "Load Google Sheet";
   }
 };
 
