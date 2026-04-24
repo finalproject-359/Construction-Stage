@@ -1,4 +1,4 @@
-const CACHE_VERSION = "floodcontrol-v1";
+const CACHE_VERSION = "floodcontrol-v2";
 const APP_SHELL_FILES = [
   "./",
   "./index.html",
@@ -25,8 +25,14 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
+  const requestUrl = new URL(request.url);
 
   if (request.method !== "GET") return;
+
+  // Always hit the network for external API/data sources so dashboard values stay fresh.
+  if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(
