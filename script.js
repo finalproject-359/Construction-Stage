@@ -365,19 +365,80 @@ const toGoogleSheetCsvUrl = (inputUrl) => {
   }
 };
 
+
+const isAppsScriptWebAppUrl = (inputUrl) => {
+  if (!inputUrl) return false;
+
+  try {
+    const parsed = new URL(inputUrl.trim());
+    return (
+      parsed.hostname === "script.google.com" &&
+      /\/macros\/s\/.+\/exec$/.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const processRows = (rawRows, sourceName = "web app") => {
+  if (!Array.isArray(rawRows) || !rawRows.length) {
+    renderKpis({ planned: 0, actual: 0, cv: 0 });
+    renderTable([]);
+    showMessage(`No rows detected from ${sourceName}. Check if the sheet has headers and values.`, true);
+    return;
+  }
+
+  const { rows, totals, totalSource } = extractMetrics(rawRows);
+
+  renderKpis(totals);
+  renderTable(rows);
+
+  const sourceLabel =
+    totalSource === "activity-id-rows"
+      ? "activity rows with valid Activity ID"
+      : "sum of activity rows";
+
+  const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
+
+  showMessage(
+    `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${dependencySuffix}`
+  );
+};
+
 const loadGoogleSheet = async () => {
   const rawUrl = sheetUrlInputEl?.value || "";
-  const csvUrl = toGoogleSheetCsvUrl(rawUrl);
+  const trimmedUrl = rawUrl.trim();
+  const isWebAppSource = isAppsScriptWebAppUrl(trimmedUrl);
+  const csvUrl = isWebAppSource ? "" : toGoogleSheetCsvUrl(trimmedUrl);
 
-  if (!csvUrl) {
-    showMessage("Invalid Google Sheet URL. Paste a valid sheet link and try again.", true);
+  if (!isWebAppSource && !csvUrl) {
+    showMessage(
+      "Invalid URL. Paste a valid Google Sheet link or Apps Script Web App URL and try again.",
+      true
+    );
     return;
   }
 
   try {
     loadSheetBtnEl.disabled = true;
     loadSheetBtnEl.textContent = "Loading...";
-    showMessage("Loading Google Sheet data...");
+    showMessage("Loading data source...");
+
+    if (isWebAppSource) {
+      const response = await fetch(trimmedUrl);
+      if (!response.ok) {
+        throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
+      }
+
+      const payload = await response.json();
+      if (payload?.error) {
+        throw new Error(payload.error);
+      }
+
+      processRows(payload?.rows || [], `Apps Script Web App (${payload?.sheetName || "unknown sheet"})`);
+      localStorage.setItem("dashboardSheetUrl", trimmedUrl);
+      return;
+    }
 
     const response = await fetch(csvUrl);
     if (!response.ok) {
@@ -390,15 +451,15 @@ const loadGoogleSheet = async () => {
     const sheet = workbook.Sheets[firstSheetName];
 
     processWorksheet(sheet, `Google Sheet "${firstSheetName}"`);
-    localStorage.setItem("dashboardSheetUrl", rawUrl.trim());
+    localStorage.setItem("dashboardSheetUrl", trimmedUrl);
   } catch (error) {
     showMessage(
-      `Error loading Google Sheet: ${error.message}. Ensure the sheet is published/shared for access.`,
+      `Error loading data source: ${error.message}. Ensure the sheet is shared or the Web App is deployed for access.`,
       true
     );
   } finally {
     loadSheetBtnEl.disabled = false;
-    loadSheetBtnEl.textContent = "Load Google Sheet";
+    loadSheetBtnEl.textContent = "Load Data Source";
   }
 };
 
