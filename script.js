@@ -5,9 +5,6 @@ const projectStatusEl = document.getElementById("projectStatus");
 const statusCardEl = document.getElementById("statusCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
-const rangeFormEl = document.getElementById("rangeForm");
-const rangeStartEl = document.getElementById("rangeStart");
-const rangeEndEl = document.getElementById("rangeEnd");
 
 const DATA_SOURCE_URL =
   "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
@@ -190,7 +187,7 @@ const extractDashboardRows = (rawRows) =>
       const plannedCost = parseNumber(getCell(row, ["planned value", "planned cost", "pv", "budget"]));
       const actualCost = parseNumber(getCell(row, ["actual cost", "ac", "actual"]));
       const providedCv = parseNumber(getCell(row, ["cost variance", "cv"]));
-      const cv = providedCv || (plannedCost - actualCost);
+      const cv = providedCv || plannedCost - actualCost;
 
       return {
         activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,
@@ -290,39 +287,34 @@ const destroyCharts = () => {
   }
 };
 
-const generateChartsFromRange = (startIndex, endIndex) => {
+const generateCharts = (rows) => {
   if (typeof window.Chart === "undefined") {
     showMessage(chartDependencyWarning, true);
     return;
   }
 
-  if (!dashboardRows.length) {
-    showMessage("No data available. Wait for data to load before generating graph.", true);
+  if (!rows.length) {
+    destroyCharts();
+    showMessage("No data available to generate charts.", true);
     return;
   }
 
-  if (!Number.isInteger(startIndex) || !Number.isInteger(endIndex) || startIndex < 1 || endIndex < 1) {
-    showMessage("Range values must be whole numbers greater than or equal to 1.", true);
-    return;
-  }
-
-  if (startIndex > endIndex) {
-    showMessage("Start row cannot be greater than end row.", true);
-    return;
-  }
-
-  if (endIndex > dashboardRows.length) {
-    showMessage(`End row is out of range. Maximum row is ${dashboardRows.length}.`, true);
-    return;
-  }
-
-  const slicedRows = dashboardRows.slice(startIndex - 1, endIndex);
-  const labels = slicedRows.map((row) => row.activity);
-  const varianceValues = slicedRows.map((row) => row.cv);
-  const plannedValues = slicedRows.map((row) => row.plannedCost);
-  const actualValues = slicedRows.map((row) => row.actualCost);
+  const labels = rows.map((row) => row.activity);
+  const varianceValues = rows.map((row) => row.cv);
   const varianceAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
-  const costAxis = buildLinearAxisRange([...plannedValues, ...actualValues], {
+
+  const cumulative = rows.reduce(
+    (acc, row) => {
+      acc.planned += row.plannedCost;
+      acc.actual += row.actualCost;
+      acc.plannedSeries.push(acc.planned);
+      acc.actualSeries.push(acc.actual);
+      return acc;
+    },
+    { planned: 0, actual: 0, plannedSeries: [], actualSeries: [] }
+  );
+
+  const costAxis = buildLinearAxisRange([...cumulative.plannedSeries, ...cumulative.actualSeries], {
     includeZero: true,
     targetTickCount: 7,
   });
@@ -337,7 +329,7 @@ const generateChartsFromRange = (startIndex, endIndex) => {
         {
           label: "Cost Variance",
           data: varianceValues,
-          backgroundColor: slicedRows.map((row) => (row.cv >= 0 ? "#22c55e" : "#ef4444")),
+          backgroundColor: rows.map((row) => (row.cv >= 0 ? "#22c55e" : "#ef4444")),
           borderRadius: 6,
         },
       ],
@@ -365,14 +357,14 @@ const generateChartsFromRange = (startIndex, endIndex) => {
       datasets: [
         {
           label: "Planned Cost (PV)",
-          data: plannedValues,
+          data: cumulative.plannedSeries,
           borderColor: "#2f55ff",
           backgroundColor: "#2f55ff",
           tension: 0.3,
         },
         {
           label: "Actual Cost (AC)",
-          data: actualValues,
+          data: cumulative.actualSeries,
           borderColor: "#10b981",
           backgroundColor: "#10b981",
           tension: 0.3,
@@ -393,8 +385,6 @@ const generateChartsFromRange = (startIndex, endIndex) => {
       },
     },
   });
-
-  showMessage(`Graph generated for rows ${startIndex} to ${endIndex}.`);
 };
 
 const processRows = (rawRows, sourceName = "web app") => {
@@ -413,14 +403,9 @@ const processRows = (rawRows, sourceName = "web app") => {
 
   renderKpis(totals);
   renderTable(rows);
-  destroyCharts();
+  generateCharts(rows);
 
-  rangeStartEl.value = "1";
-  rangeEndEl.value = String(Math.min(rows.length, 10));
-
-  showMessage(
-    `Loaded ${rows.length} activity row(s) from ${sourceName}. Enter row range and click \"Generate Graph\".`
-  );
+  showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts auto-generated.`);
 };
 
 const toGoogleSheetCsvUrl = (inputUrl) => {
@@ -489,12 +474,5 @@ const loadGoogleSheet = async (providedUrl = "") => {
     showMessage(`Error loading data source: ${error.message}`, true);
   }
 };
-
-rangeFormEl.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const start = Number.parseInt(rangeStartEl.value, 10);
-  const end = Number.parseInt(rangeEndEl.value, 10);
-  generateChartsFromRange(start, end);
-});
 
 loadGoogleSheet(DATA_SOURCE_URL);
