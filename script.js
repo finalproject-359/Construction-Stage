@@ -5,14 +5,21 @@ const projectStatusEl = document.getElementById("projectStatus");
 const statusCardEl = document.getElementById("statusCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
+const rangeFormEl = document.getElementById("rangeForm");
+const rangeStartEl = document.getElementById("rangeStart");
+const rangeEndEl = document.getElementById("rangeEnd");
 
 const DATA_SOURCE_URL =
   "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
 
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
-    ? "Chart.js is not available. Charts will be skipped until the dependency loads."
+    ? "Chart.js is not available. Graphs are disabled."
     : "";
+
+let dashboardRows = [];
+let varianceChart = null;
+let costChart = null;
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-PH", {
@@ -21,22 +28,6 @@ const formatCurrency = (value) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0);
-
-const formatCompactCurrency = (value) => {
-  const numericValue = Number.isFinite(value) ? value : 0;
-  const absoluteValue = Math.abs(numericValue);
-
-  if (absoluteValue < 1000) {
-    return formatCurrency(numericValue);
-  }
-
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(numericValue);
-};
 
 const parseNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
@@ -86,8 +77,6 @@ const getCell = (row, aliases) => {
   for (const alias of aliases) {
     const normalizedAlias = normalizeHeader(alias);
     const compactAlias = normalizedAlias.replace(/\s+/g, "");
-    const isShortAlias = compactAlias.length <= 2;
-    const isSingleWordAlias = !normalizedAlias.includes(" ");
 
     const exactMatch = keyEntries.find(
       (entry) => entry.normalized === normalizedAlias || entry.compact === compactAlias
@@ -97,8 +86,9 @@ const getCell = (row, aliases) => {
     const prefixedMatch = keyEntries.find((entry) =>
       entry.normalized.startsWith(`${normalizedAlias} `)
     );
-    if (prefixedMatch && !isShortAlias && !isSingleWordAlias) return row[prefixedMatch.key];
-
+    if (prefixedMatch && compactAlias.length > 2 && normalizedAlias.includes(" ")) {
+      return row[prefixedMatch.key];
+    }
   }
 
   return null;
@@ -106,12 +96,7 @@ const getCell = (row, aliases) => {
 
 const isSummaryLabel = (value) => {
   const text = normalize(value, "").toLowerCase();
-  return (
-    text.includes("total") ||
-    text.includes("summary") ||
-    text.includes("grand total") ||
-    text.includes("overall")
-  );
+  return text.includes("total") || text.includes("summary") || text.includes("grand total");
 };
 
 const isValidActivityId = (value) => {
@@ -129,15 +114,11 @@ const findHeaderRowIndex = (sheet) => {
     raw: false,
   });
 
-  if (!rows.length) return 0;
-
   let bestIndex = 0;
   let bestScore = 0;
 
   rows.forEach((row, index) => {
     const normalizedCells = row.map((cell) => normalizeHeader(cell)).filter(Boolean);
-    if (!normalizedCells.length) return;
-
     const score = EXPECTED_HEADER_ALIASES.reduce((count, alias) => {
       const hasAlias = normalizedCells.some((cell) => cell.includes(alias));
       return count + (hasAlias ? 1 : 0);
@@ -156,7 +137,7 @@ const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row, index) => {
       const detectedActivityId = normalize(
-        getCell(row, ["activity id", "id", "activityid", "activity code", "wbs", "task id"]),
+        getCell(row, ["activity id", "id", "activity code", "wbs", "task id"]),
         ""
       );
       const activity = normalize(getCell(row, ["activity", "activity name"]), "");
@@ -165,78 +146,28 @@ const extractDashboardRows = (rawRows) =>
 
       if (!hasValidActivityId && !hasValidActivityName) return null;
 
-      const plannedCost = parseNumber(
-        getCell(row, [
-          "planned cost",
-          "planned value",
-          "planned value (pv)",
-          "planned value pv",
-          "planned",
-          "pv",
-          "plannedcost",
-          "budget",
-          "budget value",
-          "budgeted cost",
-        ])
-      );
-      const actualCost = parseNumber(
-        getCell(row, [
-          "actual cost",
-          "actual cost (ac)",
-          "actual cost ac",
-          "actual",
-          "ac",
-          "actualcost",
-        ])
-      );
-      const providedCv = parseNumber(
-        getCell(row, ["cost variance", "cv", "cost variance (cv)"])
-      );
-      const computedCv = plannedCost - actualCost;
-      const cv = providedCv !== 0 ? providedCv : computedCv;
-      const providedCostUsed = parseNumber(
-        getCell(row, ["% cost used", "cost used %", "cost used percent"])
-      );
-      const providedBudgetVariance = parseNumber(
-        getCell(row, ["budget variance", "budget variance %", "budget variance percent"])
-      );
-      const providedBudgetStatus = normalize(
-        getCell(row, ["budget status", "status"]),
-        ""
-      );
+      const plannedCost = parseNumber(getCell(row, ["planned value", "planned cost", "pv", "budget"]));
+      const actualCost = parseNumber(getCell(row, ["actual cost", "ac", "actual"]));
+      const providedCv = parseNumber(getCell(row, ["cost variance", "cv"]));
+      const cv = providedCv || (plannedCost - actualCost);
 
       return {
-        projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
         activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,
         activity: activity || "Unspecified",
         plannedCost,
         actualCost,
-        ev: parseNumber(
-          getCell(row, ["earned value (ev)", "earned value ev", "earned value", "ev"])
-        ),
-        percentComplete: parseNumber(
-          getCell(row, [
-            "% complete",
-            "percent complete",
-            "complete %",
-            "completion %",
-            "progress %",
-          ])
-        ),
+        ev: parseNumber(getCell(row, ["earned value", "ev"])),
+        percentComplete: parseNumber(getCell(row, ["% complete", "percent complete", "progress %"])),
         cv,
-        costUsedPercent: providedCostUsed || (plannedCost ? (actualCost / plannedCost) * 100 : 0),
-        budgetVariancePercent:
-          providedBudgetVariance || (plannedCost ? (cv / plannedCost) * 100 : 0),
-        budgetStatus: providedBudgetStatus || (cv >= 0 ? "On Budget" : "Over Budget"),
+        costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
+        budgetVariancePercent: plannedCost ? (cv / plannedCost) * 100 : 0,
+        budgetStatus: cv >= 0 ? "Under Budget" : "Over Budget",
       };
     })
     .filter(
       (row) =>
         row &&
-        (row.plannedCost !== 0 ||
-          row.actualCost !== 0 ||
-          row.ev !== 0 ||
-          row.percentComplete !== 0)
+        (row.plannedCost !== 0 || row.actualCost !== 0 || row.ev !== 0 || row.percentComplete !== 0)
     );
 
 const calculateTotalsFromRows = (rows) =>
@@ -249,15 +180,6 @@ const calculateTotalsFromRows = (rows) =>
     },
     { planned: 0, actual: 0, cv: 0 }
   );
-
-const extractMetrics = (rawRows) => {
-  const rows = extractDashboardRows(rawRows);
-  return {
-    rows,
-    totals: calculateTotalsFromRows(rows),
-    totalSource: "activity-id-rows",
-  };
-};
 
 const renderKpis = (totals) => {
   const safeTotals = {
@@ -286,7 +208,7 @@ const renderKpis = (totals) => {
 const renderTable = (rows) => {
   if (!rows.length) {
     tableBodyEl.innerHTML =
-      '<tr><td colspan="10" class="placeholder">No valid rows found in Construction Financial Data sheet.</td></tr>';
+      '<tr><td colspan="10" class="placeholder">No valid rows found in data source.</td></tr>';
     return;
   }
 
@@ -312,51 +234,142 @@ const renderTable = (rows) => {
 
 const showMessage = (text, isError = false) => {
   messageEl.textContent = text;
-  messageEl.style.color = isError ? "#dc2626" : "#6b7280";
+  messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
 
-const processWorksheet = (sheet, sourceName = "workbook") => {
-  if (!sheet) {
-    showMessage('Sheet data not found. Please load a valid worksheet.', true);
+const destroyCharts = () => {
+  if (varianceChart) {
+    varianceChart.destroy();
+    varianceChart = null;
+  }
+
+  if (costChart) {
+    costChart.destroy();
+    costChart = null;
+  }
+};
+
+const generateChartsFromRange = (startIndex, endIndex) => {
+  if (typeof window.Chart === "undefined") {
+    showMessage(chartDependencyWarning, true);
     return;
   }
 
-  const headerRowIndex = findHeaderRowIndex(sheet);
-  const rawRows = XLSX.utils.sheet_to_json(sheet, {
-    raw: false,
-    defval: "",
-    range: headerRowIndex,
+  if (!dashboardRows.length) {
+    showMessage("No data available. Wait for data to load before generating graph.", true);
+    return;
+  }
+
+  if (!Number.isInteger(startIndex) || !Number.isInteger(endIndex) || startIndex < 1 || endIndex < 1) {
+    showMessage("Range values must be whole numbers greater than or equal to 1.", true);
+    return;
+  }
+
+  if (startIndex > endIndex) {
+    showMessage("Start row cannot be greater than end row.", true);
+    return;
+  }
+
+  if (endIndex > dashboardRows.length) {
+    showMessage(`End row is out of range. Maximum row is ${dashboardRows.length}.`, true);
+    return;
+  }
+
+  const slicedRows = dashboardRows.slice(startIndex - 1, endIndex);
+  const labels = slicedRows.map((row) => row.activity);
+
+  destroyCharts();
+
+  varianceChart = new Chart(document.getElementById("varianceChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Cost Variance",
+          data: slicedRows.map((row) => row.cv),
+          backgroundColor: slicedRows.map((row) => (row.cv >= 0 ? "#22c55e" : "#ef4444")),
+          borderRadius: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          ticks: {
+            callback: (value) => formatCurrency(value),
+          },
+        },
+      },
+    },
   });
 
-  if (!rawRows.length) {
+  costChart = new Chart(document.getElementById("costChart"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Planned Cost (PV)",
+          data: slicedRows.map((row) => row.plannedCost),
+          borderColor: "#2f55ff",
+          backgroundColor: "#2f55ff",
+          tension: 0.3,
+        },
+        {
+          label: "Actual Cost (AC)",
+          data: slicedRows.map((row) => row.actualCost),
+          borderColor: "#10b981",
+          backgroundColor: "#10b981",
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          ticks: {
+            callback: (value) => formatCurrency(value),
+          },
+        },
+      },
+    },
+  });
+
+  showMessage(`Graph generated for rows ${startIndex} to ${endIndex}.`);
+};
+
+const processRows = (rawRows, sourceName = "web app") => {
+  if (!Array.isArray(rawRows) || !rawRows.length) {
+    dashboardRows = [];
     renderKpis({ planned: 0, actual: 0, cv: 0 });
     renderTable([]);
-    showMessage(`No rows detected from ${sourceName}. Check if the sheet has headers and values.`, true);
+    destroyCharts();
+    showMessage(`No rows detected from ${sourceName}.`, true);
     return;
   }
 
-  const { rows, totals, totalSource } = extractMetrics(rawRows);
+  const rows = extractDashboardRows(rawRows);
+  dashboardRows = rows;
+  const totals = calculateTotalsFromRows(rows);
 
   renderKpis(totals);
   renderTable(rows);
+  destroyCharts();
 
-  const sourceLabel =
-    totalSource === "activity-id-rows"
-      ? "activity rows with valid Activity ID"
-      : "sum of activity rows";
-
-  const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
-  const headerMessage =
-    headerRowIndex > 0 ? ` Header row auto-detected at spreadsheet row ${headerRowIndex + 1}.` : "";
+  rangeStartEl.value = "1";
+  rangeEndEl.value = String(Math.min(rows.length, 10));
 
   showMessage(
-    `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${headerMessage}${dependencySuffix}`
+    `Loaded ${rows.length} activity row(s) from ${sourceName}. Enter row range and click \"Generate Graph\".`
   );
 };
 
 const toGoogleSheetCsvUrl = (inputUrl) => {
   if (!inputUrl) return "";
-
   const trimmed = inputUrl.trim();
   if (!trimmed) return "";
   if (/output=csv/i.test(trimmed)) return trimmed;
@@ -365,7 +378,6 @@ const toGoogleSheetCsvUrl = (inputUrl) => {
     const parsed = new URL(trimmed);
     const match = parsed.pathname.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
     if (!match) return "";
-
     const sheetId = match[1];
     const gid = parsed.searchParams.get("gid") || "0";
     return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
@@ -374,44 +386,14 @@ const toGoogleSheetCsvUrl = (inputUrl) => {
   }
 };
 
-
 const isAppsScriptWebAppUrl = (inputUrl) => {
   if (!inputUrl) return false;
-
   try {
     const parsed = new URL(inputUrl.trim());
-    return (
-      parsed.hostname === "script.google.com" &&
-      /\/macros\/s\/.+\/exec$/.test(parsed.pathname)
-    );
+    return parsed.hostname === "script.google.com" && /\/macros\/s\/.+\/exec$/.test(parsed.pathname);
   } catch {
     return false;
   }
-};
-
-const processRows = (rawRows, sourceName = "web app") => {
-  if (!Array.isArray(rawRows) || !rawRows.length) {
-    renderKpis({ planned: 0, actual: 0, cv: 0 });
-    renderTable([]);
-    showMessage(`No rows detected from ${sourceName}. Check if the sheet has headers and values.`, true);
-    return;
-  }
-
-  const { rows, totals, totalSource } = extractMetrics(rawRows);
-
-  renderKpis(totals);
-  renderTable(rows);
-
-  const sourceLabel =
-    totalSource === "activity-id-rows"
-      ? "activity rows with valid Activity ID"
-      : "sum of activity rows";
-
-  const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
-
-  showMessage(
-    `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${dependencySuffix}`
-  );
 };
 
 const loadGoogleSheet = async (providedUrl = "") => {
@@ -421,10 +403,7 @@ const loadGoogleSheet = async (providedUrl = "") => {
   const csvUrl = isWebAppSource ? "" : toGoogleSheetCsvUrl(trimmedUrl);
 
   if (!isWebAppSource && !csvUrl) {
-    showMessage(
-      "Invalid URL. Paste a valid Google Sheet link or Apps Script Web App URL and try again.",
-      true
-    );
+    showMessage("Invalid URL. Use a valid Google Sheet or Apps Script Web App URL.", true);
     return;
   }
 
@@ -433,42 +412,34 @@ const loadGoogleSheet = async (providedUrl = "") => {
 
     if (isWebAppSource) {
       const response = await fetch(trimmedUrl);
-      if (!response.ok) {
-        throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
-      }
-
+      if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
       const payload = await response.json();
-      if (payload?.error) {
-        throw new Error(payload.error);
-      }
-
-      processRows(payload?.rows || [], `Apps Script Web App (${payload?.sheetName || "unknown sheet"})`);
+      if (payload?.error) throw new Error(payload.error);
+      processRows(payload?.rows || [], `Apps Script Web App (${payload?.sheetName || "sheet"})`);
       return;
     }
 
     const response = await fetch(csvUrl);
-    if (!response.ok) {
-      throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
-    }
+    if (!response.ok) throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
 
     const csvText = await response.text();
     const workbook = XLSX.read(csvText, { type: "string" });
     const firstSheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[firstSheetName];
+    const headerRowIndex = findHeaderRowIndex(sheet);
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "", range: headerRowIndex });
 
-    processWorksheet(sheet, `Google Sheet "${firstSheetName}"`);
+    processRows(rawRows, `Google Sheet "${firstSheetName}"`);
   } catch (error) {
-    showMessage(
-      `Error loading data source: ${error.message}. Ensure the sheet is shared or the Web App is deployed for access.`,
-      true
-    );
+    showMessage(`Error loading data source: ${error.message}`, true);
   }
 };
 
-const initializeDataSource = () => {
-  if (DATA_SOURCE_URL) {
-    loadGoogleSheet(DATA_SOURCE_URL);
-  }
-};
+rangeFormEl.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const start = Number.parseInt(rangeStartEl.value, 10);
+  const end = Number.parseInt(rangeEndEl.value, 10);
+  generateChartsFromRange(start, end);
+});
 
-initializeDataSource();
+loadGoogleSheet(DATA_SOURCE_URL);
