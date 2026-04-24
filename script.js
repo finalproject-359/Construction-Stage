@@ -620,36 +620,6 @@ const processRows = (rawRows, sourceName = "web app") => {
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
-
-let deferredInstallPrompt = null;
-
-const installButtonEl = document.getElementById("installButton");
-
-const initializeInstallPrompt = () => {
-  if (!installButtonEl) return;
-
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-    installButtonEl.hidden = false;
-  });
-
-  window.addEventListener("appinstalled", () => {
-    deferredInstallPrompt = null;
-    installButtonEl.hidden = true;
-    showMessage("App installed successfully.");
-  });
-
-  installButtonEl.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
-
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice;
-    deferredInstallPrompt = null;
-    installButtonEl.hidden = true;
-  });
-};
-
 const setupServiceWorkerUpdates = async () => {
   if (!("serviceWorker" in navigator)) {
     showMessage("This browser does not support background app updates.", true);
@@ -738,6 +708,5 @@ const loadGoogleSheet = async (providedUrl = "") => {
   }
 };
 
-initializeInstallPrompt();
 setupServiceWorkerUpdates();
 loadGoogleSheet(DATA_SOURCE_URL);
