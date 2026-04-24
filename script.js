@@ -77,32 +77,30 @@ const EXPECTED_HEADER_ALIASES = [
 ];
 
 const getCell = (row, aliases) => {
-  const normalizedAliases = aliases.map((alias) => normalizeHeader(alias));
-  const compactAliases = normalizedAliases.map((alias) => alias.replace(/\s+/g, ""));
-  for (const key of Object.keys(row)) {
-    const normalizedKey = normalizeHeader(key);
-    const normalizedKeyCompact = compactHeader(key);
-    const matched = normalizedAliases.some((alias, index) => {
-      const aliasCompact = compactAliases[index];
-      const isShortAlias = aliasCompact.length <= 2;
+  const keyEntries = Object.keys(row).map((key) => ({
+    key,
+    normalized: normalizeHeader(key),
+    compact: compactHeader(key),
+  }));
 
-      if (isShortAlias) {
-        return normalizedKeyCompact === aliasCompact;
-      }
+  for (const alias of aliases) {
+    const normalizedAlias = normalizeHeader(alias);
+    const compactAlias = normalizedAlias.replace(/\s+/g, "");
+    const isShortAlias = compactAlias.length <= 2;
+    const isSingleWordAlias = !normalizedAlias.includes(" ");
 
-      return (
-        normalizedKey === alias ||
-        normalizedKey.includes(alias) ||
-        alias.includes(normalizedKey) ||
-        normalizedKeyCompact === aliasCompact ||
-        normalizedKeyCompact.includes(aliasCompact) ||
-        aliasCompact.includes(normalizedKeyCompact)
-      );
-    });
-    if (matched) {
-      return row[key];
-    }
+    const exactMatch = keyEntries.find(
+      (entry) => entry.normalized === normalizedAlias || entry.compact === compactAlias
+    );
+    if (exactMatch) return row[exactMatch.key];
+
+    const prefixedMatch = keyEntries.find((entry) =>
+      entry.normalized.startsWith(`${normalizedAlias} `)
+    );
+    if (prefixedMatch && !isShortAlias && !isSingleWordAlias) return row[prefixedMatch.key];
+
   }
+
   return null;
 };
 
