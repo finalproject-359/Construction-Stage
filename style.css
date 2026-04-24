@@ -147,17 +147,6 @@ body {
   border-color: #c7d2fe;
 }
 
-.update-banner {
-  background: #eef2ff;
-  color: #1e3a8a;
-  border: 1px solid #c7d2fe;
-  border-radius: 10px;
-  padding: 8px 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .kpi-grid {
   display: grid;
   gap: 14px;

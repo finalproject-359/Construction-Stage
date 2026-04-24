@@ -624,14 +624,6 @@ const processRows = (rawRows, sourceName = "web app") => {
 let deferredInstallPrompt = null;
 
 const installButtonEl = document.getElementById("installButton");
-const updateBannerEl = document.getElementById("updateBanner");
-const updateButtonEl = document.getElementById("updateButton");
-
-const showUpdateBanner = () => {
-  if (updateBannerEl) {
-    updateBannerEl.hidden = false;
-  }
-};
 
 const initializeInstallPrompt = () => {
   if (!installButtonEl) return;
@@ -645,7 +637,7 @@ const initializeInstallPrompt = () => {
   window.addEventListener("appinstalled", () => {
     deferredInstallPrompt = null;
     installButtonEl.hidden = true;
-    showMessage("App installed successfully. It will receive update prompts when a new version is available.");
+    showMessage("App installed successfully.");
   });
 
   installButtonEl.addEventListener("click", async () => {
@@ -666,29 +658,6 @@ const setupServiceWorkerUpdates = async () => {
 
   try {
     const registration = await navigator.serviceWorker.register("./service-worker.js");
-
-    const bindWaitingWorker = (waitingWorker) => {
-      if (!waitingWorker || !updateButtonEl) return;
-      showUpdateBanner();
-      updateButtonEl.onclick = () => {
-        waitingWorker.postMessage({ type: "SKIP_WAITING" });
-      };
-    };
-
-    if (registration.waiting) {
-      bindWaitingWorker(registration.waiting);
-    }
-
-    registration.addEventListener("updatefound", () => {
-      const newWorker = registration.installing;
-      if (!newWorker) return;
-
-      newWorker.addEventListener("statechange", () => {
-        if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-          bindWaitingWorker(newWorker);
-        }
-      });
-    });
 
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       window.location.reload();
