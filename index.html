@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BuildFlow | Construction Financial Dashboard</title>
+  <title>CosTrack | Track Better. Build Better.</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,15 +18,49 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <h2>BuildFlow</h2>
-        <p>Construction Finance</p>
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M4 20V7l5-3v16H4Z" />
+            <path d="M11 20V3l5 4v13h-5Z" />
+            <path d="M18 20v-9l2 1.6V20h-2Z" />
+          </svg>
+        </div>
+        <div class="brand-copy">
+          <h2>CosTrack</h2>
+          <p>Track Better. Build Better.</p>
+        </div>
       </div>
       <nav class="menu">
-        <a class="active" href="#">Dashboard</a>
-        <a href="#">Projects</a>
-        <a href="#">Activities</a>
-        <a href="#">Cost Management</a>
-        <a href="#">Reports</a>
+        <a class="active" href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>
+          </span>
+          Dashboard
+        </a>
+        <a href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+          </span>
+          Projects
+        </a>
+        <a href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          </span>
+          Activities
+        </a>
+        <a href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 21V10m7 11V3m7 18v-7"/></svg>
+          </span>
+          Cost Management
+        </a>
+        <a href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 0v6h6"/></svg>
+          </span>
+          Reports
+        </a>
       </nav>
     </aside>
 
@@ -37,19 +71,39 @@
 
       <section class="kpi-grid">
         <article class="kpi-card">
-          <h2>Total Planned Cost</h2>
+          <h2>
+            <span class="kpi-icon planned-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M3 8h18M7 3v5m10-5v5M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
+            </span>
+            Total Planned Cost
+          </h2>
           <p id="totalPlanned">₱0.00</p>
         </article>
         <article class="kpi-card">
-          <h2>Total Actual Cost</h2>
+          <h2>
+            <span class="kpi-icon actual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16M8 15l3-4 3 2 4-6"/></svg>
+            </span>
+            Total Actual Cost
+          </h2>
           <p id="totalActual">₱0.00</p>
         </article>
         <article class="kpi-card">
-          <h2>Total Cost Variance</h2>
+          <h2>
+            <span class="kpi-icon variance-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="m6 15 4-4 3 3 5-7M6 20h12"/></svg>
+            </span>
+            Total Cost Variance
+          </h2>
           <p id="totalCv">₱0.00</p>
         </article>
         <article class="kpi-card status-card" id="statusCard">
-          <h2>Project Status</h2>
+          <h2>
+            <span class="kpi-icon status-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Project Status
+          </h2>
           <p id="projectStatus">Awaiting data source</p>
         </article>
       </section>
