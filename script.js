@@ -620,6 +620,88 @@ const processRows = (rawRows, sourceName = "web app") => {
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
+
+let deferredInstallPrompt = null;
+
+const installButtonEl = document.getElementById("installButton");
+const updateBannerEl = document.getElementById("updateBanner");
+const updateButtonEl = document.getElementById("updateButton");
+
+const showUpdateBanner = () => {
+  if (updateBannerEl) {
+    updateBannerEl.hidden = false;
+  }
+};
+
+const initializeInstallPrompt = () => {
+  if (!installButtonEl) return;
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    installButtonEl.hidden = false;
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    installButtonEl.hidden = true;
+    showMessage("App installed successfully. It will receive update prompts when a new version is available.");
+  });
+
+  installButtonEl.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installButtonEl.hidden = true;
+  });
+};
+
+const setupServiceWorkerUpdates = async () => {
+  if (!("serviceWorker" in navigator)) {
+    showMessage("This browser does not support background app updates.", true);
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register("./service-worker.js");
+
+    const bindWaitingWorker = (waitingWorker) => {
+      if (!waitingWorker || !updateButtonEl) return;
+      showUpdateBanner();
+      updateButtonEl.onclick = () => {
+        waitingWorker.postMessage({ type: "SKIP_WAITING" });
+      };
+    };
+
+    if (registration.waiting) {
+      bindWaitingWorker(registration.waiting);
+    }
+
+    registration.addEventListener("updatefound", () => {
+      const newWorker = registration.installing;
+      if (!newWorker) return;
+
+      newWorker.addEventListener("statechange", () => {
+        if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+          bindWaitingWorker(newWorker);
+        }
+      });
+    });
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
+
+    setInterval(() => {
+      registration.update();
+    }, 5 * 60 * 1000);
+  } catch (error) {
+    showMessage(`Service worker setup failed: ${error.message}`, true);
+  }
+};
+
 const toGoogleSheetCsvUrl = (inputUrl) => {
   if (!inputUrl) return "";
   const trimmed = inputUrl.trim();
@@ -687,4 +769,6 @@ const loadGoogleSheet = async (providedUrl = "") => {
   }
 };
 
+initializeInstallPrompt();
+setupServiceWorkerUpdates();
 loadGoogleSheet(DATA_SOURCE_URL);
