@@ -1,4 +1,3 @@
-const fileInput = document.getElementById("fileInput");
 const totalPlannedEl = document.getElementById("totalPlanned");
 const totalActualEl = document.getElementById("totalActual");
 const totalCvEl = document.getElementById("totalCv");
@@ -6,6 +5,8 @@ const projectStatusEl = document.getElementById("projectStatus");
 const statusCardEl = document.getElementById("statusCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
+const sheetUrlInputEl = document.getElementById("sheetUrlInput");
+const loadSheetBtnEl = document.getElementById("loadSheetBtn");
 
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
@@ -290,13 +291,7 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#6b7280";
 };
 
-const processWorkbook = (arrayBuffer) => {
-  const workbook = XLSX.read(arrayBuffer, { type: "array" });
-  const preferredSheetName = workbook.SheetNames.find(
-    (name) => name.trim().toLowerCase() === "dashboard"
-  );
-  const sheet = workbook.Sheets[preferredSheetName || "Dashboard"];
-
+const processWorksheet = (sheet, sourceName = "workbook") => {
   if (!sheet) {
     showMessage('Sheet "Dashboard" not found. Please upload the correct file.', true);
     return;
@@ -321,23 +316,70 @@ const processWorkbook = (arrayBuffer) => {
   const headerMessage =
     headerRowIndex > 0 ? ` Detected headers on row ${headerRowIndex + 1}.` : "";
   showMessage(
-    `Loaded ${rows.length} activity row(s). KPI totals source: ${sourceLabel}.${headerMessage}${dependencySuffix}`
+    `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${headerMessage}${dependencySuffix}`
   );
 };
 
-fileInput.addEventListener("change", async (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
+const toGoogleSheetCsvUrl = (inputUrl) => {
+  if (!inputUrl) return "";
+
+  const trimmed = inputUrl.trim();
+  if (!trimmed) return "";
+  if (/output=csv/i.test(trimmed)) return trimmed;
 
   try {
-    const buffer = await file.arrayBuffer();
-    processWorkbook(buffer);
-  } catch (error) {
-    const isChartReferenceError =
-      error instanceof ReferenceError && /chart is not defined/i.test(error.message);
-    const errorText = isChartReferenceError
-      ? "Error reading file: Chart.js failed to load (Chart is not defined). Please refresh and try again."
-      : `Error reading file: ${error.message}`;
-    showMessage(errorText, true);
+    const parsed = new URL(trimmed);
+    const match = parsed.pathname.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match) return "";
+
+    const sheetId = match[1];
+    const gid = parsed.searchParams.get("gid") || "0";
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  } catch {
+    return "";
   }
-});
+};
+
+const loadGoogleSheet = async () => {
+  const rawUrl = sheetUrlInputEl?.value || "";
+  const csvUrl = toGoogleSheetCsvUrl(rawUrl);
+
+  if (!csvUrl) {
+    showMessage("Invalid Google Sheet URL. Paste a valid sheet link and try again.", true);
+    return;
+  }
+
+  try {
+    loadSheetBtnEl.disabled = true;
+    loadSheetBtnEl.textContent = "Loading...";
+    showMessage("Loading Google Sheet data...");
+
+    const response = await fetch(csvUrl);
+    if (!response.ok) {
+      throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
+    }
+
+    const csvText = await response.text();
+    const workbook = XLSX.read(csvText, { type: "string" });
+    const firstSheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[firstSheetName];
+
+    processWorksheet(sheet, `Google Sheet "${firstSheetName}"`);
+    localStorage.setItem("dashboardSheetUrl", rawUrl.trim());
+  } catch (error) {
+    showMessage(
+      `Error loading Google Sheet: ${error.message}. Ensure the sheet is published/shared for access.`,
+      true
+    );
+  } finally {
+    loadSheetBtnEl.disabled = false;
+    loadSheetBtnEl.textContent = "Load Google Sheet";
+  }
+};
+
+loadSheetBtnEl?.addEventListener("click", loadGoogleSheet);
+
+if (sheetUrlInputEl) {
+  const storedUrl = localStorage.getItem("dashboardSheetUrl");
+  if (storedUrl) sheetUrlInputEl.value = storedUrl;
+}
