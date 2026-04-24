@@ -54,7 +54,7 @@ const normalize = (value, fallback = "N/A") => {
   return String(value).trim() || fallback;
 };
 
-const formatPercent = (value) => `${parseNumber(value).toFixed(1)}%`;
+const formatPercent = (value) => `${parseNumber(value).toFixed(2)}%`;
 
 const normalizeHeader = (value) =>
   String(value)
@@ -84,6 +84,12 @@ const getCell = (row, aliases) => {
     const normalizedKeyCompact = compactHeader(key);
     const matched = normalizedAliases.some((alias, index) => {
       const aliasCompact = compactAliases[index];
+      const isShortAlias = aliasCompact.length <= 2;
+
+      if (isShortAlias) {
+        return normalizedKeyCompact === aliasCompact;
+      }
+
       return (
         normalizedKey === alias ||
         normalizedKey.includes(alias) ||
