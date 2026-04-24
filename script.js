@@ -5,8 +5,8 @@ const projectStatusEl = document.getElementById("projectStatus");
 const statusCardEl = document.getElementById("statusCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
-const sheetUrlInputEl = document.getElementById("sheetUrlInput");
-const loadSheetBtnEl = document.getElementById("loadSheetBtn");
+const DEFAULT_DATA_SOURCE_URL =
+  "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
 
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
@@ -406,8 +406,7 @@ const processRows = (rawRows, sourceName = "web app") => {
 };
 
 const loadGoogleSheet = async () => {
-  const rawUrl = sheetUrlInputEl?.value || "";
-  const trimmedUrl = rawUrl.trim();
+  const trimmedUrl = DEFAULT_DATA_SOURCE_URL.trim();
   const isWebAppSource = isAppsScriptWebAppUrl(trimmedUrl);
   const csvUrl = isWebAppSource ? "" : toGoogleSheetCsvUrl(trimmedUrl);
 
@@ -420,8 +419,6 @@ const loadGoogleSheet = async () => {
   }
 
   try {
-    loadSheetBtnEl.disabled = true;
-    loadSheetBtnEl.textContent = "Loading...";
     showMessage("Loading data source...");
 
     if (isWebAppSource) {
@@ -436,7 +433,6 @@ const loadGoogleSheet = async () => {
       }
 
       processRows(payload?.rows || [], `Apps Script Web App (${payload?.sheetName || "unknown sheet"})`);
-      localStorage.setItem("dashboardSheetUrl", trimmedUrl);
       return;
     }
 
@@ -451,21 +447,12 @@ const loadGoogleSheet = async () => {
     const sheet = workbook.Sheets[firstSheetName];
 
     processWorksheet(sheet, `Google Sheet "${firstSheetName}"`);
-    localStorage.setItem("dashboardSheetUrl", trimmedUrl);
   } catch (error) {
     showMessage(
       `Error loading data source: ${error.message}. Ensure the sheet is shared or the Web App is deployed for access.`,
       true
     );
-  } finally {
-    loadSheetBtnEl.disabled = false;
-    loadSheetBtnEl.textContent = "Load Data Source";
   }
 };
 
-loadSheetBtnEl?.addEventListener("click", loadGoogleSheet);
-
-if (sheetUrlInputEl) {
-  const storedUrl = localStorage.getItem("dashboardSheetUrl");
-  if (storedUrl) sheetUrlInputEl.value = storedUrl;
-}
+loadGoogleSheet();
