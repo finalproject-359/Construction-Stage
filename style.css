@@ -247,10 +247,6 @@ th { color: var(--muted); }
   background: #f0fdf4;
 }
 
-.variance-row.variance-neutral {
-  background: transparent;
-}
-
 .message {
   margin: 12px 2px 0;
   min-height: 20px;

@@ -97,7 +97,7 @@ const formatSignedPercent = (value) => {
 };
 
 const getVarianceBand = (cv, plannedCost) => {
-  if (!plannedCost) return parseNumber(cv) < 0 ? "severe-over" : "neutral";
+  if (!plannedCost) return "neutral";
   const variancePercent = (parseNumber(cv) / parseNumber(plannedCost)) * 100;
   if (variancePercent < -5) return "severe-over";
   if (variancePercent < 0) return "mild-over";
