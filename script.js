@@ -308,7 +308,21 @@ const showMessage = (text, isError = false) => {
 
 const processWorksheet = (sheet, sourceName = "workbook") => {
   if (!sheet) {
-    showMessage('Sheet "Dashboard" not found. Please upload the correct file.', true);
+    showMessage('Sheet data not found. Please load a valid worksheet.', true);
+    return;
+  }
+
+  const headerRowIndex = findHeaderRowIndex(sheet);
+  const rawRows = XLSX.utils.sheet_to_json(sheet, {
+    raw: false,
+    defval: "",
+    range: headerRowIndex,
+  });
+
+  if (!rawRows.length) {
+    renderKpis({ planned: 0, actual: 0, cv: 0 });
+    renderTable([]);
+    showMessage(`No rows detected from ${sourceName}. Check if the sheet has headers and values.`, true);
     return;
   }
 
@@ -323,6 +337,9 @@ const processWorksheet = (sheet, sourceName = "workbook") => {
       : "sum of activity rows";
 
   const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
+  const headerMessage =
+    headerRowIndex > 0 ? ` Header row auto-detected at spreadsheet row ${headerRowIndex + 1}.` : "";
+
   showMessage(
     `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${headerMessage}${dependencySuffix}`
   );
