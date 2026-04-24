@@ -7,9 +7,18 @@ const physicalProgressEl = document.getElementById("physicalProgress");
 const costSpentEl = document.getElementById("costSpent");
 const efficiencyGapEl = document.getElementById("efficiencyGap");
 const efficiencyCardEl = document.getElementById("efficiencyCard");
+const totalPlannedDeltaEl = document.getElementById("totalPlannedDelta");
+const totalActualDeltaEl = document.getElementById("totalActualDelta");
+const totalCvDeltaEl = document.getElementById("totalCvDelta");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
 const overrunTableBodyEl = document.getElementById("overrunTableBody");
+const activitySearchInputEl = document.getElementById("activitySearchInput");
+const budgetStatusFilterEl = document.getElementById("budgetStatusFilter");
+const varianceSeverityFilterEl = document.getElementById("varianceSeverityFilter");
+const clearFiltersBtnEl = document.getElementById("clearFiltersBtn");
+const activityDetailEl = document.getElementById("activityDetail");
+const lastUpdatedEl = document.getElementById("lastUpdated");
 
 const DATA_SOURCE_URL =
   "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
@@ -20,10 +29,19 @@ const chartDependencyWarning =
     : "";
 
 let dashboardRows = [];
+let filteredRows = [];
+let selectedActivityId = "";
+let previousTotals = null;
 let varianceChart = null;
 let costChart = null;
 let evmTrendChart = null;
 let efficiencyScatterChart = null;
+
+const activeFilters = {
+  search: "",
+  budgetStatus: "all",
+  varianceSeverity: "all",
+};
 
 const getNiceStep = (rawStep) => {
   if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
@@ -96,6 +114,35 @@ const formatSignedPercent = (value) => {
   const numericValue = parseNumber(value);
   const sign = numericValue > 0 ? "+" : "";
   return `${sign}${numericValue.toFixed(2)}%`;
+};
+
+const formatDeltaCurrency = (value) => {
+  const numericValue = parseNumber(value);
+  const sign = numericValue > 0 ? "+" : "";
+  return `Δ ${sign}${formatCurrency(numericValue)}`;
+};
+
+const clearNode = (node) => {
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+};
+
+const appendCell = (rowElement, content) => {
+  const cell = document.createElement("td");
+  cell.textContent = content;
+  rowElement.appendChild(cell);
+};
+
+const renderEmptyRow = (targetBody, columnCount, text) => {
+  clearNode(targetBody);
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+  cell.colSpan = columnCount;
+  cell.className = "placeholder";
+  cell.textContent = text;
+  row.appendChild(cell);
+  targetBody.appendChild(row);
 };
 
 const getVarianceBand = (cv, plannedCost) => {
@@ -255,7 +302,7 @@ const calculateProgressMetrics = (rows, totals) => {
   return { physicalProgressPercent, costSpentPercent, efficiencyGapPercent };
 };
 
-const renderKpis = (totals) => {
+const renderKpis = (totals, previous = null) => {
   const safeTotals = {
     planned: parseNumber(totals?.planned),
     actual: parseNumber(totals?.actual),
@@ -265,6 +312,25 @@ const renderKpis = (totals) => {
   totalPlannedEl.textContent = formatCurrency(safeTotals.planned);
   totalActualEl.textContent = formatCurrency(safeTotals.actual);
   totalCvEl.textContent = formatCurrency(safeTotals.cv);
+
+  const deltas = previous
+    ? {
+        planned: safeTotals.planned - parseNumber(previous.planned),
+        actual: safeTotals.actual - parseNumber(previous.actual),
+        cv: safeTotals.cv - parseNumber(previous.cv),
+      }
+    : { planned: 0, actual: 0, cv: 0 };
+
+  [
+    { el: totalPlannedDeltaEl, value: deltas.planned },
+    { el: totalActualDeltaEl, value: deltas.actual },
+    { el: totalCvDeltaEl, value: deltas.cv },
+  ].forEach(({ el, value }) => {
+    el.textContent = formatDeltaCurrency(value);
+    el.classList.remove("delta-positive", "delta-negative");
+    if (value > 0) el.classList.add("delta-positive");
+    if (value < 0) el.classList.add("delta-negative");
+  });
 
   statusCardEl.classList.remove("status-under", "status-over");
   efficiencyCardEl.classList.remove("status-under", "status-over");
@@ -295,29 +361,31 @@ const renderProgressKpis = (metrics) => {
 
 const renderTable = (rows) => {
   if (!rows.length) {
-    tableBodyEl.innerHTML =
-      '<tr><td colspan="10" class="placeholder">No valid rows found in data source.</td></tr>';
+    renderEmptyRow(tableBodyEl, 10, "No valid rows found in data source.");
     return;
   }
 
-  tableBodyEl.innerHTML = rows
-    .map(
-      (row) => `
-      <tr class="variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}">
-        <td>${row.activityId}</td>
-        <td>${row.activity}</td>
-        <td>${formatCurrency(row.plannedCost)}</td>
-        <td>${formatCurrency(row.actualCost)}</td>
-        <td>${formatCurrency(row.ev)}</td>
-        <td>${formatPercent(row.percentComplete)}</td>
-        <td>${formatCurrency(row.cv)}</td>
-        <td>${formatPercent(row.costUsedPercent)}</td>
-        <td>${formatPercent(row.budgetVariancePercent)}</td>
-        <td>${row.budgetStatus}</td>
-      </tr>
-    `
-    )
-    .join("");
+  clearNode(tableBodyEl);
+  rows.forEach((row) => {
+    const rowEl = document.createElement("tr");
+    rowEl.className = `variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}`;
+    if (row.activityId === selectedActivityId) rowEl.classList.add("selected-row");
+    rowEl.dataset.activityId = row.activityId;
+    rowEl.addEventListener("click", () => selectActivity(row.activityId));
+
+    appendCell(rowEl, row.activityId);
+    appendCell(rowEl, row.activity);
+    appendCell(rowEl, formatCurrency(row.plannedCost));
+    appendCell(rowEl, formatCurrency(row.actualCost));
+    appendCell(rowEl, formatCurrency(row.ev));
+    appendCell(rowEl, formatPercent(row.percentComplete));
+    appendCell(rowEl, formatCurrency(row.cv));
+    appendCell(rowEl, formatPercent(row.costUsedPercent));
+    appendCell(rowEl, formatPercent(row.budgetVariancePercent));
+    appendCell(rowEl, row.budgetStatus);
+
+    tableBodyEl.appendChild(rowEl);
+  });
 };
 
 const renderOverrunTable = (rows) => {
@@ -327,29 +395,88 @@ const renderOverrunTable = (rows) => {
     .slice(0, 5);
 
   if (!overrunRows.length) {
-    overrunTableBodyEl.innerHTML =
-      '<tr><td colspan="5" class="placeholder">No overrun activities found.</td></tr>';
+    renderEmptyRow(overrunTableBodyEl, 5, "No overrun activities found.");
     return;
   }
 
-  overrunTableBodyEl.innerHTML = overrunRows
-    .map(
-      (row) => `
-      <tr>
-        <td>${row.activity}</td>
-        <td>${formatCurrency(row.cv)}</td>
-        <td>${formatPercent(row.budgetVariancePercent)}</td>
-        <td>${formatPercent(row.percentComplete)}</td>
-        <td>${formatPercent(row.costUsedPercent)}</td>
-      </tr>
-    `
-    )
-    .join("");
+  clearNode(overrunTableBodyEl);
+  overrunRows.forEach((row) => {
+    const rowEl = document.createElement("tr");
+    rowEl.addEventListener("click", () => selectActivity(row.activityId));
+    appendCell(rowEl, row.activity);
+    appendCell(rowEl, formatCurrency(row.cv));
+    appendCell(rowEl, formatPercent(row.budgetVariancePercent));
+    appendCell(rowEl, formatPercent(row.percentComplete));
+    appendCell(rowEl, formatPercent(row.costUsedPercent));
+    overrunTableBodyEl.appendChild(rowEl);
+  });
 };
 
 const showMessage = (text, isError = false) => {
   messageEl.textContent = text;
   messageEl.style.color = isError ? "#dc2626" : "#667085";
+};
+
+const renderActivityDetail = (selectedRow) => {
+  clearNode(activityDetailEl);
+
+  if (!selectedRow) {
+    activityDetailEl.classList.add("placeholder");
+    activityDetailEl.textContent = "Select an activity to view detailed metrics.";
+    return;
+  }
+
+  activityDetailEl.classList.remove("placeholder");
+  const title = document.createElement("h4");
+  title.textContent = `${selectedRow.activityId} — ${selectedRow.activity}`;
+  activityDetailEl.appendChild(title);
+
+  const lines = [
+    `Planned Value (PV): ${formatCurrency(selectedRow.plannedCost)}`,
+    `Actual Cost (AC): ${formatCurrency(selectedRow.actualCost)}`,
+    `Earned Value (EV): ${formatCurrency(selectedRow.ev)}`,
+    `Cost Variance: ${formatCurrency(selectedRow.cv)} (${formatPercent(selectedRow.budgetVariancePercent)})`,
+    `Progress vs Spend: ${formatPercent(selectedRow.percentComplete)} complete vs ${formatPercent(
+      selectedRow.costUsedPercent
+    )} cost used`,
+    `Budget Status: ${selectedRow.budgetStatus}`,
+  ];
+
+  lines.forEach((line) => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = line;
+    activityDetailEl.appendChild(paragraph);
+  });
+};
+
+const applyFilters = (rows) =>
+  rows.filter((row) => {
+    const matchesSearch =
+      !activeFilters.search ||
+      row.activity.toLowerCase().includes(activeFilters.search) ||
+      String(row.activityId).toLowerCase().includes(activeFilters.search);
+
+    const matchesBudget =
+      activeFilters.budgetStatus === "all" ||
+      (activeFilters.budgetStatus === "over" && row.budgetStatus === "Over Budget") ||
+      (activeFilters.budgetStatus === "under" && row.budgetStatus === "Under Budget");
+
+    const varianceBand = getVarianceBand(row.cv, row.plannedCost);
+    const matchesVariance =
+      activeFilters.varianceSeverity === "all" || varianceBand === activeFilters.varianceSeverity;
+
+    return matchesSearch && matchesBudget && matchesVariance;
+  });
+
+const updateLastUpdated = () => {
+  const stamp = new Date().toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  lastUpdatedEl.textContent = `Last updated: ${stamp}`;
 };
 
 const destroyCharts = () => {
@@ -371,6 +498,41 @@ const destroyCharts = () => {
   if (efficiencyScatterChart) {
     efficiencyScatterChart.destroy();
     efficiencyScatterChart = null;
+  }
+};
+
+const selectActivity = (activityId) => {
+  selectedActivityId = activityId || "";
+  renderTable(filteredRows);
+  const selectedRow = filteredRows.find((row) => row.activityId === selectedActivityId) || null;
+  renderActivityDetail(selectedRow);
+};
+
+const refreshDashboard = (rows, sourceName = "web app", { updateHistory = false } = {}) => {
+  filteredRows = applyFilters(rows);
+
+  const totals = calculateTotalsFromRows(filteredRows);
+  const progressMetrics = calculateProgressMetrics(filteredRows, totals);
+  renderKpis(totals, previousTotals);
+  renderProgressKpis(progressMetrics);
+  renderTable(filteredRows);
+  renderOverrunTable(filteredRows);
+  generateCharts(filteredRows);
+
+  if (!filteredRows.some((row) => row.activityId === selectedActivityId)) {
+    selectedActivityId = filteredRows[0]?.activityId || "";
+  }
+
+  const selectedRow = filteredRows.find((row) => row.activityId === selectedActivityId) || null;
+  renderActivityDetail(selectedRow);
+
+  showMessage(
+    `Loaded ${rows.length} row(s) from ${sourceName}. Showing ${filteredRows.length} row(s) after filters.`
+  );
+  updateLastUpdated();
+
+  if (updateHistory) {
+    previousTotals = totals;
   }
 };
 
@@ -399,6 +561,10 @@ const generateCharts = (rows) => {
   });
 
   destroyCharts();
+  const selectByIndex = (index) => {
+    if (!Number.isInteger(index) || index < 0 || index >= rows.length) return;
+    selectActivity(rows[index].activityId);
+  };
 
   varianceChart = new Chart(document.getElementById("varianceChart"), {
     type: "bar",
@@ -417,6 +583,10 @@ const generateCharts = (rows) => {
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
+      onClick: (_event, elements) => {
+        if (!elements.length) return;
+        selectByIndex(elements[0].index);
+      },
       scales: {
         y: {
           min: varianceAxis.min,
@@ -454,6 +624,10 @@ const generateCharts = (rows) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (_event, elements) => {
+        if (!elements.length) return;
+        selectByIndex(elements[0].index);
+      },
       scales: {
         y: {
           min: costAxis.min,
@@ -518,6 +692,10 @@ const generateCharts = (rows) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (_event, elements) => {
+        if (!elements.length) return;
+        selectByIndex(elements[0].index);
+      },
       scales: {
         y: {
           min: evmAxis.min,
@@ -565,6 +743,11 @@ const generateCharts = (rows) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      onClick: (_event, elements) => {
+        if (!elements.length) return;
+        const pointIndex = elements[0].index;
+        selectByIndex(pointIndex);
+      },
       plugins: {
         tooltip: {
           callbacks: {
@@ -597,27 +780,21 @@ const generateCharts = (rows) => {
 const processRows = (rawRows, sourceName = "web app") => {
   if (!Array.isArray(rawRows) || !rawRows.length) {
     dashboardRows = [];
+    filteredRows = [];
     renderKpis({ planned: 0, actual: 0, cv: 0 });
     renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
     renderTable([]);
     renderOverrunTable([]);
+    renderActivityDetail(null);
     destroyCharts();
     showMessage(`No rows detected from ${sourceName}.`, true);
+    updateLastUpdated();
     return;
   }
 
   const rows = extractDashboardRows(rawRows);
   dashboardRows = rows;
-  const totals = calculateTotalsFromRows(rows);
-  const progressMetrics = calculateProgressMetrics(rows, totals);
-
-  renderKpis(totals);
-  renderProgressKpis(progressMetrics);
-  renderTable(rows);
-  renderOverrunTable(rows);
-  generateCharts(rows);
-
-  showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
+  refreshDashboard(rows, sourceName, { updateHistory: true });
 };
 
 const setupServiceWorkerUpdates = async () => {
@@ -708,5 +885,33 @@ const loadGoogleSheet = async (providedUrl = "") => {
   }
 };
 
+const setupFilters = () => {
+  activitySearchInputEl.addEventListener("input", (event) => {
+    activeFilters.search = event.target.value.trim().toLowerCase();
+    refreshDashboard(dashboardRows, "filtered view");
+  });
+
+  budgetStatusFilterEl.addEventListener("change", (event) => {
+    activeFilters.budgetStatus = event.target.value;
+    refreshDashboard(dashboardRows, "filtered view");
+  });
+
+  varianceSeverityFilterEl.addEventListener("change", (event) => {
+    activeFilters.varianceSeverity = event.target.value;
+    refreshDashboard(dashboardRows, "filtered view");
+  });
+
+  clearFiltersBtnEl.addEventListener("click", () => {
+    activeFilters.search = "";
+    activeFilters.budgetStatus = "all";
+    activeFilters.varianceSeverity = "all";
+    activitySearchInputEl.value = "";
+    budgetStatusFilterEl.value = "all";
+    varianceSeverityFilterEl.value = "all";
+    refreshDashboard(dashboardRows, "filtered view");
+  });
+};
+
+setupFilters();
 setupServiceWorkerUpdates();
 loadGoogleSheet(DATA_SOURCE_URL);
