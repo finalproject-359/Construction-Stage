@@ -93,6 +93,10 @@ body {
 .chart-panel,
 .table-panel { margin-top: 14px; padding: 16px; }
 
+.chart-grid .chart-panel {
+  margin-top: 0;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -106,6 +110,7 @@ body {
 .panel-header p { margin: 0; color: var(--muted); font-size: 0.88rem; }
 
 .chart-grid {
+  margin-top: 14px;
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(2, minmax(240px, 1fr));
@@ -115,6 +120,15 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
+}
+
+.chart-canvas-wrap {
+  height: 240px;
+}
+
+.chart-canvas-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .chart-card h4 { margin: 0 0 8px; }

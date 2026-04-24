@@ -328,6 +328,7 @@ const generateCharts = (rows) => {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
         y: {
@@ -365,6 +366,7 @@ const generateCharts = (rows) => {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       scales: {
         y: {
           min: costAxis.min,
