@@ -205,8 +205,11 @@ const extractDashboardRows = (rawRows) =>
 
       const plannedCost = parseNumber(getCell(row, ["planned value", "planned cost", "pv", "budget"]));
       const actualCost = parseNumber(getCell(row, ["actual cost", "ac", "actual"]));
-      const providedCv = parseNumber(getCell(row, ["cost variance", "cv"]));
-      const cv = providedCv || plannedCost - actualCost;
+      const rawCv = getCell(row, ["cost variance", "cv"]);
+      const hasProvidedCv =
+        rawCv !== null && rawCv !== undefined && String(rawCv).trim() !== "";
+      const providedCv = parseNumber(rawCv);
+      const cv = hasProvidedCv ? providedCv : plannedCost - actualCost;
 
       return {
         activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,

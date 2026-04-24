@@ -171,6 +171,8 @@ body {
 .status-over { background: var(--red-soft); border-color: #fecaca; }
 .status-under #projectStatus { color: var(--green); }
 .status-over #projectStatus { color: var(--red); }
+.status-under #efficiencyGap { color: var(--green); }
+.status-over #efficiencyGap { color: var(--red); }
 
 .chart-panel,
 .table-panel { margin-top: 14px; padding: 16px; }
