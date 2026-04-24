@@ -22,6 +22,8 @@ const chartDependencyWarning =
 let dashboardRows = [];
 let varianceChart = null;
 let costChart = null;
+let evmTrendChart = null;
+let efficiencyScatterChart = null;
 
 const getNiceStep = (rawStep) => {
   if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
@@ -360,6 +362,16 @@ const destroyCharts = () => {
     costChart.destroy();
     costChart = null;
   }
+
+  if (evmTrendChart) {
+    evmTrendChart.destroy();
+    evmTrendChart = null;
+  }
+
+  if (efficiencyScatterChart) {
+    efficiencyScatterChart.destroy();
+    efficiencyScatterChart = null;
+  }
 };
 
 const generateCharts = (rows) => {
@@ -450,6 +462,132 @@ const generateCharts = (rows) => {
             stepSize: costAxis.stepSize,
             callback: (value) => formatCurrency(value),
           },
+        },
+      },
+    },
+  });
+
+  const cumulativeSeries = rows.reduce(
+    (acc, row, index) => {
+      const previousPv = index ? acc.pv[index - 1] : 0;
+      const previousEv = index ? acc.ev[index - 1] : 0;
+      const previousAc = index ? acc.ac[index - 1] : 0;
+
+      acc.labels.push(`${index + 1}. ${row.activity}`);
+      acc.pv.push(previousPv + row.plannedCost);
+      acc.ev.push(previousEv + row.ev);
+      acc.ac.push(previousAc + row.actualCost);
+      return acc;
+    },
+    { labels: [], pv: [], ev: [], ac: [] }
+  );
+
+  const evmAxis = buildLinearAxisRange(
+    [...cumulativeSeries.pv, ...cumulativeSeries.ev, ...cumulativeSeries.ac],
+    { includeZero: true, targetTickCount: 7 }
+  );
+
+  evmTrendChart = new Chart(document.getElementById("evmTrendChart"), {
+    type: "line",
+    data: {
+      labels: cumulativeSeries.labels,
+      datasets: [
+        {
+          label: "Cumulative PV",
+          data: cumulativeSeries.pv,
+          borderColor: "#2f55ff",
+          backgroundColor: "#2f55ff",
+          tension: 0.25,
+        },
+        {
+          label: "Cumulative EV",
+          data: cumulativeSeries.ev,
+          borderColor: "#7c3aed",
+          backgroundColor: "#7c3aed",
+          tension: 0.25,
+        },
+        {
+          label: "Cumulative AC",
+          data: cumulativeSeries.ac,
+          borderColor: "#10b981",
+          backgroundColor: "#10b981",
+          tension: 0.25,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          min: evmAxis.min,
+          max: evmAxis.max,
+          ticks: {
+            stepSize: evmAxis.stepSize,
+            callback: (value) => formatCurrency(value),
+          },
+        },
+      },
+    },
+  });
+
+  const scatterPoints = rows.map((row) => ({
+    x: row.percentComplete,
+    y: row.costUsedPercent,
+    activity: row.activity,
+  }));
+
+  efficiencyScatterChart = new Chart(document.getElementById("efficiencyScatterChart"), {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: "Activities",
+          data: scatterPoints,
+          backgroundColor: rows.map((row) => (row.costUsedPercent > row.percentComplete ? "#ef4444" : "#22c55e")),
+          pointRadius: 5,
+          pointHoverRadius: 7,
+        },
+        {
+          label: "Balanced Spend (y = x)",
+          type: "line",
+          data: [
+            { x: 0, y: 0 },
+            { x: 100, y: 100 },
+          ],
+          borderColor: "#64748b",
+          borderDash: [6, 6],
+          pointRadius: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              if (context.dataset.label !== "Activities") return context.dataset.label;
+              const point = context.raw;
+              return `${point.activity}: ${point.x.toFixed(2)}% complete, ${point.y.toFixed(2)}% cost used`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          min: 0,
+          max: 100,
+          title: { display: true, text: "% Complete" },
+          ticks: { callback: (value) => `${value}%` },
+        },
+        y: {
+          min: 0,
+          max: 100,
+          title: { display: true, text: "% Cost Used" },
+          ticks: { callback: (value) => `${value}%` },
         },
       },
     },
