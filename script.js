@@ -10,8 +10,6 @@ const efficiencyCardEl = document.getElementById("efficiencyCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
 const overrunTableBodyEl = document.getElementById("overrunTableBody");
-const chartSortEl = document.getElementById("chartSort");
-const chartLimitEl = document.getElementById("chartLimit");
 
 const DATA_SOURCE_URL =
   "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
@@ -26,10 +24,6 @@ let varianceChart = null;
 let costChart = null;
 let evmTrendChart = null;
 let efficiencyScatterChart = null;
-let chartSettings = {
-  sortBy: "impact",
-  limit: 12,
-};
 
 const getNiceStep = (rawStep) => {
   if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
@@ -380,33 +374,6 @@ const destroyCharts = () => {
   }
 };
 
-const formatCurrencyCompact = (value) =>
-  new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(Number.isFinite(value) ? value : 0);
-
-const getChartRows = (rows) => {
-  const sortedRows = [...rows];
-  const sortBy = chartSettings.sortBy;
-
-  if (sortBy === "overrun") {
-    sortedRows.sort((a, b) => a.cv - b.cv);
-  } else if (sortBy === "activity") {
-    sortedRows.sort((a, b) => a.activity.localeCompare(b.activity));
-  } else {
-    sortedRows.sort((a, b) => Math.abs(b.plannedCost - b.actualCost) - Math.abs(a.plannedCost - a.actualCost));
-  }
-
-  if (chartSettings.limit === "all") return sortedRows;
-
-  const numericLimit = Number(chartSettings.limit);
-  if (!Number.isFinite(numericLimit) || numericLimit <= 0) return sortedRows;
-  return sortedRows.slice(0, numericLimit);
-};
-
 const generateCharts = (rows) => {
   if (typeof window.Chart === "undefined") {
     showMessage(chartDependencyWarning, true);
@@ -419,13 +386,12 @@ const generateCharts = (rows) => {
     return;
   }
 
-  const chartRows = getChartRows(rows);
-  const labels = chartRows.map((row) => row.activity);
-  const varianceValues = chartRows.map((row) => row.cv);
+  const labels = rows.map((row) => row.activity);
+  const varianceValues = rows.map((row) => row.cv);
   const varianceAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
 
-  const plannedSeries = chartRows.map((row) => row.plannedCost);
-  const actualSeries = chartRows.map((row) => row.actualCost);
+  const plannedSeries = rows.map((row) => row.plannedCost);
+  const actualSeries = rows.map((row) => row.actualCost);
 
   const costAxis = buildLinearAxisRange([...plannedSeries, ...actualSeries], {
     includeZero: true,
@@ -442,7 +408,7 @@ const generateCharts = (rows) => {
         {
           label: "Cost Variance",
           data: varianceValues,
-          backgroundColor: chartRows.map((row) => (row.cv >= 0 ? "#22c55e" : "#ef4444")),
+          backgroundColor: rows.map((row) => (row.cv >= 0 ? "#22c55e" : "#ef4444")),
           borderRadius: 6,
         },
       ],
@@ -450,22 +416,14 @@ const generateCharts = (rows) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (context) => `Variance: ${formatCurrency(context.raw)}`,
-          },
-        },
-      },
+      plugins: { legend: { display: false } },
       scales: {
         y: {
           min: varianceAxis.min,
           max: varianceAxis.max,
-          title: { display: true, text: "Cost Variance (PHP)" },
           ticks: {
             stepSize: varianceAxis.stepSize,
-            callback: (value) => formatCurrencyCompact(value),
+            callback: (value) => formatCurrency(value),
           },
         },
       },
@@ -481,18 +439,14 @@ const generateCharts = (rows) => {
           label: "Planned Cost (PV)",
           data: plannedSeries,
           borderColor: "#2f55ff",
-          backgroundColor: "rgba(47,85,255,.2)",
-          fill: true,
-          pointRadius: 3,
+          backgroundColor: "#2f55ff",
           tension: 0.3,
         },
         {
           label: "Actual Cost (AC)",
           data: actualSeries,
           borderColor: "#10b981",
-          backgroundColor: "rgba(16,185,129,.18)",
-          fill: true,
-          pointRadius: 3,
+          backgroundColor: "#10b981",
           tension: 0.3,
         },
       ],
@@ -500,28 +454,20 @@ const generateCharts = (rows) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}`,
-          },
-        },
-      },
       scales: {
         y: {
           min: costAxis.min,
           max: costAxis.max,
-          title: { display: true, text: "Cost (PHP)" },
           ticks: {
             stepSize: costAxis.stepSize,
-            callback: (value) => formatCurrencyCompact(value),
+            callback: (value) => formatCurrency(value),
           },
         },
       },
     },
   });
 
-  const cumulativeSeries = chartRows.reduce(
+  const cumulativeSeries = rows.reduce(
     (acc, row, index) => {
       const previousPv = index ? acc.pv[index - 1] : 0;
       const previousEv = index ? acc.ev[index - 1] : 0;
@@ -572,28 +518,20 @@ const generateCharts = (rows) => {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}`,
-          },
-        },
-      },
       scales: {
         y: {
           min: evmAxis.min,
           max: evmAxis.max,
-          title: { display: true, text: "Cumulative Cost (PHP)" },
           ticks: {
             stepSize: evmAxis.stepSize,
-            callback: (value) => formatCurrencyCompact(value),
+            callback: (value) => formatCurrency(value),
           },
         },
       },
     },
   });
 
-  const scatterPoints = chartRows.map((row) => ({
+  const scatterPoints = rows.map((row) => ({
     x: row.percentComplete,
     y: row.costUsedPercent,
     activity: row.activity,
@@ -606,9 +544,7 @@ const generateCharts = (rows) => {
         {
           label: "Activities",
           data: scatterPoints,
-          backgroundColor: chartRows.map((row) =>
-            row.costUsedPercent > row.percentComplete ? "#ef4444" : "#22c55e"
-          ),
+          backgroundColor: rows.map((row) => (row.costUsedPercent > row.percentComplete ? "#ef4444" : "#22c55e")),
           pointRadius: 5,
           pointHoverRadius: 7,
         },
@@ -681,30 +617,7 @@ const processRows = (rawRows, sourceName = "web app") => {
   renderOverrunTable(rows);
   generateCharts(rows);
 
-  const graphRows = getChartRows(rows).length;
-  showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Showing ${graphRows} row(s) in graphs.`);
-};
-
-const setupChartControls = () => {
-  if (!chartSortEl || !chartLimitEl) return;
-
-  chartSortEl.addEventListener("change", () => {
-    chartSettings.sortBy = chartSortEl.value;
-    if (dashboardRows.length) {
-      generateCharts(dashboardRows);
-      const graphRows = getChartRows(dashboardRows).length;
-      showMessage(`Graph order updated. Showing ${graphRows} row(s).`);
-    }
-  });
-
-  chartLimitEl.addEventListener("change", () => {
-    chartSettings.limit = chartLimitEl.value === "all" ? "all" : Number(chartLimitEl.value);
-    if (dashboardRows.length) {
-      generateCharts(dashboardRows);
-      const graphRows = getChartRows(dashboardRows).length;
-      showMessage(`Graph range updated. Showing ${graphRows} row(s).`);
-    }
-  });
+  showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
 const setupServiceWorkerUpdates = async () => {
@@ -795,6 +708,5 @@ const loadGoogleSheet = async (providedUrl = "") => {
   }
 };
 
-setupChartControls();
 setupServiceWorkerUpdates();
 loadGoogleSheet(DATA_SOURCE_URL);
