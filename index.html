@@ -138,6 +138,22 @@
         </article>
       </section>
 
+      <section class="chart-toolbar" aria-label="Graph controls">
+        <label for="chartSort">Graph order</label>
+        <select id="chartSort">
+          <option value="impact">Highest budget impact</option>
+          <option value="overrun">Largest overruns first</option>
+          <option value="activity">Activity name (A-Z)</option>
+        </select>
+        <label for="chartLimit">Activities shown</label>
+        <select id="chartLimit">
+          <option value="8">Top 8</option>
+          <option value="12" selected>Top 12</option>
+          <option value="20">Top 20</option>
+          <option value="all">All</option>
+        </select>
+      </section>
+
       <section class="chart-grid">
         <section class="chart-panel">
           <div class="panel-header">
