@@ -8,6 +8,9 @@ const tableBodyEl = document.getElementById("activityTableBody");
 const DEFAULT_DATA_SOURCE_URL =
   "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
 
+const DEFAULT_DATA_SOURCE_URL =
+  "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
+
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
     ? "Chart.js is not available. Charts will be skipped until the dependency loads."
@@ -405,8 +408,9 @@ const processRows = (rawRows, sourceName = "web app") => {
   );
 };
 
-const loadGoogleSheet = async () => {
-  const trimmedUrl = DEFAULT_DATA_SOURCE_URL.trim();
+const loadGoogleSheet = async (providedUrl = "") => {
+  const rawUrl = providedUrl || sheetUrlInputEl?.value || "";
+  const trimmedUrl = rawUrl.trim();
   const isWebAppSource = isAppsScriptWebAppUrl(trimmedUrl);
   const csvUrl = isWebAppSource ? "" : toGoogleSheetCsvUrl(trimmedUrl);
 
@@ -455,4 +459,19 @@ const loadGoogleSheet = async () => {
   }
 };
 
-loadGoogleSheet();
+loadSheetBtnEl?.addEventListener("click", () => loadGoogleSheet());
+
+const initializeDataSource = () => {
+  const storedUrl = localStorage.getItem("dashboardSheetUrl");
+  const initialUrl = storedUrl || DEFAULT_DATA_SOURCE_URL;
+
+  if (sheetUrlInputEl && initialUrl) {
+    sheetUrlInputEl.value = initialUrl;
+  }
+
+  if (initialUrl) {
+    loadGoogleSheet(initialUrl);
+  }
+};
+
+initializeDataSource();
