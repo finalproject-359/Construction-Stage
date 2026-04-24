@@ -180,7 +180,21 @@ const extractDashboardRows = (rawRows) =>
           "actualcost",
         ])
       );
+      const providedCv = parseNumber(
+        getCell(row, ["cost variance", "cv", "cost variance (cv)"])
+      );
       const computedCv = plannedCost - actualCost;
+      const cv = providedCv !== 0 ? providedCv : computedCv;
+      const providedCostUsed = parseNumber(
+        getCell(row, ["% cost used", "cost used %", "cost used percent"])
+      );
+      const providedBudgetVariance = parseNumber(
+        getCell(row, ["budget variance", "budget variance %", "budget variance percent"])
+      );
+      const providedBudgetStatus = normalize(
+        getCell(row, ["budget status", "status"]),
+        ""
+      );
 
       return {
         projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
@@ -200,10 +214,11 @@ const extractDashboardRows = (rawRows) =>
             "progress %",
           ])
         ),
-        cv: computedCv,
-        costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
-        budgetVariancePercent: plannedCost ? (computedCv / plannedCost) * 100 : 0,
-        budgetStatus: computedCv >= 0 ? "On Budget" : "Over Budget",
+        cv,
+        costUsedPercent: providedCostUsed || (plannedCost ? (actualCost / plannedCost) * 100 : 0),
+        budgetVariancePercent:
+          providedBudgetVariance || (plannedCost ? (cv / plannedCost) * 100 : 0),
+        budgetStatus: providedBudgetStatus || (cv >= 0 ? "On Budget" : "Over Budget"),
       };
     })
     .filter(
@@ -262,7 +277,7 @@ const renderKpis = (totals) => {
 const renderTable = (rows) => {
   if (!rows.length) {
     tableBodyEl.innerHTML =
-      '<tr><td colspan="10" class="placeholder">No valid rows found in Dashboard sheet.</td></tr>';
+      '<tr><td colspan="10" class="placeholder">No valid rows found in Construction Financial Data sheet.</td></tr>';
     return;
   }
 
@@ -297,11 +312,6 @@ const processWorksheet = (sheet, sourceName = "workbook") => {
     return;
   }
 
-  const headerRowIndex = findHeaderRowIndex(sheet);
-  const rawRows = XLSX.utils.sheet_to_json(sheet, {
-    defval: "",
-    range: headerRowIndex,
-  });
   const { rows, totals, totalSource } = extractMetrics(rawRows);
 
   renderKpis(totals);
@@ -313,8 +323,6 @@ const processWorksheet = (sheet, sourceName = "workbook") => {
       : "sum of activity rows";
 
   const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
-  const headerMessage =
-    headerRowIndex > 0 ? ` Detected headers on row ${headerRowIndex + 1}.` : "";
   showMessage(
     `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${headerMessage}${dependencySuffix}`
   );
