@@ -684,7 +684,7 @@ const loadGoogleSheet = async (providedUrl = "") => {
     showMessage("Loading data source...");
 
     if (isWebAppSource) {
-      const response = await fetch(trimmedUrl);
+      const response = await fetch(trimmedUrl, { cache: "no-store" });
       if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
       const payload = await response.json();
       if (payload?.error) throw new Error(payload.error);
@@ -692,7 +692,7 @@ const loadGoogleSheet = async (providedUrl = "") => {
       return;
     }
 
-    const response = await fetch(csvUrl);
+    const response = await fetch(csvUrl, { cache: "no-store" });
     if (!response.ok) throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
 
     const csvText = await response.text();
