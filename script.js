@@ -1,4 +1,3 @@
-const fileInput = document.getElementById("fileInput");
 const totalPlannedEl = document.getElementById("totalPlanned");
 const totalActualEl = document.getElementById("totalActual");
 const totalCvEl = document.getElementById("totalCv");
@@ -6,6 +5,10 @@ const projectStatusEl = document.getElementById("projectStatus");
 const statusCardEl = document.getElementById("statusCard");
 const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
+const sheetUrlInputEl = document.getElementById("sheetUrlInput");
+const loadSheetBtnEl = document.getElementById("loadSheetBtn");
+const DEFAULT_DATA_SOURCE_URL =
+  "https://script.google.com/macros/s/AKfycbxVQiKa3EkKVcqbJdXgn4GT3EjY52yr8ZBAFg-sIBWwNn21bAjfL1ldeshiQXi9xmFOaQ/exec";
 
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
@@ -179,7 +182,21 @@ const extractDashboardRows = (rawRows) =>
           "actualcost",
         ])
       );
+      const providedCv = parseNumber(
+        getCell(row, ["cost variance", "cv", "cost variance (cv)"])
+      );
       const computedCv = plannedCost - actualCost;
+      const cv = providedCv !== 0 ? providedCv : computedCv;
+      const providedCostUsed = parseNumber(
+        getCell(row, ["% cost used", "cost used %", "cost used percent"])
+      );
+      const providedBudgetVariance = parseNumber(
+        getCell(row, ["budget variance", "budget variance %", "budget variance percent"])
+      );
+      const providedBudgetStatus = normalize(
+        getCell(row, ["budget status", "status"]),
+        ""
+      );
 
       return {
         projectId: normalize(getCell(row, ["project id", "projectid", "project"]), "Unspecified"),
@@ -199,10 +216,11 @@ const extractDashboardRows = (rawRows) =>
             "progress %",
           ])
         ),
-        cv: computedCv,
-        costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
-        budgetVariancePercent: plannedCost ? (computedCv / plannedCost) * 100 : 0,
-        budgetStatus: computedCv >= 0 ? "On Budget" : "Over Budget",
+        cv,
+        costUsedPercent: providedCostUsed || (plannedCost ? (actualCost / plannedCost) * 100 : 0),
+        budgetVariancePercent:
+          providedBudgetVariance || (plannedCost ? (cv / plannedCost) * 100 : 0),
+        budgetStatus: providedBudgetStatus || (cv >= 0 ? "On Budget" : "Over Budget"),
       };
     })
     .filter(
@@ -261,7 +279,7 @@ const renderKpis = (totals) => {
 const renderTable = (rows) => {
   if (!rows.length) {
     tableBodyEl.innerHTML =
-      '<tr><td colspan="10" class="placeholder">No valid rows found in Dashboard sheet.</td></tr>';
+      '<tr><td colspan="10" class="placeholder">No valid rows found in Construction Financial Data sheet.</td></tr>';
     return;
   }
 
@@ -290,23 +308,12 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#6b7280";
 };
 
-const processWorkbook = (arrayBuffer) => {
-  const workbook = XLSX.read(arrayBuffer, { type: "array" });
-  const preferredSheetName = workbook.SheetNames.find(
-    (name) => name.trim().toLowerCase() === "dashboard"
-  );
-  const sheet = workbook.Sheets[preferredSheetName || "Dashboard"];
-
-  if (!sheet) {
-    showMessage('Sheet "Dashboard" not found. Please upload the correct file.', true);
+const processRawRows = (rawRows, sourceName = "data source") => {
+  if (!Array.isArray(rawRows)) {
+    showMessage("Invalid data format. Expected an array of rows.", true);
     return;
   }
 
-  const headerRowIndex = findHeaderRowIndex(sheet);
-  const rawRows = XLSX.utils.sheet_to_json(sheet, {
-    defval: "",
-    range: headerRowIndex,
-  });
   const { rows, totals, totalSource } = extractMetrics(rawRows);
 
   renderKpis(totals);
@@ -318,26 +325,129 @@ const processWorkbook = (arrayBuffer) => {
       : "sum of activity rows";
 
   const dependencySuffix = chartDependencyWarning ? ` ${chartDependencyWarning}` : "";
-  const headerMessage =
-    headerRowIndex > 0 ? ` Detected headers on row ${headerRowIndex + 1}.` : "";
   showMessage(
-    `Loaded ${rows.length} activity row(s). KPI totals source: ${sourceLabel}.${headerMessage}${dependencySuffix}`
+    `Loaded ${rows.length} activity row(s) from ${sourceName}. KPI totals source: ${sourceLabel}.${dependencySuffix}`
   );
 };
 
-fileInput.addEventListener("change", async (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
+const processWorksheet = (sheet, sourceName = "workbook") => {
+  if (!sheet) {
+    showMessage('Sheet "Construction Financial Data" not found. Please use the correct source.', true);
+    return;
+  }
+
+  const headerRowIndex = findHeaderRowIndex(sheet);
+  const rawRows = XLSX.utils.sheet_to_json(sheet, {
+    defval: "",
+    range: headerRowIndex,
+  });
+  processRawRows(rawRows, sourceName);
+};
+
+const toGoogleSheetCsvUrl = (inputUrl) => {
+  if (!inputUrl) return "";
+
+  const trimmed = inputUrl.trim();
+  if (!trimmed) return "";
+  if (/output=csv/i.test(trimmed)) return trimmed;
 
   try {
-    const buffer = await file.arrayBuffer();
-    processWorkbook(buffer);
-  } catch (error) {
-    const isChartReferenceError =
-      error instanceof ReferenceError && /chart is not defined/i.test(error.message);
-    const errorText = isChartReferenceError
-      ? "Error reading file: Chart.js failed to load (Chart is not defined). Please refresh and try again."
-      : `Error reading file: ${error.message}`;
-    showMessage(errorText, true);
+    const parsed = new URL(trimmed);
+    const match = parsed.pathname.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match) return "";
+
+    const sheetId = match[1];
+    const gid = parsed.searchParams.get("gid") || "0";
+    return `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  } catch {
+    return "";
   }
-});
+};
+
+const resolveDataUrl = (inputUrl) => {
+  const trimmed = (inputUrl || "").trim();
+  if (!trimmed) return "";
+
+  if (/docs\.google\.com\/spreadsheets/i.test(trimmed)) {
+    return toGoogleSheetCsvUrl(trimmed);
+  }
+
+  return trimmed;
+};
+
+const extractRowsFromJsonPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return null;
+};
+
+const loadGoogleSheet = async () => {
+  const rawUrl = (sheetUrlInputEl?.value || "").trim();
+  const dataUrl = resolveDataUrl(rawUrl);
+
+  if (!dataUrl) {
+    showMessage("Invalid URL. Paste an Apps Script Web App URL or Google Sheet link.", true);
+    return;
+  }
+
+  try {
+    loadSheetBtnEl.disabled = true;
+    loadSheetBtnEl.textContent = "Loading...";
+    showMessage("Loading dashboard data...");
+
+    const response = await fetch(dataUrl);
+    if (!response.ok) {
+      throw new Error(`Unable to fetch source (HTTP ${response.status})`);
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (/application\/json/i.test(contentType)) {
+      const payload = await response.json();
+      const rows = extractRowsFromJsonPayload(payload);
+      if (!rows) {
+        throw new Error('JSON response must be an array or include a "rows" array');
+      }
+      processRawRows(rows, "Apps Script Web App");
+    } else {
+      const textPayload = await response.text();
+      const jsonGuess = textPayload.trim();
+      if (jsonGuess.startsWith("[") || jsonGuess.startsWith("{")) {
+        const payload = JSON.parse(jsonGuess);
+        const rows = extractRowsFromJsonPayload(payload);
+        if (!rows) {
+          throw new Error('JSON response must be an array or include a "rows" array');
+        }
+        processRawRows(rows, "Apps Script Web App");
+      } else {
+        const workbook = XLSX.read(textPayload, { type: "string" });
+        const firstSheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[firstSheetName];
+        processWorksheet(sheet, `Google Sheet "${firstSheetName}"`);
+      }
+    }
+
+    localStorage.setItem("dashboardSheetUrl", rawUrl);
+  } catch (error) {
+    showMessage(
+      `Error loading data source: ${error.message}. Ensure your Apps Script Web App is deployed (or Sheet is published/shared).`,
+      true
+    );
+  } finally {
+    loadSheetBtnEl.disabled = false;
+    loadSheetBtnEl.textContent = "Load Dashboard Data";
+  }
+};
+
+loadSheetBtnEl?.addEventListener("click", loadGoogleSheet);
+
+if (sheetUrlInputEl) {
+  const storedUrl = localStorage.getItem("dashboardSheetUrl");
+  const initialUrl = storedUrl || DEFAULT_DATA_SOURCE_URL;
+  if (initialUrl) {
+    sheetUrlInputEl.value = initialUrl;
+    if (!storedUrl) {
+      showMessage("Default Apps Script Web App URL loaded. Click 'Load Dashboard Data' to fetch.");
+    }
+  }
+}

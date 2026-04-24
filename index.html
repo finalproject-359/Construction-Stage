@@ -19,10 +19,21 @@
     <header class="topbar">
       <div>
         <h1>Financial Performance Dashboard</h1>
-        <p>Upload an Excel file to visualize pre-computed values from the <strong>Dashboard</strong> sheet.</p>
+        <p>
+          Load a Google Sheet to visualize pre-computed values from the
+          <strong>Construction Financial Data</strong> sheet.
+        </p>
       </div>
-      <label class="upload-btn" for="fileInput">Upload Excel File</label>
-      <input type="file" id="fileInput" accept=".xlsx,.xls" />
+      <div class="source-controls">
+        <div class="sheet-source">
+          <input
+            type="text"
+            id="sheetUrlInput"
+            placeholder="Paste Apps Script Web App URL (or Google Sheet link)"
+          />
+          <button id="loadSheetBtn" type="button">Load Dashboard Data</button>
+        </div>
+      </div>
     </header>
 
     <section class="kpi-grid">
@@ -46,7 +57,7 @@
 
     <section class="table-panel">
       <div class="panel-header">
-        <h3>Activity Data (from Dashboard sheet)</h3>
+        <h3>Activity Data (from Construction Financial Data sheet)</h3>
       </div>
       <div class="table-wrap">
         <table>
