@@ -20,9 +20,8 @@ function doGet() {
     );
   }
 
-  const headerRowIndex = findHeaderRowIndex(values);
-  const headers = values[headerRowIndex].map((header) => String(header).trim());
-  const rows = values.slice(headerRowIndex + 1).reduce((acc, row) => {
+  const headers = values[0].map((header) => String(header).trim());
+  const rows = values.slice(1).reduce((acc, row) => {
     const rowObj = {};
     headers.forEach((header, index) => {
       rowObj[header] = row[index];
@@ -37,45 +36,7 @@ function doGet() {
     JSON.stringify({
       generatedAt: new Date().toISOString(),
       sheetName,
-      headerRowIndex: headerRowIndex + 1,
       rows,
     })
   ).setMimeType(ContentService.MimeType.JSON);
-}
-
-function findHeaderRowIndex(values) {
-  const expectedHeaders = [
-    "activity id",
-    "activity",
-    "planned value",
-    "actual cost",
-    "earned value",
-    "complete",
-    "cost variance",
-    "budget variance",
-    "budget status",
-  ];
-
-  let bestIndex = 0;
-  let bestScore = -1;
-
-  for (let i = 0; i < values.length; i += 1) {
-    const normalized = values[i]
-      .map((cell) => String(cell).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim())
-      .filter(Boolean);
-
-    if (!normalized.length) continue;
-
-    const score = expectedHeaders.reduce((count, alias) => {
-      const found = normalized.some((cell) => cell.includes(alias));
-      return count + (found ? 1 : 0);
-    }, 0);
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestIndex = i;
-    }
-  }
-
-  return bestIndex;
 }
