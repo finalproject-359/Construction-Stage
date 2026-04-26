@@ -79,26 +79,11 @@
             </select>
           </label>
 
-          <div class="activities-date-filter">
-          <button id="activitiesDateFilterBtn" class="activities-date-btn" type="button" aria-label="Select date range" aria-expanded="false" aria-controls="activitiesDateRangePanel">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
-            <span id="activitiesDateFilterLabel">All Dates</span>
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M20 9a8 8 0 0 0-14.7-2"/><path d="M4 15a8 8 0 0 0 14.7 2"/></svg>
-          </button>
-          <div id="activitiesDateRangePanel" class="activities-date-range-panel hidden" role="dialog" aria-label="Choose date range">
-            <label>
-              Start date
-              <input id="activitiesFilterStartDate" type="date" />
-            </label>
-            <label>
-              End date
-              <input id="activitiesFilterEndDate" type="date" />
-            </label>
-            <div class="activities-date-range-actions">
-              <button id="activitiesDateClearBtn" type="button">Clear</button>
-              <button id="activitiesDateApplyBtn" type="button">Apply</button>
+          <div class="activities-date-filter" aria-label="Date filter">
+            <div class="activities-date-btn activities-date-static" role="status" aria-live="polite">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
+              <span id="activitiesDateFilterLabel">All Dates</span>
             </div>
-          </div>
           </div>
 
           <div class="activities-action-group">
