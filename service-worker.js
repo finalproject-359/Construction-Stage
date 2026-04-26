@@ -1,11 +1,7 @@
-const CACHE_VERSION = "floodcontrol-v3";
+const CACHE_VERSION = "floodcontrol-v2";
 const APP_SHELL_FILES = [
   "./",
   "./index.html",
-  "./projects.html",
-  "./activities.html",
-  "./cost-management.html",
-  "./reports.html",
   "./style.css",
   "./script.js",
   "./manifest.webmanifest"
@@ -33,6 +29,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.method !== "GET") return;
 
+  // Always hit the network for external API/data sources so dashboard values stay fresh.
   if (requestUrl.origin !== self.location.origin) {
     return;
   }
@@ -41,6 +38,8 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
+          const responseClone = response.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put("./index.html", responseClone));
           return response;
         })
         .catch(() => caches.match("./index.html"))
