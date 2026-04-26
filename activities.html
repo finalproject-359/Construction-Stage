@@ -29,23 +29,23 @@
       <section class="activities-kpi-grid">
         <article class="activities-kpi-card">
           <h2><span class="activities-kpi-icon icon-total" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg></span>Total Activities</h2>
-          <p>24</p>
+          <p id="kpiTotalActivities">24</p>
         </article>
         <article class="activities-kpi-card">
           <h2><span class="activities-kpi-icon icon-complete" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m6 12 4 4 8-8"/></svg></span>Completed</h2>
-          <p>8</p>
+          <p id="kpiCompletedActivities">8</p>
         </article>
         <article class="activities-kpi-card">
           <h2><span class="activities-kpi-icon icon-progress" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 6v6l4 2"/><path d="M12 2a10 10 0 1 0 10 10"/></svg></span>In Progress</h2>
-          <p>10</p>
+          <p id="kpiInProgressActivities">10</p>
         </article>
         <article class="activities-kpi-card">
           <h2><span class="activities-kpi-icon icon-not-started" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 7v5"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span>Not Started</h2>
-          <p>6</p>
+          <p id="kpiNotStartedActivities">6</p>
         </article>
         <article class="activities-kpi-card">
           <h2><span class="activities-kpi-icon icon-delayed" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m12 8.5-.01 4.5"/><path d="M12 17h.01"/><path d="m10.3 4.9-7 12.2a2 2 0 0 0 1.73 3h14a2 2 0 0 0 1.73-3l-7-12.2a2 2 0 0 0-3.46 0Z"/></svg></span>Delayed</h2>
-          <p class="activities-kpi-alert">4</p>
+          <p id="kpiDelayedActivities" class="activities-kpi-alert">4</p>
         </article>
       </section>
 
@@ -53,34 +53,34 @@
         <div class="activities-filter-row">
           <label class="activities-search-field">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input type="search" placeholder="Search activities..." aria-label="Search activities" />
+            <input id="activitiesSearchInput" type="search" placeholder="Search activities..." aria-label="Search activities" />
           </label>
 
           <label class="activities-select-field">
-            <select aria-label="Filter by project">
+            <select id="activitiesProjectFilter" aria-label="Filter by project">
               <option>All Projects</option>
             </select>
           </label>
 
           <label class="activities-select-field">
-            <select aria-label="Filter by status">
+            <select id="activitiesStatusFilter" aria-label="Filter by status">
               <option>All Statuses</option>
             </select>
           </label>
 
           <label class="activities-select-field">
-            <select aria-label="Filter by activity type">
+            <select id="activitiesTypeFilter" aria-label="Filter by activity type">
               <option>All Activity Types</option>
             </select>
           </label>
 
-          <button class="activities-date-btn" type="button" aria-label="Select date range">
+          <button class="activities-date-btn" type="button" aria-label="Select date range" disabled>
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
             May 1, 2024 - May 31, 2024
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M20 9a8 8 0 0 0-14.7-2"/><path d="M4 15a8 8 0 0 0 14.7 2"/></svg>
           </button>
 
-          <button class="activities-add-btn" type="button">
+          <button id="activitiesAddButton" class="activities-add-btn" type="button">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
             Add Activity
           </button>
@@ -103,7 +103,7 @@
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="activitiesTableBody">
               <tr>
                 <td>Site Preparation</td>
                 <td>Pati Piso, Limas</td>
@@ -213,7 +213,7 @@
         </div>
 
         <div class="activities-table-footer">
-          <p>Showing 1 to 8 of 24 activities</p>
+          <p id="activitiesTableSummary">Showing 1 to 8 of 24 activities</p>
           <nav class="activities-pagination" aria-label="Activities pagination">
             <button type="button" class="page-arrow" aria-label="Previous page">←</button>
             <button type="button" class="page-number active" aria-current="page">1</button>
@@ -225,5 +225,6 @@
       </section>
     </main>
   </div>
+  <script src="activities.js"></script>
 </body>
 </html>
