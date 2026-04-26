@@ -352,6 +352,15 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
 
+const extractRowsFromPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  if (Array.isArray(payload.rows)) return payload.rows;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.items)) return payload.items;
+  return [];
+};
+
 const destroyCharts = () => {
   if (varianceChart) {
     varianceChart.destroy();
@@ -622,7 +631,6 @@ const processRows = (rawRows, sourceName = "web app") => {
 
 const setupServiceWorkerUpdates = async () => {
   if (!("serviceWorker" in navigator)) {
-    showMessage("This browser does not support background app updates.", true);
     return;
   }
 
@@ -637,7 +645,7 @@ const setupServiceWorkerUpdates = async () => {
       registration.update();
     }, 5 * 60 * 1000);
   } catch (error) {
-    showMessage(`Service worker setup failed: ${error.message}`, true);
+    console.warn("Service worker setup failed:", error);
   }
 };
 
@@ -686,9 +694,23 @@ const loadGoogleSheet = async (providedUrl = "") => {
     if (isWebAppSource) {
       const response = await fetch(trimmedUrl, { cache: "no-store" });
       if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
-      const payload = await response.json();
-      if (payload?.error) throw new Error(payload.error);
-      processRows(payload?.rows || [], `Apps Script Web App (${payload?.sheetName || "sheet"})`);
+
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.toLowerCase().includes("application/json")) {
+        const payload = await response.json();
+        if (payload?.error) throw new Error(payload.error);
+        const rows = extractRowsFromPayload(payload);
+        processRows(rows, `Apps Script Web App (${payload?.sheetName || "sheet"})`);
+        return;
+      }
+
+      const rawText = await response.text();
+      const workbook = XLSX.read(rawText, { type: "string" });
+      const firstSheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[firstSheetName];
+      const headerRowIndex = findHeaderRowIndex(sheet);
+      const rawRows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "", range: headerRowIndex });
+      processRows(rawRows, `Apps Script Web App CSV "${firstSheetName}"`);
       return;
     }
 
