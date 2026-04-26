@@ -5,7 +5,6 @@ const activitiesStatusFilter = document.getElementById("activitiesStatusFilter")
 const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
-const activitiesClearFilters = document.getElementById("activitiesClearFilters");
 const activitiesLiveCount = document.getElementById("activitiesLiveCount");
 const activitiesPagination = document.querySelector(".activities-pagination");
 
@@ -351,10 +350,6 @@ populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) 
 
 if (activitiesPagination) {
   activitiesPagination.addEventListener("click", onPaginationClick);
-}
-
-if (activitiesClearFilters) {
-  activitiesClearFilters.addEventListener("click", resetFilters);
 }
 
 if (activitiesAddButton) {

@@ -400,8 +400,8 @@ th { color: var(--muted); }
     minmax(140px, 0.9fr)
     minmax(140px, 0.9fr)
     minmax(180px, 1fr)
-    minmax(230px, 1.1fr)
-    minmax(250px, 1.2fr);
+    minmax(210px, 1fr)
+    minmax(140px, 0.7fr);
   align-items: center;
 }
 
@@ -475,10 +475,13 @@ th { color: var(--muted); }
   align-items: center;
   gap: 8px;
   padding: 0 12px;
+  width: 100%;
+  max-width: 260px;
   font: inherit;
   color: #344054;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
 }
 
 .activities-date-btn svg:last-child {
@@ -487,20 +490,8 @@ th { color: var(--muted); }
 
 .activities-action-group {
   display: flex;
-  gap: 8px;
+  gap: 0;
   justify-content: flex-end;
-}
-
-.activities-clear-btn {
-  background: #fff;
-  color: #344054;
-  border: 1px solid #d8deea;
-  border-radius: 9px;
-  min-height: 40px;
-  padding: 0 12px;
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
 }
 
 .activities-add-btn {
@@ -698,7 +689,7 @@ th { color: var(--muted); }
       minmax(130px, 0.9fr)
       minmax(130px, 0.9fr)
       minmax(165px, 1fr)
-      minmax(210px, 1fr)
+      minmax(200px, 0.95fr)
       minmax(140px, 0.8fr);
   }
 }
@@ -733,13 +724,11 @@ th { color: var(--muted); }
 
   .activities-search-field,
   .activities-date-btn,
-  .activities-add-btn,
-  .activities-clear-btn {
+  .activities-add-btn {
     grid-column: span 1;
   }
 
-  .activities-add-btn,
-  .activities-clear-btn {
+  .activities-add-btn {
     width: 100%;
     justify-content: center;
   }
@@ -753,8 +742,7 @@ th { color: var(--muted); }
 
 .activities-search-field:focus-within,
 .activities-select-field:focus-within,
-.activities-date-btn:hover,
-.activities-clear-btn:hover {
+.activities-date-btn:hover {
   border-color: #b8c5f4;
   box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.08);
 }
