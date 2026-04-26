@@ -1,4 +1,4 @@
-const CACHE_VERSION = "floodcontrol-v3";
+const CACHE_VERSION = "floodcontrol-v4";
 const APP_SHELL_FILES = [
   "./",
   "./index.html",
@@ -33,40 +33,50 @@ self.addEventListener("fetch", (event) => {
 
   if (request.method !== "GET") return;
 
-  // Always hit the network for external API/data sources so dashboard values stay fresh.
+  // Always bypass caching for external API/data sources so dashboard values stay fresh.
   if (requestUrl.origin !== self.location.origin) {
     return;
   }
 
-  if (request.mode === "navigate") {
+  const isNavigationRequest = request.mode === "navigate" || request.destination === "document";
+
+  if (isNavigationRequest) {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put("./index.html", responseClone));
+          if (response && response.ok && !response.redirected) {
+            const responseClone = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
+          }
           return response;
         })
-        .catch(() => caches.match("./index.html"))
+        .catch(async () => {
+          const cachedPage = await caches.match(request, { ignoreSearch: true });
+          if (cachedPage) return cachedPage;
+          return caches.match("./index.html");
+        })
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-
-      return fetch(request)
-        .then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === "opaque") {
-            return networkResponse;
-          }
-
+    fetch(request)
+      .then((networkResponse) => {
+        if (
+          networkResponse &&
+          networkResponse.status === 200 &&
+          networkResponse.type !== "opaque" &&
+          !networkResponse.redirected
+        ) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
-          return networkResponse;
-        })
-        .catch(() => cachedResponse);
-    })
+        }
+        return networkResponse;
+      })
+      .catch(async () => {
+        const cachedResponse = await caches.match(request, { ignoreSearch: true });
+        return cachedResponse;
+      })
   );
 });
 
