@@ -95,28 +95,3 @@ th { color: #475467; }
   .filters-row { grid-template-columns: 1fr; }
   .kpi-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
 }
-
-.quick-links-panel h2 {
-  margin: 0 0 12px;
-}
-
-.quick-links-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.quick-link {
-  display: block;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  text-decoration: none;
-  color: #1d4ed8;
-  font-weight: 600;
-  background: #f8faff;
-}
-
-.quick-link:hover {
-  background: #eef2ff;
-}
