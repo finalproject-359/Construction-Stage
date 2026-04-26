@@ -21,20 +21,26 @@ const statusTextToKey = {
   Delayed: "delayed",
 };
 
-const activityRows = Array.from(activitiesTableBody.querySelectorAll("tr")).map((row) => {
-  const cells = row.querySelectorAll("td");
-  const status = cells[3]?.textContent.trim() || "";
+const BADGE_CLASS_BY_STATUS = {
+  Completed: "badge-completed",
+  "In Progress": "badge-in-progress",
+  "Not Started": "badge-not-started",
+  Delayed: "badge-delayed",
+};
 
-  return {
-    row,
-    searchableText: row.textContent.toLowerCase(),
-    project: cells[1]?.textContent.trim() || "",
-    type: cells[2]?.textContent.trim() || "",
-    status,
-  };
-});
+const BADGE_CLASS_BY_COST = {
+  "Under Budget": "badge-under",
+  "On Budget": "badge-on",
+  "Over Budget": "badge-over",
+};
 
-const uniqueSorted = (values) => Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+const PROGRESS_CLASS_BY_STATUS = {
+  Completed: "progress-completed",
+  Delayed: "progress-delayed",
+};
+
+const uniqueSorted = (values) =>
+  Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
 const populateSelect = (selectEl, values, defaultLabel) => {
   selectEl.innerHTML = `<option>${defaultLabel}</option>`;
@@ -45,6 +51,102 @@ const populateSelect = (selectEl, values, defaultLabel) => {
     selectEl.append(option);
   });
 };
+
+const toDisplayDate = (value) => {
+  if (!value) return "-";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const toPercent = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+};
+
+const escapeHtml = (value) =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const normalizeActivity = (activity = {}) => {
+  const status = activity.status || "Not Started";
+  const progress = activity.progress ?? (status === "Completed" ? 100 : 0);
+
+  return {
+    name: activity.name || "Untitled Activity",
+    project: activity.project || "-",
+    type: activity.type || "-",
+    status,
+    plannedStart: toDisplayDate(activity.plannedStart),
+    plannedFinish: toDisplayDate(activity.plannedFinish),
+    progress: toPercent(progress),
+    costStatus: activity.costStatus || "On Budget",
+  };
+};
+
+const buildActivityRowHtml = (activity) => {
+  const progressClass = PROGRESS_CLASS_BY_STATUS[activity.status] || "";
+  const statusClass = BADGE_CLASS_BY_STATUS[activity.status] || "badge-on";
+  const costClass = BADGE_CLASS_BY_COST[activity.costStatus] || "badge-on";
+
+  return `
+    <tr>
+      <td>${escapeHtml(activity.name)}</td>
+      <td>${escapeHtml(activity.project)}</td>
+      <td>${escapeHtml(activity.type)}</td>
+      <td><span class="badge ${statusClass}">${escapeHtml(activity.status)}</span></td>
+      <td>${escapeHtml(activity.plannedStart)}</td>
+      <td>${escapeHtml(activity.plannedFinish)}</td>
+      <td>
+        <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
+      </td>
+      <td><span class="badge ${costClass}">${escapeHtml(activity.costStatus)}</span></td>
+      <td class="actions-col">⋮</td>
+    </tr>
+  `;
+};
+
+const renderEmptyState = () => {
+  activitiesTableBody.innerHTML = `
+    <tr class="activities-empty-row">
+      <td colspan="9">No activities yet. Connect your backend or load activities data to display records.</td>
+    </tr>
+  `;
+};
+
+const initialActivities = Array.isArray(window.activitiesData)
+  ? window.activitiesData.map(normalizeActivity)
+  : [];
+
+if (initialActivities.length) {
+  activitiesTableBody.innerHTML = initialActivities.map(buildActivityRowHtml).join("");
+} else {
+  renderEmptyState();
+}
+
+const activityRows = Array.from(activitiesTableBody.querySelectorAll("tr"))
+  .filter((row) => !row.classList.contains("activities-empty-row"))
+  .map((row) => {
+    const cells = row.querySelectorAll("td");
+    const status = cells[3]?.textContent.trim() || "";
+
+    return {
+      row,
+      searchableText: row.textContent.toLowerCase(),
+      project: cells[1]?.textContent.trim() || "",
+      type: cells[2]?.textContent.trim() || "",
+      status,
+    };
+  });
 
 const updateKpis = (visibleRows) => {
   const counts = {
@@ -75,6 +177,12 @@ const updateSummary = (visibleCount) => {
 };
 
 const applyFilters = () => {
+  if (!activityRows.length) {
+    updateKpis([]);
+    updateSummary(0);
+    return;
+  }
+
   const searchValue = activitiesSearchInput.value.trim().toLowerCase();
   const projectValue = activitiesProjectFilter.value;
   const statusValue = activitiesStatusFilter.value;
