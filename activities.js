@@ -124,10 +124,31 @@ const buildActivityRowHtml = (activity) => {
   `;
 };
 
-const renderEmptyState = (message = "No activities yet. Connect your backend or load activities data to display records.") => {
+const EMPTY_STATE_HTML = `
+  <div class="activities-empty-state">
+    <div class="activities-empty-illustration" aria-hidden="true">
+      <svg viewBox="0 0 120 120" fill="none">
+        <rect x="30" y="22" width="60" height="74" rx="8" />
+        <rect x="51" y="14" width="18" height="14" rx="6" />
+        <path d="m46 46 6 6 10-10" />
+        <path d="m46 62 6 6 10-10" />
+        <path d="m46 78 6 6 10-10" />
+        <path d="M66 48h14M66 64h14M66 80h14" />
+      </svg>
+    </div>
+    <h3>No activities yet</h3>
+    <p>Get started by adding your first activity</p>
+    <button id="activitiesAddButtonEmpty" class="activities-add-btn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      Add Activity
+    </button>
+  </div>
+`;
+
+const renderEmptyState = (message = "Get started by adding your first activity") => {
   activitiesTableBody.innerHTML = `
     <tr class="activities-empty-row">
-      <td colspan="9">${escapeHtml(message)}</td>
+      <td colspan="9">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
     </tr>
   `;
 };
@@ -166,13 +187,13 @@ const updateSummary = () => {
   const filteredCount = state.filteredActivities.length;
 
   if (!filteredCount) {
-    activitiesTableSummary.textContent = `Showing 0 of ${totalCount} activities`;
+    activitiesTableSummary.textContent = `Showing 0 to 0 of ${totalCount} activities`;
     return;
   }
 
   const start = (state.currentPage - 1) * PAGE_SIZE + 1;
   const end = Math.min(state.currentPage * PAGE_SIZE, filteredCount);
-  activitiesTableSummary.textContent = `Showing ${start} to ${end} of ${filteredCount} matching activities`;
+  activitiesTableSummary.textContent = `Showing ${start} to ${end} of ${filteredCount} activities`;
 };
 
 const renderPagination = () => {
@@ -275,6 +296,12 @@ if (activitiesAddButton) {
     window.alert("Add Activity form is not connected yet.");
   });
 }
+
+activitiesTableBody.addEventListener("click", (event) => {
+  const button = event.target.closest("#activitiesAddButtonEmpty");
+  if (!button) return;
+  window.alert("Add Activity form is not connected yet.");
+});
 
 renderPagination();
 renderTable();
