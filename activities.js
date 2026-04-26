@@ -3,6 +3,14 @@ const activitiesSearchInput = document.getElementById("activitiesSearchInput");
 const activitiesProjectFilter = document.getElementById("activitiesProjectFilter");
 const activitiesStatusFilter = document.getElementById("activitiesStatusFilter");
 const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
+const activitiesDateFilterWrap = document.querySelector(".activities-date-filter");
+const activitiesDateFilterBtn = document.getElementById("activitiesDateFilterBtn");
+const activitiesDateFilterLabel = document.getElementById("activitiesDateFilterLabel");
+const activitiesDateRangePanel = document.getElementById("activitiesDateRangePanel");
+const activitiesFilterStartDate = document.getElementById("activitiesFilterStartDate");
+const activitiesFilterEndDate = document.getElementById("activitiesFilterEndDate");
+const activitiesDateClearBtn = document.getElementById("activitiesDateClearBtn");
+const activitiesDateApplyBtn = document.getElementById("activitiesDateApplyBtn");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
 const activitiesLiveCount = document.getElementById("activitiesLiveCount");
@@ -103,6 +111,14 @@ const toDisplayDate = (value) => {
   return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
+const parseDateValue = (value) => {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+};
+
 const toPercent = (value) => {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
@@ -135,6 +151,8 @@ const normalizeActivity = (activity = {}) => {
     status,
     plannedStart: toDisplayDate(plannedStartRaw),
     plannedFinish: toDisplayDate(plannedFinishRaw),
+    plannedStartDate: parseDateValue(plannedStartRaw),
+    plannedFinishDate: parseDateValue(plannedFinishRaw),
     progress: toPercent(progress),
     costStatus,
   };
@@ -199,6 +217,37 @@ const state = {
   allActivities: initialActivities,
   filteredActivities: initialActivities,
   currentPage: 1,
+  dateRange: {
+    start: null,
+    end: null,
+  },
+};
+
+const formatDateRangeLabel = () => {
+  const { start, end } = state.dateRange;
+  if (!start && !end) return "All Dates";
+  if (start && end) return `${toDisplayDate(start)} - ${toDisplayDate(end)}`;
+  if (start) return `${toDisplayDate(start)} onwards`;
+  return `Until ${toDisplayDate(end)}`;
+};
+
+const syncDateFilterLabel = () => {
+  if (!activitiesDateFilterLabel) return;
+  activitiesDateFilterLabel.textContent = formatDateRangeLabel();
+};
+
+const closeDateRangePanel = () => {
+  if (!activitiesDateRangePanel) return;
+  activitiesDateRangePanel.classList.add("hidden");
+  activitiesDateFilterWrap?.classList.remove("is-open");
+  activitiesDateFilterBtn?.setAttribute("aria-expanded", "false");
+};
+
+const openDateRangePanel = () => {
+  if (!activitiesDateRangePanel) return;
+  activitiesDateRangePanel.classList.remove("hidden");
+  activitiesDateFilterWrap?.classList.add("is-open");
+  activitiesDateFilterBtn?.setAttribute("aria-expanded", "true");
 };
 
 const updateKpis = (sourceActivities) => {
@@ -293,6 +342,8 @@ const applyFilters = () => {
   const projectValue = activitiesProjectFilter?.value || "All Projects";
   const statusValue = activitiesStatusFilter?.value || "All Statuses";
   const typeValue = activitiesTypeFilter?.value || "All Activity Types";
+  const dateStartValue = state.dateRange.start;
+  const dateEndValue = state.dateRange.end;
 
   state.filteredActivities = state.allActivities.filter((item) => {
     const projectMatch = projectValue === "All Projects" || item.project === projectValue;
@@ -301,8 +352,15 @@ const applyFilters = () => {
     const textMatch =
       !searchValue ||
       `${item.name} ${item.project} ${item.type} ${item.status} ${item.costStatus}`.toLowerCase().includes(searchValue);
+    const dateValue = item.plannedStartDate;
+    const hasDateFilter = Boolean(dateStartValue || dateEndValue);
+    const dateMatch =
+      !hasDateFilter ||
+      (dateValue &&
+        (!dateStartValue || dateValue >= dateStartValue) &&
+        (!dateEndValue || dateValue <= dateEndValue));
 
-    return projectMatch && statusMatch && typeMatch && textMatch;
+    return projectMatch && statusMatch && typeMatch && textMatch && dateMatch;
   });
 
   state.currentPage = 1;
@@ -318,6 +376,11 @@ const resetFilters = () => {
   if (activitiesProjectFilter) activitiesProjectFilter.value = "All Projects";
   if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
   if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
+  state.dateRange.start = null;
+  state.dateRange.end = null;
+  if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
+  if (activitiesFilterEndDate) activitiesFilterEndDate.value = "";
+  syncDateFilterLabel();
   applyFilters();
 };
 
@@ -391,9 +454,70 @@ activitiesTableBody.addEventListener("click", (event) => {
   .forEach((el) => el.addEventListener("click", closeActivityModal));
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && activitiesDateRangePanel && !activitiesDateRangePanel.classList.contains("hidden")) {
+    closeDateRangePanel();
+    return;
+  }
+
   if (event.key === "Escape" && activityModal && !activityModal.classList.contains("hidden")) {
     closeActivityModal();
   }
+});
+
+if (activitiesDateFilterBtn) {
+  activitiesDateFilterBtn.addEventListener("click", () => {
+    const isOpen = activitiesDateRangePanel && !activitiesDateRangePanel.classList.contains("hidden");
+    if (isOpen) {
+      closeDateRangePanel();
+      return;
+    }
+    openDateRangePanel();
+  });
+}
+
+if (activitiesFilterStartDate && activitiesFilterEndDate) {
+  activitiesFilterStartDate.addEventListener("change", () => {
+    activitiesFilterEndDate.min = activitiesFilterStartDate.value || "";
+  });
+}
+
+if (activitiesDateApplyBtn) {
+  activitiesDateApplyBtn.addEventListener("click", () => {
+    const start = parseDateValue(activitiesFilterStartDate?.value);
+    const end = parseDateValue(activitiesFilterEndDate?.value);
+
+    if (start && end && start > end) {
+      window.alert("End date must be on or after start date.");
+      return;
+    }
+
+    state.dateRange.start = start;
+    state.dateRange.end = end;
+    syncDateFilterLabel();
+    closeDateRangePanel();
+    applyFilters();
+  });
+}
+
+if (activitiesDateClearBtn) {
+  activitiesDateClearBtn.addEventListener("click", () => {
+    state.dateRange.start = null;
+    state.dateRange.end = null;
+    if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
+    if (activitiesFilterEndDate) {
+      activitiesFilterEndDate.value = "";
+      activitiesFilterEndDate.min = "";
+    }
+    syncDateFilterLabel();
+    closeDateRangePanel();
+    applyFilters();
+  });
+}
+
+document.addEventListener("click", (event) => {
+  if (!activitiesDateFilterWrap || activitiesDateRangePanel?.classList.contains("hidden")) return;
+  if (activitiesDateFilterWrap.contains(event.target)) return;
+  closeDateRangePanel();
 });
 
 if (activityForm) {
@@ -435,3 +559,4 @@ renderPagination();
 renderTable();
 updateKpis(state.filteredActivities);
 updateSummary();
+syncDateFilterLabel();
