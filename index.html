@@ -4,13 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#2f55ff" />
-  <title>FloodControl | Activities</title>
+  <title>FloodControl | Pati Piso Limas</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -31,55 +33,204 @@
         </div>
       </div>
       <nav class="menu">
-        <a href="#">Dashboard</a>
-        <a href="#">Projects</a>
-        <a class="active" href="#">Activities</a>
-        <a href="#">Cost Management</a>
-        <a href="#">Reports</a>
+        <a class="active" href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg>
+          </span>
+          Dashboard
+        </a>
+        <a href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+          </span>
+          Projects
+        </a>
+        <a href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          </span>
+          Activities
+        </a>
+        <a href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 21V10m7 11V3m7 18v-7"/></svg>
+          </span>
+          Cost Management
+        </a>
+        <a href="#">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 0v6h6"/></svg>
+          </span>
+          Reports
+        </a>
       </nav>
     </aside>
 
     <main class="main-content">
       <header class="topbar">
-        <h1>Activities</h1>
+        <h1>Financial Dashboard</h1>
       </header>
 
+
       <section class="kpi-grid">
-        <article class="kpi-card"><h2>Total Activities</h2><p id="totalActivities">0</p></article>
-        <article class="kpi-card"><h2>Completed</h2><p id="completedActivities">0</p></article>
-        <article class="kpi-card"><h2>In Progress</h2><p id="inProgressActivities">0</p></article>
-        <article class="kpi-card"><h2>Not Started</h2><p id="notStartedActivities">0</p></article>
-        <article class="kpi-card delayed"><h2>Delayed</h2><p id="delayedActivities">0</p></article>
+        <article class="kpi-card">
+          <h2>
+            <span class="kpi-icon planned-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M3 8h18M7 3v5m10-5v5M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
+            </span>
+            Total Planned Cost
+          </h2>
+          <p id="totalPlanned">₱0.00</p>
+        </article>
+        <article class="kpi-card">
+          <h2>
+            <span class="kpi-icon actual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16M8 15l3-4 3 2 4-6"/></svg>
+            </span>
+            Total Actual Cost
+          </h2>
+          <p id="totalActual">₱0.00</p>
+        </article>
+        <article class="kpi-card">
+          <h2>
+            <span class="kpi-icon variance-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="m6 15 4-4 3 3 5-7M6 20h12"/></svg>
+            </span>
+            Total Cost Variance
+          </h2>
+          <p id="totalCv">₱0.00</p>
+        </article>
+        <article class="kpi-card status-card" id="statusCard">
+          <h2>
+            <span class="kpi-icon status-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+            Project Status
+          </h2>
+          <p id="projectStatus">Awaiting data source</p>
+        </article>
+        <article class="kpi-card">
+          <h2>
+            <span class="kpi-icon planned-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4v16"/></svg>
+            </span>
+            Physical Progress %
+          </h2>
+          <p id="physicalProgress">0.00%</p>
+        </article>
+        <article class="kpi-card">
+          <h2>
+            <span class="kpi-icon actual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 20h16M6 16l3-4 3 2 6-8"/></svg>
+            </span>
+            Cost Spent %
+          </h2>
+          <p id="costSpent">0.00%</p>
+        </article>
+        <article class="kpi-card" id="efficiencyCard">
+          <h2>
+            <span class="kpi-icon variance-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5v14"/></svg>
+            </span>
+            Efficiency Gap %
+          </h2>
+          <p id="efficiencyGap">0.00%</p>
+        </article>
+      </section>
+
+      <section class="chart-grid">
+        <section class="chart-panel">
+          <div class="panel-header">
+            <h3>Cost Variance per Activity</h3>
+          </div>
+          <article class="chart-card">
+            <div class="chart-canvas-wrap">
+              <canvas id="varianceChart"></canvas>
+            </div>
+          </article>
+        </section>
+
+        <section class="chart-panel">
+          <div class="panel-header">
+            <h3>Planned Cost vs Actual Cost per Activity</h3>
+          </div>
+          <article class="chart-card">
+            <div class="chart-canvas-wrap">
+              <canvas id="costChart"></canvas>
+            </div>
+          </article>
+        </section>
+
+        <section class="chart-panel">
+          <div class="panel-header">
+            <h3>EVM Trend (Cumulative PV vs EV vs AC)</h3>
+          </div>
+          <article class="chart-card">
+            <div class="chart-canvas-wrap">
+              <canvas id="evmTrendChart"></canvas>
+            </div>
+          </article>
+        </section>
+
+        <section class="chart-panel">
+          <div class="panel-header">
+            <h3>% Complete vs % Cost Used</h3>
+          </div>
+          <article class="chart-card">
+            <div class="chart-canvas-wrap">
+              <canvas id="efficiencyScatterChart"></canvas>
+            </div>
+          </article>
+        </section>
       </section>
 
       <section class="table-panel">
-        <div class="filters-row">
-          <input type="text" placeholder="Search activities..." aria-label="Search activities" />
-          <select aria-label="Project filter"><option>All Projects</option></select>
-          <select aria-label="Status filter"><option>All Statuses</option></select>
-          <select aria-label="Activity type filter"><option>All Activity Types</option></select>
-          <button type="button" class="primary-btn">+ Add Activity</button>
+        <div class="panel-header">
+          <h3>Activities Overview</h3>
         </div>
-
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>Activity ID</th>
-                <th>Activity Name</th>
-                <th>Project</th>
-                <th>Activity Type</th>
-                <th>Status</th>
-                <th>Planned Start</th>
-                <th>Planned Finish</th>
-                <th>Progress</th>
-                <th>Cost Status</th>
-                <th>Actions</th>
+                <th>Activity</th>
+                <th>Planned Value (PV)</th>
+                <th>Actual Cost (AC)</th>
+                <th>Earned Value (EV)</th>
+                <th>% Complete</th>
+                <th>Cost Variance</th>
+                <th>% Cost Used</th>
+                <th>Budget Variance %</th>
+                <th>Budget Status</th>
               </tr>
             </thead>
             <tbody id="activityTableBody">
               <tr>
                 <td colspan="10" class="placeholder">No data loaded yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="table-panel">
+        <div class="panel-header">
+          <h3>Top 5 Overrun Activities</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Activity</th>
+                <th>Cost Variance</th>
+                <th>Variance %</th>
+                <th>% Complete</th>
+                <th>% Cost Used</th>
+              </tr>
+            </thead>
+            <tbody id="overrunTableBody">
+              <tr>
+                <td colspan="5" class="placeholder">No data loaded yet.</td>
               </tr>
             </tbody>
           </table>
