@@ -5,7 +5,6 @@ const activitiesStatusFilter = document.getElementById("activitiesStatusFilter")
 const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
-const activitiesLiveCount = document.getElementById("activitiesLiveCount");
 const activitiesPagination = document.querySelector(".activities-pagination");
 const activityModal = document.getElementById("activityModal");
 const activityModalBackdrop = document.getElementById("activityModalBackdrop");
@@ -237,7 +236,6 @@ const updateKpis = (sourceActivities) => {
 };
 
 const updateSummary = () => {
-  if (activitiesLiveCount) activitiesLiveCount.textContent = String(state.filteredActivities.length);
   const totalCount = Number(window.activitiesMeta?.totalCount) || state.allActivities.length;
   const filteredCount = state.filteredActivities.length;
 
