@@ -285,3 +285,322 @@ th { color: var(--muted); }
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
 }
+
+/* Activities page */
+.activities-kpi-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(5, minmax(190px, 1fr));
+}
+
+.activities-kpi-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+}
+
+.activities-kpi-card h2 {
+  margin: 0;
+  color: #667085;
+  font-size: .84rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activities-kpi-card p {
+  margin: 12px 0 0;
+  font-size: clamp(2rem, 2.4vw, 2.8rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.activities-kpi-alert { color: #ef4444 !important; }
+
+.activities-kpi-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+}
+
+.activities-kpi-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+.activities-kpi-icon svg path,
+.activities-kpi-icon svg circle {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-total { background: #e8edff; color: #2f55ff; }
+.icon-complete { background: #ddf6e7; color: #16a34a; }
+.icon-progress { background: #e8edff; color: #2f55ff; }
+.icon-not-started { background: #eef1f6; color: #6b7280; }
+.icon-delayed { background: #fee2e2; color: #ef4444; }
+
+.activities-controls {
+  margin-top: 14px;
+  padding: 22px;
+}
+
+.activities-filter-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 1.3fr) repeat(3, minmax(170px, 1fr)) minmax(210px, 1.2fr) auto;
+  align-items: center;
+}
+
+.activities-search-field,
+.activities-select-field,
+.activities-date-btn,
+.activities-add-btn {
+  border: 1px solid #d7ddea;
+  border-radius: 10px;
+  min-height: 44px;
+  background: #fff;
+}
+
+.activities-search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.activities-search-field svg,
+.activities-date-btn svg {
+  width: 17px;
+  height: 17px;
+  color: #667085;
+  flex-shrink: 0;
+}
+
+.activities-search-field svg path,
+.activities-search-field svg circle,
+.activities-date-btn svg path {
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.activities-search-field input,
+.activities-select-field select {
+  border: 0;
+  outline: 0;
+  width: 100%;
+  font: inherit;
+  color: #344054;
+  background: transparent;
+}
+
+.activities-select-field {
+  position: relative;
+  display: flex;
+}
+
+.activities-select-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0 36px 0 12px;
+}
+
+.activities-select-field::after {
+  content: "⌄";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-54%);
+  color: #667085;
+  pointer-events: none;
+}
+
+.activities-date-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  font: inherit;
+  color: #344054;
+  cursor: pointer;
+}
+
+.activities-date-btn svg:last-child {
+  margin-left: auto;
+}
+
+.activities-add-btn {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  padding: 0 16px;
+  min-width: 145px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.activities-add-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.activities-add-btn svg path {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.activities-table-panel {
+  margin-top: 14px;
+  padding: 0;
+}
+
+.activities-table-panel table {
+  min-width: 1080px;
+}
+
+.activities-table-panel th,
+.activities-table-panel td {
+  padding: 13px 16px;
+  vertical-align: middle;
+}
+
+.activities-table-panel th {
+  color: #344054;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: .86rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.badge-completed { background: #dcfce7; color: #16a34a; }
+.badge-in-progress { background: #e6ecff; color: #2f55ff; }
+.badge-not-started { background: #eef2f7; color: #667085; }
+.badge-delayed { background: #fee2e2; color: #ef4444; }
+.badge-under { background: #dff5e8; color: #16a34a; }
+.badge-over { background: #fee2e2; color: #ef4444; }
+.badge-on { background: #e3e8ff; color: #2f55ff; }
+
+.progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-track {
+  width: 115px;
+  height: 12px;
+  border-radius: 999px;
+  background: #e6eaf2;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f55ff, #315de7);
+}
+
+.progress-fill.progress-completed {
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.actions-col {
+  text-align: center;
+  color: #667085;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  width: 54px;
+}
+
+.activities-table-footer {
+  padding: 18px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: #667085;
+}
+
+.activities-table-footer p {
+  margin: 0;
+}
+
+.activities-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activities-pagination button {
+  border: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  cursor: pointer;
+  font: inherit;
+  color: #1f2937;
+  background: #f4f6fb;
+}
+
+.activities-pagination .page-number.active {
+  background: #e8edff;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+@media (max-width: 1320px) {
+  .activities-kpi-grid {
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+  }
+
+  .activities-filter-row {
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+  }
+
+  .activities-search-field,
+  .activities-date-btn,
+  .activities-add-btn {
+    grid-column: span 3;
+  }
+}
+
+@media (max-width: 900px) {
+  .activities-kpi-grid,
+  .activities-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .activities-search-field,
+  .activities-date-btn,
+  .activities-add-btn {
+    grid-column: span 1;
+  }
+
+  .activities-table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
