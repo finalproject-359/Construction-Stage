@@ -133,6 +133,7 @@ const escapeHtml = (value) =>
     .replaceAll("'", "&#39;");
 
 const normalizeActivity = (activity = {}) => {
+  const id = getValueByAliases(activity, ["id", "activityId", "activity_id", "code", "activityCode", "activity_code"]);
   const name = getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]);
   const project = getValueByAliases(activity, ["project", "projectName", "project_name"]);
   const type = getValueByAliases(activity, ["type", "activityType", "activity_type"]);
@@ -144,6 +145,7 @@ const normalizeActivity = (activity = {}) => {
   const progress = progressRaw ?? (status === "Completed" ? 100 : 0);
 
   return {
+    id: id || "-",
     name: name || "Untitled Activity",
     project: project || "-",
     type: type || "-",
@@ -164,6 +166,7 @@ const buildActivityRowHtml = (activity) => {
 
   return `
     <tr>
+      <td>${escapeHtml(activity.id)}</td>
       <td>${escapeHtml(activity.name)}</td>
       <td>${escapeHtml(activity.project)}</td>
       <td>${escapeHtml(activity.type)}</td>
@@ -203,7 +206,7 @@ const EMPTY_STATE_HTML = `
 const renderEmptyState = (message = "Get started by adding your first activity") => {
   activitiesTableBody.innerHTML = `
     <tr class="activities-empty-row">
-      <td colspan="9">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
+      <td colspan="10">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
     </tr>
   `;
 };
@@ -530,6 +533,7 @@ if (activityForm) {
     }
 
     const newActivity = normalizeActivity({
+      activityId: formData.get("activityId"),
       activityName: formData.get("activityName"),
       project: formData.get("project"),
       activityType: formData.get("activityType"),
