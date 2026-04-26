@@ -765,3 +765,139 @@ th { color: var(--muted); }
   top: 0;
   z-index: 1;
 }
+
+.activity-modal.hidden {
+  display: none;
+}
+
+.activity-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.activity-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(1.5px);
+}
+
+.activity-modal-card {
+  position: relative;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e5eaf4;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.24);
+}
+
+.activity-modal-header {
+  padding: 22px 26px 16px;
+  border-bottom: 1px solid #e8edf7;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-modal-header h2 {
+  margin: 0;
+  font-size: 2rem;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.activity-modal-header p {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.activity-modal-close {
+  border: 0;
+  background: transparent;
+  font-size: 2rem;
+  line-height: 1;
+  color: #475569;
+  cursor: pointer;
+}
+
+.activity-form {
+  padding: 20px 26px 18px;
+}
+
+.activity-form-section h3 {
+  margin: 0 0 14px;
+  font-size: 1.5rem;
+  color: #0f172a;
+}
+
+.activity-field,
+.activity-field-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.activity-field {
+  margin-bottom: 14px;
+}
+
+.activity-field span {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.activity-field em {
+  color: #ef4444;
+  font-style: normal;
+}
+
+.activity-field input,
+.activity-field textarea {
+  border: 1px solid #d3dbeb;
+  border-radius: 10px;
+  padding: 11px 13px;
+  font: inherit;
+  color: #0f172a;
+}
+
+.activity-field textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.activity-field input:focus,
+.activity-field textarea:focus {
+  outline: 0;
+  border-color: #6d89ff;
+  box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.12);
+}
+
+.activity-field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.activity-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #e8edf7;
+}
+
+.activity-cancel-btn {
+  border: 1px solid #d3dbeb;
+  background: #fff;
+  color: #1e293b;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}

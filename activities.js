@@ -7,6 +7,13 @@ const activitiesTableSummary = document.getElementById("activitiesTableSummary")
 const activitiesAddButton = document.getElementById("activitiesAddButton");
 const activitiesLiveCount = document.getElementById("activitiesLiveCount");
 const activitiesPagination = document.querySelector(".activities-pagination");
+const activityModal = document.getElementById("activityModal");
+const activityModalBackdrop = document.getElementById("activityModalBackdrop");
+const activityModalClose = document.getElementById("activityModalClose");
+const activityForm = document.getElementById("activityForm");
+const activityFormCancel = document.getElementById("activityFormCancel");
+const activityStartDateInput = document.getElementById("activityStartDateInput");
+const activityFinishDateInput = document.getElementById("activityFinishDateInput");
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -314,6 +321,25 @@ const resetFilters = () => {
   applyFilters();
 };
 
+const openActivityModal = () => {
+  if (!activityModal || !activityForm) return;
+  activityModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  activityForm.reset();
+};
+
+const closeActivityModal = () => {
+  if (!activityModal) return;
+  activityModal.classList.add("hidden");
+  document.body.style.overflow = "";
+};
+
+const refreshFilterOptions = () => {
+  populateSelect(activitiesProjectFilter, uniqueSorted(state.allActivities.map((row) => row.project)), "All Projects");
+  populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
+  populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
+};
+
 const onPaginationClick = (event) => {
   const button = event.target.closest("button");
   if (!button) return;
@@ -337,9 +363,7 @@ const onPaginationClick = (event) => {
   updateSummary();
 };
 
-populateSelect(activitiesProjectFilter, uniqueSorted(state.allActivities.map((row) => row.project)), "All Projects");
-populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
-populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
+refreshFilterOptions();
 
 [activitiesSearchInput, activitiesProjectFilter, activitiesStatusFilter, activitiesTypeFilter]
   .filter(Boolean)
@@ -353,16 +377,59 @@ if (activitiesPagination) {
 }
 
 if (activitiesAddButton) {
-  activitiesAddButton.addEventListener("click", () => {
-    window.alert("Add Activity form is not connected yet.");
-  });
+  activitiesAddButton.addEventListener("click", openActivityModal);
 }
 
 activitiesTableBody.addEventListener("click", (event) => {
   const button = event.target.closest("#activitiesAddButtonEmpty");
   if (!button) return;
-  window.alert("Add Activity form is not connected yet.");
+  openActivityModal();
 });
+
+[activityModalBackdrop, activityModalClose, activityFormCancel]
+  .filter(Boolean)
+  .forEach((el) => el.addEventListener("click", closeActivityModal));
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && activityModal && !activityModal.classList.contains("hidden")) {
+    closeActivityModal();
+  }
+});
+
+if (activityForm) {
+  activityForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(activityForm);
+    const plannedStart = formData.get("plannedStart");
+    const plannedFinish = formData.get("plannedFinish");
+    if (plannedStart && plannedFinish && new Date(plannedStart) > new Date(plannedFinish)) {
+      window.alert("Planned finish date must be on or after planned start date.");
+      return;
+    }
+
+    const newActivity = normalizeActivity({
+      activityName: formData.get("activityName"),
+      project: formData.get("project"),
+      activityType: formData.get("activityType"),
+      status: "Not Started",
+      plannedStart,
+      plannedFinish,
+      progress: 0,
+      costStatus: "On Budget",
+    });
+
+    state.allActivities.unshift(newActivity);
+    refreshFilterOptions();
+    applyFilters();
+    closeActivityModal();
+  });
+}
+
+if (activityStartDateInput && activityFinishDateInput) {
+  activityStartDateInput.addEventListener("change", () => {
+    activityFinishDateInput.min = activityStartDateInput.value;
+  });
+}
 
 renderPagination();
 renderTable();
