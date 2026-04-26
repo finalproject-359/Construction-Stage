@@ -530,6 +530,10 @@ th { color: var(--muted); }
   background: linear-gradient(90deg, #16a34a, #22c55e);
 }
 
+.progress-fill.progress-delayed {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+}
+
 .actions-col {
   text-align: center;
   color: #667085;
@@ -572,6 +576,11 @@ th { color: var(--muted); }
   background: #e8edff;
   color: var(--primary);
   font-weight: 600;
+}
+
+.activities-pagination button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }
 
 @media (max-width: 1320px) {

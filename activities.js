@@ -5,7 +5,11 @@ const activitiesStatusFilter = document.getElementById("activitiesStatusFilter")
 const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
-const activityMeta = window.activitiesMeta || {};
+const activitiesPagination = document.querySelector(".activities-pagination");
+
+if (!activitiesTableBody) {
+  throw new Error("Activities page is missing the table body element.");
+}
 
 const kpiEls = {
   total: document.getElementById("kpiTotalActivities"),
@@ -40,10 +44,14 @@ const PROGRESS_CLASS_BY_STATUS = {
   Delayed: "progress-delayed",
 };
 
+const PAGE_SIZE = 8;
+
 const uniqueSorted = (values) =>
   Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
 const populateSelect = (selectEl, values, defaultLabel) => {
+  if (!selectEl) return;
+
   selectEl.innerHTML = `<option>${defaultLabel}</option>`;
   values.forEach((value) => {
     const option = document.createElement("option");
@@ -116,10 +124,10 @@ const buildActivityRowHtml = (activity) => {
   `;
 };
 
-const renderEmptyState = () => {
+const renderEmptyState = (message = "No activities yet. Connect your backend or load activities data to display records.") => {
   activitiesTableBody.innerHTML = `
     <tr class="activities-empty-row">
-      <td colspan="9">No activities yet. Connect your backend or load activities data to display records.</td>
+      <td colspan="9">${escapeHtml(message)}</td>
     </tr>
   `;
 };
@@ -128,47 +136,22 @@ const initialActivities = Array.isArray(window.activitiesData)
   ? window.activitiesData.map(normalizeActivity)
   : [];
 
-if (initialActivities.length) {
-  activitiesTableBody.innerHTML = initialActivities.map(buildActivityRowHtml).join("");
-} else {
-  renderEmptyState();
-}
+const state = {
+  allActivities: initialActivities,
+  filteredActivities: initialActivities,
+  currentPage: 1,
+};
 
-const activityRows = Array.from(activitiesTableBody.querySelectorAll("tr"))
-  .filter((row) => !row.classList.contains("activities-empty-row"))
-  .map((row) => {
-    const cells = row.querySelectorAll("td");
-    const status = cells[3]?.textContent.trim() || "";
-
-    return {
-      row,
-      searchableText: row.textContent.toLowerCase(),
-      project: cells[1]?.textContent.trim() || "",
-      type: cells[2]?.textContent.trim() || "",
-      status,
-    };
-  });
-
-const updateKpis = (visibleRows) => {
-  if (activityMeta.kpi) {
-    const total = Number(activityMeta.totalCount);
-    if (kpiEls.total) kpiEls.total.textContent = Number.isFinite(total) ? total : visibleRows.length;
-    if (kpiEls.completed) kpiEls.completed.textContent = activityMeta.kpi.completed ?? 0;
-    if (kpiEls.inProgress) kpiEls.inProgress.textContent = activityMeta.kpi.inProgress ?? 0;
-    if (kpiEls.notStarted) kpiEls.notStarted.textContent = activityMeta.kpi.notStarted ?? 0;
-    if (kpiEls.delayed) kpiEls.delayed.textContent = activityMeta.kpi.delayed ?? 0;
-    return;
-  }
-
+const updateKpis = (sourceActivities) => {
   const counts = {
-    total: visibleRows.length,
+    total: sourceActivities.length,
     completed: 0,
     inProgress: 0,
     notStarted: 0,
     delayed: 0,
   };
 
-  visibleRows.forEach((item) => {
+  sourceActivities.forEach((item) => {
     const key = statusTextToKey[item.status];
     if (key) counts[key] += 1;
   });
@@ -178,54 +161,122 @@ const updateKpis = (visibleRows) => {
   });
 };
 
-const updateSummary = (visibleCount) => {
-  const configuredTotal = Number(activityMeta.totalCount);
-  const totalCount = Number.isFinite(configuredTotal) ? configuredTotal : activityRows.length;
-  if (!visibleCount) {
+const updateSummary = () => {
+  const totalCount = state.allActivities.length;
+  const filteredCount = state.filteredActivities.length;
+
+  if (!filteredCount) {
     activitiesTableSummary.textContent = `Showing 0 of ${totalCount} activities`;
     return;
   }
-  activitiesTableSummary.textContent = `Showing 1 to ${visibleCount} of ${totalCount} activities`;
+
+  const start = (state.currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(state.currentPage * PAGE_SIZE, filteredCount);
+  activitiesTableSummary.textContent = `Showing ${start} to ${end} of ${filteredCount} matching activities`;
 };
 
-const applyFilters = () => {
-  if (!activityRows.length) {
-    updateKpis([]);
-    updateSummary(0);
+const renderPagination = () => {
+  if (!activitiesPagination) return;
+
+  const totalPages = Math.max(1, Math.ceil(state.filteredActivities.length / PAGE_SIZE));
+  if (state.currentPage > totalPages) state.currentPage = totalPages;
+
+  const prevDisabled = state.currentPage <= 1;
+  const nextDisabled = state.currentPage >= totalPages;
+
+  const pageButtons = Array.from({ length: totalPages }, (_, idx) => {
+    const page = idx + 1;
+    const isActive = page === state.currentPage;
+    return `<button type="button" class="page-number ${isActive ? "active" : ""}" data-page="${page}" ${isActive ? 'aria-current="page"' : ""}>${page}</button>`;
+  }).join("");
+
+  activitiesPagination.innerHTML = `
+    <button type="button" class="page-arrow" data-dir="prev" aria-label="Previous page" ${prevDisabled ? "disabled" : ""}>←</button>
+    ${pageButtons}
+    <button type="button" class="page-arrow" data-dir="next" aria-label="Next page" ${nextDisabled ? "disabled" : ""}>→</button>
+  `;
+};
+
+const renderTable = () => {
+  if (!state.filteredActivities.length) {
+    renderEmptyState("No activities found for the selected filters.");
     return;
   }
 
-  const searchValue = activitiesSearchInput.value.trim().toLowerCase();
-  const projectValue = activitiesProjectFilter.value;
-  const statusValue = activitiesStatusFilter.value;
-  const typeValue = activitiesTypeFilter.value;
+  const startIdx = (state.currentPage - 1) * PAGE_SIZE;
+  const pageActivities = state.filteredActivities.slice(startIdx, startIdx + PAGE_SIZE);
+  activitiesTableBody.innerHTML = pageActivities.map(buildActivityRowHtml).join("");
+};
 
-  const visibleRows = activityRows.filter((item) => {
+const applyFilters = () => {
+  const searchValue = activitiesSearchInput?.value.trim().toLowerCase() || "";
+  const projectValue = activitiesProjectFilter?.value || "All Projects";
+  const statusValue = activitiesStatusFilter?.value || "All Statuses";
+  const typeValue = activitiesTypeFilter?.value || "All Activity Types";
+
+  state.filteredActivities = state.allActivities.filter((item) => {
     const projectMatch = projectValue === "All Projects" || item.project === projectValue;
     const statusMatch = statusValue === "All Statuses" || item.status === statusValue;
     const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
-    const textMatch = !searchValue || item.searchableText.includes(searchValue);
+    const textMatch =
+      !searchValue ||
+      `${item.name} ${item.project} ${item.type} ${item.status} ${item.costStatus}`.toLowerCase().includes(searchValue);
 
-    const shouldShow = projectMatch && statusMatch && typeMatch && textMatch;
-    item.row.hidden = !shouldShow;
-    return shouldShow;
+    return projectMatch && statusMatch && typeMatch && textMatch;
   });
 
-  updateKpis(visibleRows);
-  updateSummary(visibleRows.length);
+  state.currentPage = 1;
+  renderPagination();
+  renderTable();
+  updateKpis(state.filteredActivities);
+  updateSummary();
 };
 
-populateSelect(activitiesProjectFilter, uniqueSorted(activityRows.map((row) => row.project)), "All Projects");
-populateSelect(activitiesStatusFilter, uniqueSorted(activityRows.map((row) => row.status)), "All Statuses");
-populateSelect(activitiesTypeFilter, uniqueSorted(activityRows.map((row) => row.type)), "All Activity Types");
+const onPaginationClick = (event) => {
+  const button = event.target.closest("button");
+  if (!button) return;
 
-[activitiesSearchInput, activitiesProjectFilter, activitiesStatusFilter, activitiesTypeFilter].forEach((el) => {
-  el.addEventListener("input", applyFilters);
-  el.addEventListener("change", applyFilters);
-});
+  const { page, dir } = button.dataset;
+  const totalPages = Math.max(1, Math.ceil(state.filteredActivities.length / PAGE_SIZE));
 
-activitiesAddButton.addEventListener("click", () => {
-  window.alert("Add Activity form is not connected yet.");
-});
+  if (dir === "prev" && state.currentPage > 1) {
+    state.currentPage -= 1;
+  } else if (dir === "next" && state.currentPage < totalPages) {
+    state.currentPage += 1;
+  } else if (page) {
+    const parsedPage = Number(page);
+    if (Number.isInteger(parsedPage) && parsedPage >= 1 && parsedPage <= totalPages) {
+      state.currentPage = parsedPage;
+    }
+  }
 
-applyFilters();
+  renderPagination();
+  renderTable();
+  updateSummary();
+};
+
+populateSelect(activitiesProjectFilter, uniqueSorted(state.allActivities.map((row) => row.project)), "All Projects");
+populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
+populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
+
+[activitiesSearchInput, activitiesProjectFilter, activitiesStatusFilter, activitiesTypeFilter]
+  .filter(Boolean)
+  .forEach((el) => {
+    el.addEventListener("input", applyFilters);
+    el.addEventListener("change", applyFilters);
+  });
+
+if (activitiesPagination) {
+  activitiesPagination.addEventListener("click", onPaginationClick);
+}
+
+if (activitiesAddButton) {
+  activitiesAddButton.addEventListener("click", () => {
+    window.alert("Add Activity form is not connected yet.");
+  });
+}
+
+renderPagination();
+renderTable();
+updateKpis(state.filteredActivities);
+updateSummary();
