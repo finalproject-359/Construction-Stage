@@ -359,7 +359,7 @@ th { color: var(--muted); }
 .activities-filter-row {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(150px, 1fr)) minmax(250px, 1.3fr) auto;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(140px, 1fr)) minmax(220px, 1.2fr) max-content;
   align-items: center;
 }
 
@@ -626,7 +626,7 @@ th { color: var(--muted); }
   cursor: not-allowed;
 }
 
-@media (max-width: 1320px) {
+@media (max-width: 1460px) {
   .activities-kpi-grid {
     grid-template-columns: repeat(3, minmax(180px, 1fr));
   }
