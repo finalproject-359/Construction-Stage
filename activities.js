@@ -136,12 +136,49 @@ const normalizeActivity = (activity = {}) => {
   const id = getValueByAliases(activity, ["id", "activityId", "activity_id", "code", "activityCode", "activity_code"]);
   const name = getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]);
   const project = getValueByAliases(activity, ["project", "projectName", "project_name"]);
-  const type = getValueByAliases(activity, ["type", "activityType", "activity_type"]);
-  const status = getValueByAliases(activity, ["status"]) || "Not Started";
-  const plannedStartRaw = getValueByAliases(activity, ["plannedStart", "planned_start", "startDate", "plannedStartDate"]);
-  const plannedFinishRaw = getValueByAliases(activity, ["plannedFinish", "planned_finish", "finishDate", "plannedFinishDate"]);
-  const progressRaw = getValueByAliases(activity, ["progress", "percentComplete", "percent_complete"]);
-  const costStatus = getValueByAliases(activity, ["costStatus", "cost_status", "budgetStatus"]) || "On Budget";
+  let type = getValueByAliases(activity, ["type", "activityType", "activity_type"]);
+  let status = getValueByAliases(activity, ["status"]);
+  let plannedStartRaw = getValueByAliases(activity, ["plannedStart", "planned_start", "startDate", "plannedStartDate"]);
+  let plannedFinishRaw = getValueByAliases(activity, ["plannedFinish", "planned_finish", "finishDate", "plannedFinishDate"]);
+  let progressRaw = getValueByAliases(activity, ["progress", "percentComplete", "percent_complete"]);
+  let costStatus = getValueByAliases(activity, ["costStatus", "cost_status", "budgetStatus"]);
+
+  const isDateLike = (value) => Boolean(parseDateValue(value));
+  const normalizedType = String(type || "").trim();
+  const normalizedProgress = String(progressRaw || "").trim();
+
+  // Guard against shifted source data where values are offset by one column:
+  // type <- status, status <- plannedStart, plannedStart <- plannedFinish,
+  // plannedFinish <- progress, progress <- costStatus.
+  const looksShifted =
+    Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_STATUS, normalizedType) &&
+    isDateLike(status) &&
+    isDateLike(plannedStartRaw) &&
+    /^-?\d+(\.\d+)?%?$/.test(String(plannedFinishRaw || "").trim()) &&
+    Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_COST, normalizedProgress);
+
+  if (looksShifted) {
+    const shiftedStatus = type;
+    const shiftedPlannedStart = status;
+    const shiftedPlannedFinish = plannedStartRaw;
+    const shiftedProgress = plannedFinishRaw;
+    const shiftedCostStatus = progressRaw;
+
+    type = "-";
+    status = shiftedStatus;
+    plannedStartRaw = shiftedPlannedStart;
+    plannedFinishRaw = shiftedPlannedFinish;
+    progressRaw = shiftedProgress;
+    costStatus = shiftedCostStatus;
+  }
+
+  if (!status && Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_STATUS, normalizedType)) {
+    status = normalizedType;
+    type = "-";
+  }
+
+  status = status || "Not Started";
+  costStatus = costStatus || "On Budget";
   const progress = progressRaw ?? (status === "Completed" ? 100 : 0);
 
   return {
