@@ -473,72 +473,8 @@ th { color: var(--muted); }
   max-width: none;
 }
 
-.activities-date-filter.is-open .activities-date-btn {
-  border-color: #b8c5f4;
-  box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.08);
-}
-
-.activities-date-range-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 12;
-  display: grid;
-  gap: 10px;
-  width: min(100%, 320px);
-  min-width: 240px;
-  border: 1px solid #d8deea;
-  border-radius: 10px;
-  background: #fff;
-  padding: 12px;
-  box-shadow: 0 16px 38px rgba(16, 24, 40, 0.16);
-}
-
-.activities-date-range-panel.hidden {
-  display: none;
-}
-
-.activities-date-range-panel label {
-  display: grid;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: #475467;
-}
-
-.activities-date-range-panel input {
-  min-height: 36px;
-  border: 1px solid #d8deea;
-  border-radius: 8px;
-  padding: 0 10px;
-  font: inherit;
-  color: #344054;
-}
-
-.activities-date-range-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.activities-date-range-actions button {
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  min-height: 34px;
-  padding: 0 12px;
-  font: inherit;
-  background: #fff;
-  color: #344054;
-  cursor: pointer;
-}
-
-.activities-date-range-actions button:last-child {
-  border-color: #355dff;
-  background: var(--primary);
-  color: #fff;
-}
-
-.activities-date-btn svg:last-child {
-  margin-left: auto;
+.activities-date-static {
+  cursor: default;
 }
 
 .activities-action-group {
