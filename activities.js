@@ -5,6 +5,8 @@ const activitiesStatusFilter = document.getElementById("activitiesStatusFilter")
 const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
+const activitiesClearFilters = document.getElementById("activitiesClearFilters");
+const activitiesLiveCount = document.getElementById("activitiesLiveCount");
 const activitiesPagination = document.querySelector(".activities-pagination");
 
 if (!activitiesTableBody) {
@@ -229,6 +231,7 @@ const updateKpis = (sourceActivities) => {
 };
 
 const updateSummary = () => {
+  if (activitiesLiveCount) activitiesLiveCount.textContent = String(state.filteredActivities.length);
   const totalCount = Number(window.activitiesMeta?.totalCount) || state.allActivities.length;
   const filteredCount = state.filteredActivities.length;
 
@@ -303,6 +306,15 @@ const applyFilters = () => {
   updateSummary();
 };
 
+
+const resetFilters = () => {
+  if (activitiesSearchInput) activitiesSearchInput.value = "";
+  if (activitiesProjectFilter) activitiesProjectFilter.value = "All Projects";
+  if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
+  if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
+  applyFilters();
+};
+
 const onPaginationClick = (event) => {
   const button = event.target.closest("button");
   if (!button) return;
@@ -339,6 +351,10 @@ populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) 
 
 if (activitiesPagination) {
   activitiesPagination.addEventListener("click", onPaginationClick);
+}
+
+if (activitiesClearFilters) {
+  activitiesClearFilters.addEventListener("click", resetFilters);
 }
 
 if (activitiesAddButton) {
