@@ -46,6 +46,29 @@ const PROGRESS_CLASS_BY_STATUS = {
 
 const PAGE_SIZE = 8;
 
+const getValueByAliases = (source, aliases = []) => {
+  if (!source || typeof source !== "object") return undefined;
+
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(source, alias)) {
+      return source[alias];
+    }
+  }
+
+  const normalizedEntries = Object.keys(source).map((key) => ({
+    key,
+    normalized: String(key).toLowerCase().replace(/[^a-z0-9]/g, ""),
+  }));
+
+  for (const alias of aliases) {
+    const normalizedAlias = String(alias).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matched = normalizedEntries.find((entry) => entry.normalized === normalizedAlias);
+    if (matched) return source[matched.key];
+  }
+
+  return undefined;
+};
+
 const uniqueSorted = (values) =>
   Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
@@ -87,18 +110,25 @@ const escapeHtml = (value) =>
     .replaceAll("'", "&#39;");
 
 const normalizeActivity = (activity = {}) => {
-  const status = activity.status || "Not Started";
-  const progress = activity.progress ?? (status === "Completed" ? 100 : 0);
+  const name = getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]);
+  const project = getValueByAliases(activity, ["project", "projectName", "project_name"]);
+  const type = getValueByAliases(activity, ["type", "activityType", "activity_type"]);
+  const status = getValueByAliases(activity, ["status"]) || "Not Started";
+  const plannedStartRaw = getValueByAliases(activity, ["plannedStart", "planned_start", "startDate", "plannedStartDate"]);
+  const plannedFinishRaw = getValueByAliases(activity, ["plannedFinish", "planned_finish", "finishDate", "plannedFinishDate"]);
+  const progressRaw = getValueByAliases(activity, ["progress", "percentComplete", "percent_complete"]);
+  const costStatus = getValueByAliases(activity, ["costStatus", "cost_status", "budgetStatus"]) || "On Budget";
+  const progress = progressRaw ?? (status === "Completed" ? 100 : 0);
 
   return {
-    name: activity.name || "Untitled Activity",
-    project: activity.project || "-",
-    type: activity.type || "-",
+    name: name || "Untitled Activity",
+    project: project || "-",
+    type: type || "-",
     status,
-    plannedStart: toDisplayDate(activity.plannedStart),
-    plannedFinish: toDisplayDate(activity.plannedFinish),
+    plannedStart: toDisplayDate(plannedStartRaw),
+    plannedFinish: toDisplayDate(plannedFinishRaw),
     progress: toPercent(progress),
-    costStatus: activity.costStatus || "On Budget",
+    costStatus,
   };
 };
 
@@ -164,6 +194,22 @@ const state = {
 };
 
 const updateKpis = (sourceActivities) => {
+  const hasActiveFilters =
+    Boolean(activitiesSearchInput?.value.trim()) ||
+    (activitiesProjectFilter?.value && activitiesProjectFilter.value !== "All Projects") ||
+    (activitiesStatusFilter?.value && activitiesStatusFilter.value !== "All Statuses") ||
+    (activitiesTypeFilter?.value && activitiesTypeFilter.value !== "All Activity Types");
+
+  if (!hasActiveFilters && window.activitiesMeta?.kpi) {
+    const metaKpis = window.activitiesMeta.kpi;
+    if (kpiEls.total) kpiEls.total.textContent = window.activitiesMeta.totalCount ?? sourceActivities.length;
+    if (kpiEls.completed) kpiEls.completed.textContent = Number(metaKpis.completed) || 0;
+    if (kpiEls.inProgress) kpiEls.inProgress.textContent = Number(metaKpis.inProgress) || 0;
+    if (kpiEls.notStarted) kpiEls.notStarted.textContent = Number(metaKpis.notStarted) || 0;
+    if (kpiEls.delayed) kpiEls.delayed.textContent = Number(metaKpis.delayed) || 0;
+    return;
+  }
+
   const counts = {
     total: sourceActivities.length,
     completed: 0,
@@ -183,7 +229,7 @@ const updateKpis = (sourceActivities) => {
 };
 
 const updateSummary = () => {
-  const totalCount = state.allActivities.length;
+  const totalCount = Number(window.activitiesMeta?.totalCount) || state.allActivities.length;
   const filteredCount = state.filteredActivities.length;
 
   if (!filteredCount) {
@@ -220,7 +266,11 @@ const renderPagination = () => {
 
 const renderTable = () => {
   if (!state.filteredActivities.length) {
-    renderEmptyState("No activities found for the selected filters.");
+    if (!state.allActivities.length) {
+      renderEmptyState();
+    } else {
+      renderEmptyState("No activities found for the selected filters.");
+    }
     return;
   }
 
