@@ -74,7 +74,7 @@
             </select>
           </label>
 
-          <button class="activities-date-btn" type="button" aria-label="Select date range" disabled>
+          <button class="activities-date-btn" type="button" aria-label="Select date range">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
             May 1, 2024 - May 31, 2024
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M20 9a8 8 0 0 0-14.7-2"/><path d="M4 15a8 8 0 0 0 14.7 2"/></svg>
@@ -124,6 +124,22 @@
       </section>
     </main>
   </div>
+  <script>
+    window.activitiesData = [
+      { name: "Site Preparation", project: "Pati Piso, Limas", type: "Construction", status: "Completed", plannedStart: "2024-04-15", plannedFinish: "2024-04-20", progress: 100, costStatus: "Under Budget" },
+      { name: "Excavation", project: "Pati Piso, Limas", type: "Construction", status: "In Progress", plannedStart: "2024-04-21", plannedFinish: "2024-05-05", progress: 65, costStatus: "Under Budget" },
+      { name: "Foundation", project: "Pati Piso, Limas", type: "Construction", status: "In Progress", plannedStart: "2024-05-06", plannedFinish: "2024-05-20", progress: 40, costStatus: "Over Budget" },
+      { name: "Columns", project: "Pati Piso, Limas", type: "Construction", status: "Not Started", plannedStart: "2024-05-21", plannedFinish: "2024-06-05", progress: 0, costStatus: "On Budget" },
+      { name: "Slab", project: "Pati Piso, Limas", type: "Construction", status: "Not Started", plannedStart: "2024-06-06", plannedFinish: "2024-06-20", progress: 0, costStatus: "Under Budget" },
+      { name: "Backfilling", project: "Pati Piso, Limas", type: "Construction", status: "Delayed", plannedStart: "2024-06-21", plannedFinish: "2024-07-01", progress: 0, costStatus: "Over Budget" },
+      { name: "Drainage Installation", project: "Pati Piso, Limas", type: "Construction", status: "Not Started", plannedStart: "2024-07-02", plannedFinish: "2024-07-15", progress: 0, costStatus: "On Budget" },
+      { name: "Road Restoration", project: "Pati Piso, Limas", type: "Construction", status: "Not Started", plannedStart: "2024-07-16", plannedFinish: "2024-07-30", progress: 0, costStatus: "Under Budget" }
+    ];
+    window.activitiesMeta = {
+      totalCount: 24,
+      kpi: { completed: 8, inProgress: 10, notStarted: 6, delayed: 4 }
+    };
+  </script>
   <script src="activities.js"></script>
 </body>
 </html>
