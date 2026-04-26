@@ -5,6 +5,7 @@ const activitiesStatusFilter = document.getElementById("activitiesStatusFilter")
 const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
+const activityMeta = window.activitiesMeta || {};
 
 const kpiEls = {
   total: document.getElementById("kpiTotalActivities"),
@@ -149,6 +150,16 @@ const activityRows = Array.from(activitiesTableBody.querySelectorAll("tr"))
   });
 
 const updateKpis = (visibleRows) => {
+  if (activityMeta.kpi) {
+    const total = Number(activityMeta.totalCount);
+    if (kpiEls.total) kpiEls.total.textContent = Number.isFinite(total) ? total : visibleRows.length;
+    if (kpiEls.completed) kpiEls.completed.textContent = activityMeta.kpi.completed ?? 0;
+    if (kpiEls.inProgress) kpiEls.inProgress.textContent = activityMeta.kpi.inProgress ?? 0;
+    if (kpiEls.notStarted) kpiEls.notStarted.textContent = activityMeta.kpi.notStarted ?? 0;
+    if (kpiEls.delayed) kpiEls.delayed.textContent = activityMeta.kpi.delayed ?? 0;
+    return;
+  }
+
   const counts = {
     total: visibleRows.length,
     completed: 0,
@@ -168,7 +179,8 @@ const updateKpis = (visibleRows) => {
 };
 
 const updateSummary = (visibleCount) => {
-  const totalCount = activityRows.length;
+  const configuredTotal = Number(activityMeta.totalCount);
+  const totalCount = Number.isFinite(configuredTotal) ? configuredTotal : activityRows.length;
   if (!visibleCount) {
     activitiesTableSummary.textContent = `Showing 0 of ${totalCount} activities`;
     return;

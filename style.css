@@ -111,12 +111,13 @@ body {
 }
 
 .main-content {
-  padding: 24px;
+  padding: 24px 26px;
 }
 
 .topbar h1 {
   margin: 0 0 14px;
-  font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+  font-size: clamp(2rem, 2.8vw, 2.9rem);
+  letter-spacing: -0.02em;
 }
 
 
@@ -289,16 +290,16 @@ th { color: var(--muted); }
 /* Activities page */
 .activities-kpi-grid {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   grid-template-columns: repeat(5, minmax(190px, 1fr));
 }
 
 .activities-kpi-card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-  padding: 20px 22px;
+  border-radius: 16px;
+  box-shadow: 0 6px 22px rgba(15, 23, 42, 0.04);
+  padding: 24px;
 }
 
 .activities-kpi-card h2 {
@@ -312,8 +313,8 @@ th { color: var(--muted); }
 }
 
 .activities-kpi-card p {
-  margin: 12px 0 0;
-  font-size: clamp(2rem, 2.4vw, 2.8rem);
+  margin: 16px 0 0;
+  font-size: clamp(2rem, 2.2vw, 2.5rem);
   line-height: 1;
   letter-spacing: -0.02em;
   font-weight: 700;
@@ -350,7 +351,7 @@ th { color: var(--muted); }
 .icon-delayed { background: #fee2e2; color: #ef4444; }
 
 .activities-controls {
-  margin-top: 14px;
+  margin-top: 16px;
   padding: 22px;
 }
 
@@ -365,9 +366,9 @@ th { color: var(--muted); }
 .activities-select-field,
 .activities-date-btn,
 .activities-add-btn {
-  border: 1px solid #d7ddea;
-  border-radius: 10px;
-  min-height: 44px;
+  border: 1px solid #d8deea;
+  border-radius: 11px;
+  min-height: 46px;
   background: #fff;
 }
 
@@ -434,6 +435,7 @@ th { color: var(--muted); }
   font: inherit;
   color: #344054;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .activities-date-btn svg:last-child {
@@ -442,10 +444,10 @@ th { color: var(--muted); }
 
 .activities-add-btn {
   background: var(--primary);
-  border-color: var(--primary);
+  border-color: #355dff;
   color: #fff;
-  padding: 0 16px;
-  min-width: 145px;
+  padding: 0 18px;
+  min-width: 155px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -467,7 +469,7 @@ th { color: var(--muted); }
 }
 
 .activities-table-panel {
-  margin-top: 14px;
+  margin-top: 16px;
   padding: 0;
 }
 
@@ -477,13 +479,14 @@ th { color: var(--muted); }
 
 .activities-table-panel th,
 .activities-table-panel td {
-  padding: 13px 16px;
+  padding: 15px 16px;
   vertical-align: middle;
 }
 
 .activities-table-panel th {
   color: #344054;
   font-weight: 600;
+  background: #fafbff;
 }
 
 .badge {
@@ -510,8 +513,8 @@ th { color: var(--muted); }
 }
 
 .progress-track {
-  width: 115px;
-  height: 12px;
+  width: 120px;
+  height: 11px;
   border-radius: 999px;
   background: #e6eaf2;
   overflow: hidden;
@@ -556,8 +559,8 @@ th { color: var(--muted); }
 
 .activities-pagination button {
   border: 0;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 9px;
   cursor: pointer;
   font: inherit;
