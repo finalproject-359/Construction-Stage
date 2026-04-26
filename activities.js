@@ -144,25 +144,30 @@ const normalizeActivity = (activity = {}) => {
   let costStatus = getValueByAliases(activity, ["costStatus", "cost_status", "budgetStatus"]);
 
   const isDateLike = (value) => Boolean(parseDateValue(value));
+  const isKnownStatus = (value) => Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_STATUS, String(value || "").trim());
+  const isNumericLike = (value) => /^-?\d+(\.\d+)?%?$/.test(String(value || "").trim());
+  const isKnownCostStatus = (value) => Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_COST, String(value || "").trim());
   const normalizedType = String(type || "").trim();
-  const normalizedProgress = String(progressRaw || "").trim();
 
   // Guard against shifted source data where values are offset by one column:
   // type <- status, status <- plannedStart, plannedStart <- plannedFinish,
   // plannedFinish <- progress, progress <- costStatus.
   const looksShifted =
-    Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_STATUS, normalizedType) &&
+    isKnownStatus(normalizedType) &&
     isDateLike(status) &&
     isDateLike(plannedStartRaw) &&
-    /^-?\d+(\.\d+)?%?$/.test(String(plannedFinishRaw || "").trim()) &&
-    Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_COST, normalizedProgress);
+    (
+      (isNumericLike(plannedFinishRaw) && isKnownCostStatus(progressRaw)) ||
+      (isNumericLike(progressRaw) && isKnownCostStatus(costStatus)) ||
+      (!plannedFinishRaw && isNumericLike(progressRaw))
+    );
 
   if (looksShifted) {
     const shiftedStatus = type;
     const shiftedPlannedStart = status;
     const shiftedPlannedFinish = plannedStartRaw;
-    const shiftedProgress = plannedFinishRaw;
-    const shiftedCostStatus = progressRaw;
+    const shiftedProgress = isNumericLike(plannedFinishRaw) ? plannedFinishRaw : progressRaw;
+    const shiftedCostStatus = isKnownCostStatus(progressRaw) ? progressRaw : costStatus;
 
     type = "-";
     status = shiftedStatus;
