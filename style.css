@@ -303,25 +303,6 @@ th { color: var(--muted); }
   font-size: 0.95rem;
 }
 
-.activities-topbar-meta {
-  display: inline-flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.activities-meta-chip {
-  border: 1px solid #dbe2ef;
-  background: #fff;
-  border-radius: 999px;
-  padding: 7px 11px;
-  color: #475467;
-  font-size: 0.82rem;
-}
-
-.activities-meta-chip strong {
-  color: #172554;
-}
-
 /* Activities page */
 .activities-kpi-grid {
   display: grid;
