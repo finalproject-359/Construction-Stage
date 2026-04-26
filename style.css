@@ -360,7 +360,13 @@ th { color: var(--muted); }
 .activities-filter-row {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(110px, 1fr)) minmax(130px, 0.9fr);
+  grid-template-columns:
+    minmax(210px, 1.3fr)
+    minmax(140px, 0.9fr)
+    minmax(140px, 0.9fr)
+    minmax(180px, 1fr)
+    minmax(230px, 1.1fr)
+    minmax(150px, 0.8fr);
   align-items: center;
 }
 
@@ -456,6 +462,7 @@ th { color: var(--muted); }
   gap: 8px;
   font: inherit;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -633,7 +640,13 @@ th { color: var(--muted); }
   }
 
   .activities-filter-row {
-    grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(100px, 1fr)) minmax(120px, 0.9fr);
+    grid-template-columns:
+      minmax(200px, 1.2fr)
+      minmax(130px, 0.9fr)
+      minmax(130px, 0.9fr)
+      minmax(165px, 1fr)
+      minmax(210px, 1fr)
+      minmax(140px, 0.8fr);
   }
 }
 
