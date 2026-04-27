@@ -11,7 +11,7 @@ const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
 const overrunTableBodyEl = document.getElementById("overrunTableBody");
 
-const DATA_SOURCE_URL = "";
+const DATA_SOURCE_URL = "https://script.google.com/macros/s/AKfycbw7PFHT-JOj2gbEjXqg9MlmZU7YvER8P1BrZEpH9uPDFivnwOBnUw6VVDO16NsUL6ks/exec";
 
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
