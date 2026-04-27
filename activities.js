@@ -40,6 +40,7 @@ const activityFinishDateInput = document.getElementById("activityFinishDateInput
 const activityProjectInput = document.getElementById("activityProjectInput");
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const LOCAL_STORAGE_KEY = "constructionStageActivities";
+const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -335,6 +336,18 @@ const saveActivitiesToLocalStorage = (activities) => {
   }
 };
 
+const readProjectsFromLocalStorage = () => {
+  try {
+    const raw = localStorage.getItem(PROJECTS_LOCAL_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeProject);
+  } catch {
+    return [];
+  }
+};
+
 const mergeActivities = (primary, secondary) => {
   const merged = [];
   const seen = new Set();
@@ -343,6 +356,23 @@ const mergeActivities = (primary, secondary) => {
     (list || []).forEach((item) => {
       const normalized = normalizeActivity(item);
       const key = `${normalized.id}::${normalized.project}::${normalized.name}`.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(normalized);
+    });
+  });
+
+  return merged;
+};
+
+const mergeProjects = (primary, secondary) => {
+  const merged = [];
+  const seen = new Set();
+
+  [primary, secondary].forEach((list) => {
+    (list || []).forEach((item) => {
+      const normalized = normalizeProject(item);
+      const key = `${normalized.code}::${normalized.name}`.toLowerCase();
       if (seen.has(key)) return;
       seen.add(key);
       merged.push(normalized);
@@ -371,6 +401,7 @@ const fetchSourcePayload = async (resource) => {
 
 const loadActivitiesAndProjectsFromSource = async () => {
   const localActivities = readActivitiesFromLocalStorage();
+  const localProjects = readProjectsFromLocalStorage();
 
   try {
     const [activitiesPayload, projectsPayload] = await Promise.all([
@@ -385,6 +416,7 @@ const loadActivitiesAndProjectsFromSource = async () => {
     const remoteProjects = Array.isArray(projectsPayload?.projects)
       ? projectsPayload.projects.map(normalizeProject)
       : [];
+    const mergedProjects = mergeProjects(remoteProjects, localProjects);
 
     saveActivitiesToLocalStorage(mergedActivities);
 
@@ -401,7 +433,7 @@ const loadActivitiesAndProjectsFromSource = async () => {
 
     return {
       activities: mergedActivities,
-      projects: remoteProjects,
+      projects: mergedProjects,
       meta: activityMeta,
     };
   } catch (error) {
@@ -410,7 +442,7 @@ const loadActivitiesAndProjectsFromSource = async () => {
     saveActivitiesToLocalStorage(fallbackActivities);
     return {
       activities: fallbackActivities,
-      projects: initialProjectCatalog,
+      projects: mergeProjects(localProjects, initialProjectCatalog),
       meta: window.activitiesMeta || {
         totalCount: fallbackActivities.length,
         kpi: { completed: 0, inProgress: 0, notStarted: 0, delayed: 0 },
