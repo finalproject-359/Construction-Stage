@@ -237,7 +237,7 @@ const renderProjects = (projects) => {
         </td>
         <td class="project-budget-cell">${escapeHtml(pesoBudgetFormatter.format(project.budget || 0))}</td>
         <td class="actions-col">
-          <button type="button" class="action-menu-trigger" data-project-actions="${escapeHtml(project.id)}" aria-label="Open project actions">⋮</button>
+          <button type="button" class="action-menu-trigger" data-project-actions="${escapeHtml(project.id)}" aria-label="Open project actions" aria-expanded="false">⋮</button>
           <div class="project-actions-menu hidden" data-project-menu="${escapeHtml(project.id)}" role="menu" aria-label="Project actions">
             <button type="button" class="project-action-btn" data-project-edit="${escapeHtml(project.id)}" role="menuitem">Edit</button>
             <button type="button" class="project-action-btn danger" data-project-delete="${escapeHtml(project.id)}" role="menuitem">Delete</button>
@@ -434,17 +434,44 @@ const deleteProject = async (projectId) => {
 };
 
 const closeAllActionMenus = () => {
-  document.querySelectorAll(".project-actions-menu").forEach((menu) => menu.classList.add("hidden"));
+  document.querySelectorAll(".project-actions-menu").forEach((menu) => {
+    menu.classList.add("hidden");
+    menu.classList.remove("open-up");
+  });
+  document.querySelectorAll(".action-menu-trigger").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+  });
+};
+
+const toggleActionMenu = (projectId, triggerBtn) => {
+  if (!projectId || !(triggerBtn instanceof HTMLElement)) return;
+
+  const targetMenu = projectsTableBody.querySelector(`[data-project-menu="${projectId}"]`);
+  if (!(targetMenu instanceof HTMLElement)) return;
+
+  const isClosed = targetMenu.classList.contains("hidden");
+  closeAllActionMenus();
+  if (!isClosed) {
+    return;
+  }
+
+  targetMenu.classList.remove("hidden");
+  targetMenu.classList.remove("open-up");
+  triggerBtn.setAttribute("aria-expanded", "true");
+
+  const menuRect = targetMenu.getBoundingClientRect();
+  const viewportBottom = window.innerHeight;
+  const desiredBottomPadding = 16;
+  if (menuRect.bottom > viewportBottom - desiredBottomPadding) {
+    targetMenu.classList.add("open-up");
+  }
 };
 
 projectsTableBody.addEventListener("click", async (event) => {
   const triggerBtn = event.target.closest("[data-project-actions]");
   if (triggerBtn instanceof HTMLElement) {
     const projectId = triggerBtn.dataset.projectActions;
-    const targetMenu = projectsTableBody.querySelector(`[data-project-menu="${projectId}"]`);
-    const isHidden = targetMenu?.classList.contains("hidden");
-    closeAllActionMenus();
-    if (isHidden) targetMenu?.classList.remove("hidden");
+    toggleActionMenu(projectId, triggerBtn);
     return;
   }
 
@@ -525,6 +552,10 @@ projectModal.addEventListener("click", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeAllActionMenus();
+  }
+
   if (event.key === "Escape" && !projectModal.classList.contains("hidden")) {
     closeProjectModal();
   }
