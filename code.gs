@@ -135,7 +135,7 @@ function handleProjectMutation(action, payload) {
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
     ensureProjectHeaders(sheet);
-    const storedProjectId = cleanText(project.code || project.id);
+    const storedProjectId = cleanText(project.id);
 
     sheet.appendRow([
       storedProjectId,
@@ -155,7 +155,7 @@ function handleProjectMutation(action, payload) {
       project: {
         ...project,
         id: storedProjectId,
-        code: storedProjectId,
+        code: cleanText(project.code || storedProjectId),
       },
       generatedAt: new Date().toISOString(),
     });
@@ -402,23 +402,27 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
 
   const normalizedExpected = normalizeHeaders(expectedHeaders);
   const normalizedExisting = normalizeHeaders(firstRow);
+  const legacyDeleteIndexes = [];
   const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
   const expectsProjectCode = normalizedExpected.indexOf('project code') >= 0;
-  const legacyDescriptionIndex = normalizedExisting.indexOf('description');
-  const expectsDescription = normalizedExpected.indexOf('description') >= 0;
-
   if (legacyProjectCodeIndex >= 0 && !expectsProjectCode) {
-    sheet.deleteColumn(legacyProjectCodeIndex + 1);
-    maxColumns = expectedHeaders.length;
-    lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
-    if (sheet.getMaxColumns() < maxColumns) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
-    }
-    firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+    legacyDeleteIndexes.push(legacyProjectCodeIndex + 1);
   }
 
+  const legacyDescriptionIndex = normalizedExisting.indexOf('description');
+  const expectsDescription = normalizedExpected.indexOf('description') >= 0;
   if (legacyDescriptionIndex >= 0 && !expectsDescription) {
-    sheet.deleteColumn(legacyDescriptionIndex + 1);
+    legacyDeleteIndexes.push(legacyDescriptionIndex + 1);
+  }
+
+  legacyDeleteIndexes.sort(function(a, b) {
+    return b - a;
+  });
+  for (var legacyIdx = 0; legacyIdx < legacyDeleteIndexes.length; legacyIdx += 1) {
+    sheet.deleteColumn(legacyDeleteIndexes[legacyIdx]);
+  }
+
+  if (legacyDeleteIndexes.length) {
     maxColumns = expectedHeaders.length;
     lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
     if (sheet.getMaxColumns() < maxColumns) {
@@ -460,8 +464,8 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
 function normalizeIncomingProject(input) {
   const source = input || {};
 
-  const id = cleanText(source.id || source.projectId || source.project_id || source.projectCode || source.project_code);
-  const code = cleanText(source.code || source.projectCode || source.project_code || source.projectId || source.project_id);
+  const id = cleanText(source.id || source.projectId || source.project_id);
+  const code = cleanText(source.code || source.projectCode || source.project_code);
   const name = cleanText(source.name || source.project || source.projectName || source.project_name);
   const type = cleanText(source.type || source.projectType || source.project_type) || 'General';
   const status = cleanText(source.status) || 'Not Started';
@@ -470,7 +474,7 @@ function normalizeIncomingProject(input) {
   const finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
   const budget = parseNumber(source.budget);
   return {
-    id: code || id || Utilities.getUuid(),
+    id: id || code || Utilities.getUuid(),
     code: code || id,
     name: name,
     type: type,
