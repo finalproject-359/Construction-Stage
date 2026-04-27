@@ -430,7 +430,8 @@ const updateKpis = (sourceActivities) => {
     Boolean(activitiesSearchInput?.value.trim()) ||
     (activitiesProjectFilter?.value && activitiesProjectFilter.value !== "All Projects") ||
     (activitiesStatusFilter?.value && activitiesStatusFilter.value !== "All Statuses") ||
-    (activitiesTypeFilter?.value && activitiesTypeFilter.value !== "All Activity Types");
+    (activitiesTypeFilter?.value && activitiesTypeFilter.value !== "All Activity Types") ||
+    Boolean(state.dateRange.start || state.dateRange.end);
 
   if (!hasActiveFilters && window.activitiesMeta?.kpi) {
     const metaKpis = window.activitiesMeta.kpi;
@@ -618,9 +619,11 @@ const applyFilters = () => {
 
 const resetFilters = () => {
   if (activitiesSearchInput) activitiesSearchInput.value = "";
+  if (activitiesProjectPickerSearch) activitiesProjectPickerSearch.value = "";
   if (activitiesProjectFilter) activitiesProjectFilter.value = "All Projects";
   if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
   if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
+  state.projectSearch = "";
   state.dateRange.start = null;
   state.dateRange.end = null;
   state.projectDateRange.start = null;
