@@ -1,6 +1,6 @@
 (function attachDataBridge(global) {
   const DEFAULT_DATA_SOURCE_URL =
-    "https://script.google.com/macros/s/AKfycbz4hKXusSjkeBWVWoBZBJ4Sa3vOlNPEA4gFoQe3FLxKD3GcG8WF24HYzHFegpAlci6G/exec";
+    "https://script.google.com/macros/s/AKfycbwRyFTBQFLrdz4wOi2VP4IejYR1yeG-x7D4tVm9KltV2GCBt--8h1ly7if3-sxDAyQT/exec";
 
   const EXPECTED_HEADER_ALIASES = [
     "activity id",
