@@ -64,17 +64,43 @@ const CONFIG = {
 };
 
 function doGet(e) {
-  try {
-    const params = (e && e.parameter) || {};
-    const resource = normalizeResource(params.resource || params.view || params.type || 'dashboard');
+  const params = (e && e.parameter) || {};
+  const payloadParam = params.payload;
+  let payload = payloadParam ? safeParseJson(payloadParam) : {};
 
-    const projectFilter = {
-      id: cleanText(params.projectId || params.project_id || ''),
-      name: cleanText(params.project || params.projectName || params.project_name || ''),
-      code: cleanText(params.projectCode || params.project_code || ''),
-    };
+  if (!payload || typeof payload !== 'object') payload = {};
+  payload.resource = payload.resource || params.resource || params.view || params.type;
+  payload.action = payload.action || params.action;
+  payload.projectId = payload.projectId || params.projectId || params.project_id;
+
+  return handleRequest(payload);
+}
+
+function doPost(e) {
+  return handleRequest(parsePostPayload(e));
+}
+
+function handleRequest(payload) {
+  try {
+    const source = payload || {};
+    const resource = normalizeResource(source.resource || 'dashboard');
+    const action = cleanText(source.action).toLowerCase();
 
     ensureWorkbookStructure();
+
+    if (action) {
+      if (resource !== 'projects') {
+        throw new Error('Only "projects" is supported for mutations.');
+      }
+      return handleProjectMutation(action, source);
+    }
+
+    const projectFilter = {
+      id: cleanText(source.projectId || source.project_id || ''),
+      name: cleanText(source.project || source.projectName || source.project_name || ''),
+      code: cleanText(source.projectCode || source.project_code || ''),
+    };
+
     const allData = loadAllData();
     const filtered = applyProjectFilter(allData, projectFilter);
 
@@ -87,104 +113,87 @@ function doGet(e) {
       all: buildAllPayload(filtered),
     };
 
-    const payload = payloadByResource[resource] || payloadByResource.dashboard;
+    const responsePayload = payloadByResource[resource] || payloadByResource.dashboard;
 
     return jsonResponse({
       ok: true,
-      resource,
+      resource: resource,
       filter: projectFilter,
       generatedAt: new Date().toISOString(),
-      ...payload,
+      ...responsePayload,
     });
   } catch (error) {
     return jsonResponse({
       ok: false,
-      error: error && error.message ? error.message : 'Unexpected error while loading sheet data.',
+      error: error && error.message ? error.message : 'Unexpected error while processing request.',
       generatedAt: new Date().toISOString(),
     });
   }
 }
 
-function doPost(e) {
-  try {
-    const payload = parsePostPayload(e);
-    const resource = normalizeResource(payload.resource || 'projects');
-    const action = cleanText(payload.action || 'create').toLowerCase();
-
-    ensureWorkbookStructure();
-
-    if (resource !== 'projects') {
-      throw new Error('Only "projects" is supported for POST requests.');
-    }
-    if (action === 'create') {
-      const project = normalizeIncomingProject(payload.project || payload);
-      if (!project.name || !project.code) {
-        throw new Error('Project Name and Project Code are required.');
-      }
-
-      const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
-      ensureProjectHeaders(sheet);
-
-      sheet.appendRow([
-        project.id,
-        project.code,
-        project.name,
-        project.type,
-        project.status,
-        project.location,
-        project.startDate,
-        project.finishDate,
-        project.budget,
-        project.description,
-        new Date(),
-      ]);
-
-      return jsonResponse({
-        ok: true,
-        message: 'Project saved successfully.',
-        project: project,
-        generatedAt: new Date().toISOString(),
-      });
+function handleProjectMutation(action, payload) {
+  if (action === 'create') {
+    const project = normalizeIncomingProject(payload.project || payload);
+    if (!project.name || !project.code) {
+      throw new Error('Project Name and Project Code are required.');
     }
 
-    if (action === 'update') {
-      const project = normalizeIncomingProject(payload.project || payload);
-      if (!project.id) {
-        throw new Error('Project ID is required for update.');
-      }
+    const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+    ensureProjectHeaders(sheet);
 
-      const updateResult = updateProjectRow(project);
-      return jsonResponse({
-        ok: true,
-        message: 'Project updated successfully.',
-        project: updateResult,
-        generatedAt: new Date().toISOString(),
-      });
-    }
+    sheet.appendRow([
+      project.id,
+      project.code,
+      project.name,
+      project.type,
+      project.status,
+      project.location,
+      project.startDate,
+      project.finishDate,
+      project.budget,
+      project.description,
+      new Date(),
+    ]);
 
-    if (action === 'delete') {
-      const projectId = cleanText(payload.projectId || payload.id);
-      if (!projectId) {
-        throw new Error('Project ID is required for delete.');
-      }
-
-      deleteProjectRow(projectId);
-      return jsonResponse({
-        ok: true,
-        message: 'Project deleted successfully.',
-        projectId: projectId,
-        generatedAt: new Date().toISOString(),
-      });
-    }
-
-    throw new Error('Unsupported action. Use action=create|update|delete.');
-  } catch (error) {
     return jsonResponse({
-      ok: false,
-      error: error && error.message ? error.message : 'Unexpected error while saving project.',
+      ok: true,
+      message: 'Project saved successfully.',
+      project: project,
       generatedAt: new Date().toISOString(),
     });
   }
+
+  if (action === 'update') {
+    const project = normalizeIncomingProject(payload.project || payload);
+    if (!project.id) {
+      throw new Error('Project ID is required for update.');
+    }
+
+    const updateResult = updateProjectRow(project);
+    return jsonResponse({
+      ok: true,
+      message: 'Project updated successfully.',
+      project: updateResult,
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  if (action === 'delete') {
+    const projectId = cleanText(payload.projectId || payload.id);
+    if (!projectId) {
+      throw new Error('Project ID is required for delete.');
+    }
+
+    deleteProjectRow(projectId);
+    return jsonResponse({
+      ok: true,
+      message: 'Project deleted successfully.',
+      projectId: projectId,
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  throw new Error('Unsupported action. Use action=create|update|delete.');
 }
 
 function updateProjectRow(project) {
@@ -331,6 +340,15 @@ function parsePostPayload(e) {
       // Fall through to final error.
     }
     throw new Error('Invalid JSON payload.');
+  }
+}
+
+function safeParseJson(value) {
+  if (!value) return {};
+  try {
+    return JSON.parse(String(value));
+  } catch (error) {
+    return {};
   }
 }
 

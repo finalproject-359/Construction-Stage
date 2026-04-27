@@ -275,6 +275,13 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
 
   let response;
   let payload;
+  const sendViaGet = async () => {
+    const url = new URL(DATA_SOURCE_URL);
+    url.searchParams.set("payload", JSON.stringify(requestPayload));
+    response = await fetch(url.toString(), { cache: "no-store" });
+    payload = await parseResponsePayload(response);
+  };
+
   try {
     response = await postWithFormat("form");
     payload = await parseResponsePayload(response);
@@ -292,12 +299,22 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
     const maybeCorsIssue =
       DATA_SOURCE_URL.includes("script.google.com/macros/s/") &&
       /failed to fetch|networkerror|cors/i.test(String(error?.message || ""));
-    const guidance = maybeCorsIssue
-      ? "CORS check failed. This app sends a preflight-safe form POST first, so verify your Google Apps Script Web App is deployed to Anyone and use the latest /exec deployment URL."
-      : "Unable to reach the Google Sheet endpoint.";
-    throw new Error(
-      `${guidance} If this endpoint was recently changed, update DATA_SOURCE_URL in data-service.js.`
-    );
+    if (maybeCorsIssue) {
+      try {
+        await sendViaGet();
+      } catch {
+        // Use the shared error messaging below.
+      }
+    }
+
+    if (!response || payload?.ok === false) {
+      const guidance = maybeCorsIssue
+        ? "CORS check failed for POST. Verify your Google Apps Script Web App is deployed to Anyone and use the latest /exec deployment URL."
+        : "Unable to reach the Google Sheet endpoint.";
+      throw new Error(
+        `${guidance} If this endpoint was recently changed, update DATA_SOURCE_URL in data-service.js.`
+      );
+    }
   }
 
   if (!response.ok) {
