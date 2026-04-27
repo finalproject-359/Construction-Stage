@@ -44,6 +44,29 @@ const state = {
   editingProjectId: null,
 };
 
+const getValueByAliases = (source, aliases = []) => {
+  if (!source || typeof source !== "object") return undefined;
+
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(source, alias)) {
+      return source[alias];
+    }
+  }
+
+  const normalizedEntries = Object.keys(source).map((key) => ({
+    key,
+    normalized: String(key).toLowerCase().replace(/[^a-z0-9]/g, ""),
+  }));
+
+  for (const alias of aliases) {
+    const normalizedAlias = String(alias).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matched = normalizedEntries.find((entry) => entry.normalized === normalizedAlias);
+    if (matched) return source[matched.key];
+  }
+
+  return undefined;
+};
+
 const toNumericBudgetValue = (value) => {
   const sanitized = String(value || "").replace(/[^\d.]/g, "");
   const [integerPart, ...fractionParts] = sanitized.split(".");
@@ -85,9 +108,49 @@ const formatDate = (value) => {
 };
 
 const normalizeProject = (project = {}) => {
-  const startDate = project.startDate || project.plannedStart || "";
-  const finishDate = project.finishDate || project.targetFinish || project.endDate || "";
-  const normalizedStatus = String(project.status || "Not Started").trim() || "Not Started";
+  const idRaw = getValueByAliases(project, ["id", "projectId", "project_id"]);
+  const codeRaw = getValueByAliases(project, ["code", "projectCode", "project_code"]);
+  const nameRaw = getValueByAliases(project, ["name", "project", "projectName", "project_name"]);
+  const typeRaw = getValueByAliases(project, ["type", "projectType", "project_type"]);
+  let statusRaw = getValueByAliases(project, ["status", "projectStatus", "project_status"]);
+  let locationRaw = getValueByAliases(project, ["location", "projectLocation", "project_location", "site", "address"]);
+  let startDateRaw = getValueByAliases(project, ["startDate", "start_date", "plannedStart", "planned_start"]);
+  let finishDateRaw = getValueByAliases(project, ["finishDate", "targetFinish", "target_finish", "endDate", "end_date", "plannedFinish", "planned_finish"]);
+  let budgetRaw = getValueByAliases(project, ["budget", "plannedValue", "planned_value", "plannedCost", "planned_cost"]);
+  let descriptionRaw = getValueByAliases(project, ["description", "notes"]);
+
+  const isKnownStatus = (value) =>
+    ["not started", "in progress", "on hold", "completed", "archived"].includes(
+      String(value || "").trim().toLowerCase()
+    );
+  const isDateLike = (value) => {
+    if (!value) return false;
+    const parsed = new Date(value);
+    return !Number.isNaN(parsed.getTime());
+  };
+
+  // Guard against shifted source data where values are offset by one column:
+  // status <- type, location <- status, startDate <- location,
+  // finishDate <- startDate, budget <- finishDate, description <- budget.
+  const looksShifted =
+    !isKnownStatus(statusRaw) &&
+    isKnownStatus(locationRaw) &&
+    !isDateLike(startDateRaw) &&
+    isDateLike(finishDateRaw) &&
+    (typeof budgetRaw === "string" || budgetRaw instanceof Date);
+
+  if (looksShifted) {
+    statusRaw = locationRaw;
+    locationRaw = startDateRaw;
+    startDateRaw = finishDateRaw;
+    finishDateRaw = budgetRaw;
+    budgetRaw = descriptionRaw;
+    descriptionRaw = "";
+  }
+
+  const startDate = startDateRaw || "";
+  const finishDate = finishDateRaw || "";
+  const normalizedStatus = String(statusRaw || "Not Started").trim() || "Not Started";
 
   const progressByStatus = {
     Completed: 100,
@@ -98,20 +161,20 @@ const normalizeProject = (project = {}) => {
   };
 
   return {
-    id: String(project.id || "").trim(),
-    name: String(project.name || project.projectName || project.project || "Untitled Project").trim(),
-    code: String(project.code || project.projectCode || "").trim(),
-    type: String(project.type || project.projectType || "General").trim() || "General",
+    id: String(idRaw || "").trim(),
+    name: String(nameRaw || "Untitled Project").trim(),
+    code: String(codeRaw || idRaw || "").trim(),
+    type: String(typeRaw || "General").trim() || "General",
     status: normalizedStatus,
-    location: String(project.location || project.projectLocation || "").trim(),
+    location: String(locationRaw || "").trim(),
     startDate,
     finishDate,
-    budget: parseBudgetValue(project.budget),
+    budget: parseBudgetValue(budgetRaw),
     progress:
-      Number.isFinite(Number(project.progress))
-        ? Math.max(0, Math.min(100, Number(project.progress)))
+      Number.isFinite(Number(getValueByAliases(project, ["progress", "percentComplete", "percent_complete"])))
+        ? Math.max(0, Math.min(100, Number(getValueByAliases(project, ["progress", "percentComplete", "percent_complete"]))))
         : progressByStatus[normalizedStatus] ?? 0,
-    description: String(project.description || "").trim(),
+    description: String(descriptionRaw || "").trim(),
   };
 };
 
