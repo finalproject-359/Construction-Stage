@@ -778,8 +778,8 @@ th { color: var(--muted); }
   flex: 0 0 auto;
 }
 
-.activities-project-filter-reset:hover,
-.activities-how-it-works-btn:hover {
+.activities-project-filter-reset:focus-visible,
+.activities-how-it-works-btn:focus-visible {
   border-color: #b8c5f4;
   box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.08);
 }
@@ -1402,12 +1402,12 @@ th { color: var(--muted); }
 
 .activities-search-field:focus-within,
 .activities-select-field:focus-within,
-.activities-date-btn:hover {
+.activities-date-btn:focus-visible {
   border-color: #b8c5f4;
   box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.08);
 }
 
-.activities-add-btn:hover {
+.activities-add-btn:focus-visible {
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(47, 85, 255, 0.22);
 }
