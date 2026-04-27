@@ -31,6 +31,30 @@
         </div>
       </header>
 
+      <section id="activitiesProjectSelection" class="table-panel activities-project-selection">
+        <div class="activities-project-selection-hero">
+          <div class="activities-project-selection-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+          </div>
+          <h2>Select a project to view activities</h2>
+          <p>Activities are organized by project. Choose one below to continue.</p>
+          <label class="activities-search-field activities-project-picker-search">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="activitiesProjectPickerSearch" type="search" placeholder="Search projects..." aria-label="Search projects" />
+          </label>
+        </div>
+
+        <div>
+          <h3>All Projects</h3>
+          <div id="activitiesProjectPickerGrid" class="activities-project-picker-grid"></div>
+          <div class="activities-project-selection-footer">
+            <p>Can’t find the project you’re looking for? Create it in the Projects page.</p>
+            <a href="projects.html" class="secondary-btn">Go to Projects</a>
+          </div>
+        </div>
+      </section>
+
+      <div id="activitiesViewShell" hidden>
       <section class="activities-kpi-grid">
         <article class="activities-kpi-card">
           <h2><span class="activities-kpi-icon icon-total" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg></span>Total Activities</h2>
@@ -165,6 +189,7 @@
           </nav>
         </div>
       </section>
+      </div>
     </main>
   </div>
 
