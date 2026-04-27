@@ -31,7 +31,7 @@
         </div>
       </header>
 
-      <section class="activities-project-selection-filters" aria-label="Project filters">
+      <section class="table-panel activities-project-selection-filters" aria-label="Project filters">
         <div class="activities-project-selection-toolbar" role="group" aria-label="Project selection filters">
           <div class="activities-project-selection-toolbar-left">
             <label class="activities-search-field activities-selection-search">
@@ -306,6 +306,13 @@
     </div>
   </div>
   <script>
+    window.activitiesProjectCatalog = [
+      { code: "FC-001", name: "Flood Control System", location: "Pati Piso, Limas", type: "Infrastructure", status: "Active", startDate: "2024-05-01", endDate: "2024-05-31" },
+      { code: "RD-002", name: "Road Rehabilitation", location: "Brgy. San Roque", type: "Infrastructure", status: "Active", startDate: "2024-05-01", endDate: "2024-05-31" },
+      { code: "DR-003", name: "Drainage Improvement", location: "Brgy. Malinao", type: "Infrastructure", status: "On Hold", startDate: "2024-05-01", endDate: "2024-05-31" },
+      { code: "RV-004", name: "River Dredging Project", location: "Limas River", type: "Infrastructure", status: "Completed", startDate: "2024-05-01", endDate: "2024-05-31" },
+      { code: "BR-005", name: "Bridge Repair Program", location: "National Road", type: "Infrastructure", status: "Active", startDate: "2024-05-01", endDate: "2024-05-31" }
+    ];
     window.activitiesData = [];
     window.activitiesMeta = {
       totalCount: 0,

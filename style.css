@@ -704,10 +704,6 @@ th { color: var(--muted); }
 
 .activities-project-selection-filters {
   margin-top: 8px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
 }
 
 
