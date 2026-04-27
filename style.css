@@ -696,10 +696,14 @@ th { color: var(--muted); }
 }
 
 .activities-project-selection {
-  margin-top: 8px;
+  margin-top: 12px;
   display: grid;
   gap: 20px;
   padding: 24px;
+}
+
+.activities-project-selection-filters {
+  margin-top: 8px;
 }
 
 
