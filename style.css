@@ -702,6 +702,73 @@ th { color: var(--muted); }
   padding: 24px;
 }
 
+
+.activities-project-selection-toolbar {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(160px, 1fr) minmax(150px, 0.9fr) minmax(220px, 1.1fr) 42px auto;
+  align-items: center;
+}
+
+.activities-selection-search {
+  width: 100%;
+}
+
+.activities-selection-select {
+  width: 100%;
+}
+
+.activities-project-filter-reset,
+.activities-how-it-works-btn {
+  min-height: 40px;
+  border-radius: 9px;
+  border: 1px solid #d8deea;
+  background: #fff;
+  font: inherit;
+  color: #344054;
+  cursor: pointer;
+}
+
+.activities-project-filter-reset {
+  width: 42px;
+  display: grid;
+  place-items: center;
+}
+
+.activities-project-filter-reset svg,
+.activities-how-it-works-btn svg {
+  width: 16px;
+  height: 16px;
+  color: #667085;
+}
+
+.activities-project-filter-reset svg path,
+.activities-how-it-works-btn svg path,
+.activities-how-it-works-btn svg circle {
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.activities-how-it-works-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  color: #2f55ff;
+  border-color: #c9d4ff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.activities-project-filter-reset:hover,
+.activities-how-it-works-btn:hover {
+  border-color: #b8c5f4;
+  box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.08);
+}
+
 .activities-project-selection-hero {
   text-align: center;
   display: grid;
@@ -1268,6 +1335,15 @@ th { color: var(--muted); }
 }
 
 @media (max-width: 1200px) {
+  .activities-project-selection-toolbar {
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+  }
+
+  .activities-project-filter-reset,
+  .activities-how-it-works-btn {
+    width: 100%;
+  }
+
   .activities-kpi-grid {
     grid-template-columns: repeat(5, minmax(170px, 1fr));
   }
@@ -1286,6 +1362,7 @@ th { color: var(--muted); }
 }
 
 @media (max-width: 900px) {
+  .activities-project-selection-toolbar,
   .activities-filter-row {
     grid-template-columns: 1fr;
   }

@@ -16,6 +16,18 @@ const activitiesProjectSelection = document.getElementById("activitiesProjectSel
 const activitiesViewShell = document.getElementById("activitiesViewShell");
 const activitiesProjectPickerSearch = document.getElementById("activitiesProjectPickerSearch");
 const activitiesProjectPickerGrid = document.getElementById("activitiesProjectPickerGrid");
+const activitiesProjectTypeFilter = document.getElementById("activitiesProjectTypeFilter");
+const activitiesProjectStatusFilter = document.getElementById("activitiesProjectStatusFilter");
+const activitiesProjectDateFilterWrap = document.querySelector(".activities-selection-date-filter");
+const activitiesProjectDateFilterBtn = document.getElementById("activitiesProjectDateFilterBtn");
+const activitiesProjectDateFilterLabel = document.getElementById("activitiesProjectDateFilterLabel");
+const activitiesProjectDateRangePanel = document.getElementById("activitiesProjectDateRangePanel");
+const activitiesProjectFilterStartDate = document.getElementById("activitiesProjectFilterStartDate");
+const activitiesProjectFilterEndDate = document.getElementById("activitiesProjectFilterEndDate");
+const activitiesProjectDateClearBtn = document.getElementById("activitiesProjectDateClearBtn");
+const activitiesProjectDateApplyBtn = document.getElementById("activitiesProjectDateApplyBtn");
+const activitiesProjectFiltersReset = document.getElementById("activitiesProjectFiltersReset");
+const activitiesHowItWorksBtn = document.getElementById("activitiesHowItWorksBtn");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
 const activitiesPagination = document.querySelector(".activities-pagination");
 const activityModal = document.getElementById("activityModal");
@@ -268,6 +280,10 @@ const state = {
   currentPage: 1,
   selectedProject: "All Projects",
   projectSearch: "",
+  projectDateRange: {
+    start: null,
+    end: null,
+  },
   dateRange: {
     start: null,
     end: null,
@@ -287,6 +303,76 @@ const formatDateRangeLabel = () => {
 const syncDateFilterLabel = () => {
   if (!activitiesDateFilterLabel) return;
   activitiesDateFilterLabel.textContent = formatDateRangeLabel();
+};
+
+const formatProjectDateRangeLabel = () => {
+  const { start, end } = state.projectDateRange;
+  if (!start && !end) return "All Dates";
+  if (start && end) return `${toDisplayDate(start)} - ${toDisplayDate(end)}`;
+  if (start) return `${toDisplayDate(start)} onwards`;
+  return `Until ${toDisplayDate(end)}`;
+};
+
+const syncProjectDateFilterLabel = () => {
+  if (!activitiesProjectDateFilterLabel) return;
+  activitiesProjectDateFilterLabel.textContent = formatProjectDateRangeLabel();
+};
+
+const closeProjectDateRangePanel = () => {
+  if (!activitiesProjectDateRangePanel) return;
+  activitiesProjectDateRangePanel.classList.add("hidden");
+  activitiesProjectDateFilterWrap?.classList.remove("is-open");
+  activitiesProjectDateFilterBtn?.setAttribute("aria-expanded", "false");
+};
+
+const openProjectDateRangePanel = () => {
+  if (!activitiesProjectDateRangePanel) return;
+  activitiesProjectDateRangePanel.classList.remove("hidden");
+  activitiesProjectDateFilterWrap?.classList.add("is-open");
+  activitiesProjectDateFilterBtn?.setAttribute("aria-expanded", "true");
+};
+
+const deriveProjectStatus = (projectActivities = []) => {
+  if (!projectActivities.length) return "Not Started";
+  const statuses = projectActivities.map((item) => item.status);
+  if (statuses.includes("Delayed")) return "Delayed";
+  if (statuses.every((status) => status === "Completed")) return "Completed";
+  if (statuses.includes("In Progress")) return "In Progress";
+  return "Not Started";
+};
+
+const deriveProjectType = (projectActivities = []) => {
+  const firstType = projectActivities.find((item) => item.type && item.type !== "-")?.type;
+  return firstType || "General";
+};
+
+const buildProjectSummaries = () => {
+  const projectMap = new Map();
+
+  state.allActivities.forEach((activity) => {
+    if (!activity.project || activity.project === "-") return;
+    if (!projectMap.has(activity.project)) {
+      projectMap.set(activity.project, []);
+    }
+    projectMap.get(activity.project).push(activity);
+  });
+
+  return Array.from(projectMap.entries())
+    .map(([name, projectActivities]) => {
+      const starts = projectActivities.map((item) => item.plannedStartDate).filter(Boolean);
+      const finishes = projectActivities.map((item) => item.plannedFinishDate).filter(Boolean);
+      const startDate = starts.length ? new Date(Math.min(...starts.map((date) => date.getTime()))) : null;
+      const endDate = finishes.length ? new Date(Math.max(...finishes.map((date) => date.getTime()))) : null;
+
+      return {
+        name,
+        type: deriveProjectType(projectActivities),
+        status: deriveProjectStatus(projectActivities),
+        startDate,
+        endDate,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 };
 
 const closeDateRangePanel = () => {
@@ -359,9 +445,25 @@ const renderProjectPicker = () => {
   if (!activitiesProjectPickerGrid) return;
 
   const searchValue = state.projectSearch.trim().toLowerCase();
-  const projects = getSelectableProjects().filter((project) =>
-    !searchValue || project.toLowerCase().includes(searchValue)
-  );
+  const selectedType = activitiesProjectTypeFilter?.value || "All Project Types";
+  const selectedStatus = activitiesProjectStatusFilter?.value || "All Statuses";
+  const selectedStartDate = state.projectDateRange.start;
+  const selectedEndDate = state.projectDateRange.end;
+
+  const projects = buildProjectSummaries().filter((project) => {
+    const textMatch = !searchValue || project.name.toLowerCase().includes(searchValue);
+    const typeMatch = selectedType === "All Project Types" || project.type === selectedType;
+    const statusMatch = selectedStatus === "All Statuses" || project.status === selectedStatus;
+    const hasDateFilter = Boolean(selectedStartDate || selectedEndDate);
+    const projectAnchorDate = project.startDate || project.endDate;
+    const dateMatch =
+      !hasDateFilter ||
+      (projectAnchorDate &&
+        (!selectedStartDate || projectAnchorDate >= selectedStartDate) &&
+        (!selectedEndDate || projectAnchorDate <= selectedEndDate));
+
+    return textMatch && typeMatch && statusMatch && dateMatch;
+  });
 
   if (!projects.length) {
     activitiesProjectPickerGrid.innerHTML = `<p class="activities-project-picker-empty">No projects found.</p>`;
@@ -371,8 +473,8 @@ const renderProjectPicker = () => {
   activitiesProjectPickerGrid.innerHTML = projects
     .map(
       (project) => `
-        <button type="button" class="activities-project-picker-card" data-project="${escapeHtml(project)}">
-          <span>${escapeHtml(project)}</span>
+        <button type="button" class="activities-project-picker-card" data-project="${escapeHtml(project.name)}">
+          <span>${escapeHtml(project.name)}</span>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
       `
@@ -479,9 +581,20 @@ const resetFilters = () => {
   if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
   state.dateRange.start = null;
   state.dateRange.end = null;
+  state.projectDateRange.start = null;
+  state.projectDateRange.end = null;
+  if (activitiesProjectTypeFilter) activitiesProjectTypeFilter.value = "All Project Types";
+  if (activitiesProjectStatusFilter) activitiesProjectStatusFilter.value = "All Statuses";
   if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
   if (activitiesFilterEndDate) activitiesFilterEndDate.value = "";
+  if (activitiesProjectFilterStartDate) activitiesProjectFilterStartDate.value = "";
+  if (activitiesProjectFilterEndDate) {
+    activitiesProjectFilterEndDate.value = "";
+    activitiesProjectFilterEndDate.min = "";
+  }
   syncDateFilterLabel();
+  syncProjectDateFilterLabel();
+  renderProjectPicker();
   applyFilters();
 };
 
@@ -513,6 +626,10 @@ const refreshFilterOptions = () => {
   populateSelect(activitiesProjectFilter, uniqueSorted(state.allActivities.map((row) => row.project)), "All Projects");
   populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
   populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
+
+  const projectSummaries = buildProjectSummaries();
+  populateSelect(activitiesProjectTypeFilter, uniqueSorted(projectSummaries.map((row) => row.type)), "All Project Types");
+  populateSelect(activitiesProjectStatusFilter, uniqueSorted(projectSummaries.map((row) => row.status)), "All Statuses");
   if (activitiesProjectFilter && previousProjectSelection !== "All Projects") {
     const stillExists = Array.from(activitiesProjectFilter.options).some(
       (option) => option.value === previousProjectSelection
@@ -569,6 +686,70 @@ if (activitiesProjectPickerSearch) {
   });
 }
 
+[activitiesProjectTypeFilter, activitiesProjectStatusFilter]
+  .filter(Boolean)
+  .forEach((el) => el.addEventListener("change", renderProjectPicker));
+
+if (activitiesProjectDateFilterBtn) {
+  activitiesProjectDateFilterBtn.addEventListener("click", () => {
+    const isOpen = activitiesProjectDateRangePanel && !activitiesProjectDateRangePanel.classList.contains("hidden");
+    if (isOpen) {
+      closeProjectDateRangePanel();
+      return;
+    }
+    openProjectDateRangePanel();
+  });
+}
+
+if (activitiesProjectFilterStartDate && activitiesProjectFilterEndDate) {
+  activitiesProjectFilterStartDate.addEventListener("change", () => {
+    activitiesProjectFilterEndDate.min = activitiesProjectFilterStartDate.value || "";
+  });
+}
+
+if (activitiesProjectDateApplyBtn) {
+  activitiesProjectDateApplyBtn.addEventListener("click", () => {
+    const start = parseDateValue(activitiesProjectFilterStartDate?.value);
+    const end = parseDateValue(activitiesProjectFilterEndDate?.value);
+
+    if (start && end && start > end) {
+      window.alert("End date must be on or after start date.");
+      return;
+    }
+
+    state.projectDateRange.start = start;
+    state.projectDateRange.end = end;
+    syncProjectDateFilterLabel();
+    closeProjectDateRangePanel();
+    renderProjectPicker();
+  });
+}
+
+if (activitiesProjectDateClearBtn) {
+  activitiesProjectDateClearBtn.addEventListener("click", () => {
+    state.projectDateRange.start = null;
+    state.projectDateRange.end = null;
+    if (activitiesProjectFilterStartDate) activitiesProjectFilterStartDate.value = "";
+    if (activitiesProjectFilterEndDate) {
+      activitiesProjectFilterEndDate.value = "";
+      activitiesProjectFilterEndDate.min = "";
+    }
+    syncProjectDateFilterLabel();
+    closeProjectDateRangePanel();
+    renderProjectPicker();
+  });
+}
+
+if (activitiesProjectFiltersReset) {
+  activitiesProjectFiltersReset.addEventListener("click", resetFilters);
+}
+
+if (activitiesHowItWorksBtn) {
+  activitiesHowItWorksBtn.addEventListener("click", () => {
+    window.alert("Use the project filters to narrow by project type, status, or planned date, then select a project card to view activities.");
+  });
+}
+
 if (activitiesProjectPickerGrid) {
   activitiesProjectPickerGrid.addEventListener("click", (event) => {
     const button = event.target.closest("[data-project]");
@@ -595,6 +776,11 @@ activitiesTableBody.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && activitiesDateRangePanel && !activitiesDateRangePanel.classList.contains("hidden")) {
     closeDateRangePanel();
+    return;
+  }
+
+  if (event.key === "Escape" && activitiesProjectDateRangePanel && !activitiesProjectDateRangePanel.classList.contains("hidden")) {
+    closeProjectDateRangePanel();
     return;
   }
 
@@ -654,9 +840,23 @@ if (activitiesDateClearBtn) {
 }
 
 document.addEventListener("click", (event) => {
-  if (!activitiesDateFilterWrap || activitiesDateRangePanel?.classList.contains("hidden")) return;
-  if (activitiesDateFilterWrap.contains(event.target)) return;
-  closeDateRangePanel();
+  if (
+    activitiesDateFilterWrap &&
+    activitiesDateRangePanel &&
+    !activitiesDateRangePanel.classList.contains("hidden") &&
+    !activitiesDateFilterWrap.contains(event.target)
+  ) {
+    closeDateRangePanel();
+  }
+
+  if (
+    activitiesProjectDateFilterWrap &&
+    activitiesProjectDateRangePanel &&
+    !activitiesProjectDateRangePanel.classList.contains("hidden") &&
+    !activitiesProjectDateFilterWrap.contains(event.target)
+  ) {
+    closeProjectDateRangePanel();
+  }
 });
 
 if (activityForm) {
@@ -706,5 +906,6 @@ renderTable();
 updateKpis(state.filteredActivities);
 updateSummary();
 syncDateFilterLabel();
+syncProjectDateFilterLabel();
 renderProjectPicker();
 syncWorkflowState();
