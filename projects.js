@@ -248,13 +248,17 @@ const readFromLocalStorage = () => {
   }
 };
 
-const saveProjectToGoogleSheet = async (project) => {
+const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   if (!DATA_SOURCE_URL) return;
+
+  const requestPayload = { resource: "projects", action };
+  if (project) requestPayload.project = project;
+  if (projectId) requestPayload.projectId = projectId;
 
   const response = await fetch(DATA_SOURCE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resource: "projects", action: "create", project }),
+    body: JSON.stringify(requestPayload),
   });
 
   if (!response.ok) {
@@ -285,12 +289,8 @@ const loadProjectsFromSource = async () => {
       ? payload.projects.map(normalizeProject)
       : [];
 
-    if (remoteProjects.length) {
-      saveToLocalStorage(remoteProjects);
-      return remoteProjects;
-    }
-
-    return localProjects;
+    saveToLocalStorage(remoteProjects);
+    return remoteProjects;
   } catch {
     return localProjects;
   }
@@ -332,19 +332,15 @@ const hydrateFilters = () => {
 };
 
 const addProject = async (project) => {
+  await syncProjectWithGoogleSheet({ action: "create", project });
   state.allProjects = [project, ...state.allProjects];
   saveToLocalStorage(state.allProjects);
   hydrateFilters();
   applyFilters();
-
-  try {
-    await saveProjectToGoogleSheet(project);
-  } catch (error) {
-    console.warn(error);
-  }
 };
 
-const updateProject = (updatedProject) => {
+const updateProject = async (updatedProject) => {
+  await syncProjectWithGoogleSheet({ action: "update", project: updatedProject });
   state.allProjects = state.allProjects.map((project) =>
     project.id === updatedProject.id ? updatedProject : project
   );
@@ -353,7 +349,8 @@ const updateProject = (updatedProject) => {
   applyFilters();
 };
 
-const deleteProject = (projectId) => {
+const deleteProject = async (projectId) => {
+  await syncProjectWithGoogleSheet({ action: "delete", projectId });
   state.allProjects = state.allProjects.filter((project) => project.id !== projectId);
   saveToLocalStorage(state.allProjects);
   hydrateFilters();
@@ -364,7 +361,7 @@ const closeAllActionMenus = () => {
   document.querySelectorAll(".project-actions-menu").forEach((menu) => menu.classList.add("hidden"));
 };
 
-projectsTableBody.addEventListener("click", (event) => {
+projectsTableBody.addEventListener("click", async (event) => {
   const triggerBtn = event.target.closest("[data-project-actions]");
   if (triggerBtn instanceof HTMLElement) {
     const projectId = triggerBtn.dataset.projectActions;
@@ -391,7 +388,12 @@ projectsTableBody.addEventListener("click", (event) => {
     closeAllActionMenus();
     const isConfirmed = window.confirm(`Delete "${projectToDelete.name}"? This action cannot be undone.`);
     if (!isConfirmed) return;
-    deleteProject(projectId);
+    try {
+      await deleteProject(projectId);
+    } catch (error) {
+      console.warn(error);
+      window.alert("Failed to delete project from Google Sheet. Please try again.");
+    }
   }
 });
 
@@ -483,10 +485,16 @@ projectForm.addEventListener("submit", async (event) => {
     description,
   });
 
-  if (state.editingProjectId) {
-    updateProject(project);
-  } else {
-    await addProject(project);
+  try {
+    if (state.editingProjectId) {
+      await updateProject(project);
+    } else {
+      await addProject(project);
+    }
+  } catch (error) {
+    console.warn(error);
+    window.alert("Failed to sync project to Google Sheet. Please try again.");
+    return;
   }
 
   closeProjectModal();

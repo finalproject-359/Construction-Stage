@@ -116,39 +116,68 @@ function doPost(e) {
     if (resource !== 'projects') {
       throw new Error('Only "projects" is supported for POST requests.');
     }
+    if (action === 'create') {
+      const project = normalizeIncomingProject(payload.project || payload);
+      if (!project.name || !project.code) {
+        throw new Error('Project Name and Project Code are required.');
+      }
 
-    if (action !== 'create') {
-      throw new Error('Unsupported action. Use action=create.');
+      const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+      ensureProjectHeaders(sheet);
+
+      sheet.appendRow([
+        project.id,
+        project.code,
+        project.name,
+        project.type,
+        project.status,
+        project.location,
+        project.startDate,
+        project.finishDate,
+        project.budget,
+        project.description,
+        new Date(),
+      ]);
+
+      return jsonResponse({
+        ok: true,
+        message: 'Project saved successfully.',
+        project: project,
+        generatedAt: new Date().toISOString(),
+      });
     }
 
-    const project = normalizeIncomingProject(payload.project || payload);
-    if (!project.name || !project.code) {
-      throw new Error('Project Name and Project Code are required.');
+    if (action === 'update') {
+      const project = normalizeIncomingProject(payload.project || payload);
+      if (!project.id) {
+        throw new Error('Project ID is required for update.');
+      }
+
+      const updateResult = updateProjectRow(project);
+      return jsonResponse({
+        ok: true,
+        message: 'Project updated successfully.',
+        project: updateResult,
+        generatedAt: new Date().toISOString(),
+      });
     }
 
-    const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
-    ensureProjectHeaders(sheet);
+    if (action === 'delete') {
+      const projectId = cleanText(payload.projectId || payload.id);
+      if (!projectId) {
+        throw new Error('Project ID is required for delete.');
+      }
 
-    sheet.appendRow([
-      project.id,
-      project.code,
-      project.name,
-      project.type,
-      project.status,
-      project.location,
-      project.startDate,
-      project.finishDate,
-      project.budget,
-      project.description,
-      new Date(),
-    ]);
+      deleteProjectRow(projectId);
+      return jsonResponse({
+        ok: true,
+        message: 'Project deleted successfully.',
+        projectId: projectId,
+        generatedAt: new Date().toISOString(),
+      });
+    }
 
-    return jsonResponse({
-      ok: true,
-      message: 'Project saved successfully.',
-      project: project,
-      generatedAt: new Date().toISOString(),
-    });
+    throw new Error('Unsupported action. Use action=create|update|delete.');
   } catch (error) {
     return jsonResponse({
       ok: false,
@@ -156,6 +185,92 @@ function doPost(e) {
       generatedAt: new Date().toISOString(),
     });
   }
+}
+
+function updateProjectRow(project) {
+  const lookup = findProjectSheetRow(project.id);
+  if (!lookup) {
+    throw new Error('Project not found.');
+  }
+
+  const rowValues = lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).getValues()[0];
+  rowValues[lookup.columns.id - 1] = project.id;
+  rowValues[lookup.columns.code - 1] = project.code;
+  rowValues[lookup.columns.name - 1] = project.name;
+  rowValues[lookup.columns.type - 1] = project.type;
+  rowValues[lookup.columns.status - 1] = project.status;
+  rowValues[lookup.columns.location - 1] = project.location;
+  rowValues[lookup.columns.startDate - 1] = project.startDate;
+  rowValues[lookup.columns.finishDate - 1] = project.finishDate;
+  rowValues[lookup.columns.budget - 1] = project.budget;
+  rowValues[lookup.columns.description - 1] = project.description;
+
+  lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
+  return project;
+}
+
+function deleteProjectRow(projectId) {
+  const lookup = findProjectSheetRow(projectId);
+  if (!lookup) {
+    throw new Error('Project not found.');
+  }
+
+  lookup.sheet.deleteRow(lookup.rowNumber);
+}
+
+function findProjectSheetRow(projectId) {
+  const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+  ensureProjectHeaders(sheet);
+
+  const values = sheet.getDataRange().getValues();
+  if (!values.length) return null;
+
+  const headers = values[0].map(function(header) {
+    return normalizeHeader(header);
+  });
+
+  const indexOfHeader = function(candidates) {
+    for (var i = 0; i < candidates.length; i += 1) {
+      var normalized = normalizeHeader(candidates[i]);
+      var found = headers.indexOf(normalized);
+      if (found >= 0) return found + 1;
+    }
+    return 0;
+  };
+
+  const columns = {
+    id: indexOfHeader(['Project ID', 'ID']),
+    code: indexOfHeader(['Project Code', 'Code']),
+    name: indexOfHeader(['Project Name', 'Project', 'Name']),
+    type: indexOfHeader(['Project Type', 'Type']),
+    status: indexOfHeader(['Status']),
+    location: indexOfHeader(['Location', 'Site', 'Address']),
+    startDate: indexOfHeader(['Start Date', 'Planned Start']),
+    finishDate: indexOfHeader(['Finish Date', 'End Date', 'Target Finish']),
+    budget: indexOfHeader(['Budget', 'Planned Value', 'Planned Cost']),
+    description: indexOfHeader(['Description', 'Notes']),
+  };
+
+  if (!columns.id) {
+    throw new Error('Project ID column is missing.');
+  }
+
+  var rowNumber = 0;
+  for (var rowIdx = 1; rowIdx < values.length; rowIdx += 1) {
+    if (cleanText(values[rowIdx][columns.id - 1]) === projectId) {
+      rowNumber = rowIdx + 1;
+      break;
+    }
+  }
+
+  if (!rowNumber) return null;
+
+  return {
+    sheet: sheet,
+    rowNumber: rowNumber,
+    columns: columns,
+    lastColumn: Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length),
+  };
 }
 
 function normalizeResource(value) {
