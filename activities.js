@@ -26,7 +26,6 @@ const activitiesProjectFilterStartDate = document.getElementById("activitiesProj
 const activitiesProjectFilterEndDate = document.getElementById("activitiesProjectFilterEndDate");
 const activitiesProjectDateClearBtn = document.getElementById("activitiesProjectDateClearBtn");
 const activitiesProjectDateApplyBtn = document.getElementById("activitiesProjectDateApplyBtn");
-const activitiesProjectFiltersReset = document.getElementById("activitiesProjectFiltersReset");
 const activitiesHowItWorksBtn = document.getElementById("activitiesHowItWorksBtn");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
 const activitiesPagination = document.querySelector(".activities-pagination");
@@ -617,32 +616,6 @@ const applyFilters = () => {
 };
 
 
-const resetFilters = () => {
-  if (activitiesSearchInput) activitiesSearchInput.value = "";
-  if (activitiesProjectPickerSearch) activitiesProjectPickerSearch.value = "";
-  if (activitiesProjectFilter) activitiesProjectFilter.value = "All Projects";
-  if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
-  if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
-  state.projectSearch = "";
-  state.dateRange.start = null;
-  state.dateRange.end = null;
-  state.projectDateRange.start = null;
-  state.projectDateRange.end = null;
-  if (activitiesProjectTypeFilter) activitiesProjectTypeFilter.value = "All Project Types";
-  if (activitiesProjectStatusFilter) activitiesProjectStatusFilter.value = "All Statuses";
-  if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
-  if (activitiesFilterEndDate) activitiesFilterEndDate.value = "";
-  if (activitiesProjectFilterStartDate) activitiesProjectFilterStartDate.value = "";
-  if (activitiesProjectFilterEndDate) {
-    activitiesProjectFilterEndDate.value = "";
-    activitiesProjectFilterEndDate.min = "";
-  }
-  syncDateFilterLabel();
-  syncProjectDateFilterLabel();
-  renderProjectPicker();
-  applyFilters();
-};
-
 const openActivityModal = () => {
   if (!activityModal || !activityForm) return;
   if (!hasSelectedProject()) {
@@ -784,9 +757,6 @@ if (activitiesProjectDateClearBtn) {
   });
 }
 
-if (activitiesProjectFiltersReset) {
-  activitiesProjectFiltersReset.addEventListener("click", resetFilters);
-}
 
 if (activitiesHowItWorksBtn) {
   activitiesHowItWorksBtn.addEventListener("click", () => {

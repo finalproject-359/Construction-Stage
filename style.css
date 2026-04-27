@@ -733,7 +733,6 @@ th { color: var(--muted); }
   width: 100%;
 }
 
-.activities-project-filter-reset,
 .activities-how-it-works-btn {
   min-height: 40px;
   border-radius: 9px;
@@ -744,20 +743,13 @@ th { color: var(--muted); }
   cursor: pointer;
 }
 
-.activities-project-filter-reset {
-  width: 42px;
-  display: grid;
-  place-items: center;
-}
 
-.activities-project-filter-reset svg,
 .activities-how-it-works-btn svg {
   width: 16px;
   height: 16px;
   color: #667085;
 }
 
-.activities-project-filter-reset svg path,
 .activities-how-it-works-btn svg path,
 .activities-how-it-works-btn svg circle {
   stroke: currentColor;
