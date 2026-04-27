@@ -16,6 +16,51 @@ const CONFIG = {
     activities: 'Activities',
     costs: 'Costs',
   },
+  headers: {
+    projects: [
+      'Project ID',
+      'Project Code',
+      'Project Name',
+      'Project Type',
+      'Status',
+      'Location',
+      'Start Date',
+      'Finish Date',
+      'Budget',
+      'Description',
+      'Created At',
+    ],
+    activities: [
+      'Activity ID',
+      'Project ID',
+      'Project Code',
+      'Project',
+      'Activity',
+      'Type',
+      'Status',
+      'Planned Start',
+      'Planned Finish',
+      '% Complete',
+      'Planned Value',
+      'Actual Cost',
+      'Earned Value',
+      'Cost Variance',
+      'Notes',
+      'Created At',
+    ],
+    costs: [
+      'Cost ID',
+      'Project ID',
+      'Project Code',
+      'Project',
+      'Cost Category',
+      'Date',
+      'Planned Cost',
+      'Actual Cost',
+      'Notes',
+      'Created At',
+    ],
+  },
 };
 
 function doGet(e) {
@@ -29,6 +74,7 @@ function doGet(e) {
       code: cleanText(params.projectCode || params.project_code || ''),
     };
 
+    ensureWorkbookStructure();
     const allData = loadAllData();
     const filtered = applyProjectFilter(allData, projectFilter);
 
@@ -64,6 +110,8 @@ function doPost(e) {
     const payload = parsePostPayload(e);
     const resource = normalizeResource(payload.resource || 'projects');
     const action = cleanText(payload.action || 'create').toLowerCase();
+
+    ensureWorkbookStructure();
 
     if (resource !== 'projects') {
       throw new Error('Only "projects" is supported for POST requests.');
@@ -133,22 +181,39 @@ function getOrCreateSheet(sheetName) {
 }
 
 function ensureProjectHeaders(sheet) {
-  const expectedHeaders = [
-    'Project ID',
-    'Project Code',
-    'Project Name',
-    'Project Type',
-    'Status',
-    'Location',
-    'Start Date',
-    'Finish Date',
-    'Budget',
-    'Description',
-    'Created At',
-  ];
-
+  const expectedHeaders = CONFIG.headers.projects;
   const existingHeaders = sheet.getRange(1, 1, 1, expectedHeaders.length).getValues()[0];
   const hasAnyHeader = existingHeaders.some(function(cell) {
+    return cleanText(cell) !== '';
+  });
+
+  if (!hasAnyHeader) {
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+  }
+}
+
+function ensureWorkbookStructure() {
+  const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+  const activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+  const costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+
+  ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
+  ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
+  ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+}
+
+function ensureSheetHeaders(sheet, expectedHeaders) {
+  if (!expectedHeaders || !expectedHeaders.length) return;
+
+  const maxColumns = expectedHeaders.length;
+  const lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
+
+  if (sheet.getMaxColumns() < maxColumns) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+  }
+
+  const firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const hasAnyHeader = firstRow.some(function(cell) {
     return cleanText(cell) !== '';
   });
 
@@ -186,6 +251,7 @@ function normalizeIncomingProject(input) {
 }
 
 function loadAllData() {
+  ensureWorkbookStructure();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const projects = readSheetRows(ss, CONFIG.sheetNames.projects);
   const activities = readSheetRows(ss, CONFIG.sheetNames.activities);
@@ -204,11 +270,12 @@ function loadAllData() {
 }
 
 function readSheetRows(ss, sheetName) {
-  const sheet = ss.getSheetByName(sheetName);
-
-  if (!sheet) {
-    throw new Error('Sheet "' + sheetName + '" not found.');
-  }
+  const sheet = getOrCreateSheet(sheetName);
+  const expectedHeadersBySheet = {};
+  expectedHeadersBySheet[CONFIG.sheetNames.projects] = CONFIG.headers.projects;
+  expectedHeadersBySheet[CONFIG.sheetNames.activities] = CONFIG.headers.activities;
+  expectedHeadersBySheet[CONFIG.sheetNames.costs] = CONFIG.headers.costs;
+  ensureSheetHeaders(sheet, expectedHeadersBySheet[sheetName] || []);
 
   const displayValues = sheet.getDataRange().getDisplayValues();
   const rawValues = sheet.getDataRange().getValues();
