@@ -11,8 +11,7 @@ const messageEl = document.getElementById("message");
 const tableBodyEl = document.getElementById("activityTableBody");
 const overrunTableBodyEl = document.getElementById("overrunTableBody");
 
-const DATA_SOURCE_URL =
-  "https://script.google.com/macros/s/AKfycbxaaigY2kno4qhfMVbt2nYSG2bO4T7475KAwxIJeZHAi_nyJ7_pqHq7UzzVgb8kXm79SA/exec";
+const DATA_SOURCE_URL = "";
 
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
@@ -761,4 +760,8 @@ const loadGoogleSheet = async (providedUrl = "") => {
 };
 
 setupServiceWorkerUpdates();
-loadGoogleSheet(DATA_SOURCE_URL);
+if (DATA_SOURCE_URL.trim()) {
+  loadGoogleSheet(DATA_SOURCE_URL);
+} else {
+  showMessage("No data source configured. Add your new Google Apps Script or Google Sheet URL to DATA_SOURCE_URL.");
+}
