@@ -38,6 +38,7 @@ const activityFormCancel = document.getElementById("activityFormCancel");
 const activityStartDateInput = document.getElementById("activityStartDateInput");
 const activityFinishDateInput = document.getElementById("activityFinishDateInput");
 const activityProjectInput = document.getElementById("activityProjectInput");
+const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -311,6 +312,66 @@ const state = {
     start: null,
     end: null,
   },
+};
+
+const fetchSourcePayload = async (resource) => {
+  if (!DATA_SOURCE_URL) return null;
+
+  const response = await fetch(`${DATA_SOURCE_URL}?resource=${encodeURIComponent(resource)}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Unable to load ${resource} data (HTTP ${response.status})`);
+  }
+
+  const payload = await response.json();
+  if (payload?.ok === false) {
+    throw new Error(payload.error || `Unable to load ${resource} data`);
+  }
+  return payload;
+};
+
+const loadActivitiesAndProjectsFromSource = async () => {
+  try {
+    const [activitiesPayload, projectsPayload] = await Promise.all([
+      fetchSourcePayload("activities"),
+      fetchSourcePayload("projects"),
+    ]);
+
+    const remoteActivities = Array.isArray(activitiesPayload?.activities)
+      ? activitiesPayload.activities.map(normalizeActivity)
+      : [];
+    const remoteProjects = Array.isArray(projectsPayload?.projects)
+      ? projectsPayload.projects.map(normalizeProject)
+      : [];
+
+    const statusSummary = activitiesPayload?.summary?.byStatus || {};
+    const activityMeta = {
+      totalCount: remoteActivities.length,
+      kpi: {
+        completed: Number(statusSummary.Completed || 0),
+        inProgress: Number(statusSummary["In Progress"] || 0),
+        notStarted: Number(statusSummary["Not Started"] || 0),
+        delayed: Number(statusSummary.Delayed || 0),
+      },
+    };
+
+    return {
+      activities: remoteActivities,
+      projects: remoteProjects,
+      meta: activityMeta,
+    };
+  } catch (error) {
+    console.warn("Falling back to embedded activities data:", error);
+    return {
+      activities: initialActivities,
+      projects: initialProjectCatalog,
+      meta: window.activitiesMeta || {
+        totalCount: initialActivities.length,
+        kpi: { completed: 0, inProgress: 0, notStarted: 0, delayed: 0 },
+      },
+    };
+  }
 };
 
 const hasSelectedProject = () => state.selectedProject && state.selectedProject !== "All Projects";
@@ -936,7 +997,23 @@ if (activityStartDateInput && activityFinishDateInput) {
   });
 }
 
-syncDateFilterLabel();
-syncProjectDateFilterLabel();
-renderProjectPicker();
-applyFilters();
+const bootstrapActivitiesPage = async () => {
+  const source = await loadActivitiesAndProjectsFromSource();
+
+  state.allActivities = source.activities;
+  state.filteredActivities = source.activities;
+  window.activitiesMeta = source.meta;
+
+  initialProjectCatalog.length = 0;
+  source.projects.forEach((project) => {
+    initialProjectCatalog.push(project);
+  });
+
+  syncDateFilterLabel();
+  syncProjectDateFilterLabel();
+  refreshFilterOptions();
+  renderProjectPicker();
+  applyFilters();
+};
+
+bootstrapActivitiesPage();
