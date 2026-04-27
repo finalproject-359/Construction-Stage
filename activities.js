@@ -393,7 +393,12 @@ const syncWorkflowState = () => {
 const renderPagination = () => {
   if (!activitiesPagination) return;
 
-  const totalPages = Math.max(1, Math.ceil(state.filteredActivities.length / PAGE_SIZE));
+  if (!hasSelectedProject() || !state.filteredActivities.length) {
+    activitiesPagination.innerHTML = "";
+    return;
+  }
+
+  const totalPages = Math.ceil(state.filteredActivities.length / PAGE_SIZE);
   if (state.currentPage > totalPages) state.currentPage = totalPages;
 
   const prevDisabled = state.currentPage <= 1;
@@ -701,10 +706,6 @@ if (activityStartDateInput && activityFinishDateInput) {
   });
 }
 
-renderPagination();
-renderTable();
-updateKpis(state.filteredActivities);
-updateSummary();
 syncDateFilterLabel();
 renderProjectPicker();
-syncWorkflowState();
+applyFilters();
