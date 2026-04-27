@@ -649,7 +649,7 @@ projectForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  const projectId = state.editingProjectId || crypto.randomUUID();
+  const projectId = state.editingProjectId || projectCode;
 
   const project = normalizeProject({
     id: projectId,

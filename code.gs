@@ -135,19 +135,23 @@ function handleProjectMutation(action, payload) {
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
     ensureProjectHeaders(sheet);
-    const storedProjectId = cleanText(project.code || project.id);
+    const columns = getProjectColumnMap(sheet);
+    const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length, columns.maxColumn);
+    const rowValues = new Array(lastColumn).fill('');
+    const storedProjectId = cleanText(project.id || project.code);
 
-    sheet.appendRow([
-      storedProjectId,
-      project.name,
-      project.type,
-      project.status,
-      project.location,
-      project.startDate,
-      project.finishDate,
-      project.budget,
-      new Date(),
-    ]);
+    if (columns.id) rowValues[columns.id - 1] = storedProjectId;
+    if (columns.code) rowValues[columns.code - 1] = cleanText(project.code || storedProjectId);
+    if (columns.name) rowValues[columns.name - 1] = project.name;
+    if (columns.type) rowValues[columns.type - 1] = project.type;
+    if (columns.status) rowValues[columns.status - 1] = project.status;
+    if (columns.location) rowValues[columns.location - 1] = project.location;
+    if (columns.startDate) rowValues[columns.startDate - 1] = project.startDate;
+    if (columns.finishDate) rowValues[columns.finishDate - 1] = project.finishDate;
+    if (columns.budget) rowValues[columns.budget - 1] = project.budget;
+    if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
+
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
 
     return jsonResponse({
       ok: true,
@@ -497,7 +501,7 @@ function normalizeIncomingProject(input) {
   }
 
   return {
-    id: code || id || Utilities.getUuid(),
+    id: id || code || Utilities.getUuid(),
     code: code || id,
     name: name,
     type: type,
@@ -506,6 +510,34 @@ function normalizeIncomingProject(input) {
     startDate: startDate,
     finishDate: finishDate,
     budget: budget,
+  };
+}
+
+function getProjectColumnMap(sheet) {
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length)).getValues()[0]
+    .map(function(header) { return normalizeHeader(header); });
+
+  const indexOfHeader = function(candidates) {
+    for (var i = 0; i < candidates.length; i += 1) {
+      var candidate = normalizeHeader(candidates[i]);
+      var found = headers.indexOf(candidate);
+      if (found >= 0) return found + 1;
+    }
+    return 0;
+  };
+
+  return {
+    id: indexOfHeader(['Project ID', 'ID']),
+    code: indexOfHeader(['Project Code', 'Code']),
+    name: indexOfHeader(['Project Name', 'Project', 'Name']),
+    type: indexOfHeader(['Project Type', 'Type']),
+    status: indexOfHeader(['Status']),
+    location: indexOfHeader(['Location', 'Site', 'Address']),
+    startDate: indexOfHeader(['Start Date', 'Planned Start']),
+    finishDate: indexOfHeader(['Finish Date', 'End Date', 'Target Finish']),
+    budget: indexOfHeader(['Budget', 'Planned Value', 'Planned Cost']),
+    createdAt: indexOfHeader(['Created At']),
+    maxColumn: headers.length,
   };
 }
 
