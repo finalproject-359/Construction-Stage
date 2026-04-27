@@ -28,9 +28,93 @@
     </aside>
     <main class="main-content">
       <header class="topbar"><h1>Projects</h1></header>
-      <section class="table-panel">
-        <div class="panel-header"><h3>Projects Workspace</h3></div>
-        <p>This page is now wired in navigation and ready for project-specific content.</p>
+      <section class="projects-kpis">
+        <article class="project-kpi-card">
+          <h2><span class="project-kpi-icon total"><svg viewBox="0 0 24 24" fill="none"><path d="M16 3h-1.5a2.5 2.5 0 0 0-5 0H8a2 2 0 0 0-2 2v1h12V5a2 2 0 0 0-2-2Zm-4 0a1 1 0 0 1 1 1h-2a1 1 0 0 1 1-1ZM6 8v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8H6Z"/></svg></span>Total Projects</h2>
+          <p>0</p>
+        </article>
+        <article class="project-kpi-card">
+          <h2><span class="project-kpi-icon active"><svg viewBox="0 0 24 24" fill="none"><path d="m9.5 12 1.8 1.8 3.6-3.6M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z"/></svg></span>Active Projects</h2>
+          <p>0</p>
+        </article>
+        <article class="project-kpi-card">
+          <h2><span class="project-kpi-icon completed"><svg viewBox="0 0 24 24" fill="none"><path d="M12 6v6l3.5 3.5M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z"/></svg></span>Completed Projects</h2>
+          <p>0</p>
+        </article>
+        <article class="project-kpi-card">
+          <h2><span class="project-kpi-icon hold"><svg viewBox="0 0 24 24" fill="none"><path d="M10 8v8M14 8v8M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z"/></svg></span>On Hold Projects</h2>
+          <p>0</p>
+        </article>
+        <article class="project-kpi-card">
+          <h2><span class="project-kpi-icon archived"><svg viewBox="0 0 24 24" fill="none"><path d="M5 8h14v11H5V8Zm2 0V5h10v3"/></svg></span>Archived Projects</h2>
+          <p>0</p>
+        </article>
+      </section>
+
+      <section class="table-panel projects-table-panel">
+        <div class="projects-toolbar">
+          <label class="projects-input with-icon">
+            <svg viewBox="0 0 24 24" fill="none"><path d="m21 21-4.4-4.4M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg>
+            <input type="search" placeholder="Search projects..." aria-label="Search projects" />
+          </label>
+          <label class="projects-input">
+            <select aria-label="Project status">
+              <option>All Statuses</option>
+            </select>
+          </label>
+          <label class="projects-input">
+            <select aria-label="Project type">
+              <option>All Project Types</option>
+            </select>
+          </label>
+          <label class="projects-input with-icon">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M8 2v3m8-3v3M3 9h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
+            <select aria-label="Time period">
+              <option>All Time</option>
+            </select>
+          </label>
+          <button type="button" class="primary-btn">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14"/></svg>
+            Add Project
+          </button>
+        </div>
+
+        <div class="table-wrap projects-table-wrap">
+          <table aria-label="Projects list">
+            <thead>
+              <tr>
+                <th>Project Name</th>
+                <th>Project Code</th>
+                <th>Project Type</th>
+                <th>Status</th>
+                <th>Start Date</th>
+                <th>Target Finish</th>
+                <th>Progress</th>
+                <th>Budget</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        <div class="projects-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V7Zm0 4h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6Zm7 4h4"/></svg>
+          <h2>No projects yet</h2>
+          <p>Get started by adding your first project</p>
+          <button type="button" class="primary-btn">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14"/></svg>
+            Add Project
+          </button>
+        </div>
+
+        <footer class="projects-table-footer">
+          <p>Showing 0 to 0 of 0 projects</p>
+          <div class="projects-pagination">
+            <button type="button" aria-label="Previous page">←</button>
+            <span>1</span>
+            <button type="button" aria-label="Next page">→</button>
+          </div>
+        </footer>
       </section>
     </main>
   </div>
