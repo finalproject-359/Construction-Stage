@@ -404,9 +404,41 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   const normalizedExisting = normalizeHeaders(firstRow);
   const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
   const expectsProjectCode = normalizedExpected.indexOf('project code') >= 0;
+  const legacyDescriptionIndex = normalizedExisting.indexOf('description');
+  const expectsDescription = normalizedExpected.indexOf('description') >= 0;
 
   if (legacyProjectCodeIndex >= 0 && !expectsProjectCode) {
     sheet.deleteColumn(legacyProjectCodeIndex + 1);
+    maxColumns = expectedHeaders.length;
+    lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
+    if (sheet.getMaxColumns() < maxColumns) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+    }
+    firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  }
+
+  if (legacyDescriptionIndex >= 0 && !expectsDescription) {
+    sheet.deleteColumn(legacyDescriptionIndex + 1);
+    maxColumns = expectedHeaders.length;
+    lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
+    if (sheet.getMaxColumns() < maxColumns) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+    }
+    firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  }
+
+  const normalizedWithoutLegacy = normalizeHeaders(firstRow);
+  const duplicateCreatedAtIndexes = [];
+  const expectedLastHeader = normalizedExpected[normalizedExpected.length - 1];
+  for (var idx = expectedHeaders.length; idx < normalizedWithoutLegacy.length; idx += 1) {
+    if (normalizedWithoutLegacy[idx] === expectedLastHeader && expectedLastHeader === 'created at') {
+      duplicateCreatedAtIndexes.push(idx + 1);
+    }
+  }
+  for (var deleteIdx = duplicateCreatedAtIndexes.length - 1; deleteIdx >= 0; deleteIdx -= 1) {
+    sheet.deleteColumn(duplicateCreatedAtIndexes[deleteIdx]);
+  }
+  if (duplicateCreatedAtIndexes.length) {
     maxColumns = expectedHeaders.length;
     lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
     if (sheet.getMaxColumns() < maxColumns) {
