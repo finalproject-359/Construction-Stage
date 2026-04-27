@@ -628,11 +628,10 @@ const closeActivityModal = () => {
 
 const refreshFilterOptions = () => {
   const previousProjectSelection = state.selectedProject;
-  populateSelect(activitiesProjectFilter, uniqueSorted(state.allActivities.map((row) => row.project)), "All Projects");
+  const projectSummaries = buildProjectSummaries();
+  populateSelect(activitiesProjectFilter, uniqueSorted(projectSummaries.map((row) => row.name)), "All Projects");
   populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
   populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
-
-  const projectSummaries = buildProjectSummaries();
   populateSelect(activitiesProjectTypeFilter, uniqueSorted(projectSummaries.map((row) => row.type)), "All Project Types");
   populateSelect(activitiesProjectStatusFilter, uniqueSorted(projectSummaries.map((row) => row.status)), "All Statuses");
   if (activitiesProjectFilter && previousProjectSelection !== "All Projects") {
