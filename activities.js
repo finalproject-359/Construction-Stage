@@ -267,6 +267,7 @@ const state = {
   filteredActivities: initialActivities,
   currentPage: 1,
   selectedProject: "All Projects",
+  projectSearch: "",
   dateRange: {
     start: null,
     end: null,
