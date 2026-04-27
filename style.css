@@ -896,6 +896,9 @@ th { color: var(--muted); }
 .activities-project-empty-advisory {
   grid-column: 1 / -1;
   min-height: 220px;
+  border: 1px dashed #d9dfeb;
+  border-radius: 14px;
+  background: #f8f9fc;
   display: grid;
   justify-items: center;
   align-content: center;
