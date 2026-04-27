@@ -275,19 +275,28 @@ th { color: var(--muted); }
   grid-template-columns: repeat(5, minmax(180px, 1fr));
 }
 
+.projects-page .main-content {
+  padding: 20px 22px;
+}
+
+.projects-page .topbar h1 {
+  margin-bottom: 10px;
+  font-size: clamp(1.6rem, 2vw, 2.1rem);
+}
+
 .project-kpi-card {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow);
-  padding: 18px;
-  min-height: 110px;
+  padding: 14px;
+  min-height: 92px;
 }
 
 .project-kpi-card h2 {
   margin: 0;
   color: #344054;
-  font-size: 1.08rem;
+  font-size: 0.95rem;
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -295,8 +304,8 @@ th { color: var(--muted); }
 }
 
 .project-kpi-card p {
-  margin: 18px 0 0;
-  font-size: clamp(2rem, 2vw, 2.3rem);
+  margin: 12px 0 0;
+  font-size: clamp(1.55rem, 1.5vw, 1.9rem);
   font-weight: 700;
   color: #0b132f;
 }
@@ -364,7 +373,7 @@ th { color: var(--muted); }
   outline: none;
   width: 100%;
   background: transparent;
-  font-size: 1.02rem;
+  font-size: 0.92rem;
   color: #1f2a44;
   font-family: inherit;
 }
@@ -387,7 +396,7 @@ th { color: var(--muted); }
   background: #2f55ff;
   color: #fff;
   font-family: inherit;
-  font-size: 1.02rem;
+  font-size: 0.92rem;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -412,8 +421,8 @@ th { color: var(--muted); }
 
 .projects-table-wrap thead th {
   color: #475467;
-  font-size: 1rem;
-  padding: 16px 10px;
+  font-size: 0.9rem;
+  padding: 12px 10px;
 }
 
 .projects-empty-state {
@@ -442,13 +451,13 @@ th { color: var(--muted); }
 
 .projects-empty-state h2 {
   margin: 0;
-  font-size: 2.8rem;
+  font-size: 2rem;
   letter-spacing: -0.02em;
 }
 
 .projects-empty-state p {
   margin: 0 0 12px;
-  font-size: 1.85rem;
+  font-size: 1.2rem;
   color: #475467;
 }
 
