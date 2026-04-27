@@ -80,7 +80,9 @@ const toNumericBudgetValue = (value) => {
 const parseBudgetValue = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  const cleaned = String(value).replace(/[^\d.-]/g, "");
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw) || /^\d{1,2}\/\d{1,2}\/\d{2,4}/.test(raw)) return 0;
+  const cleaned = raw.replace(/[^\d.-]/g, "");
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : 0;
 };
