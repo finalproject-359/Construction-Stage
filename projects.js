@@ -255,14 +255,39 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   if (project) requestPayload.project = project;
   if (projectId) requestPayload.projectId = projectId;
 
-  let response;
-  try {
-    response = await fetch(DATA_SOURCE_URL, {
+  const postWithFormat = async (format) =>
+    fetch(DATA_SOURCE_URL, {
       method: "POST",
-      body: new URLSearchParams({
-        payload: JSON.stringify(requestPayload),
-      }),
+      headers: format === "json" ? { "Content-Type": "application/json" } : undefined,
+      body:
+        format === "json"
+          ? JSON.stringify(requestPayload)
+          : new URLSearchParams({ payload: JSON.stringify(requestPayload) }),
     });
+
+  const parseResponsePayload = async (response) => {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  };
+
+  const hasInvalidPayloadError = (payload) =>
+    /invalid json payload|invalid payload parameter json/i.test(String(payload?.error || ""));
+
+  let response;
+  let payload;
+  try {
+    response = await postWithFormat("json");
+    payload = await parseResponsePayload(response);
+
+    const needsFallback = !response.ok || hasInvalidPayloadError(payload);
+
+    if (needsFallback) {
+      response = await postWithFormat("form");
+      payload = await parseResponsePayload(response);
+    }
   } catch (error) {
     const maybeCorsIssue =
       DATA_SOURCE_URL.includes("script.google.com/macros/s/") &&
@@ -279,8 +304,7 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
     throw new Error(`Unable to save to Google Sheet (HTTP ${response.status}).`);
   }
 
-  const payload = await response.json();
-  if (payload?.ok === false) {
+  if (payload?.ok === false || payload?.error) {
     throw new Error(payload.error || "Unable to save to Google Sheet.");
   }
 };
