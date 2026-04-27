@@ -16,6 +16,7 @@ const activitiesProjectSelection = document.getElementById("activitiesProjectSel
 const activitiesViewShell = document.getElementById("activitiesViewShell");
 const activitiesProjectPickerSearch = document.getElementById("activitiesProjectPickerSearch");
 const activitiesProjectPickerGrid = document.getElementById("activitiesProjectPickerGrid");
+const activitiesProjectSelectionFooter = document.getElementById("activitiesProjectSelectionFooter");
 const activitiesProjectTypeFilter = document.getElementById("activitiesProjectTypeFilter");
 const activitiesProjectStatusFilter = document.getElementById("activitiesProjectStatusFilter");
 const activitiesProjectDateFilterWrap = document.querySelector(".activities-selection-date-filter");
@@ -485,8 +486,9 @@ const renderProjectPicker = () => {
   const selectedStatus = activitiesProjectStatusFilter?.value || "All Statuses";
   const selectedStartDate = state.projectDateRange.start;
   const selectedEndDate = state.projectDateRange.end;
+  const allProjects = buildProjectSummaries();
 
-  const projects = buildProjectSummaries().filter((project) => {
+  const projects = allProjects.filter((project) => {
     const searchable = `${project.name} ${project.code} ${project.location}`.toLowerCase();
     const textMatch = !searchValue || searchable.includes(searchValue);
     const typeMatch = selectedType === "All Project Types" || project.type === selectedType;
@@ -501,6 +503,25 @@ const renderProjectPicker = () => {
 
     return textMatch && typeMatch && statusMatch && dateMatch;
   });
+
+  const hasNoProjects = !allProjects.length;
+  if (activitiesProjectSelectionFooter) {
+    activitiesProjectSelectionFooter.hidden = hasNoProjects;
+  }
+
+  if (hasNoProjects) {
+    activitiesProjectPickerGrid.innerHTML = `
+      <article class="activities-project-empty-advisory" role="status" aria-live="polite">
+        <div class="activities-project-empty-advisory-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+        </div>
+        <h4>No Projects</h4>
+        <p>There are currently no projects in the system.</p>
+        <p>Create a project first to start adding activities.</p>
+      </article>
+    `;
+    return;
+  }
 
   if (!projects.length) {
     activitiesProjectPickerGrid.innerHTML = `<p class="activities-project-picker-empty">No projects found.</p>`;
