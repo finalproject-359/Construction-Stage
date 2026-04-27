@@ -255,11 +255,19 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   if (project) requestPayload.project = project;
   if (projectId) requestPayload.projectId = projectId;
 
-  const response = await fetch(DATA_SOURCE_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(requestPayload),
-  });
+  let response;
+  try {
+    response = await fetch(DATA_SOURCE_URL, {
+      method: "POST",
+      body: new URLSearchParams({
+        payload: JSON.stringify(requestPayload),
+      }),
+    });
+  } catch (error) {
+    throw new Error(
+      "Unable to reach Google Sheet endpoint. If this is a CORS error, redeploy your Apps Script web app and ensure the deployment access includes your site."
+    );
+  }
 
   if (!response.ok) {
     throw new Error(`Unable to save to Google Sheet (HTTP ${response.status}).`);
