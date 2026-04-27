@@ -12,6 +12,10 @@ const activitiesFilterEndDate = document.getElementById("activitiesFilterEndDate
 const activitiesDateClearBtn = document.getElementById("activitiesDateClearBtn");
 const activitiesDateApplyBtn = document.getElementById("activitiesDateApplyBtn");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
+const activitiesProjectSelection = document.getElementById("activitiesProjectSelection");
+const activitiesViewShell = document.getElementById("activitiesViewShell");
+const activitiesProjectPickerSearch = document.getElementById("activitiesProjectPickerSearch");
+const activitiesProjectPickerGrid = document.getElementById("activitiesProjectPickerGrid");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
 const activitiesPagination = document.querySelector(".activities-pagination");
 const activityModal = document.getElementById("activityModal");
@@ -21,6 +25,7 @@ const activityForm = document.getElementById("activityForm");
 const activityFormCancel = document.getElementById("activityFormCancel");
 const activityStartDateInput = document.getElementById("activityStartDateInput");
 const activityFinishDateInput = document.getElementById("activityFinishDateInput");
+const activityProjectInput = document.getElementById("activityProjectInput");
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -261,11 +266,15 @@ const state = {
   allActivities: initialActivities,
   filteredActivities: initialActivities,
   currentPage: 1,
+  selectedProject: "All Projects",
+  projectSearch: "",
   dateRange: {
     start: null,
     end: null,
   },
 };
+
+const hasSelectedProject = () => state.selectedProject && state.selectedProject !== "All Projects";
 
 const formatDateRangeLabel = () => {
   const { start, end } = state.dateRange;
@@ -343,6 +352,44 @@ const updateSummary = () => {
   activitiesTableSummary.textContent = `Showing ${start} to ${end} of ${filteredCount} activities`;
 };
 
+const getSelectableProjects = () =>
+  uniqueSorted(state.allActivities.map((row) => row.project)).filter((project) => project !== "-");
+
+const renderProjectPicker = () => {
+  if (!activitiesProjectPickerGrid) return;
+
+  const searchValue = state.projectSearch.trim().toLowerCase();
+  const projects = getSelectableProjects().filter((project) =>
+    !searchValue || project.toLowerCase().includes(searchValue)
+  );
+
+  if (!projects.length) {
+    activitiesProjectPickerGrid.innerHTML = `<p class="activities-project-picker-empty">No projects found.</p>`;
+    return;
+  }
+
+  activitiesProjectPickerGrid.innerHTML = projects
+    .map(
+      (project) => `
+        <button type="button" class="activities-project-picker-card" data-project="${escapeHtml(project)}">
+          <span>${escapeHtml(project)}</span>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+      `
+    )
+    .join("");
+};
+
+const syncWorkflowState = () => {
+  const shouldShowProjectSelection = !hasSelectedProject();
+  if (activitiesProjectSelection) {
+    activitiesProjectSelection.hidden = !shouldShowProjectSelection;
+  }
+  if (activitiesViewShell) {
+    activitiesViewShell.hidden = shouldShowProjectSelection;
+  }
+};
+
 const renderPagination = () => {
   if (!activitiesPagination) return;
 
@@ -387,8 +434,12 @@ const applyFilters = () => {
   const typeValue = activitiesTypeFilter?.value || "All Activity Types";
   const dateStartValue = state.dateRange.start;
   const dateEndValue = state.dateRange.end;
+  state.selectedProject = projectValue;
 
-  state.filteredActivities = state.allActivities.filter((item) => {
+  if (!hasSelectedProject()) {
+    state.filteredActivities = [];
+  } else {
+    state.filteredActivities = state.allActivities.filter((item) => {
     const projectMatch = projectValue === "All Projects" || item.project === projectValue;
     const statusMatch = statusValue === "All Statuses" || item.status === statusValue;
     const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
@@ -405,8 +456,10 @@ const applyFilters = () => {
 
     return projectMatch && statusMatch && typeMatch && textMatch && dateMatch;
   });
+  }
 
   state.currentPage = 1;
+  syncWorkflowState();
   renderPagination();
   renderTable();
   updateKpis(state.filteredActivities);
@@ -429,9 +482,19 @@ const resetFilters = () => {
 
 const openActivityModal = () => {
   if (!activityModal || !activityForm) return;
+  if (!hasSelectedProject()) {
+    window.alert("Please select a project first.");
+    activitiesProjectFilter?.focus();
+    return;
+  }
+
   activityModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
   activityForm.reset();
+  if (activityProjectInput) {
+    activityProjectInput.value = state.selectedProject;
+    activityProjectInput.readOnly = true;
+  }
 };
 
 const closeActivityModal = () => {
@@ -441,9 +504,17 @@ const closeActivityModal = () => {
 };
 
 const refreshFilterOptions = () => {
+  const previousProjectSelection = state.selectedProject;
   populateSelect(activitiesProjectFilter, uniqueSorted(state.allActivities.map((row) => row.project)), "All Projects");
   populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
   populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
+  if (activitiesProjectFilter && previousProjectSelection !== "All Projects") {
+    const stillExists = Array.from(activitiesProjectFilter.options).some(
+      (option) => option.value === previousProjectSelection
+    );
+    activitiesProjectFilter.value = stillExists ? previousProjectSelection : "All Projects";
+  }
+  renderProjectPicker();
 };
 
 const onPaginationClick = (event) => {
@@ -484,6 +555,26 @@ if (activitiesPagination) {
 
 if (activitiesAddButton) {
   activitiesAddButton.addEventListener("click", openActivityModal);
+}
+
+if (activitiesProjectPickerSearch) {
+  activitiesProjectPickerSearch.addEventListener("input", () => {
+    state.projectSearch = activitiesProjectPickerSearch.value || "";
+    renderProjectPicker();
+  });
+}
+
+if (activitiesProjectPickerGrid) {
+  activitiesProjectPickerGrid.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-project]");
+    if (!button) return;
+    const project = button.dataset.project || "All Projects";
+    if (activitiesProjectFilter) {
+      activitiesProjectFilter.value = project;
+    }
+    state.selectedProject = project;
+    applyFilters();
+  });
 }
 
 activitiesTableBody.addEventListener("click", (event) => {
@@ -566,6 +657,12 @@ document.addEventListener("click", (event) => {
 if (activityForm) {
   activityForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (!hasSelectedProject()) {
+      window.alert("Please select a project first.");
+      activitiesProjectFilter?.focus();
+      return;
+    }
+
     const formData = new FormData(activityForm);
     const plannedStart = formData.get("plannedStart");
     const plannedFinish = formData.get("plannedFinish");
@@ -577,7 +674,7 @@ if (activityForm) {
     const newActivity = normalizeActivity({
       activityId: formData.get("activityId"),
       activityName: formData.get("activityName"),
-      project: formData.get("project"),
+      project: state.selectedProject,
       activityType: formData.get("activityType"),
       status: "Not Started",
       plannedStart,
@@ -604,3 +701,5 @@ renderTable();
 updateKpis(state.filteredActivities);
 updateSummary();
 syncDateFilterLabel();
+renderProjectPicker();
+syncWorkflowState();

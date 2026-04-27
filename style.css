@@ -695,6 +695,134 @@ th { color: var(--muted); }
   font-size: 0.95rem;
 }
 
+.activities-project-selection {
+  margin-top: 8px;
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+}
+
+.activities-project-selection-hero {
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.activities-project-selection-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #2f55ff;
+  background: #e8edff;
+}
+
+.activities-project-selection-icon svg {
+  width: 34px;
+  height: 34px;
+}
+
+.activities-project-selection-icon svg path {
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.activities-project-selection-hero h2 {
+  margin: 2px 0 0;
+}
+
+.activities-project-selection-hero p {
+  margin: 0;
+  color: #667085;
+}
+
+.activities-project-picker-search {
+  width: min(520px, 100%);
+  margin-top: 8px;
+}
+
+.activities-project-selection h3 {
+  margin: 0 0 14px;
+}
+
+.activities-project-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.activities-project-picker-card {
+  border: 1px solid #d8deea;
+  border-radius: 12px;
+  background: #fff;
+  min-height: 82px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: inherit;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.activities-project-picker-card svg {
+  width: 18px;
+  height: 18px;
+  color: #667085;
+}
+
+.activities-project-picker-card svg path {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.activities-project-picker-card:hover {
+  border-color: #b8c5f4;
+  box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.08);
+}
+
+.activities-project-selection-footer {
+  margin-top: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8faff;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.activities-project-selection-footer p {
+  margin: 0;
+  color: #667085;
+}
+
+.activities-project-selection-footer a {
+  text-decoration: none;
+  border: 1px solid #c9d4ff;
+  border-radius: 9px;
+  min-height: 38px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  color: #2f55ff;
+  font-weight: 600;
+}
+
+.activities-project-picker-empty {
+  margin: 0;
+  color: #667085;
+  padding: 8px;
+}
+
 /* Activities page */
 .activities-kpi-grid {
   display: grid;
