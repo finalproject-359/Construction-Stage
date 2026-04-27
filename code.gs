@@ -134,14 +134,13 @@ function handleProjectMutation(action, payload) {
     }
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
-    ensureProjectHeaders(sheet);
+    ensureSheetHeaders(sheet, CONFIG.headers.projects);
     const columns = getProjectColumnMap(sheet);
     const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length, columns.maxColumn);
     const rowValues = new Array(lastColumn).fill('');
     const storedProjectId = cleanText(project.id || project.code);
 
     if (columns.id) rowValues[columns.id - 1] = storedProjectId;
-    if (columns.code) rowValues[columns.code - 1] = cleanText(project.code || storedProjectId);
     if (columns.name) rowValues[columns.name - 1] = project.name;
     if (columns.type) rowValues[columns.type - 1] = project.type;
     if (columns.status) rowValues[columns.status - 1] = project.status;
@@ -228,7 +227,7 @@ function deleteProjectRow(projectId) {
 
 function findProjectSheetRow(projectId) {
   const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
-  ensureProjectHeaders(sheet);
+  ensureSheetHeaders(sheet, CONFIG.headers.projects);
 
   const values = sheet.getDataRange().getValues();
   if (!values.length) return null;
