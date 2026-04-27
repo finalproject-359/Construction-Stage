@@ -1327,11 +1327,63 @@ th { color: var(--muted); }
 }
 
 .actions-col {
+  position: relative;
   text-align: center;
+  width: 54px;
+}
+
+.action-menu-trigger {
+  border: 0;
+  background: transparent;
   color: #667085;
   font-size: 1.5rem;
   letter-spacing: 2px;
-  width: 54px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.action-menu-trigger:hover {
+  background: #edf2ff;
+  color: #2f55ff;
+}
+
+.project-actions-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 12px;
+  min-width: 110px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid #d7dfec;
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.16);
+  z-index: 30;
+  display: grid;
+  gap: 4px;
+}
+
+.project-action-btn {
+  border: 0;
+  background: transparent;
+  color: #1f2937;
+  text-align: left;
+  font: inherit;
+  font-size: .92rem;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.project-action-btn:hover {
+  background: #eff4ff;
+  color: #2f55ff;
+}
+
+.project-action-btn.danger:hover {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .activities-table-footer {
