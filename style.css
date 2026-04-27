@@ -437,6 +437,19 @@ th { color: var(--muted); }
   padding: 12px 10px;
 }
 
+.projects-table-wrap tbody tr:hover {
+  background: #f8faff;
+}
+
+.projects-table-wrap td {
+  vertical-align: middle;
+}
+
+.project-budget-cell {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .projects-empty-state {
   border-top: 1px solid var(--border);
   min-height: 380px;

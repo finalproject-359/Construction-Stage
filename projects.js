@@ -191,6 +191,22 @@ const populateFilterSelect = (selectEl, values, defaultLabel) => {
   }
 };
 
+const getStatusBadgeClass = (status) => {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "completed") return "badge-completed";
+  if (normalized === "in progress") return "badge-in-progress";
+  if (normalized === "on hold") return "badge-delayed";
+  if (normalized === "archived") return "badge-not-started";
+  return "badge-not-started";
+};
+
+const getProgressFillClass = (status) => {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "completed") return "progress-completed";
+  if (normalized === "on hold") return "progress-delayed";
+  return "";
+};
+
 const renderProjects = (projects) => {
   if (!projects.length) {
     projectsTableBody.innerHTML = "";
@@ -210,11 +226,16 @@ const renderProjects = (projects) => {
         <td>${escapeHtml(project.name)}</td>
         <td>${escapeHtml(project.code || "-")}</td>
         <td>${escapeHtml(project.type)}</td>
-        <td>${escapeHtml(project.status)}</td>
+        <td><span class="badge ${getStatusBadgeClass(project.status)}">${escapeHtml(project.status)}</span></td>
         <td>${escapeHtml(formatDate(project.startDate))}</td>
         <td>${escapeHtml(formatDate(project.finishDate))}</td>
-        <td>${Math.round(project.progress)}%</td>
-        <td>${escapeHtml(pesoBudgetFormatter.format(project.budget || 0))}</td>
+        <td>
+          <div class="progress-cell">
+            <div class="progress-track"><div class="progress-fill ${getProgressFillClass(project.status)}" style="width: ${Math.round(project.progress)}%;"></div></div>
+            <span>${Math.round(project.progress)}%</span>
+          </div>
+        </td>
+        <td class="project-budget-cell">${escapeHtml(pesoBudgetFormatter.format(project.budget || 0))}</td>
         <td class="actions-col">
           <button type="button" class="action-menu-trigger" data-project-actions="${escapeHtml(project.id)}" aria-label="Open project actions">⋮</button>
           <div class="project-actions-menu hidden" data-project-menu="${escapeHtml(project.id)}" role="menu" aria-label="Project actions">
