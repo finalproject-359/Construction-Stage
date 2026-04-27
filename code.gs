@@ -474,6 +474,7 @@ function normalizeIncomingProject(input) {
   let finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
   let budget = parseNumber(source.budget);
   const descriptionBudget = parseNumber(source.description || source.notes);
+  const createdAtBudget = parseNumber(source.createdAt || source.created_at || source.timestamp || source.dateCreated);
 
   const isKnownStatus = function(value) {
     const normalized = cleanText(value).toLowerCase();
@@ -496,7 +497,7 @@ function normalizeIncomingProject(input) {
     location = startDate;
     startDate = finishDate;
     finishDate = normalizeDate(source.budget);
-    budget = descriptionBudget || 0;
+    budget = descriptionBudget || createdAtBudget || 0;
   }
 
   return {
@@ -659,6 +660,7 @@ function normalizeProjectRecord(row) {
   let finishDate = normalizeDate(getCell(row, ['finish date', 'end date', 'planned finish', 'planned_finish']));
   let budget = parseNumber(getCell(row, ['budget', 'planned value', 'planned cost']));
   const descriptionBudget = parseNumber(getCell(row, ['description', 'notes']));
+  const createdAtBudget = parseNumber(getCell(row, ['created at', 'created_at', 'timestamp', 'date created']));
 
   const isKnownStatus = function(value) {
     const normalized = cleanText(value).toLowerCase();
@@ -681,7 +683,7 @@ function normalizeProjectRecord(row) {
     location = startDate;
     startDate = finishDate;
     finishDate = normalizeDate(getCell(row, ['budget', 'planned value', 'planned cost']));
-    budget = descriptionBudget || 0;
+    budget = descriptionBudget || createdAtBudget || 0;
   }
 
   return {

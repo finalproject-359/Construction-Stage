@@ -120,6 +120,7 @@ const normalizeProject = (project = {}) => {
   let finishDateRaw = getValueByAliases(project, ["finishDate", "targetFinish", "target_finish", "endDate", "end_date", "plannedFinish", "planned_finish"]);
   let budgetRaw = getValueByAliases(project, ["budget", "plannedValue", "planned_value", "plannedCost", "planned_cost"]);
   let descriptionRaw = getValueByAliases(project, ["description", "notes"]);
+  const createdAtRaw = getValueByAliases(project, ["createdAt", "created_at", "timestamp", "dateCreated"]);
 
   const isKnownStatus = (value) =>
     ["not started", "in progress", "on hold", "completed", "archived"].includes(
@@ -133,7 +134,8 @@ const normalizeProject = (project = {}) => {
 
   // Guard against shifted source data where values are offset by one column:
   // status <- type, location <- status, startDate <- location,
-  // finishDate <- startDate, budget <- finishDate, description <- budget.
+  // finishDate <- startDate, budget <- finishDate, description <- budget,
+  // and Created At can hold the original budget value.
   const looksShifted =
     !isKnownStatus(statusRaw) &&
     isKnownStatus(locationRaw) &&
@@ -145,7 +147,7 @@ const normalizeProject = (project = {}) => {
     locationRaw = startDateRaw;
     startDateRaw = finishDateRaw;
     finishDateRaw = budgetRaw;
-    budgetRaw = descriptionRaw;
+    budgetRaw = descriptionRaw || createdAtRaw;
     descriptionRaw = "";
   }
 
