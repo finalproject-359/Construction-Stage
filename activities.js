@@ -39,6 +39,7 @@ const activityStartDateInput = document.getElementById("activityStartDateInput")
 const activityFinishDateInput = document.getElementById("activityFinishDateInput");
 const activityProjectInput = document.getElementById("activityProjectInput");
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
+const LOCAL_STORAGE_KEY = "constructionStageActivities";
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -173,7 +174,7 @@ const escapeHtml = (value) =>
 const normalizeActivity = (activity = {}) => {
   const id = getValueByAliases(activity, ["id", "activityId", "activity_id", "code", "activityCode", "activity_code"]);
   const name = getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]);
-  const project = getValueByAliases(activity, ["project", "projectName", "project_name"]);
+  const project = getValueByAliases(activity, ["project", "projectName", "project_name", "projectId", "project_id"]);
   let type = getValueByAliases(activity, ["type", "activityType", "activity_type"]);
   let status = getValueByAliases(activity, ["status"]);
   let plannedStartRaw = getValueByAliases(activity, ["plannedStart", "planned_start", "startDate", "plannedStartDate"]);
@@ -314,6 +315,43 @@ const state = {
   },
 };
 
+const readActivitiesFromLocalStorage = () => {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeActivity);
+  } catch {
+    return [];
+  }
+};
+
+const saveActivitiesToLocalStorage = (activities) => {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(activities));
+  } catch {
+    // Ignore storage quota/access errors and keep in-memory state.
+  }
+};
+
+const mergeActivities = (primary, secondary) => {
+  const merged = [];
+  const seen = new Set();
+
+  [primary, secondary].forEach((list) => {
+    (list || []).forEach((item) => {
+      const normalized = normalizeActivity(item);
+      const key = `${normalized.id}::${normalized.project}::${normalized.name}`.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      merged.push(normalized);
+    });
+  });
+
+  return merged;
+};
+
 const fetchSourcePayload = async (resource) => {
   if (!DATA_SOURCE_URL) return null;
 
@@ -332,6 +370,8 @@ const fetchSourcePayload = async (resource) => {
 };
 
 const loadActivitiesAndProjectsFromSource = async () => {
+  const localActivities = readActivitiesFromLocalStorage();
+
   try {
     const [activitiesPayload, projectsPayload] = await Promise.all([
       fetchSourcePayload("activities"),
@@ -341,13 +381,16 @@ const loadActivitiesAndProjectsFromSource = async () => {
     const remoteActivities = Array.isArray(activitiesPayload?.activities)
       ? activitiesPayload.activities.map(normalizeActivity)
       : [];
+    const mergedActivities = mergeActivities(remoteActivities, localActivities);
     const remoteProjects = Array.isArray(projectsPayload?.projects)
       ? projectsPayload.projects.map(normalizeProject)
       : [];
 
+    saveActivitiesToLocalStorage(mergedActivities);
+
     const statusSummary = activitiesPayload?.summary?.byStatus || {};
     const activityMeta = {
-      totalCount: remoteActivities.length,
+      totalCount: mergedActivities.length,
       kpi: {
         completed: Number(statusSummary.Completed || 0),
         inProgress: Number(statusSummary["In Progress"] || 0),
@@ -357,17 +400,19 @@ const loadActivitiesAndProjectsFromSource = async () => {
     };
 
     return {
-      activities: remoteActivities,
+      activities: mergedActivities,
       projects: remoteProjects,
       meta: activityMeta,
     };
   } catch (error) {
     console.warn("Falling back to embedded activities data:", error);
+    const fallbackActivities = mergeActivities(localActivities, initialActivities);
+    saveActivitiesToLocalStorage(fallbackActivities);
     return {
-      activities: initialActivities,
+      activities: fallbackActivities,
       projects: initialProjectCatalog,
       meta: window.activitiesMeta || {
-        totalCount: initialActivities.length,
+        totalCount: fallbackActivities.length,
         kpi: { completed: 0, inProgress: 0, notStarted: 0, delayed: 0 },
       },
     };
@@ -985,6 +1030,7 @@ if (activityForm) {
     });
 
     state.allActivities.unshift(newActivity);
+    saveActivitiesToLocalStorage(state.allActivities);
     refreshFilterOptions();
     applyFilters();
     closeActivityModal();
