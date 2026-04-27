@@ -10,6 +10,72 @@ if (!projectModal || !projectForm) {
   throw new Error("Projects page is missing modal form elements.");
 }
 
+const budgetInput = projectForm.elements.namedItem("budget");
+const pesoBudgetFormatter = new Intl.NumberFormat("en-PH", {
+  style: "currency",
+  currency: "PHP",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const toNumericBudgetValue = (value) => {
+  const sanitized = value.replace(/[^\d.]/g, "");
+  const [integerPart, ...fractionParts] = sanitized.split(".");
+  const normalized = fractionParts.length
+    ? `${integerPart}.${fractionParts.join("")}`
+    : integerPart;
+
+  return normalized.replace(/^0+(\d)/, "$1");
+};
+
+const formatBudgetAsPeso = (value) => {
+  const normalized = toNumericBudgetValue(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const numericValue = Number.parseFloat(normalized);
+  if (!Number.isFinite(numericValue)) {
+    return "";
+  }
+
+  return pesoBudgetFormatter.format(numericValue);
+};
+
+if (budgetInput instanceof HTMLInputElement) {
+  budgetInput.addEventListener("focus", () => {
+    budgetInput.value = toNumericBudgetValue(budgetInput.value);
+  });
+
+  budgetInput.addEventListener("input", () => {
+    budgetInput.value = toNumericBudgetValue(budgetInput.value);
+
+    if (budgetInput.value) {
+      budgetInput.setCustomValidity("");
+      return;
+    }
+
+    budgetInput.setCustomValidity("Please enter a budget amount.");
+  });
+
+  budgetInput.addEventListener("blur", () => {
+    if (!budgetInput.value) {
+      return;
+    }
+
+    const formattedValue = formatBudgetAsPeso(budgetInput.value);
+
+    if (!formattedValue) {
+      budgetInput.setCustomValidity("Please enter a valid budget amount.");
+      return;
+    }
+
+    budgetInput.setCustomValidity("");
+    budgetInput.value = formattedValue;
+  });
+}
+
 const openProjectModal = () => {
   projectModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
