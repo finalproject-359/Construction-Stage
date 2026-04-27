@@ -280,7 +280,18 @@ function normalizeResource(value) {
 }
 
 function parsePostPayload(e) {
-  if (!e || !e.postData || !e.postData.contents) return {};
+  if (!e) return {};
+
+  const parameterPayload = e.parameter && e.parameter.payload;
+  if (parameterPayload) {
+    try {
+      return JSON.parse(parameterPayload);
+    } catch (error) {
+      throw new Error('Invalid payload parameter JSON.');
+    }
+  }
+
+  if (!e.postData || !e.postData.contents) return {};
   try {
     return JSON.parse(e.postData.contents);
   } catch (error) {
