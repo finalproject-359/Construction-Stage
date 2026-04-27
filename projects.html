@@ -85,10 +85,11 @@
           <table aria-label="Projects list">
             <thead>
               <tr>
+                <th>Project ID</th>
                 <th>Project Name</th>
-                <th>Project Code</th>
                 <th>Project Type</th>
                 <th>Status</th>
+                <th>Location</th>
                 <th>Start Date</th>
                 <th>Target Finish</th>
                 <th>Progress</th>
@@ -135,13 +136,13 @@
 
       <form id="projectForm" class="project-form">
         <label class="project-field">
-          <span>Project Name <em>*</em></span>
-          <input name="projectName" type="text" required placeholder="Enter project name" />
+          <span>Project ID <em>*</em></span>
+          <input name="projectCode" type="text" required placeholder="Enter project ID" />
         </label>
 
         <label class="project-field">
-          <span>Project Code <em>*</em></span>
-          <input name="projectCode" type="text" required placeholder="Enter project code" />
+          <span>Project Name <em>*</em></span>
+          <input name="projectName" type="text" required placeholder="Enter project name" />
         </label>
 
         <label class="project-field">
@@ -153,6 +154,11 @@
             <option>Infrastructure</option>
             <option>Industrial</option>
           </select>
+        </label>
+
+        <label class="project-field">
+          <span>Location <em>*</em></span>
+          <input name="location" type="text" required placeholder="Enter project location" />
         </label>
 
         <div class="project-field-grid">
