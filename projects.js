@@ -103,6 +103,7 @@ const normalizeProject = (project = {}) => {
     code: String(project.code || project.projectCode || "").trim(),
     type: String(project.type || project.projectType || "General").trim() || "General",
     status: normalizedStatus,
+    location: String(project.location || project.projectLocation || "").trim(),
     startDate,
     finishDate,
     budget: parseBudgetValue(project.budget),
@@ -147,6 +148,7 @@ const openEditProjectModal = (project) => {
   projectForm.elements.projectName.value = project.name;
   projectForm.elements.projectCode.value = project.code;
   projectForm.elements.projectType.value = project.type;
+  projectForm.elements.location.value = project.location || "";
   projectForm.elements.startDate.value = project.startDate;
   projectForm.elements.targetFinish.value = project.finishDate;
   projectForm.elements.status.value = project.status;
@@ -223,10 +225,11 @@ const renderProjects = (projects) => {
     .map(
       (project) => `
       <tr>
-        <td>${escapeHtml(project.name)}</td>
         <td>${escapeHtml(project.code || "-")}</td>
+        <td>${escapeHtml(project.name)}</td>
         <td>${escapeHtml(project.type)}</td>
         <td><span class="badge ${getStatusBadgeClass(project.status)}">${escapeHtml(project.status)}</span></td>
+        <td>${escapeHtml(project.location || "-")}</td>
         <td>${escapeHtml(formatDate(project.startDate))}</td>
         <td>${escapeHtml(formatDate(project.finishDate))}</td>
         <td>
@@ -382,7 +385,8 @@ const applyFilters = () => {
       !searchTerm ||
       project.name.toLowerCase().includes(searchTerm) ||
       project.code.toLowerCase().includes(searchTerm) ||
-      project.type.toLowerCase().includes(searchTerm);
+      project.type.toLowerCase().includes(searchTerm) ||
+      project.location.toLowerCase().includes(searchTerm);
 
     const matchesStatus = statusValue === "All Statuses" || project.status === statusValue;
     const matchesType = typeValue === "All Project Types" || project.type === typeValue;
@@ -568,13 +572,14 @@ projectForm.addEventListener("submit", async (event) => {
   const projectName = String(formData.get("projectName") || "").trim();
   const projectCode = String(formData.get("projectCode") || "").trim();
   const projectType = String(formData.get("projectType") || "").trim();
+  const location = String(formData.get("location") || "").trim();
   const startDate = String(formData.get("startDate") || "").trim();
   const targetFinish = String(formData.get("targetFinish") || "").trim();
   const status = String(formData.get("status") || "Not Started").trim();
   const budget = parseBudgetValue(formData.get("budget"));
   const description = String(formData.get("description") || "").trim();
 
-  if (!projectName || !projectCode || !projectType || !startDate || !targetFinish || !budget) {
+  if (!projectName || !projectCode || !projectType || !location || !startDate || !targetFinish || !budget) {
     return;
   }
 
@@ -586,6 +591,7 @@ projectForm.addEventListener("submit", async (event) => {
     code: projectCode,
     type: projectType,
     status,
+    location,
     startDate,
     finishDate: targetFinish,
     budget,

@@ -3,7 +3,7 @@
  *
  * Supported query params:
  * - resource: dashboard | projects | activities | costs | reports | all
- * - projectId / project / projectCode: optional project filter
+ * - projectId / project: optional project filter
  *
  * Expected sheet tabs (default names can be customized below):
  * - Projects
@@ -19,7 +19,6 @@ const CONFIG = {
   headers: {
     projects: [
       'Project ID',
-      'Project Code',
       'Project Name',
       'Project Type',
       'Status',
@@ -33,7 +32,6 @@ const CONFIG = {
     activities: [
       'Activity ID',
       'Project ID',
-      'Project Code',
       'Project',
       'Activity',
       'Type',
@@ -51,7 +49,6 @@ const CONFIG = {
     costs: [
       'Cost ID',
       'Project ID',
-      'Project Code',
       'Project',
       'Cost Category',
       'Date',
@@ -98,7 +95,6 @@ function handleRequest(payload) {
     const projectFilter = {
       id: cleanText(source.projectId || source.project_id || ''),
       name: cleanText(source.project || source.projectName || source.project_name || ''),
-      code: cleanText(source.projectCode || source.project_code || ''),
     };
 
     const allData = loadAllData();
@@ -135,7 +131,7 @@ function handleProjectMutation(action, payload) {
   if (action === 'create') {
     const project = normalizeIncomingProject(payload.project || payload);
     if (!project.name || !project.code) {
-      throw new Error('Project Name and Project Code are required.');
+      throw new Error('Project Name and Project ID are required.');
     }
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
@@ -143,7 +139,6 @@ function handleProjectMutation(action, payload) {
 
     sheet.appendRow([
       project.id,
-      project.code,
       project.name,
       project.type,
       project.status,
@@ -204,7 +199,6 @@ function updateProjectRow(project) {
 
   const rowValues = lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).getValues()[0];
   rowValues[lookup.columns.id - 1] = project.id;
-  rowValues[lookup.columns.code - 1] = project.code;
   rowValues[lookup.columns.name - 1] = project.name;
   rowValues[lookup.columns.type - 1] = project.type;
   rowValues[lookup.columns.status - 1] = project.status;
@@ -249,7 +243,6 @@ function findProjectSheetRow(projectId) {
 
   const columns = {
     id: indexOfHeader(['Project ID', 'ID']),
-    code: indexOfHeader(['Project Code', 'Code']),
     name: indexOfHeader(['Project Name', 'Project', 'Name']),
     type: indexOfHeader(['Project Type', 'Type']),
     status: indexOfHeader(['Status']),
@@ -404,8 +397,8 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
 function normalizeIncomingProject(input) {
   const source = input || {};
 
-  const id = cleanText(source.id) || Utilities.getUuid();
-  const code = cleanText(source.code || source.projectCode || source.project_code);
+  const id = cleanText(source.id || source.projectId || source.project_id);
+  const code = cleanText(source.code || source.projectId || source.project_id);
   const name = cleanText(source.name || source.project || source.projectName || source.project_name);
   const type = cleanText(source.type || source.projectType || source.project_type) || 'General';
   const status = cleanText(source.status) || 'Not Started';
@@ -416,8 +409,8 @@ function normalizeIncomingProject(input) {
   const description = cleanText(source.description);
 
   return {
-    id: id,
-    code: code,
+    id: id || code || Utilities.getUuid(),
+    code: code || id,
     name: name,
     type: type,
     status: status,
@@ -541,9 +534,11 @@ function findHeaderRowIndex(rows) {
 }
 
 function normalizeProjectRecord(row) {
+  const projectId = cleanText(getCell(row, ['project id', 'id', 'projectid']));
+
   return {
-    id: cleanText(getCell(row, ['project id', 'id', 'projectid'])),
-    code: cleanText(getCell(row, ['project code', 'code', 'projectcode'])),
+    id: projectId,
+    code: projectId,
     name: cleanText(getCell(row, ['project', 'project name', 'name'])),
     type: cleanText(getCell(row, ['type', 'project type'])) || 'General',
     status: cleanText(getCell(row, ['status'])) || 'Not Started',
@@ -556,10 +551,12 @@ function normalizeProjectRecord(row) {
 }
 
 function normalizeActivityRecord(row) {
+  const projectId = cleanText(getCell(row, ['project id', 'projectid']));
+
   return {
     id: cleanText(getCell(row, ['activity id', 'id', 'activity code', 'task id'])),
-    projectId: cleanText(getCell(row, ['project id', 'projectid'])),
-    projectCode: cleanText(getCell(row, ['project code', 'projectcode'])),
+    projectId: projectId,
+    projectCode: projectId,
     project: cleanText(getCell(row, ['project', 'project name'])),
     name: cleanText(getCell(row, ['activity', 'activity name', 'name'])),
     type: cleanText(getCell(row, ['type', 'activity type'])) || 'General',
@@ -576,10 +573,12 @@ function normalizeActivityRecord(row) {
 }
 
 function normalizeCostRecord(row) {
+  const projectId = cleanText(getCell(row, ['project id', 'projectid']));
+
   return {
     id: cleanText(getCell(row, ['cost id', 'id'])),
-    projectId: cleanText(getCell(row, ['project id', 'projectid'])),
-    projectCode: cleanText(getCell(row, ['project code', 'projectcode'])),
+    projectId: projectId,
+    projectCode: projectId,
     project: cleanText(getCell(row, ['project', 'project name'])),
     category: cleanText(getCell(row, ['cost category', 'category', 'type'])) || 'General',
     date: normalizeDate(getCell(row, ['date', 'cost date', 'transaction date'])),
@@ -591,17 +590,15 @@ function normalizeCostRecord(row) {
 }
 
 function applyProjectFilter(data, filter) {
-  const hasFilter = filter.id || filter.code || filter.name;
+  const hasFilter = filter.id || filter.name;
   if (!hasFilter) return data;
 
   const projectMatches = function(record) {
     if (!record) return false;
     const id = cleanText(record.projectId || record.id);
-    const code = cleanText(record.projectCode || record.code);
     const name = cleanText(record.project || record.name);
 
     if (filter.id && filter.id === id) return true;
-    if (filter.code && filter.code.toLowerCase() === code.toLowerCase()) return true;
     if (filter.name && filter.name.toLowerCase() === name.toLowerCase()) return true;
     return false;
   };
@@ -721,7 +718,7 @@ function buildReportsPayload(data) {
   }, {});
 
   data.activities.forEach(function(activity) {
-    const key = activity.project || activity.projectCode || activity.projectId;
+    const key = activity.project || activity.projectId;
     if (!key) return;
     if (!projectsByName[key]) {
       projectsByName[key] = { project: null, activities: [], costs: [] };
@@ -730,7 +727,7 @@ function buildReportsPayload(data) {
   });
 
   data.costs.forEach(function(cost) {
-    const key = cost.project || cost.projectCode || cost.projectId;
+    const key = cost.project || cost.projectId;
     if (!key) return;
     if (!projectsByName[key]) {
       projectsByName[key] = { project: null, activities: [], costs: [] };
