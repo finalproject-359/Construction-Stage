@@ -267,7 +267,6 @@ const state = {
   filteredActivities: initialActivities,
   currentPage: 1,
   selectedProject: "All Projects",
-  projectSearch: "",
   dateRange: {
     start: null,
     end: null,
@@ -413,6 +412,11 @@ const renderPagination = () => {
 };
 
 const renderTable = () => {
+  if (!hasSelectedProject()) {
+    renderEmptyState("Select a project to view activities.");
+    return;
+  }
+
   if (!state.filteredActivities.length) {
     if (!state.allActivities.length) {
       renderEmptyState();
