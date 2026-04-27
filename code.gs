@@ -464,11 +464,37 @@ function normalizeIncomingProject(input) {
   const code = cleanText(source.code || source.projectCode || source.project_code || source.projectId || source.project_id);
   const name = cleanText(source.name || source.project || source.projectName || source.project_name);
   const type = cleanText(source.type || source.projectType || source.project_type) || 'General';
-  const status = cleanText(source.status) || 'Not Started';
-  const location = cleanText(source.location || source.site || source.address);
-  const startDate = normalizeDate(source.startDate || source.start_date || source.plannedStart);
-  const finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
-  const budget = parseNumber(source.budget);
+  let status = cleanText(source.status) || 'Not Started';
+  let location = cleanText(source.location || source.site || source.address);
+  let startDate = normalizeDate(source.startDate || source.start_date || source.plannedStart);
+  let finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
+  let budget = parseNumber(source.budget);
+  const descriptionBudget = parseNumber(source.description || source.notes);
+
+  const isKnownStatus = function(value) {
+    const normalized = cleanText(value).toLowerCase();
+    return ['not started', 'in progress', 'on hold', 'completed', 'archived'].indexOf(normalized) >= 0;
+  };
+  const isDateLike = function(value) {
+    if (!value) return false;
+    const parsed = new Date(value);
+    return !Number.isNaN(parsed.getTime());
+  };
+
+  const incomingLooksShifted =
+    !isKnownStatus(status) &&
+    isKnownStatus(location) &&
+    !isDateLike(startDate) &&
+    isDateLike(finishDate);
+
+  if (incomingLooksShifted) {
+    status = location;
+    location = startDate;
+    startDate = finishDate;
+    finishDate = normalizeDate(source.budget);
+    budget = descriptionBudget || 0;
+  }
+
   return {
     id: code || id || Utilities.getUuid(),
     code: code || id,
@@ -595,17 +621,47 @@ function findHeaderRowIndex(rows) {
 
 function normalizeProjectRecord(row) {
   const projectId = cleanText(getCell(row, ['project id', 'id', 'projectid']));
+  let status = cleanText(getCell(row, ['status'])) || 'Not Started';
+  let location = cleanText(getCell(row, ['location', 'site', 'address']));
+  let startDate = normalizeDate(getCell(row, ['start date', 'planned start', 'planned_start']));
+  let finishDate = normalizeDate(getCell(row, ['finish date', 'end date', 'planned finish', 'planned_finish']));
+  let budget = parseNumber(getCell(row, ['budget', 'planned value', 'planned cost']));
+  const descriptionBudget = parseNumber(getCell(row, ['description', 'notes']));
+
+  const isKnownStatus = function(value) {
+    const normalized = cleanText(value).toLowerCase();
+    return ['not started', 'in progress', 'on hold', 'completed', 'archived'].indexOf(normalized) >= 0;
+  };
+  const isDateLike = function(value) {
+    if (!value) return false;
+    const parsed = new Date(value);
+    return !Number.isNaN(parsed.getTime());
+  };
+
+  const rowLooksShifted =
+    !isKnownStatus(status) &&
+    isKnownStatus(location) &&
+    !isDateLike(startDate) &&
+    isDateLike(finishDate);
+
+  if (rowLooksShifted) {
+    status = location;
+    location = startDate;
+    startDate = finishDate;
+    finishDate = normalizeDate(getCell(row, ['budget', 'planned value', 'planned cost']));
+    budget = descriptionBudget || 0;
+  }
 
   return {
     id: projectId,
     code: projectId,
     name: cleanText(getCell(row, ['project', 'project name', 'name'])),
     type: cleanText(getCell(row, ['type', 'project type'])) || 'General',
-    status: cleanText(getCell(row, ['status'])) || 'Not Started',
-    location: cleanText(getCell(row, ['location', 'site', 'address'])),
-    startDate: normalizeDate(getCell(row, ['start date', 'planned start', 'planned_start'])),
-    finishDate: normalizeDate(getCell(row, ['finish date', 'end date', 'planned finish', 'planned_finish'])),
-    budget: parseNumber(getCell(row, ['budget', 'planned value', 'planned cost'])),
+    status: status,
+    location: location,
+    startDate: startDate,
+    finishDate: finishDate,
+    budget: budget,
     raw: row,
   };
 }
