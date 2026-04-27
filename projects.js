@@ -5,10 +5,27 @@ const projectModalBackdrop = document.getElementById("projectModalBackdrop");
 const projectFormCancel = document.getElementById("projectFormCancel");
 const openAddProjectModalBtn = document.getElementById("openAddProjectModalBtn");
 const openAddProjectModalEmptyBtn = document.getElementById("openAddProjectModalEmptyBtn");
+const projectsTableBody = document.getElementById("projectsTableBody");
+const projectsEmptyState = document.querySelector(".projects-empty-state");
+const projectsTableSummary = document.getElementById("projectsTableSummary");
+const projectsSearchInput = document.getElementById("projectsSearchInput");
+const projectsStatusFilter = document.getElementById("projectsStatusFilter");
+const projectsTypeFilter = document.getElementById("projectsTypeFilter");
 
-if (!projectModal || !projectForm) {
-  throw new Error("Projects page is missing modal form elements.");
+const kpiEls = {
+  total: document.getElementById("kpiTotalProjects"),
+  active: document.getElementById("kpiActiveProjects"),
+  completed: document.getElementById("kpiCompletedProjects"),
+  hold: document.getElementById("kpiOnHoldProjects"),
+  archived: document.getElementById("kpiArchivedProjects"),
+};
+
+if (!projectModal || !projectForm || !projectsTableBody) {
+  throw new Error("Projects page is missing required elements.");
 }
+
+const LOCAL_STORAGE_KEY = "constructionStageProjects";
+const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 
 const budgetInput = projectForm.elements.namedItem("budget");
 const pesoBudgetFormatter = new Intl.NumberFormat("en-PH", {
@@ -18,8 +35,13 @@ const pesoBudgetFormatter = new Intl.NumberFormat("en-PH", {
   maximumFractionDigits: 2,
 });
 
+const state = {
+  allProjects: [],
+  filteredProjects: [],
+};
+
 const toNumericBudgetValue = (value) => {
-  const sanitized = value.replace(/[^\d.]/g, "");
+  const sanitized = String(value || "").replace(/[^\d.]/g, "");
   const [integerPart, ...fractionParts] = sanitized.split(".");
   const normalized = fractionParts.length
     ? `${integerPart}.${fractionParts.join("")}`
@@ -28,8 +50,16 @@ const toNumericBudgetValue = (value) => {
   return normalized.replace(/^0+(\d)/, "$1");
 };
 
+const parseBudgetValue = (value) => {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value).replace(/[^\d.-]/g, "");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const formatBudgetAsPeso = (value) => {
-  const normalized = toNumericBudgetValue(value);
+  const normalized = toNumericBudgetValue(String(value || ""));
 
   if (!normalized) {
     return "";
@@ -41,6 +71,239 @@ const formatBudgetAsPeso = (value) => {
   }
 
   return pesoBudgetFormatter.format(numericValue);
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const normalizeProject = (project = {}) => {
+  const startDate = project.startDate || project.plannedStart || "";
+  const finishDate = project.finishDate || project.targetFinish || project.endDate || "";
+  const normalizedStatus = String(project.status || "Not Started").trim() || "Not Started";
+
+  const progressByStatus = {
+    Completed: 100,
+    "In Progress": 55,
+    "On Hold": 25,
+    Archived: 0,
+    "Not Started": 0,
+  };
+
+  return {
+    id: String(project.id || "").trim(),
+    name: String(project.name || project.projectName || project.project || "Untitled Project").trim(),
+    code: String(project.code || project.projectCode || "").trim(),
+    type: String(project.type || project.projectType || "General").trim() || "General",
+    status: normalizedStatus,
+    startDate,
+    finishDate,
+    budget: parseBudgetValue(project.budget),
+    progress:
+      Number.isFinite(Number(project.progress))
+        ? Math.max(0, Math.min(100, Number(project.progress)))
+        : progressByStatus[normalizedStatus] ?? 0,
+    description: String(project.description || "").trim(),
+  };
+};
+
+const escapeHtml = (value) =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const closeProjectModal = () => {
+  projectModal.classList.add("hidden");
+  document.body.style.overflow = "";
+};
+
+const openProjectModal = () => {
+  projectModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+};
+
+const updateKpis = (projects) => {
+  const countByStatus = projects.reduce((acc, project) => {
+    const key = project.status || "Not Started";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  if (kpiEls.total) kpiEls.total.textContent = String(projects.length);
+  if (kpiEls.active) kpiEls.active.textContent = String(countByStatus["In Progress"] || 0);
+  if (kpiEls.completed) kpiEls.completed.textContent = String(countByStatus.Completed || 0);
+  if (kpiEls.hold) kpiEls.hold.textContent = String(countByStatus["On Hold"] || 0);
+  if (kpiEls.archived) kpiEls.archived.textContent = String(countByStatus.Archived || 0);
+};
+
+const populateFilterSelect = (selectEl, values, defaultLabel) => {
+  if (!selectEl) return;
+
+  const previousValue = selectEl.value;
+  selectEl.innerHTML = `<option>${defaultLabel}</option>`;
+  Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b)).forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    selectEl.append(option);
+  });
+
+  if ([...selectEl.options].some((opt) => opt.value === previousValue)) {
+    selectEl.value = previousValue;
+  }
+};
+
+const renderProjects = (projects) => {
+  if (!projects.length) {
+    projectsTableBody.innerHTML = "";
+    projectsEmptyState?.classList.remove("hidden");
+    if (projectsTableSummary) {
+      projectsTableSummary.textContent = "Showing 0 to 0 of 0 projects";
+    }
+    return;
+  }
+
+  projectsEmptyState?.classList.add("hidden");
+
+  projectsTableBody.innerHTML = projects
+    .map(
+      (project) => `
+      <tr>
+        <td>${escapeHtml(project.name)}</td>
+        <td>${escapeHtml(project.code || "-")}</td>
+        <td>${escapeHtml(project.type)}</td>
+        <td>${escapeHtml(project.status)}</td>
+        <td>${escapeHtml(formatDate(project.startDate))}</td>
+        <td>${escapeHtml(formatDate(project.finishDate))}</td>
+        <td>${Math.round(project.progress)}%</td>
+        <td>${escapeHtml(pesoBudgetFormatter.format(project.budget || 0))}</td>
+        <td class="actions-col">⋮</td>
+      </tr>
+    `
+    )
+    .join("");
+
+  if (projectsTableSummary) {
+    projectsTableSummary.textContent = `Showing 1 to ${projects.length} of ${projects.length} projects`;
+  }
+};
+
+const saveToLocalStorage = (projects) => {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projects));
+};
+
+const readFromLocalStorage = () => {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeProject);
+  } catch {
+    return [];
+  }
+};
+
+const saveProjectToGoogleSheet = async (project) => {
+  if (!DATA_SOURCE_URL) return;
+
+  const response = await fetch(DATA_SOURCE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resource: "projects", action: "create", project }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to save to Google Sheet (HTTP ${response.status}).`);
+  }
+
+  const payload = await response.json();
+  if (payload?.ok === false) {
+    throw new Error(payload.error || "Unable to save to Google Sheet.");
+  }
+};
+
+const loadProjectsFromSource = async () => {
+  const localProjects = readFromLocalStorage();
+
+  if (!DATA_SOURCE_URL) {
+    return localProjects;
+  }
+
+  try {
+    const response = await fetch(`${DATA_SOURCE_URL}?resource=projects`, { cache: "no-store" });
+    if (!response.ok) {
+      return localProjects;
+    }
+
+    const payload = await response.json();
+    const remoteProjects = Array.isArray(payload?.projects)
+      ? payload.projects.map(normalizeProject)
+      : [];
+
+    if (remoteProjects.length) {
+      saveToLocalStorage(remoteProjects);
+      return remoteProjects;
+    }
+
+    return localProjects;
+  } catch {
+    return localProjects;
+  }
+};
+
+const applyFilters = () => {
+  const searchTerm = String(projectsSearchInput?.value || "").toLowerCase().trim();
+  const statusValue = projectsStatusFilter?.value || "All Statuses";
+  const typeValue = projectsTypeFilter?.value || "All Project Types";
+
+  state.filteredProjects = state.allProjects.filter((project) => {
+    const matchesSearch =
+      !searchTerm ||
+      project.name.toLowerCase().includes(searchTerm) ||
+      project.code.toLowerCase().includes(searchTerm) ||
+      project.type.toLowerCase().includes(searchTerm);
+
+    const matchesStatus = statusValue === "All Statuses" || project.status === statusValue;
+    const matchesType = typeValue === "All Project Types" || project.type === typeValue;
+
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  renderProjects(state.filteredProjects);
+  updateKpis(state.allProjects);
+};
+
+const hydrateFilters = () => {
+  populateFilterSelect(
+    projectsStatusFilter,
+    state.allProjects.map((project) => project.status),
+    "All Statuses"
+  );
+  populateFilterSelect(
+    projectsTypeFilter,
+    state.allProjects.map((project) => project.type),
+    "All Project Types"
+  );
+};
+
+const addProject = async (project) => {
+  state.allProjects = [project, ...state.allProjects];
+  saveToLocalStorage(state.allProjects);
+  hydrateFilters();
+  applyFilters();
+
+  try {
+    await saveProjectToGoogleSheet(project);
+  } catch (error) {
+    console.warn(error);
+  }
 };
 
 if (budgetInput instanceof HTMLInputElement) {
@@ -76,16 +339,6 @@ if (budgetInput instanceof HTMLInputElement) {
   });
 }
 
-const openProjectModal = () => {
-  projectModal.classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-};
-
-const closeProjectModal = () => {
-  projectModal.classList.add("hidden");
-  document.body.style.overflow = "";
-};
-
 openAddProjectModalBtn?.addEventListener("click", openProjectModal);
 openAddProjectModalEmptyBtn?.addEventListener("click", openProjectModal);
 projectModalClose?.addEventListener("click", closeProjectModal);
@@ -104,8 +357,47 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-projectForm.addEventListener("submit", (event) => {
+projectForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+
+  const formData = new FormData(projectForm);
+  const projectName = String(formData.get("projectName") || "").trim();
+  const projectCode = String(formData.get("projectCode") || "").trim();
+  const projectType = String(formData.get("projectType") || "").trim();
+  const startDate = String(formData.get("startDate") || "").trim();
+  const targetFinish = String(formData.get("targetFinish") || "").trim();
+  const status = String(formData.get("status") || "Not Started").trim();
+  const budget = parseBudgetValue(formData.get("budget"));
+  const description = String(formData.get("description") || "").trim();
+
+  if (!projectName || !projectCode || !projectType || !startDate || !targetFinish || !budget) {
+    return;
+  }
+
+  const project = normalizeProject({
+    id: crypto.randomUUID(),
+    name: projectName,
+    code: projectCode,
+    type: projectType,
+    status,
+    startDate,
+    finishDate: targetFinish,
+    budget,
+    description,
+  });
+
+  await addProject(project);
   closeProjectModal();
   projectForm.reset();
 });
+
+projectsSearchInput?.addEventListener("input", applyFilters);
+projectsStatusFilter?.addEventListener("change", applyFilters);
+projectsTypeFilter?.addEventListener("change", applyFilters);
+
+(async () => {
+  const projects = await loadProjectsFromSource();
+  state.allProjects = Array.isArray(projects) ? projects : [];
+  hydrateFilters();
+  applyFilters();
+})();
