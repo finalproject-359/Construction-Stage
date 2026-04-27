@@ -135,6 +135,26 @@ const parseDateValue = (value) => {
   return parsed;
 };
 
+const normalizeProject = (project = {}) => {
+  const name = getValueByAliases(project, ["name", "project", "projectName", "project_name"]);
+  const code = getValueByAliases(project, ["code", "projectCode", "project_code"]);
+  const location = getValueByAliases(project, ["location", "site", "address"]);
+  const type = getValueByAliases(project, ["type", "projectType", "project_type"]);
+  const status = getValueByAliases(project, ["status", "projectStatus", "project_status"]);
+  const startDateRaw = getValueByAliases(project, ["startDate", "plannedStart", "planned_start"]);
+  const endDateRaw = getValueByAliases(project, ["endDate", "plannedFinish", "planned_finish"]);
+
+  return {
+    name: name || "Untitled Project",
+    code: code || "",
+    location: location || "",
+    type: type || "General",
+    status: status || "Not Started",
+    startDate: parseDateValue(startDateRaw),
+    endDate: parseDateValue(endDateRaw),
+  };
+};
+
 const toPercent = (value) => {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
@@ -273,6 +293,9 @@ const renderEmptyState = (message = "Get started by adding your first activity")
 const initialActivities = Array.isArray(window.activitiesData)
   ? window.activitiesData.map(normalizeActivity)
   : [];
+const initialProjectCatalog = Array.isArray(window.activitiesProjectCatalog)
+  ? window.activitiesProjectCatalog.map(normalizeProject)
+  : [];
 
 const state = {
   allActivities: initialActivities,
@@ -347,29 +370,42 @@ const deriveProjectType = (projectActivities = []) => {
 };
 
 const buildProjectSummaries = () => {
-  const projectMap = new Map();
+  const projectMap = new Map(initialProjectCatalog.map((project) => [project.name, { ...project }]));
 
   state.allActivities.forEach((activity) => {
     if (!activity.project || activity.project === "-") return;
     if (!projectMap.has(activity.project)) {
-      projectMap.set(activity.project, []);
+      projectMap.set(activity.project, {
+        name: activity.project,
+        code: "",
+        location: "",
+        type: "General",
+        status: "Not Started",
+        startDate: null,
+        endDate: null,
+      });
     }
-    projectMap.get(activity.project).push(activity);
+    const summary = projectMap.get(activity.project);
+    if (!summary.activities) summary.activities = [];
+    summary.activities.push(activity);
   });
 
-  return Array.from(projectMap.entries())
-    .map(([name, projectActivities]) => {
+  return Array.from(projectMap.values())
+    .map((summary) => {
+      const projectActivities = summary.activities || [];
       const starts = projectActivities.map((item) => item.plannedStartDate).filter(Boolean);
       const finishes = projectActivities.map((item) => item.plannedFinishDate).filter(Boolean);
-      const startDate = starts.length ? new Date(Math.min(...starts.map((date) => date.getTime()))) : null;
-      const endDate = finishes.length ? new Date(Math.max(...finishes.map((date) => date.getTime()))) : null;
+      const activityStartDate = starts.length ? new Date(Math.min(...starts.map((date) => date.getTime()))) : null;
+      const activityEndDate = finishes.length ? new Date(Math.max(...finishes.map((date) => date.getTime()))) : null;
 
       return {
-        name,
-        type: deriveProjectType(projectActivities),
-        status: deriveProjectStatus(projectActivities),
-        startDate,
-        endDate,
+        name: summary.name,
+        code: summary.code,
+        location: summary.location,
+        type: projectActivities.length ? deriveProjectType(projectActivities) : summary.type,
+        status: projectActivities.length ? deriveProjectStatus(projectActivities) : summary.status,
+        startDate: activityStartDate || summary.startDate,
+        endDate: activityEndDate || summary.endDate,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -451,7 +487,8 @@ const renderProjectPicker = () => {
   const selectedEndDate = state.projectDateRange.end;
 
   const projects = buildProjectSummaries().filter((project) => {
-    const textMatch = !searchValue || project.name.toLowerCase().includes(searchValue);
+    const searchable = `${project.name} ${project.code} ${project.location}`.toLowerCase();
+    const textMatch = !searchValue || searchable.includes(searchValue);
     const typeMatch = selectedType === "All Project Types" || project.type === selectedType;
     const statusMatch = selectedStatus === "All Statuses" || project.status === selectedStatus;
     const hasDateFilter = Boolean(selectedStartDate || selectedEndDate);
@@ -474,7 +511,7 @@ const renderProjectPicker = () => {
     .map(
       (project) => `
         <button type="button" class="activities-project-picker-card" data-project="${escapeHtml(project.name)}">
-          <span>${escapeHtml(project.name)}</span>
+          <span>${escapeHtml(project.code ? `${project.code} · ${project.name}` : project.name)}</span>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
       `
@@ -628,11 +665,10 @@ const closeActivityModal = () => {
 
 const refreshFilterOptions = () => {
   const previousProjectSelection = state.selectedProject;
-  populateSelect(activitiesProjectFilter, uniqueSorted(state.allActivities.map((row) => row.project)), "All Projects");
+  const projectSummaries = buildProjectSummaries();
+  populateSelect(activitiesProjectFilter, uniqueSorted(projectSummaries.map((row) => row.name)), "All Projects");
   populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
   populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
-
-  const projectSummaries = buildProjectSummaries();
   populateSelect(activitiesProjectTypeFilter, uniqueSorted(projectSummaries.map((row) => row.type)), "All Project Types");
   populateSelect(activitiesProjectStatusFilter, uniqueSorted(projectSummaries.map((row) => row.status)), "All Statuses");
   if (activitiesProjectFilter && previousProjectSelection !== "All Projects") {
