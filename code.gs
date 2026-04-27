@@ -26,7 +26,6 @@ const CONFIG = {
       'Start Date',
       'Finish Date',
       'Budget',
-      'Description',
       'Created At',
     ],
     activities: [
@@ -130,15 +129,16 @@ function handleRequest(payload) {
 function handleProjectMutation(action, payload) {
   if (action === 'create') {
     const project = normalizeIncomingProject(payload.project || payload);
-    if (!project.name || !project.code) {
+    if (!project.name || !project.id) {
       throw new Error('Project Name and Project ID are required.');
     }
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
     ensureProjectHeaders(sheet);
+    const storedProjectId = cleanText(project.code || project.id);
 
     sheet.appendRow([
-      project.id,
+      storedProjectId,
       project.name,
       project.type,
       project.status,
@@ -146,14 +146,17 @@ function handleProjectMutation(action, payload) {
       project.startDate,
       project.finishDate,
       project.budget,
-      project.description,
       new Date(),
     ]);
 
     return jsonResponse({
       ok: true,
       message: 'Project saved successfully.',
-      project: project,
+      project: {
+        ...project,
+        id: storedProjectId,
+        code: storedProjectId,
+      },
       generatedAt: new Date().toISOString(),
     });
   }
@@ -206,8 +209,6 @@ function updateProjectRow(project) {
   rowValues[lookup.columns.startDate - 1] = project.startDate;
   rowValues[lookup.columns.finishDate - 1] = project.finishDate;
   rowValues[lookup.columns.budget - 1] = project.budget;
-  rowValues[lookup.columns.description - 1] = project.description;
-
   lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
   return project;
 }
@@ -250,7 +251,6 @@ function findProjectSheetRow(projectId) {
     startDate: indexOfHeader(['Start Date', 'Planned Start']),
     finishDate: indexOfHeader(['Finish Date', 'End Date', 'Target Finish']),
     budget: indexOfHeader(['Budget', 'Planned Value', 'Planned Cost']),
-    description: indexOfHeader(['Description', 'Notes']),
   };
 
   if (!columns.id) {
@@ -428,8 +428,8 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
 function normalizeIncomingProject(input) {
   const source = input || {};
 
-  const id = cleanText(source.id || source.projectId || source.project_id);
-  const code = cleanText(source.code || source.projectId || source.project_id);
+  const id = cleanText(source.id || source.projectId || source.project_id || source.projectCode || source.project_code);
+  const code = cleanText(source.code || source.projectCode || source.project_code || source.projectId || source.project_id);
   const name = cleanText(source.name || source.project || source.projectName || source.project_name);
   const type = cleanText(source.type || source.projectType || source.project_type) || 'General';
   const status = cleanText(source.status) || 'Not Started';
@@ -437,10 +437,8 @@ function normalizeIncomingProject(input) {
   const startDate = normalizeDate(source.startDate || source.start_date || source.plannedStart);
   const finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
   const budget = parseNumber(source.budget);
-  const description = cleanText(source.description);
-
   return {
-    id: id || code || Utilities.getUuid(),
+    id: code || id || Utilities.getUuid(),
     code: code || id,
     name: name,
     type: type,
@@ -449,7 +447,6 @@ function normalizeIncomingProject(input) {
     startDate: startDate,
     finishDate: finishDate,
     budget: budget,
-    description: description,
   };
 }
 
