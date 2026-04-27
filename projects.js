@@ -11,6 +11,9 @@ const projectsTableSummary = document.getElementById("projectsTableSummary");
 const projectsSearchInput = document.getElementById("projectsSearchInput");
 const projectsStatusFilter = document.getElementById("projectsStatusFilter");
 const projectsTypeFilter = document.getElementById("projectsTypeFilter");
+const projectModalTitle = document.getElementById("projectModalTitle");
+const projectModalSubtitle = document.querySelector(".project-modal-header p");
+const projectSubmitButton = projectForm?.querySelector('button[type="submit"]');
 
 const kpiEls = {
   total: document.getElementById("kpiTotalProjects"),
@@ -38,6 +41,7 @@ const pesoBudgetFormatter = new Intl.NumberFormat("en-PH", {
 const state = {
   allProjects: [],
   filteredProjects: [],
+  editingProjectId: null,
 };
 
 const toNumericBudgetValue = (value) => {
@@ -121,11 +125,39 @@ const escapeHtml = (value) =>
 const closeProjectModal = () => {
   projectModal.classList.add("hidden");
   document.body.style.overflow = "";
+  state.editingProjectId = null;
+
+  if (projectModalTitle) projectModalTitle.textContent = "Add New Project";
+  if (projectModalSubtitle) projectModalSubtitle.textContent = "Create a new project and define its details";
+  if (projectSubmitButton) projectSubmitButton.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14"/></svg>
+    Create Project
+  `;
 };
 
 const openProjectModal = () => {
   projectModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
+};
+
+const openEditProjectModal = (project) => {
+  if (!project) return;
+
+  state.editingProjectId = project.id;
+  projectForm.elements.projectName.value = project.name;
+  projectForm.elements.projectCode.value = project.code;
+  projectForm.elements.projectType.value = project.type;
+  projectForm.elements.startDate.value = project.startDate;
+  projectForm.elements.targetFinish.value = project.finishDate;
+  projectForm.elements.status.value = project.status;
+  projectForm.elements.budget.value = formatBudgetAsPeso(project.budget);
+  projectForm.elements.description.value = project.description || "";
+
+  if (projectModalTitle) projectModalTitle.textContent = "Edit Project";
+  if (projectModalSubtitle) projectModalSubtitle.textContent = "Update your project details";
+  if (projectSubmitButton) projectSubmitButton.innerHTML = "Save Changes";
+
+  openProjectModal();
 };
 
 const updateKpis = (projects) => {
@@ -183,7 +215,13 @@ const renderProjects = (projects) => {
         <td>${escapeHtml(formatDate(project.finishDate))}</td>
         <td>${Math.round(project.progress)}%</td>
         <td>${escapeHtml(pesoBudgetFormatter.format(project.budget || 0))}</td>
-        <td class="actions-col">⋮</td>
+        <td class="actions-col">
+          <button type="button" class="action-menu-trigger" data-project-actions="${escapeHtml(project.id)}" aria-label="Open project actions">⋮</button>
+          <div class="project-actions-menu hidden" data-project-menu="${escapeHtml(project.id)}" role="menu" aria-label="Project actions">
+            <button type="button" class="project-action-btn" data-project-edit="${escapeHtml(project.id)}" role="menuitem">Edit</button>
+            <button type="button" class="project-action-btn danger" data-project-delete="${escapeHtml(project.id)}" role="menuitem">Delete</button>
+          </div>
+        </td>
       </tr>
     `
     )
@@ -306,6 +344,63 @@ const addProject = async (project) => {
   }
 };
 
+const updateProject = (updatedProject) => {
+  state.allProjects = state.allProjects.map((project) =>
+    project.id === updatedProject.id ? updatedProject : project
+  );
+  saveToLocalStorage(state.allProjects);
+  hydrateFilters();
+  applyFilters();
+};
+
+const deleteProject = (projectId) => {
+  state.allProjects = state.allProjects.filter((project) => project.id !== projectId);
+  saveToLocalStorage(state.allProjects);
+  hydrateFilters();
+  applyFilters();
+};
+
+const closeAllActionMenus = () => {
+  document.querySelectorAll(".project-actions-menu").forEach((menu) => menu.classList.add("hidden"));
+};
+
+projectsTableBody.addEventListener("click", (event) => {
+  const triggerBtn = event.target.closest("[data-project-actions]");
+  if (triggerBtn instanceof HTMLElement) {
+    const projectId = triggerBtn.dataset.projectActions;
+    const targetMenu = projectsTableBody.querySelector(`[data-project-menu="${projectId}"]`);
+    const isHidden = targetMenu?.classList.contains("hidden");
+    closeAllActionMenus();
+    if (isHidden) targetMenu?.classList.remove("hidden");
+    return;
+  }
+
+  const editBtn = event.target.closest("[data-project-edit]");
+  if (editBtn instanceof HTMLElement) {
+    closeAllActionMenus();
+    const projectToEdit = state.allProjects.find((project) => project.id === editBtn.dataset.projectEdit);
+    openEditProjectModal(projectToEdit);
+    return;
+  }
+
+  const deleteBtn = event.target.closest("[data-project-delete]");
+  if (deleteBtn instanceof HTMLElement) {
+    const projectId = deleteBtn.dataset.projectDelete;
+    const projectToDelete = state.allProjects.find((project) => project.id === projectId);
+    if (!projectToDelete) return;
+    closeAllActionMenus();
+    const isConfirmed = window.confirm(`Delete "${projectToDelete.name}"? This action cannot be undone.`);
+    if (!isConfirmed) return;
+    deleteProject(projectId);
+  }
+});
+
+document.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) return;
+  if (event.target.closest(".actions-col")) return;
+  closeAllActionMenus();
+});
+
 if (budgetInput instanceof HTMLInputElement) {
   budgetInput.addEventListener("focus", () => {
     budgetInput.value = toNumericBudgetValue(budgetInput.value);
@@ -374,8 +469,10 @@ projectForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  const projectId = state.editingProjectId || crypto.randomUUID();
+
   const project = normalizeProject({
-    id: crypto.randomUUID(),
+    id: projectId,
     name: projectName,
     code: projectCode,
     type: projectType,
@@ -386,7 +483,12 @@ projectForm.addEventListener("submit", async (event) => {
     description,
   });
 
-  await addProject(project);
+  if (state.editingProjectId) {
+    updateProject(project);
+  } else {
+    await addProject(project);
+  }
+
   closeProjectModal();
   projectForm.reset();
 });
