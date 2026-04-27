@@ -708,9 +708,16 @@ th { color: var(--muted); }
 
 
 .activities-project-selection-toolbar {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.activities-project-selection-toolbar-left {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(160px, 1fr) minmax(150px, 0.9fr) minmax(220px, 1.1fr) 42px auto;
+  grid-template-columns: minmax(220px, 260px) minmax(160px, 180px) minmax(150px, 170px) minmax(220px, 240px) 42px;
   align-items: center;
 }
 
@@ -1339,7 +1346,7 @@ th { color: var(--muted); }
 }
 
 @media (max-width: 1200px) {
-  .activities-project-selection-toolbar {
+  .activities-project-selection-toolbar-left {
     grid-template-columns: repeat(3, minmax(180px, 1fr));
   }
 
@@ -1366,9 +1373,14 @@ th { color: var(--muted); }
 }
 
 @media (max-width: 900px) {
-  .activities-project-selection-toolbar,
+  .activities-project-selection-toolbar-left,
   .activities-filter-row {
     grid-template-columns: 1fr;
+  }
+
+  .activities-project-selection-toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .activities-action-group {
