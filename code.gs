@@ -377,19 +377,50 @@ function ensureWorkbookStructure() {
 function ensureSheetHeaders(sheet, expectedHeaders) {
   if (!expectedHeaders || !expectedHeaders.length) return;
 
-  const maxColumns = expectedHeaders.length;
-  const lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
+  const normalizeHeaders = function(headers) {
+    return headers.map(function(header) {
+      return normalizeHeader(header);
+    });
+  };
+
+  let maxColumns = expectedHeaders.length;
+  let lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
 
   if (sheet.getMaxColumns() < maxColumns) {
     sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
   }
 
-  const firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  let firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   const hasAnyHeader = firstRow.some(function(cell) {
     return cleanText(cell) !== '';
   });
 
   if (!hasAnyHeader) {
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    return;
+  }
+
+  const normalizedExpected = normalizeHeaders(expectedHeaders);
+  const normalizedExisting = normalizeHeaders(firstRow);
+  const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
+  const expectsProjectCode = normalizedExpected.indexOf('project code') >= 0;
+
+  if (legacyProjectCodeIndex >= 0 && !expectsProjectCode) {
+    sheet.deleteColumn(legacyProjectCodeIndex + 1);
+    maxColumns = expectedHeaders.length;
+    lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
+    if (sheet.getMaxColumns() < maxColumns) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+    }
+    firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  }
+
+  const normalizedAfter = normalizeHeaders(firstRow);
+  const needsHeaderSync = expectedHeaders.some(function(header, idx) {
+    return normalizedAfter[idx] !== normalizeHeader(header);
+  });
+
+  if (needsHeaderSync) {
     sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
   }
 }
