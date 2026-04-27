@@ -282,6 +282,23 @@ function normalizeResource(value) {
 function parsePostPayload(e) {
   if (!e) return {};
 
+  const parseFormEncoded = function(raw) {
+    const result = {};
+    if (!raw) return result;
+
+    raw.split('&').forEach(function(part) {
+      if (!part) return;
+      const separatorIndex = part.indexOf('=');
+      const rawKey = separatorIndex >= 0 ? part.slice(0, separatorIndex) : part;
+      const rawValue = separatorIndex >= 0 ? part.slice(separatorIndex + 1) : '';
+      const key = decodeURIComponent(rawKey.replace(/\+/g, ' '));
+      const value = decodeURIComponent(rawValue.replace(/\+/g, ' '));
+      if (key) result[key] = value;
+    });
+
+    return result;
+  };
+
   const parameterPayload = e.parameter && e.parameter.payload;
   if (parameterPayload) {
     try {
@@ -292,9 +309,27 @@ function parsePostPayload(e) {
   }
 
   if (!e.postData || !e.postData.contents) return {};
+  const rawContents = String(e.postData.contents || '');
+
+  if (rawContents.indexOf('payload=') === 0) {
+    try {
+      const params = parseFormEncoded(rawContents);
+      const nestedPayload = params.payload;
+      if (nestedPayload) return JSON.parse(nestedPayload);
+    } catch (error) {
+      throw new Error('Invalid payload parameter JSON.');
+    }
+  }
+
   try {
-    return JSON.parse(e.postData.contents);
+    return JSON.parse(rawContents);
   } catch (error) {
+    try {
+      const flattened = parseFormEncoded(rawContents);
+      if (Object.keys(flattened).length) return flattened;
+    } catch (urlError) {
+      // Fall through to final error.
+    }
     throw new Error('Invalid JSON payload.');
   }
 }

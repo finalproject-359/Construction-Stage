@@ -264,8 +264,14 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
       }),
     });
   } catch (error) {
+    const maybeCorsIssue =
+      DATA_SOURCE_URL.includes("script.google.com/macros/s/") &&
+      /failed to fetch|networkerror|cors/i.test(String(error?.message || ""));
+    const guidance = maybeCorsIssue
+      ? "CORS check failed. In Google Apps Script, deploy as a Web App with access set to Anyone, then use the latest /exec deployment URL."
+      : "Unable to reach the Google Sheet endpoint.";
     throw new Error(
-      "Unable to reach Google Sheet endpoint. If this is a CORS error, redeploy your Apps Script web app and ensure the deployment access includes your site."
+      `${guidance} If this endpoint was recently changed, update DATA_SOURCE_URL in data-service.js.`
     );
   }
 
@@ -501,7 +507,11 @@ projectForm.addEventListener("submit", async (event) => {
     }
   } catch (error) {
     console.warn(error);
-    window.alert("Failed to sync project to Google Sheet. Please try again.");
+    window.alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to sync project to Google Sheet. Please verify Apps Script deployment access and try again."
+    );
     return;
   }
 
