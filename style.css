@@ -334,7 +334,10 @@ th { color: var(--muted); }
 
 .projects-controls {
   margin-top: 14px;
-  padding: 16px;
+  padding: 14px;
+  background: #eef2f7;
+  border-color: #dde3ee;
+  box-shadow: none;
 }
 
 .projects-table-panel { margin-top: 14px; padding: 8px 16px 12px; }
@@ -344,13 +347,13 @@ th { color: var(--muted); }
   grid-template-columns: 1.35fr repeat(3, minmax(170px, 1fr)) auto;
   gap: 12px;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .projects-input {
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
+  background: #f8fafc;
   min-height: 46px;
   display: flex;
   align-items: center;
