@@ -135,19 +135,23 @@ function handleProjectMutation(action, payload) {
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
     ensureProjectHeaders(sheet);
-    const storedProjectId = cleanText(project.code || project.id);
+    const columns = getProjectColumnMap(sheet);
+    const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length, columns.maxColumn);
+    const rowValues = new Array(lastColumn).fill('');
+    const storedProjectId = cleanText(project.id || project.code);
 
-    sheet.appendRow([
-      storedProjectId,
-      project.name,
-      project.type,
-      project.status,
-      project.location,
-      project.startDate,
-      project.finishDate,
-      project.budget,
-      new Date(),
-    ]);
+    if (columns.id) rowValues[columns.id - 1] = storedProjectId;
+    if (columns.code) rowValues[columns.code - 1] = cleanText(project.code || storedProjectId);
+    if (columns.name) rowValues[columns.name - 1] = project.name;
+    if (columns.type) rowValues[columns.type - 1] = project.type;
+    if (columns.status) rowValues[columns.status - 1] = project.status;
+    if (columns.location) rowValues[columns.location - 1] = project.location;
+    if (columns.startDate) rowValues[columns.startDate - 1] = project.startDate;
+    if (columns.finishDate) rowValues[columns.finishDate - 1] = project.finishDate;
+    if (columns.budget) rowValues[columns.budget - 1] = project.budget;
+    if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
+
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
 
     return jsonResponse({
       ok: true,
@@ -464,13 +468,39 @@ function normalizeIncomingProject(input) {
   const code = cleanText(source.code || source.projectCode || source.project_code || source.projectId || source.project_id);
   const name = cleanText(source.name || source.project || source.projectName || source.project_name);
   const type = cleanText(source.type || source.projectType || source.project_type) || 'General';
-  const status = cleanText(source.status) || 'Not Started';
-  const location = cleanText(source.location || source.site || source.address);
-  const startDate = normalizeDate(source.startDate || source.start_date || source.plannedStart);
-  const finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
-  const budget = parseNumber(source.budget);
+  let status = cleanText(source.status) || 'Not Started';
+  let location = cleanText(source.location || source.site || source.address);
+  let startDate = normalizeDate(source.startDate || source.start_date || source.plannedStart);
+  let finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
+  let budget = parseNumber(source.budget);
+  const descriptionBudget = parseNumber(source.description || source.notes);
+
+  const isKnownStatus = function(value) {
+    const normalized = cleanText(value).toLowerCase();
+    return ['not started', 'in progress', 'on hold', 'completed', 'archived'].indexOf(normalized) >= 0;
+  };
+  const isDateLike = function(value) {
+    if (!value) return false;
+    const parsed = new Date(value);
+    return !Number.isNaN(parsed.getTime());
+  };
+
+  const incomingLooksShifted =
+    !isKnownStatus(status) &&
+    isKnownStatus(location) &&
+    !isDateLike(startDate) &&
+    isDateLike(finishDate);
+
+  if (incomingLooksShifted) {
+    status = location;
+    location = startDate;
+    startDate = finishDate;
+    finishDate = normalizeDate(source.budget);
+    budget = descriptionBudget || 0;
+  }
+
   return {
-    id: code || id || Utilities.getUuid(),
+    id: id || code || Utilities.getUuid(),
     code: code || id,
     name: name,
     type: type,
@@ -479,6 +509,34 @@ function normalizeIncomingProject(input) {
     startDate: startDate,
     finishDate: finishDate,
     budget: budget,
+  };
+}
+
+function getProjectColumnMap(sheet) {
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length)).getValues()[0]
+    .map(function(header) { return normalizeHeader(header); });
+
+  const indexOfHeader = function(candidates) {
+    for (var i = 0; i < candidates.length; i += 1) {
+      var candidate = normalizeHeader(candidates[i]);
+      var found = headers.indexOf(candidate);
+      if (found >= 0) return found + 1;
+    }
+    return 0;
+  };
+
+  return {
+    id: indexOfHeader(['Project ID', 'ID']),
+    code: indexOfHeader(['Project Code', 'Code']),
+    name: indexOfHeader(['Project Name', 'Project', 'Name']),
+    type: indexOfHeader(['Project Type', 'Type']),
+    status: indexOfHeader(['Status']),
+    location: indexOfHeader(['Location', 'Site', 'Address']),
+    startDate: indexOfHeader(['Start Date', 'Planned Start']),
+    finishDate: indexOfHeader(['Finish Date', 'End Date', 'Target Finish']),
+    budget: indexOfHeader(['Budget', 'Planned Value', 'Planned Cost']),
+    createdAt: indexOfHeader(['Created At']),
+    maxColumn: headers.length,
   };
 }
 
@@ -595,17 +653,47 @@ function findHeaderRowIndex(rows) {
 
 function normalizeProjectRecord(row) {
   const projectId = cleanText(getCell(row, ['project id', 'id', 'projectid']));
+  let status = cleanText(getCell(row, ['status'])) || 'Not Started';
+  let location = cleanText(getCell(row, ['location', 'site', 'address']));
+  let startDate = normalizeDate(getCell(row, ['start date', 'planned start', 'planned_start']));
+  let finishDate = normalizeDate(getCell(row, ['finish date', 'end date', 'planned finish', 'planned_finish']));
+  let budget = parseNumber(getCell(row, ['budget', 'planned value', 'planned cost']));
+  const descriptionBudget = parseNumber(getCell(row, ['description', 'notes']));
+
+  const isKnownStatus = function(value) {
+    const normalized = cleanText(value).toLowerCase();
+    return ['not started', 'in progress', 'on hold', 'completed', 'archived'].indexOf(normalized) >= 0;
+  };
+  const isDateLike = function(value) {
+    if (!value) return false;
+    const parsed = new Date(value);
+    return !Number.isNaN(parsed.getTime());
+  };
+
+  const rowLooksShifted =
+    !isKnownStatus(status) &&
+    isKnownStatus(location) &&
+    !isDateLike(startDate) &&
+    isDateLike(finishDate);
+
+  if (rowLooksShifted) {
+    status = location;
+    location = startDate;
+    startDate = finishDate;
+    finishDate = normalizeDate(getCell(row, ['budget', 'planned value', 'planned cost']));
+    budget = descriptionBudget || 0;
+  }
 
   return {
     id: projectId,
     code: projectId,
     name: cleanText(getCell(row, ['project', 'project name', 'name'])),
     type: cleanText(getCell(row, ['type', 'project type'])) || 'General',
-    status: cleanText(getCell(row, ['status'])) || 'Not Started',
-    location: cleanText(getCell(row, ['location', 'site', 'address'])),
-    startDate: normalizeDate(getCell(row, ['start date', 'planned start', 'planned_start'])),
-    finishDate: normalizeDate(getCell(row, ['finish date', 'end date', 'planned finish', 'planned_finish'])),
-    budget: parseNumber(getCell(row, ['budget', 'planned value', 'planned cost'])),
+    status: status,
+    location: location,
+    startDate: startDate,
+    finishDate: finishDate,
+    budget: budget,
     raw: row,
   };
 }
