@@ -833,10 +833,13 @@ function getCell(row, aliases) {
     });
     if (exact) return row[exact.key];
 
-    const prefixed = normalizedKeys.find(function(entry) {
-      return entry.normalized.indexOf(normalizedAlias + ' ') === 0;
-    });
-    if (prefixed) return row[prefixed.key];
+    const shouldUsePrefixMatch = normalizedAlias.indexOf(' ') >= 0;
+    if (shouldUsePrefixMatch) {
+      const prefixed = normalizedKeys.find(function(entry) {
+        return entry.normalized.indexOf(normalizedAlias + ' ') === 0;
+      });
+      if (prefixed) return row[prefixed.key];
+    }
   }
 
   return '';
