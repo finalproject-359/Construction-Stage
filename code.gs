@@ -59,10 +59,130 @@ function doGet(e) {
   }
 }
 
+function doPost(e) {
+  try {
+    const payload = parsePostPayload(e);
+    const resource = normalizeResource(payload.resource || 'projects');
+    const action = cleanText(payload.action || 'create').toLowerCase();
+
+    if (resource !== 'projects') {
+      throw new Error('Only "projects" is supported for POST requests.');
+    }
+
+    if (action !== 'create') {
+      throw new Error('Unsupported action. Use action=create.');
+    }
+
+    const project = normalizeIncomingProject(payload.project || payload);
+    if (!project.name || !project.code) {
+      throw new Error('Project Name and Project Code are required.');
+    }
+
+    const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+    ensureProjectHeaders(sheet);
+
+    sheet.appendRow([
+      project.id,
+      project.code,
+      project.name,
+      project.type,
+      project.status,
+      project.location,
+      project.startDate,
+      project.finishDate,
+      project.budget,
+      project.description,
+      new Date(),
+    ]);
+
+    return jsonResponse({
+      ok: true,
+      message: 'Project saved successfully.',
+      project: project,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return jsonResponse({
+      ok: false,
+      error: error && error.message ? error.message : 'Unexpected error while saving project.',
+      generatedAt: new Date().toISOString(),
+    });
+  }
+}
+
 function normalizeResource(value) {
   const supported = ['dashboard', 'projects', 'activities', 'costs', 'reports', 'all'];
   const normalized = cleanText(value).toLowerCase();
   return supported.indexOf(normalized) >= 0 ? normalized : 'dashboard';
+}
+
+function parsePostPayload(e) {
+  if (!e || !e.postData || !e.postData.contents) return {};
+  try {
+    return JSON.parse(e.postData.contents);
+  } catch (error) {
+    throw new Error('Invalid JSON payload.');
+  }
+}
+
+function getOrCreateSheet(sheetName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const existing = ss.getSheetByName(sheetName);
+  if (existing) return existing;
+  return ss.insertSheet(sheetName);
+}
+
+function ensureProjectHeaders(sheet) {
+  const expectedHeaders = [
+    'Project ID',
+    'Project Code',
+    'Project Name',
+    'Project Type',
+    'Status',
+    'Location',
+    'Start Date',
+    'Finish Date',
+    'Budget',
+    'Description',
+    'Created At',
+  ];
+
+  const existingHeaders = sheet.getRange(1, 1, 1, expectedHeaders.length).getValues()[0];
+  const hasAnyHeader = existingHeaders.some(function(cell) {
+    return cleanText(cell) !== '';
+  });
+
+  if (!hasAnyHeader) {
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+  }
+}
+
+function normalizeIncomingProject(input) {
+  const source = input || {};
+
+  const id = cleanText(source.id) || Utilities.getUuid();
+  const code = cleanText(source.code || source.projectCode || source.project_code);
+  const name = cleanText(source.name || source.project || source.projectName || source.project_name);
+  const type = cleanText(source.type || source.projectType || source.project_type) || 'General';
+  const status = cleanText(source.status) || 'Not Started';
+  const location = cleanText(source.location || source.site || source.address);
+  const startDate = normalizeDate(source.startDate || source.start_date || source.plannedStart);
+  const finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
+  const budget = parseNumber(source.budget);
+  const description = cleanText(source.description);
+
+  return {
+    id: id,
+    code: code,
+    name: name,
+    type: type,
+    status: status,
+    location: location,
+    startDate: startDate,
+    finishDate: finishDate,
+    budget: budget,
+    description: description,
+  };
 }
 
 function loadAllData() {
