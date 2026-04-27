@@ -332,7 +332,12 @@ th { color: var(--muted); }
 .project-kpi-icon.hold { background: #eef2f8; color: #64748b; }
 .project-kpi-icon.archived { background: #fef2f2; color: #ef4444; }
 
-.projects-table-panel { margin-top: 14px; padding: 16px 16px 12px; }
+.projects-controls {
+  margin-top: 14px;
+  padding: 16px;
+}
+
+.projects-table-panel { margin-top: 14px; padding: 8px 16px 12px; }
 
 .projects-toolbar {
   display: grid;
@@ -435,18 +440,23 @@ th { color: var(--muted); }
   gap: 6px;
 }
 
-.projects-empty-state svg {
+.projects-empty-state > svg {
   width: 84px;
   height: 84px;
   color: #c8d1e5;
   margin-bottom: 4px;
 }
 
-.projects-empty-state svg path {
+.projects-empty-state > svg path {
   stroke: currentColor;
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.projects-empty-state .primary-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .projects-empty-state h2 {
