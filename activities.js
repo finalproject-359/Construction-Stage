@@ -21,6 +21,7 @@ const activityForm = document.getElementById("activityForm");
 const activityFormCancel = document.getElementById("activityFormCancel");
 const activityStartDateInput = document.getElementById("activityStartDateInput");
 const activityFinishDateInput = document.getElementById("activityFinishDateInput");
+const activityProjectInput = document.getElementById("activityProjectInput");
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -261,11 +262,14 @@ const state = {
   allActivities: initialActivities,
   filteredActivities: initialActivities,
   currentPage: 1,
+  selectedProject: "All Projects",
   dateRange: {
     start: null,
     end: null,
   },
 };
+
+const hasSelectedProject = () => state.selectedProject && state.selectedProject !== "All Projects";
 
 const formatDateRangeLabel = () => {
   const { start, end } = state.dateRange;
@@ -366,6 +370,11 @@ const renderPagination = () => {
 };
 
 const renderTable = () => {
+  if (!hasSelectedProject()) {
+    renderEmptyState("Select a project to view activities.");
+    return;
+  }
+
   if (!state.filteredActivities.length) {
     if (!state.allActivities.length) {
       renderEmptyState();
@@ -387,8 +396,12 @@ const applyFilters = () => {
   const typeValue = activitiesTypeFilter?.value || "All Activity Types";
   const dateStartValue = state.dateRange.start;
   const dateEndValue = state.dateRange.end;
+  state.selectedProject = projectValue;
 
-  state.filteredActivities = state.allActivities.filter((item) => {
+  if (!hasSelectedProject()) {
+    state.filteredActivities = [];
+  } else {
+    state.filteredActivities = state.allActivities.filter((item) => {
     const projectMatch = projectValue === "All Projects" || item.project === projectValue;
     const statusMatch = statusValue === "All Statuses" || item.status === statusValue;
     const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
@@ -405,6 +418,7 @@ const applyFilters = () => {
 
     return projectMatch && statusMatch && typeMatch && textMatch && dateMatch;
   });
+  }
 
   state.currentPage = 1;
   renderPagination();
@@ -429,9 +443,19 @@ const resetFilters = () => {
 
 const openActivityModal = () => {
   if (!activityModal || !activityForm) return;
+  if (!hasSelectedProject()) {
+    window.alert("Please select a project first.");
+    activitiesProjectFilter?.focus();
+    return;
+  }
+
   activityModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
   activityForm.reset();
+  if (activityProjectInput) {
+    activityProjectInput.value = state.selectedProject;
+    activityProjectInput.readOnly = true;
+  }
 };
 
 const closeActivityModal = () => {
@@ -566,6 +590,12 @@ document.addEventListener("click", (event) => {
 if (activityForm) {
   activityForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (!hasSelectedProject()) {
+      window.alert("Please select a project first.");
+      activitiesProjectFilter?.focus();
+      return;
+    }
+
     const formData = new FormData(activityForm);
     const plannedStart = formData.get("plannedStart");
     const plannedFinish = formData.get("plannedFinish");
@@ -577,7 +607,7 @@ if (activityForm) {
     const newActivity = normalizeActivity({
       activityId: formData.get("activityId"),
       activityName: formData.get("activityName"),
-      project: formData.get("project"),
+      project: state.selectedProject,
       activityType: formData.get("activityType"),
       status: "Not Started",
       plannedStart,
