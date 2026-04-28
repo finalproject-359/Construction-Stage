@@ -698,7 +698,7 @@ const renderProjectPicker = () => {
   activitiesProjectPickerGrid.innerHTML = projects
     .map(
       (project) => `
-        <button type="button" class="activities-project-picker-card" data-project="${escapeHtml(project.name)}">
+        <button type="button" class="activities-project-picker-card" data-project="${encodeURIComponent(project.name)}">
           <span>${escapeHtml(project.code ? `${project.code} · ${project.name}` : project.name)}</span>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
@@ -945,8 +945,11 @@ if (activitiesProjectPickerGrid) {
   activitiesProjectPickerGrid.addEventListener("click", (event) => {
     const button = event.target.closest("[data-project]");
     if (!button) return;
-    const project = button.dataset.project || "All Projects";
+    const encodedProject = button.dataset.project || "";
+    const project = encodedProject ? decodeURIComponent(encodedProject) : "All Projects";
     state.selectedProject = project;
+    syncWorkflowState();
+    closeProjectDateRangePanel();
     updateActivitiesUrlParams({ project, keepAddedFlag: true });
     applyFilters();
     window.scrollTo({ top: 0, behavior: "smooth" });
