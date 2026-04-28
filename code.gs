@@ -656,7 +656,22 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   }
 
   const normalizedExpected = normalizeHeaders(expectedHeaders);
-  const normalizedExisting = normalizeHeaders(firstRow);
+  const normalizedExistingFirstRow = normalizeHeaders(firstRow);
+  const expectedLookup = {};
+  normalizedExpected.forEach(function(header) {
+    expectedLookup[header] = true;
+  });
+  const firstRowHeaderMatchCount = normalizedExistingFirstRow.reduce(function(count, header) {
+    return count + (header && expectedLookup[header] ? 1 : 0);
+  }, 0);
+  const firstRowLooksLikeData = firstRowHeaderMatchCount < Math.max(2, Math.ceil(expectedHeaders.length * 0.35));
+
+  if (firstRowLooksLikeData) {
+    sheet.insertRowBefore(1);
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    return;
+  }
+  const normalizedExisting = normalizedExistingFirstRow;
   const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
   const expectsProjectCode = normalizedExpected.indexOf('project code') >= 0;
   const legacyDescriptionIndex = normalizedExisting.indexOf('description');
