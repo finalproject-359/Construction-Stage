@@ -242,6 +242,69 @@
         </div>
       </section>
       </div>
+
+      <div id="activityModal" class="activity-modal hidden" role="dialog" aria-modal="true" aria-labelledby="activityModalTitle">
+        <div id="activityModalBackdrop" class="activity-modal-backdrop"></div>
+        <div class="activity-modal-card">
+          <header class="activity-modal-header">
+            <div>
+              <h2 id="activityModalTitle">Add New Activity</h2>
+              <p>Create an activity and attach it to your selected project.</p>
+            </div>
+            <button id="activityModalCloseBtn" class="activity-modal-close" type="button" aria-label="Close add activity form">×</button>
+          </header>
+
+          <form id="activityModalForm" class="activity-form">
+            <div class="activity-form-section">
+              <h3>Activity Information</h3>
+
+              <label class="activity-field">
+                <span>Activity ID <em>*</em></span>
+                <input id="activityModalIdInput" name="activityId" type="text" required placeholder="Enter activity ID" />
+              </label>
+
+              <label class="activity-field">
+                <span>Activity Name <em>*</em></span>
+                <input id="activityModalNameInput" name="activityName" type="text" required placeholder="Enter activity name" />
+              </label>
+
+              <label class="activity-field">
+                <span>Project <em>*</em></span>
+                <input id="activityModalProjectInput" name="project" type="text" required placeholder="Select project in Activities page" readonly />
+              </label>
+
+              <label class="activity-field">
+                <span>Activity Type <em>*</em></span>
+                <input id="activityModalTypeInput" name="activityType" type="text" required placeholder="Enter activity type" />
+              </label>
+
+              <label class="activity-field">
+                <span>Description</span>
+                <textarea id="activityModalDescriptionInput" name="description" maxlength="500" placeholder="Enter activity description (optional)"></textarea>
+              </label>
+            </div>
+
+            <div class="activity-form-section">
+              <h3>Schedule</h3>
+              <div class="activity-field-grid">
+                <label class="activity-field">
+                  <span>Planned Start <em>*</em></span>
+                  <input id="activityModalStartDateInput" name="plannedStart" type="date" required />
+                </label>
+                <label class="activity-field">
+                  <span>Planned Finish <em>*</em></span>
+                  <input id="activityModalFinishDateInput" name="plannedFinish" type="date" required />
+                </label>
+              </div>
+            </div>
+
+            <footer class="activity-form-actions">
+              <button id="activityModalCancelBtn" class="activity-cancel-btn" type="button">Cancel</button>
+              <button type="submit" class="activities-add-btn">Save Activity</button>
+            </footer>
+          </form>
+        </div>
+      </div>
     </main>
   </div>
 
