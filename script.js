@@ -23,6 +23,12 @@ let varianceChart = null;
 let costChart = null;
 let evmTrendChart = null;
 let efficiencyScatterChart = null;
+let dashboardRefreshTimer = null;
+let isDashboardFetchInFlight = false;
+let latestDashboardSignature = "";
+
+const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
+const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
 
 const getNiceStep = (rawStep) => {
   if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
@@ -569,6 +575,14 @@ const processRows = (rawRows, sourceName = "web app") => {
   }
 
   const rows = extractDashboardRows(rawRows);
+  const nextSignature = JSON.stringify(rows);
+  if (nextSignature === latestDashboardSignature) {
+    showMessage(`Live sync active. No new updates from ${sourceName}.`);
+    return;
+  }
+
+  latestDashboardSignature = nextSignature;
+  localStorage.setItem(DASHBOARD_CACHE_KEY, nextSignature);
   dashboardRows = rows;
   const totals = calculateTotalsFromRows(rows);
   const progressMetrics = calculateProgressMetrics(rows, totals);
@@ -580,6 +594,65 @@ const processRows = (rawRows, sourceName = "web app") => {
   generateCharts(rows);
 
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
+};
+
+const hydrateDashboardFromCache = () => {
+  const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
+  if (!cached) return;
+
+  try {
+    const rows = JSON.parse(cached);
+    if (!Array.isArray(rows) || !rows.length) return;
+    latestDashboardSignature = cached;
+    dashboardRows = rows;
+    const totals = calculateTotalsFromRows(rows);
+    const progressMetrics = calculateProgressMetrics(rows, totals);
+    renderKpis(totals);
+    renderProgressKpis(progressMetrics);
+    renderTable(rows);
+    renderOverrunTable(rows);
+    generateCharts(rows);
+    showMessage(`Loaded ${rows.length} cached activity row(s). Live updates are syncing...`);
+  } catch {
+    localStorage.removeItem(DASHBOARD_CACHE_KEY);
+  }
+};
+
+const refreshDashboardData = async ({ force = false } = {}) => {
+  if (isDashboardFetchInFlight) return;
+  if (!force && document.visibilityState === "hidden") return;
+  if (!DATA_SOURCE_URL.trim()) return;
+
+  isDashboardFetchInFlight = true;
+  try {
+    if (force) {
+      showMessage("Loading data source...");
+    }
+    const { rows, sourceName } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
+    processRows(rows, sourceName);
+  } catch (error) {
+    showMessage(`Error loading data source: ${error.message}`, true);
+  } finally {
+    isDashboardFetchInFlight = false;
+  }
+};
+
+const setupRealtimeDashboardSync = () => {
+  if (dashboardRefreshTimer) {
+    clearInterval(dashboardRefreshTimer);
+  }
+
+  dashboardRefreshTimer = setInterval(() => {
+    refreshDashboardData();
+  }, DASHBOARD_REFRESH_INTERVAL_MS);
+
+  window.addEventListener("focus", () => refreshDashboardData({ force: true }));
+  window.addEventListener("online", () => refreshDashboardData({ force: true }));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshDashboardData({ force: true });
+    }
+  });
 };
 
 const setupServiceWorkerUpdates = async () => {
@@ -632,19 +705,11 @@ const setupServiceWorkerUpdates = async () => {
   }
 };
 
-const loadGoogleSheet = async (providedUrl = "") => {
-  try {
-    showMessage("Loading data source...");
-    const { rows, sourceName } = await window.DataBridge.fetchRowsFromSource(providedUrl || DATA_SOURCE_URL);
-    processRows(rows, sourceName);
-  } catch (error) {
-    showMessage(`Error loading data source: ${error.message}`, true);
-  }
-};
-
 setupServiceWorkerUpdates();
 if (DATA_SOURCE_URL.trim()) {
-  loadGoogleSheet(DATA_SOURCE_URL);
+  hydrateDashboardFromCache();
+  refreshDashboardData({ force: true });
+  setupRealtimeDashboardSync();
 } else {
   showMessage("No data source configured. Add your new Google Apps Script or Google Sheet URL to DATA_SOURCE_URL.");
 }

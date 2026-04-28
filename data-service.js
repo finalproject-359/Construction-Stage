@@ -94,8 +94,26 @@
       throw new Error("Invalid URL. Use a valid Google Sheet or Apps Script Web App URL.");
     }
 
+    const appendNoCacheParam = (urlValue) => {
+      const separator = urlValue.includes("?") ? "&" : "?";
+      return `${urlValue}${separator}_ts=${Date.now()}`;
+    };
+
+    const fetchWithTimeout = async (urlValue) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        return await fetch(appendNoCacheParam(urlValue), {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
     if (isWebAppSource) {
-      const response = await fetch(trimmedUrl, { cache: "no-store" });
+      const response = await fetchWithTimeout(trimmedUrl);
       if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
 
       const contentType = response.headers.get("content-type") || "";
@@ -120,7 +138,7 @@
       };
     }
 
-    const response = await fetch(csvUrl, { cache: "no-store" });
+    const response = await fetchWithTimeout(csvUrl);
     if (!response.ok) throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
 
     const csvText = await response.text();

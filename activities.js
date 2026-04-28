@@ -80,6 +80,11 @@ const PROGRESS_CLASS_BY_STATUS = {
 };
 
 const PAGE_SIZE = 8;
+const ACTIVITIES_REFRESH_INTERVAL_MS = 20 * 1000;
+
+let activitiesRefreshTimer = null;
+let isActivitiesSyncInFlight = false;
+let lastActivitiesSignature = "";
 
 const getValueByAliases = (source, aliases = []) => {
   if (!source || typeof source !== "object") return undefined;
@@ -1077,6 +1082,17 @@ if (activityStartDateInput && activityFinishDateInput) {
 
 const bootstrapActivitiesPage = async () => {
   const source = await loadActivitiesAndProjectsFromSource();
+  const nextSignature = JSON.stringify({
+    activities: source.activities,
+    projects: source.projects,
+    meta: source.meta,
+  });
+
+  if (nextSignature === lastActivitiesSignature) {
+    return;
+  }
+
+  lastActivitiesSignature = nextSignature;
 
   state.allActivities = source.activities;
   state.filteredActivities = source.activities;
@@ -1094,4 +1110,35 @@ const bootstrapActivitiesPage = async () => {
   applyFilters();
 };
 
-bootstrapActivitiesPage();
+const refreshActivitiesIfVisible = async ({ force = false } = {}) => {
+  if (isActivitiesSyncInFlight) return;
+  if (!force && document.visibilityState === "hidden") return;
+
+  isActivitiesSyncInFlight = true;
+  try {
+    await bootstrapActivitiesPage();
+  } finally {
+    isActivitiesSyncInFlight = false;
+  }
+};
+
+const setupActivitiesRealtimeSync = () => {
+  if (activitiesRefreshTimer) {
+    clearInterval(activitiesRefreshTimer);
+  }
+
+  activitiesRefreshTimer = setInterval(() => {
+    refreshActivitiesIfVisible();
+  }, ACTIVITIES_REFRESH_INTERVAL_MS);
+
+  window.addEventListener("focus", () => refreshActivitiesIfVisible({ force: true }));
+  window.addEventListener("online", () => refreshActivitiesIfVisible({ force: true }));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshActivitiesIfVisible({ force: true });
+    }
+  });
+};
+
+refreshActivitiesIfVisible({ force: true });
+setupActivitiesRealtimeSync();
