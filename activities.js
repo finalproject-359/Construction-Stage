@@ -1172,6 +1172,11 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (event.key === "Escape" && state.openActivityMenuKey) {
+    closeActivityActionMenus();
+    return;
+  }
+
   if (event.key === "Escape" && activitiesDateRangePanel && !activitiesDateRangePanel.classList.contains("hidden")) {
     closeDateRangePanel();
     return;
@@ -1235,6 +1240,10 @@ if (activitiesDateClearBtn) {
 }
 
 document.addEventListener("click", (event) => {
+  if (state.openActivityMenuKey && !event.target.closest(".actions-col")) {
+    closeActivityActionMenus();
+  }
+
   if (
     activitiesDateFilterWrap &&
     activitiesDateRangePanel &&
