@@ -253,7 +253,7 @@ const normalizeActivity = (activity = {}) => {
   }
 
   status = status || "Not Started";
-  durationStatus = durationStatus || "On Time";
+  durationStatus = durationStatus || "-";
   const progress = progressRaw ?? (status === "Completed" ? 100 : 0);
 
   return {
@@ -1332,7 +1332,7 @@ if (activityModalForm) {
       plannedStart,
       plannedFinish,
       progress: 0,
-      durationStatus: "On Time",
+      durationStatus: "-",
     });
 
     const isEditing = Boolean(state.editingActivityKey);
