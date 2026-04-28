@@ -287,7 +287,6 @@ const buildActivityRowHtml = (activity) => {
     <tr>
       <td>${escapeHtml(activity.id)}</td>
       <td>${escapeHtml(activity.name)}</td>
-      <td>${escapeHtml(activity.type)}</td>
       <td><span class="badge ${statusClass}">${escapeHtml(activity.status)}</span></td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>${escapeHtml(activity.plannedFinish)}</td>
@@ -328,7 +327,7 @@ const EMPTY_STATE_HTML = `
 const renderEmptyState = (message = "Get started by adding your first activity") => {
   activitiesTableBody.innerHTML = `
     <tr class="activities-empty-row">
-      <td colspan="8">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
+      <td colspan="7">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
     </tr>
   `;
 };
