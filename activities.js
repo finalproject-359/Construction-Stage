@@ -1383,22 +1383,7 @@ if (activitiesProjectPickerGrid) {
 }
 
 const handleBackToProjects = () => {
-  state.selectedProject = null;
-  state.currentPage = 1;
-  if (activitiesSearchInput) activitiesSearchInput.value = "";
-  if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
-  if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
-  state.dateRange.start = null;
-  state.dateRange.end = null;
-  if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
-  if (activitiesFilterEndDate) {
-    activitiesFilterEndDate.value = "";
-    activitiesFilterEndDate.min = "";
-  }
-  syncDateFilterLabel();
-  updateActivitiesUrlParams({ project: null });
-  applyFilters();
-  activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.location.href = "projects.html";
 };
 
 if (activitiesBackToProjectsBtn) {
