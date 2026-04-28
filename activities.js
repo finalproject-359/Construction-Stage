@@ -287,7 +287,6 @@ const buildActivityRowHtml = (activity) => {
     <tr>
       <td>${escapeHtml(activity.id)}</td>
       <td>${escapeHtml(activity.name)}</td>
-      <td><span class="badge ${statusClass}">${escapeHtml(activity.status)}</span></td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>${escapeHtml(activity.plannedFinish)}</td>
       <td><span class="badge ${statusClass}">${escapeHtml(activity.status)}</span></td>
