@@ -450,15 +450,23 @@ const loadActivitiesAndProjectsFromSource = async () => {
 
     saveActivitiesToLocalStorage(mergedActivities);
 
-    const statusSummary = activitiesPayload?.summary?.byStatus || {};
+    const computedKpis = {
+      completed: 0,
+      inProgress: 0,
+      notStarted: 0,
+      delayed: 0,
+    };
+
+    mergedActivities.forEach((activity) => {
+      const key = statusTextToKey[activity.status];
+      if (key && Object.prototype.hasOwnProperty.call(computedKpis, key)) {
+        computedKpis[key] += 1;
+      }
+    });
+
     const activityMeta = {
       totalCount: mergedActivities.length,
-      kpi: {
-        completed: Number(statusSummary.Completed || 0),
-        inProgress: Number(statusSummary["In Progress"] || 0),
-        notStarted: Number(statusSummary["Not Started"] || 0),
-        delayed: Number(statusSummary.Delayed || 0),
-      },
+      kpi: computedKpis,
     };
 
     return {
@@ -629,6 +637,8 @@ const updateKpis = (sourceActivities) => {
 };
 
 const updateSummary = () => {
+  if (!activitiesTableSummary) return;
+
   const totalCount = Number(window.activitiesMeta?.totalCount) || state.allActivities.length;
   const filteredCount = state.filteredActivities.length;
 
@@ -820,10 +830,40 @@ const openAddActivityPage = () => {
 
 const refreshFilterOptions = () => {
   const projectSummaries = buildProjectSummaries();
+  const previousActivityStatus = activitiesStatusFilter?.value || "All Statuses";
+  const previousActivityType = activitiesTypeFilter?.value || "All Activity Types";
+  const previousProjectType = activitiesProjectTypeFilter?.value || "All Project Types";
+  const previousProjectStatus = activitiesProjectStatusFilter?.value || "All Statuses";
+
   populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
   populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
   populateSelect(activitiesProjectTypeFilter, uniqueSorted(projectSummaries.map((row) => row.type)), "All Project Types");
   populateSelect(activitiesProjectStatusFilter, uniqueSorted(projectSummaries.map((row) => row.status)), "All Statuses");
+
+  if (activitiesStatusFilter) {
+    activitiesStatusFilter.value = Array.from(activitiesStatusFilter.options).some((option) => option.value === previousActivityStatus)
+      ? previousActivityStatus
+      : "All Statuses";
+  }
+
+  if (activitiesTypeFilter) {
+    activitiesTypeFilter.value = Array.from(activitiesTypeFilter.options).some((option) => option.value === previousActivityType)
+      ? previousActivityType
+      : "All Activity Types";
+  }
+
+  if (activitiesProjectTypeFilter) {
+    activitiesProjectTypeFilter.value = Array.from(activitiesProjectTypeFilter.options).some((option) => option.value === previousProjectType)
+      ? previousProjectType
+      : "All Project Types";
+  }
+
+  if (activitiesProjectStatusFilter) {
+    activitiesProjectStatusFilter.value = Array.from(activitiesProjectStatusFilter.options).some((option) => option.value === previousProjectStatus)
+      ? previousProjectStatus
+      : "All Statuses";
+  }
+
   if (state.selectedProject) {
     const projectStillExists = projectSummaries.some((project) => project.name === state.selectedProject);
     if (!projectStillExists) {
