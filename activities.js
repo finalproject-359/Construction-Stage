@@ -327,7 +327,7 @@ const EMPTY_STATE_HTML = `
 const renderEmptyState = (message = "Get started by adding your first activity") => {
   activitiesTableBody.innerHTML = `
     <tr class="activities-empty-row">
-      <td colspan="7">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
+      <td colspan="8">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
     </tr>
   `;
 };
