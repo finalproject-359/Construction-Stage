@@ -1453,8 +1453,11 @@ th { color: var(--muted); }
 }
 
 .activity-row-actions {
-  display: inline-flex;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   gap: 6px;
+  width: 100%;
 }
 
 .action-menu-trigger {
