@@ -1444,7 +1444,8 @@ if (activityModalForm) {
     }
 
     const isEditing = Boolean(state.editingActivityKey);
-    const existingActivity = isEditing ? state.allActivities[findActivityIndexByKey(state.editingActivityKey)] : null;
+    const editingIndex = isEditing ? findActivityIndexByKey(state.editingActivityKey) : -1;
+    const existingActivity = editingIndex >= 0 ? state.allActivities[editingIndex] : null;
     const preservedType = isEditing
       ? String(existingActivity?.type ?? existingActivity?.activityType ?? "-").trim() || "-"
       : "-";
@@ -1462,13 +1463,12 @@ if (activityModalForm) {
     });
 
     if (isEditing) {
-      const index = findActivityIndexByKey(state.editingActivityKey);
-      if (index < 0) {
+      if (editingIndex < 0) {
         window.alert("Unable to update. Activity no longer exists.");
         closeAddActivityModal();
         return;
       }
-      state.allActivities[index] = nextActivity;
+      state.allActivities[editingIndex] = nextActivity;
     } else {
       state.allActivities.unshift(nextActivity);
     }
