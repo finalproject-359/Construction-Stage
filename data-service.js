@@ -6,13 +6,13 @@
     "project id",
     "project name",
     "activity id",
+    "project id",
+    "project",
     "activity",
     "planned start",
     "planned finish",
-    "duration",
-    "status",
     "complete",
-    "created at",
+    "notes",
   ];
 
   const normalizeHeader = (value) =>

@@ -1513,6 +1513,7 @@ if (activityModalForm) {
       plannedFinish: toInputDate(nextActivity.plannedFinishDate || nextActivity.plannedFinish),
       duration: nextActivity.duration,
       percentComplete: nextActivity.progress,
+      notes: "",
     };
 
     if (isEditing) {

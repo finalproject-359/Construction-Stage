@@ -38,7 +38,7 @@ const CONFIG = {
       'Duration',
       'Status',
       '% Complete',
-      'Created At',
+      'Notes',
     ],
     costs: [
       'Cost ID',
@@ -266,7 +266,7 @@ function handleActivityMutation(action, payload) {
     if (columns.plannedFinish) rowValues[columns.plannedFinish - 1] = activity.plannedFinish;
     if (columns.duration) rowValues[columns.duration - 1] = activity.duration;
     if (columns.percentComplete) rowValues[columns.percentComplete - 1] = activity.percentComplete;
-    if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
+    if (columns.notes) rowValues[columns.notes - 1] = activity.notes;
 
     sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
 
@@ -347,6 +347,7 @@ function normalizeIncomingActivity(input) {
     plannedFinish: normalizeDate(source.plannedFinish || source.planned_finish || source.finishDate || source.finish_date),
     duration: cleanText(source.duration || source.durationDays || source.duration_days),
     percentComplete: parseNumber(source.percentComplete || source.percent_complete || source.progress),
+    notes: cleanText(source.notes || source.note || source.remarks),
   };
 }
 
@@ -373,7 +374,7 @@ function getActivityColumnMap(sheet) {
     duration: indexOfHeader(['Duration', 'Duration Days']),
     status: indexOfHeader(['Status']),
     percentComplete: indexOfHeader(['% Complete', 'Percent Complete', 'Progress']),
-    createdAt: indexOfHeader(['Created At']),
+    notes: indexOfHeader(['Notes', 'Remarks']),
     maxColumn: headers.length,
   };
 }
@@ -424,6 +425,7 @@ function updateActivityRow(activity) {
   if (lookup.columns.duration) rowValues[lookup.columns.duration - 1] = activity.duration;
   if (lookup.columns.status) rowValues[lookup.columns.status - 1] = activity.status;
   if (lookup.columns.percentComplete) rowValues[lookup.columns.percentComplete - 1] = activity.percentComplete;
+  if (lookup.columns.notes) rowValues[lookup.columns.notes - 1] = activity.notes;
   lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
   return activity;
 }
