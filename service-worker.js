@@ -60,7 +60,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    fetch(request)
+    fetch(request, { cache: "no-store" })
       .then((networkResponse) => {
         if (
           networkResponse &&
