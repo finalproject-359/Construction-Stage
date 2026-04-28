@@ -70,12 +70,6 @@ const BADGE_CLASS_BY_STATUS = {
   Delayed: "badge-delayed",
 };
 
-const BADGE_CLASS_BY_COST = {
-  "Under Budget": "badge-under",
-  "On Budget": "badge-on",
-  "Over Budget": "badge-over",
-};
-
 const PROGRESS_CLASS_BY_STATUS = {
   Completed: "progress-completed",
   Delayed: "progress-delayed",
@@ -207,7 +201,7 @@ const normalizeActivity = (activity = {}) => {
   const isDateLike = (value) => Boolean(parseDateValue(value));
   const isKnownStatus = (value) => Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_STATUS, String(value || "").trim());
   const isNumericLike = (value) => /^-?\d+(\.\d+)?%?$/.test(String(value || "").trim());
-  const isKnownCostStatus = (value) => Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_COST, String(value || "").trim());
+  const isKnownCostStatus = (value) => ["Under Budget", "On Budget", "Over Budget"].includes(String(value || "").trim());
   const normalizedType = String(type || "").trim();
 
   // Guard against shifted source data where values are offset by one column:
@@ -265,21 +259,16 @@ const normalizeActivity = (activity = {}) => {
 const buildActivityRowHtml = (activity) => {
   const progressClass = PROGRESS_CLASS_BY_STATUS[activity.status] || "";
   const statusClass = BADGE_CLASS_BY_STATUS[activity.status] || "badge-on";
-  const costClass = BADGE_CLASS_BY_COST[activity.costStatus] || "badge-on";
-
   return `
     <tr>
       <td>${escapeHtml(activity.id)}</td>
       <td>${escapeHtml(activity.name)}</td>
-      <td>${escapeHtml(activity.project)}</td>
-      <td>${escapeHtml(activity.type)}</td>
       <td><span class="badge ${statusClass}">${escapeHtml(activity.status)}</span></td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>${escapeHtml(activity.plannedFinish)}</td>
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>
-      <td><span class="badge ${costClass}">${escapeHtml(activity.costStatus)}</span></td>
       <td class="actions-col">⋮</td>
     </tr>
   `;
@@ -309,7 +298,7 @@ const EMPTY_STATE_HTML = `
 const renderEmptyState = (message = "Get started by adding your first activity") => {
   activitiesTableBody.innerHTML = `
     <tr class="activities-empty-row">
-      <td colspan="10">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
+      <td colspan="7">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
     </tr>
   `;
 };
@@ -804,7 +793,7 @@ const applyFilters = () => {
     const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
     const textMatch =
       !searchValue ||
-      `${item.name} ${item.project} ${item.type} ${item.status} ${item.costStatus}`.toLowerCase().includes(searchValue);
+      `${item.name} ${item.status}`.toLowerCase().includes(searchValue);
     const dateValue = item.plannedStartDate;
     const hasDateFilter = Boolean(dateStartValue || dateEndValue);
     const dateMatch =
@@ -1183,7 +1172,6 @@ if (activityModalForm) {
       name: String(formData.get("activityName") || "").trim(),
       project: state.selectedProject,
       type: String(formData.get("activityType") || "").trim(),
-      description: String(formData.get("description") || "").trim(),
       status: "Not Started",
       plannedStart,
       plannedFinish,

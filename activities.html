@@ -28,7 +28,7 @@
       <header class="topbar activities-topbar">
         <div>
           <h1>Activities</h1>
-          <p class="activities-subtitle">Track milestones, status, and cost movement across ongoing work.</p>
+          <p class="activities-subtitle">Track milestones and status across ongoing work.</p>
         </div>
       </header>
 
@@ -140,7 +140,7 @@
         <div class="activities-filter-row">
           <label class="activities-search-field">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input id="activitiesSearchInput" type="search" placeholder="Search activities, projects, or status..." aria-label="Search activities" />
+            <input id="activitiesSearchInput" type="search" placeholder="Search activities or status..." aria-label="Search activities" />
           </label>
 
           <label class="activities-select-field">
@@ -193,19 +193,16 @@
               <tr>
                 <th>Activity ID</th>
                 <th>Activity</th>
-                <th>Project</th>
-                <th>Activity Type</th>
                 <th>Status</th>
                 <th>Planned Start</th>
                 <th>Planned Finish</th>
                 <th>Progress</th>
-                <th>Cost Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="activitiesTableBody">
               <tr class="activities-empty-row">
-                <td colspan="10">
+                <td colspan="7">
                   <div class="activities-empty-state">
                     <div class="activities-empty-illustration" aria-hidden="true">
                       <svg viewBox="0 0 120 120" fill="none">
@@ -278,10 +275,6 @@
                 <input id="activityModalTypeInput" name="activityType" type="text" required placeholder="Enter activity type" />
               </label>
 
-              <label class="activity-field">
-                <span>Description</span>
-                <textarea id="activityModalDescriptionInput" name="description" maxlength="500" placeholder="Enter activity description (optional)"></textarea>
-              </label>
             </div>
 
             <div class="activity-form-section">
