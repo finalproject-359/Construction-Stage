@@ -564,6 +564,8 @@ const generateCharts = (rows) => {
 
 const processRows = (rawRows, sourceName = "web app") => {
   if (!Array.isArray(rawRows) || !rawRows.length) {
+    latestDashboardSignature = JSON.stringify([]);
+    localStorage.removeItem(DASHBOARD_CACHE_KEY);
     dashboardRows = [];
     renderKpis({ planned: 0, actual: 0, cv: 0 });
     renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
