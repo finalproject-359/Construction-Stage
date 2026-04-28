@@ -1,6 +1,6 @@
 (function attachDataBridge(global) {
   const DEFAULT_DATA_SOURCE_URL =
-    "https://script.google.com/macros/s/AKfycbzS5JmCF8kxtUybOAa5gtthqOeynoRRVIKFYuScLaVjb7Njp2oOYS2GwwkmnzGyDpBY/exec";
+    "https://script.google.com/macros/s/AKfycbw-jTCH3608w8QhMjpNEjTudfEUREshU9tU8oAaCUqb9xVfAERH4NbC3bkhqsKHxbM/exec";
 
   const EXPECTED_HEADER_ALIASES = [
     "project id",
