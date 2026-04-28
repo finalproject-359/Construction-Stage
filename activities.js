@@ -1031,7 +1031,10 @@ const renderTable = () => {
   }
 
   if (!state.filteredActivities.length) {
-    if (!state.allActivities.length) {
+    const hasActivitiesForSelectedProject = state.allActivities.some(
+      (item) => item.project === state.selectedProject
+    );
+    if (!hasActivitiesForSelectedProject) {
       renderEmptyState();
     } else {
       renderEmptyState("No activities found for the selected filters.");
