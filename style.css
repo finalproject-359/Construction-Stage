@@ -1449,7 +1449,12 @@ th { color: var(--muted); }
 .actions-col {
   position: relative;
   text-align: center;
-  width: 54px;
+  min-width: 140px;
+}
+
+.activity-row-actions {
+  display: inline-flex;
+  gap: 6px;
 }
 
 .action-menu-trigger {
