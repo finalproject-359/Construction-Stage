@@ -794,9 +794,13 @@ th { color: var(--muted); }
 .activities-project-selection-toolbar-left {
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(150px, 1fr) minmax(140px, 1fr) minmax(180px, 1.2fr) 42px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) 42px;
   align-items: center;
   flex: 1 1 780px;
+  min-width: 0;
+}
+
+.activities-project-selection-toolbar-left > * {
   min-width: 0;
 }
 
@@ -1096,12 +1100,16 @@ th { color: var(--muted); }
   display: grid;
   gap: 10px;
   grid-template-columns:
-    minmax(260px, 1.6fr)
-    minmax(165px, 1fr)
-    minmax(200px, 1.1fr)
-    minmax(170px, 0.95fr)
-    auto;
+    minmax(0, 1.6fr)
+    minmax(0, 1fr)
+    minmax(0, 1.1fr)
+    minmax(0, 0.95fr)
+    minmax(0, auto);
   align-items: center;
+}
+
+.activities-filter-row > * {
+  min-width: 0;
 }
 
 .activities-search-field,
@@ -1263,7 +1271,7 @@ th { color: var(--muted); }
   display: flex;
   gap: 0;
   justify-content: flex-end;
-  min-width: 150px;
+  min-width: 0;
 }
 
 .activities-add-btn {
@@ -1515,11 +1523,11 @@ th { color: var(--muted); }
 
   .activities-filter-row {
     grid-template-columns:
-      minmax(220px, 1.3fr)
-      minmax(145px, 0.95fr)
-      minmax(165px, 1fr)
-      minmax(165px, 0.95fr)
-      auto;
+      minmax(0, 1.3fr)
+      minmax(0, 0.95fr)
+      minmax(0, 1fr)
+      minmax(0, 0.95fr)
+      minmax(0, auto);
   }
 }
 
