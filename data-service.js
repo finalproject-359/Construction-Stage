@@ -4,13 +4,13 @@
 
   const EXPECTED_HEADER_ALIASES = [
     "activity id",
+    "project id",
+    "project",
     "activity",
-    "planned value",
-    "actual cost",
-    "earned value",
+    "planned start",
+    "planned finish",
     "complete",
-    "cost variance",
-    "budget",
+    "notes",
   ];
 
   const normalizeHeader = (value) =>

@@ -1513,10 +1513,6 @@ if (activityModalForm) {
       plannedStart: toInputDate(nextActivity.plannedStartDate || nextActivity.plannedStart),
       plannedFinish: toInputDate(nextActivity.plannedFinishDate || nextActivity.plannedFinish),
       percentComplete: nextActivity.progress,
-      plannedValue: 0,
-      actualCost: 0,
-      earnedValue: 0,
-      costVariance: 0,
       notes: "",
     };
 
