@@ -952,7 +952,27 @@ if (activitiesProjectPickerGrid) {
     const project = button.dataset.project || "All Projects";
     state.selectedProject = project;
     applyFilters();
-    activitiesViewShell?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+if (activitiesBackToProjectsBtn) {
+  activitiesBackToProjectsBtn.addEventListener("click", () => {
+    state.selectedProject = null;
+    state.currentPage = 1;
+    if (activitiesSearchInput) activitiesSearchInput.value = "";
+    if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
+    if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
+    state.dateRange.start = null;
+    state.dateRange.end = null;
+    if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
+    if (activitiesFilterEndDate) {
+      activitiesFilterEndDate.value = "";
+      activitiesFilterEndDate.min = "";
+    }
+    syncDateFilterLabel();
+    applyFilters();
+    activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
