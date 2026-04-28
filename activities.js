@@ -38,6 +38,7 @@ const activityModalCloseBtn = document.getElementById("activityModalCloseBtn");
 const activityModalCancelBtn = document.getElementById("activityModalCancelBtn");
 const activityModalForm = document.getElementById("activityModalForm");
 const activityModalProjectInput = document.getElementById("activityModalProjectInput");
+const activityModalProjectDisplay = document.getElementById("activityModalProjectDisplay");
 const activityModalStartDateInput = document.getElementById("activityModalStartDateInput");
 const activityModalFinishDateInput = document.getElementById("activityModalFinishDateInput");
 const activityModalTitle = document.getElementById("activityModalTitle");
@@ -873,6 +874,21 @@ const setActivityModalMode = (mode = "add") => {
   }
 };
 
+const updateActivityModalProjectDetails = (projectName) => {
+  const projectSummaries = buildProjectSummaries();
+  const selectedProjectSummary = projectSummaries.find((project) => project.name === projectName);
+  const formattedProject = selectedProjectSummary?.code
+    ? `${selectedProjectSummary.code} — ${selectedProjectSummary.name}`
+    : projectName || "—";
+
+  if (activityModalProjectInput) {
+    activityModalProjectInput.value = projectName || "";
+  }
+  if (activityModalProjectDisplay) {
+    activityModalProjectDisplay.textContent = formattedProject;
+  }
+};
+
 const openAddActivityModal = () => {
   if (!hasSelectedProject()) {
     window.alert("Please select a project first.");
@@ -883,9 +899,7 @@ const openAddActivityModal = () => {
   if (!activityModal) return;
   state.editingActivityKey = null;
   setActivityModalMode("add");
-  if (activityModalProjectInput) {
-    activityModalProjectInput.value = state.selectedProject;
-  }
+  updateActivityModalProjectDetails(state.selectedProject);
   activityModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
   window.setTimeout(() => {
@@ -917,7 +931,7 @@ const openEditActivityModal = (activityKey) => {
   idInput.value = activity.id || "";
   nameInput.value = activity.name || "";
   typeInput.value = activity.type || "";
-  if (activityModalProjectInput) activityModalProjectInput.value = activity.project || state.selectedProject || "";
+  updateActivityModalProjectDetails(activity.project || state.selectedProject || "");
   if (activityModalStartDateInput) activityModalStartDateInput.value = toInputDate(activity.plannedStartDate || activity.plannedStart);
   if (activityModalFinishDateInput) {
     activityModalFinishDateInput.value = toInputDate(activity.plannedFinishDate || activity.plannedFinish);

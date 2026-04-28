@@ -253,6 +253,17 @@
           </header>
 
           <form id="activityModalForm" class="activity-form">
+            <section class="activity-project-highlight" aria-live="polite">
+              <div class="activity-project-highlight-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
+              </div>
+              <div class="activity-project-highlight-copy">
+                <p>Selected Project</p>
+                <h3 id="activityModalProjectDisplay">—</h3>
+              </div>
+            </section>
+            <input id="activityModalProjectInput" name="project" type="hidden" />
+
             <div class="activity-form-section">
               <h3>Activity Information</h3>
 
@@ -264,11 +275,6 @@
               <label class="activity-field">
                 <span>Activity Name <em>*</em></span>
                 <input id="activityModalNameInput" name="activityName" type="text" required placeholder="Enter activity name" />
-              </label>
-
-              <label class="activity-field">
-                <span>Project <em>*</em></span>
-                <input id="activityModalProjectInput" name="project" type="text" required placeholder="Select project in Activities page" readonly />
               </label>
 
               <label class="activity-field">
