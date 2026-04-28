@@ -1,6 +1,77 @@
 /* Page-specific styles for activities and add-activity pages. */
 body.page-activities {
-  /* Reserved for activities-only overrides. */
+  background:
+    radial-gradient(circle at 0% 0%, rgba(47, 85, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 100% 20%, rgba(56, 189, 248, 0.08), transparent 42%),
+    var(--bg);
+}
+
+body.page-activities .main-content {
+  gap: 14px;
+}
+
+body.page-activities .table-panel {
+  border-radius: 16px;
+  border-color: #e1e8f5;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+}
+
+body.page-activities .activities-selected-project-banner {
+  background: linear-gradient(120deg, #f7f9ff, #ffffff 60%);
+}
+
+body.page-activities .activities-kpi-card {
+  border-color: #e4eaf7;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+body.page-activities .activities-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: #cfdcfe;
+  box-shadow: 0 16px 28px rgba(47, 85, 255, 0.12);
+}
+
+body.page-activities .activities-controls {
+  position: sticky;
+  top: 12px;
+  z-index: 5;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+}
+
+body.page-activities .activities-add-btn,
+body.page-activities .activities-how-it-works-btn,
+body.page-activities .activities-project-picker-card,
+body.page-activities .activities-pagination button {
+  transition: transform 150ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+body.page-activities .activities-how-it-works-btn:hover,
+body.page-activities .activities-project-picker-card:hover,
+body.page-activities .activities-pagination button:hover {
+  transform: translateY(-1px);
+}
+
+body.page-activities .activities-add-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(47, 85, 255, 0.28);
+}
+
+body.page-activities .activities-table-panel table {
+  min-width: 1120px;
+}
+
+body.page-activities .activities-table-panel tbody tr:nth-child(odd) {
+  background: rgba(247, 249, 255, 0.5);
+}
+
+body.page-activities .activities-table-panel tbody tr:hover {
+  background: #eef4ff;
+}
+
+body.page-activities .badge {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
 }
 
 .add-activity-page-panel {
@@ -15,4 +86,12 @@ a.activity-cancel-btn {
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+}
+
+@media (max-width: 900px) {
+  body.page-activities .activities-controls {
+    position: static;
+    backdrop-filter: none;
+    background: #fff;
+  }
 }
