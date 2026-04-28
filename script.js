@@ -29,6 +29,22 @@ let latestDashboardSignature = "";
 
 const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
 const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
+const EXTENSION_BRIDGE_DISCONNECT_MESSAGE =
+  "Could not establish connection. Receiving end does not exist.";
+
+window.addEventListener("unhandledrejection", (event) => {
+  const reasonMessage =
+    event?.reason && typeof event.reason === "object"
+      ? event.reason.message || ""
+      : String(event?.reason || "");
+
+  if (reasonMessage.includes(EXTENSION_BRIDGE_DISCONNECT_MESSAGE)) {
+    console.warn(
+      "Ignored a browser-extension bridge rejection because no receiving end is available."
+    );
+    event.preventDefault();
+  }
+});
 
 const getNiceStep = (rawStep) => {
   if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
