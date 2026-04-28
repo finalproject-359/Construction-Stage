@@ -1445,7 +1445,9 @@ if (activityModalForm) {
 
     const isEditing = Boolean(state.editingActivityKey);
     const existingActivity = isEditing ? state.allActivities[findActivityIndexByKey(state.editingActivityKey)] : null;
-    const preservedType = existingActivity?.type || existingActivity?.activityType || "-";
+    const preservedType = isEditing
+      ? String(existingActivity?.type ?? existingActivity?.activityType ?? "-").trim() || "-"
+      : "-";
 
     const nextActivity = normalizeActivity({
       id: String(formData.get("activityId") || "").trim(),
