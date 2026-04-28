@@ -193,6 +193,7 @@
               <tr>
                 <th>Activity ID</th>
                 <th>Activity</th>
+                <th>Activity Type</th>
                 <th>Planned Start</th>
                 <th>Planned Finish</th>
                 <th>Duration</th>
@@ -203,7 +204,7 @@
             </thead>
             <tbody id="activitiesTableBody">
               <tr class="activities-empty-row">
-                <td colspan="8">
+                <td colspan="9">
                   <div class="activities-empty-state">
                     <div class="activities-empty-illustration" aria-hidden="true">
                       <svg viewBox="0 0 120 120" fill="none">
@@ -279,7 +280,19 @@
 
               <label class="activity-field">
                 <span>Activity Type <em>*</em></span>
-                <input id="activityModalTypeInput" name="activityType" type="text" required placeholder="Enter activity type" />
+                <select id="activityModalTypeInput" name="activityType" required>
+                  <option value="" selected disabled>Select activity type</option>
+                  <option value="Site Preparation">Site Preparation</option>
+                  <option value="Excavation">Excavation</option>
+                  <option value="Foundation">Foundation</option>
+                  <option value="Structural">Structural</option>
+                  <option value="Civil Works">Civil Works</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="Finishing">Finishing</option>
+                  <option value="Inspection">Inspection</option>
+                  <option value="Procurement">Procurement</option>
+                </select>
               </label>
 
             </div>
