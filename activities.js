@@ -12,6 +12,7 @@ const activitiesFilterEndDate = document.getElementById("activitiesFilterEndDate
 const activitiesDateClearBtn = document.getElementById("activitiesDateClearBtn");
 const activitiesDateApplyBtn = document.getElementById("activitiesDateApplyBtn");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
+const activitiesProjectSelectionFilters = document.getElementById("activitiesProjectSelectionFilters");
 const activitiesProjectSelection = document.getElementById("activitiesProjectSelection");
 const activitiesViewShell = document.getElementById("activitiesViewShell");
 const activitiesProjectPickerSearch = document.getElementById("activitiesProjectPickerSearch");
@@ -685,6 +686,9 @@ const renderProjectPicker = () => {
 
 const syncWorkflowState = () => {
   const shouldShowProjectSelection = !hasSelectedProject();
+  if (activitiesProjectSelectionFilters) {
+    activitiesProjectSelectionFilters.hidden = !shouldShowProjectSelection;
+  }
   if (activitiesProjectSelection) {
     activitiesProjectSelection.hidden = !shouldShowProjectSelection;
   }
@@ -938,6 +942,7 @@ if (activitiesProjectPickerGrid) {
     }
     state.selectedProject = project;
     applyFilters();
+    activitiesViewShell?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
