@@ -1,8 +1,9 @@
 const activitiesTableBody = document.getElementById("activitiesTableBody");
 const activitiesSearchInput = document.getElementById("activitiesSearchInput");
-const activitiesProjectFilter = document.getElementById("activitiesProjectFilter");
 const activitiesStatusFilter = document.getElementById("activitiesStatusFilter");
 const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
+const activitiesSelectedProjectName = document.getElementById("activitiesSelectedProjectName");
+const activitiesBackToProjectsBtn = document.getElementById("activitiesBackToProjectsBtn");
 const activitiesDateFilterWrap = document.querySelector(".activities-date-filter");
 const activitiesDateFilterBtn = document.getElementById("activitiesDateFilterBtn");
 const activitiesDateFilterLabel = document.getElementById("activitiesDateFilterLabel");
@@ -324,7 +325,7 @@ const state = {
   allActivities: initialActivities,
   filteredActivities: initialActivities,
   currentPage: 1,
-  selectedProject: "All Projects",
+  selectedProject: null,
   projectSearch: "",
   projectDateRange: {
     start: null,
@@ -471,7 +472,7 @@ const loadActivitiesAndProjectsFromSource = async () => {
   }
 };
 
-const hasSelectedProject = () => state.selectedProject && state.selectedProject !== "All Projects";
+const hasSelectedProject = () => Boolean(state.selectedProject);
 
 const formatDateRangeLabel = () => {
   const { start, end } = state.dateRange;
@@ -586,7 +587,6 @@ const openDateRangePanel = () => {
 const updateKpis = (sourceActivities) => {
   const hasActiveFilters =
     Boolean(activitiesSearchInput?.value.trim()) ||
-    (activitiesProjectFilter?.value && activitiesProjectFilter.value !== "All Projects") ||
     (activitiesStatusFilter?.value && activitiesStatusFilter.value !== "All Statuses") ||
     (activitiesTypeFilter?.value && activitiesTypeFilter.value !== "All Activity Types") ||
     Boolean(state.dateRange.start || state.dateRange.end);
@@ -709,6 +709,9 @@ const syncWorkflowState = () => {
   if (activitiesViewShell) {
     activitiesViewShell.hidden = shouldShowProjectSelection;
   }
+  if (activitiesSelectedProjectName) {
+    activitiesSelectedProjectName.textContent = state.selectedProject || "—";
+  }
 };
 
 const renderPagination = () => {
@@ -760,18 +763,16 @@ const renderTable = () => {
 
 const applyFilters = () => {
   const searchValue = activitiesSearchInput?.value.trim().toLowerCase() || "";
-  const projectValue = activitiesProjectFilter?.value || "All Projects";
   const statusValue = activitiesStatusFilter?.value || "All Statuses";
   const typeValue = activitiesTypeFilter?.value || "All Activity Types";
   const dateStartValue = state.dateRange.start;
   const dateEndValue = state.dateRange.end;
-  state.selectedProject = projectValue;
 
   if (!hasSelectedProject()) {
     state.filteredActivities = [];
   } else {
     state.filteredActivities = state.allActivities.filter((item) => {
-    const projectMatch = projectValue === "All Projects" || item.project === projectValue;
+    const projectMatch = item.project === state.selectedProject;
     const statusMatch = statusValue === "All Statuses" || item.status === statusValue;
     const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
     const textMatch =
@@ -802,7 +803,7 @@ const openActivityModal = () => {
   if (!activityModal || !activityForm) return;
   if (!hasSelectedProject()) {
     window.alert("Please select a project first.");
-    activitiesProjectFilter?.focus();
+    activitiesProjectPickerSearch?.focus();
     return;
   }
 
@@ -822,18 +823,16 @@ const closeActivityModal = () => {
 };
 
 const refreshFilterOptions = () => {
-  const previousProjectSelection = state.selectedProject;
   const projectSummaries = buildProjectSummaries();
-  populateSelect(activitiesProjectFilter, uniqueSorted(projectSummaries.map((row) => row.name)), "All Projects");
   populateSelect(activitiesStatusFilter, uniqueSorted(state.allActivities.map((row) => row.status)), "All Statuses");
   populateSelect(activitiesTypeFilter, uniqueSorted(state.allActivities.map((row) => row.type)), "All Activity Types");
   populateSelect(activitiesProjectTypeFilter, uniqueSorted(projectSummaries.map((row) => row.type)), "All Project Types");
   populateSelect(activitiesProjectStatusFilter, uniqueSorted(projectSummaries.map((row) => row.status)), "All Statuses");
-  if (activitiesProjectFilter && previousProjectSelection !== "All Projects") {
-    const stillExists = Array.from(activitiesProjectFilter.options).some(
-      (option) => option.value === previousProjectSelection
-    );
-    activitiesProjectFilter.value = stillExists ? previousProjectSelection : "All Projects";
+  if (state.selectedProject) {
+    const projectStillExists = projectSummaries.some((project) => project.name === state.selectedProject);
+    if (!projectStillExists) {
+      state.selectedProject = null;
+    }
   }
   renderProjectPicker();
 };
@@ -863,7 +862,7 @@ const onPaginationClick = (event) => {
 
 refreshFilterOptions();
 
-[activitiesSearchInput, activitiesProjectFilter, activitiesStatusFilter, activitiesTypeFilter]
+[activitiesSearchInput, activitiesStatusFilter, activitiesTypeFilter]
   .filter(Boolean)
   .forEach((el) => {
     el.addEventListener("input", applyFilters);
@@ -951,12 +950,29 @@ if (activitiesProjectPickerGrid) {
     const button = event.target.closest("[data-project]");
     if (!button) return;
     const project = button.dataset.project || "All Projects";
-    if (activitiesProjectFilter) {
-      activitiesProjectFilter.value = project;
-    }
     state.selectedProject = project;
     applyFilters();
-    activitiesViewShell?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+if (activitiesBackToProjectsBtn) {
+  activitiesBackToProjectsBtn.addEventListener("click", () => {
+    state.selectedProject = null;
+    state.currentPage = 1;
+    if (activitiesSearchInput) activitiesSearchInput.value = "";
+    if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
+    if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
+    state.dateRange.start = null;
+    state.dateRange.end = null;
+    if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
+    if (activitiesFilterEndDate) {
+      activitiesFilterEndDate.value = "";
+      activitiesFilterEndDate.min = "";
+    }
+    syncDateFilterLabel();
+    applyFilters();
+    activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -1061,7 +1077,7 @@ if (activityForm) {
     event.preventDefault();
     if (!hasSelectedProject()) {
       window.alert("Please select a project first.");
-      activitiesProjectFilter?.focus();
+      activitiesProjectPickerSearch?.focus();
       return;
     }
 

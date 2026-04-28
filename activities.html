@@ -101,7 +101,17 @@
         </div>
       </section>
 
-      <div id="activitiesViewShell">
+      <div id="activitiesViewShell" class="activities-view-shell">
+      <section class="activities-selected-project-banner table-panel" aria-live="polite">
+        <div>
+          <p class="activities-selected-project-label">Selected Project</p>
+          <h2 id="activitiesSelectedProjectName">—</h2>
+        </div>
+        <button id="activitiesBackToProjectsBtn" class="secondary-btn" type="button">
+          ← Back to Projects
+        </button>
+      </section>
+
       <section class="activities-kpi-grid">
         <article class="activities-kpi-card">
           <h2><span class="activities-kpi-icon icon-total" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg></span>Total Activities</h2>
@@ -130,12 +140,6 @@
           <label class="activities-search-field">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
             <input id="activitiesSearchInput" type="search" placeholder="Search activities, projects, or status..." aria-label="Search activities" />
-          </label>
-
-          <label class="activities-select-field">
-            <select id="activitiesProjectFilter" aria-label="Filter by project">
-              <option>All Projects</option>
-            </select>
           </label>
 
           <label class="activities-select-field">
