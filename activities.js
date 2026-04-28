@@ -125,20 +125,34 @@ const populateSelect = (selectEl, values, defaultLabel) => {
   });
 };
 
+const parseDateStringAsLocalDate = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const localDate = new Date(year, monthIndex, day);
+  localDate.setHours(0, 0, 0, 0);
+  return Number.isNaN(localDate.getTime()) ? null : localDate;
+};
+
 const toDisplayDate = (value) => {
   if (!value) return "-";
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
 
-  const parsed = new Date(value);
+  const parsed = parseDateStringAsLocalDate(value) || new Date(value);
   if (Number.isNaN(parsed.getTime())) return String(value);
   return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
 const parseDateValue = (value) => {
   if (!value) return null;
-  const parsed = value instanceof Date ? value : new Date(value);
+  const parsed = value instanceof Date ? value : parseDateStringAsLocalDate(value) || new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   parsed.setHours(0, 0, 0, 0);
   return parsed;
