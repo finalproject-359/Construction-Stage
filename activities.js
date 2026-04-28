@@ -401,10 +401,18 @@ const countPhilippineWorkingDaysInclusive = (startDate, finishDate) => {
 };
 
 const toDurationLabel = (durationRaw, plannedStartDate, plannedFinishDate) => {
-  const numericDuration = Number(String(durationRaw ?? "").replace("%", "").trim());
-  if (Number.isFinite(numericDuration) && numericDuration >= 0) {
-    const roundedDuration = Math.round(numericDuration);
-    return `${roundedDuration} day${roundedDuration === 1 ? "" : "s"}`;
+  const durationText = String(durationRaw ?? "").trim();
+  if (durationText) {
+    const numericMatch = durationText.match(/-?\d+(\.\d+)?/);
+    if (numericMatch) {
+      const numericDuration = Number(numericMatch[0]);
+      if (Number.isFinite(numericDuration) && numericDuration >= 0) {
+        const roundedDuration = Math.round(numericDuration);
+        return `${roundedDuration} day${roundedDuration === 1 ? "" : "s"}`;
+      }
+    }
+
+    return durationText;
   }
 
   if (!(plannedStartDate instanceof Date) || !(plannedFinishDate instanceof Date)) return "-";
