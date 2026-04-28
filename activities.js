@@ -294,8 +294,7 @@ const buildActivityRowHtml = (activity) => {
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>
       <td class="actions-col">
-        <button type="button" class="action-menu-trigger" aria-label="Open activity actions" aria-expanded="false" data-menu-trigger data-activity-key="${escapeHtml(rowKey)}">⋮</button>
-        <div class="project-actions-menu" hidden data-action-menu data-activity-key="${escapeHtml(rowKey)}">
+        <div class="activity-row-actions">
           <button type="button" class="project-action-btn" data-action="edit" data-activity-key="${escapeHtml(rowKey)}">Edit</button>
           <button type="button" class="project-action-btn danger" data-action="delete" data-activity-key="${escapeHtml(rowKey)}">Delete</button>
         </div>
@@ -356,35 +355,6 @@ const state = {
   },
   didHydrateProjectFromUrl: false,
   editingActivityKey: null,
-  openActivityMenuKey: null,
-};
-
-const closeActivityActionMenus = () => {
-  state.openActivityMenuKey = null;
-  activitiesTableBody
-    .querySelectorAll("[data-action-menu]")
-    .forEach((menuEl) => {
-      menuEl.hidden = true;
-    });
-  activitiesTableBody
-    .querySelectorAll("[data-menu-trigger]")
-    .forEach((triggerEl) => {
-      triggerEl.setAttribute("aria-expanded", "false");
-    });
-};
-
-const toggleActivityActionMenu = (activityKey) => {
-  const shouldOpen = state.openActivityMenuKey !== activityKey;
-  closeActivityActionMenus();
-  if (!shouldOpen) return;
-
-  const menu = activitiesTableBody.querySelector(`[data-action-menu][data-activity-key="${CSS.escape(activityKey)}"]`);
-  const trigger = activitiesTableBody.querySelector(`[data-menu-trigger][data-activity-key="${CSS.escape(activityKey)}"]`);
-  if (!menu || !trigger) return;
-
-  menu.hidden = false;
-  trigger.setAttribute("aria-expanded", "true");
-  state.openActivityMenuKey = activityKey;
 };
 
 const updateActivitiesUrlParams = ({ project = state.selectedProject, keepAddedFlag = false } = {}) => {
@@ -1178,21 +1148,12 @@ activitiesTableBody.addEventListener("click", (event) => {
     return;
   }
 
-  const menuTrigger = event.target.closest("[data-menu-trigger][data-activity-key]");
-  if (menuTrigger) {
-    const activityKey = menuTrigger.dataset.activityKey || "";
-    if (!activityKey) return;
-    toggleActivityActionMenu(activityKey);
-    return;
-  }
-
   const actionButton = event.target.closest("[data-action][data-activity-key]");
   if (!actionButton) return;
 
   const action = actionButton.dataset.action;
   const activityKey = actionButton.dataset.activityKey || "";
   if (!activityKey) return;
-  closeActivityActionMenus();
 
   if (action === "edit") {
     openEditActivityModal(activityKey);
