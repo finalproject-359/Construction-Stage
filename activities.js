@@ -603,34 +603,41 @@ const mutateActivityInSource = async ({ action, activity }) => {
     });
 
   const parseResponsePayload = async (response) => {
+    const rawBody = await response.text();
+    if (!rawBody) {
+      return { payload: null, parseError: new Error("Empty response body") };
+    }
+
     try {
-      return await response.json();
-    } catch {
-      return null;
+      return { payload: JSON.parse(rawBody), parseError: null };
+    } catch (error) {
+      return { payload: null, parseError: error };
     }
   };
 
   let response;
   let payload;
+  let parseError;
   const sendViaGet = async () => {
     const url = new URL(DATA_SOURCE_URL);
     url.searchParams.set("payload", JSON.stringify(requestPayload));
     response = await fetch(url.toString(), { cache: "no-store" });
-    payload = await parseResponsePayload(response);
+    ({ payload, parseError } = await parseResponsePayload(response));
   };
 
   try {
     response = await postWithFormat("form");
-    payload = await parseResponsePayload(response);
+    ({ payload, parseError } = await parseResponsePayload(response));
 
     const needsJsonFallback =
+      !!parseError ||
       !response.ok ||
       (payload?.ok === false &&
         /invalid payload|invalid payload parameter json|invalid json payload/i.test(String(payload.error)));
 
     if (needsJsonFallback) {
       response = await postWithFormat("json");
-      payload = await parseResponsePayload(response);
+      ({ payload, parseError } = await parseResponsePayload(response));
     }
   } catch (error) {
     const maybeCorsIssue =
@@ -644,7 +651,7 @@ const mutateActivityInSource = async ({ action, activity }) => {
       }
     }
 
-    if (!response || payload?.ok === false) {
+    if (!response || payload?.ok === false || parseError) {
       const guidance = maybeCorsIssue
         ? "CORS check failed for POST. Verify your Google Apps Script Web App is deployed to Anyone and use the latest /exec deployment URL."
         : "Unable to reach the Google Sheet endpoint.";
@@ -658,6 +665,10 @@ const mutateActivityInSource = async ({ action, activity }) => {
 
   if (payload?.ok === false) {
     throw new Error(payload.error || `Unable to ${action} activity`);
+  }
+
+  if (parseError || !payload || typeof payload !== "object") {
+    throw new Error(`Unable to ${action} activity: endpoint returned a non-JSON response`);
   }
 
   return payload;
