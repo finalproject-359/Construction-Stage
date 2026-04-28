@@ -619,6 +619,11 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   }
 
+  if (isActivitiesSheetExpectedHeaders(expectedHeaders) && needsLegacyActivityDataMigration(sheet, expectedHeaders)) {
+    migrateLegacyActivityDataColumns(sheet, lastColumn);
+    firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  }
+
   const normalizedExpected = normalizeHeaders(expectedHeaders);
   const normalizedExisting = normalizeHeaders(firstRow);
   const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
@@ -752,6 +757,56 @@ function migrateLegacyActivityColumns(sheet, existingHeaders, expectedHeaders, l
   });
 
   sheet.getRange(1, 1, updatedValues.length, Math.max(lastColumn, sheet.getLastColumn())).setValues(updatedValues);
+}
+
+function needsLegacyActivityDataMigration(sheet, expectedHeaders) {
+  const normalizedExpected = expectedHeaders.map(function(header) {
+    return normalizeHeader(header);
+  });
+  const expectedPrefix = ['project id', 'project name', 'activity id'];
+  for (var i = 0; i < expectedPrefix.length; i += 1) {
+    if (normalizedExpected[i] !== expectedPrefix[i]) return false;
+  }
+
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return false;
+
+  var sampledRows = 0;
+  var legacySignals = 0;
+  for (var rowIdx = 1; rowIdx < values.length && sampledRows < 50; rowIdx += 1) {
+    var row = values[rowIdx] || [];
+    var col1 = cleanText(row[0]);
+    var col2 = cleanText(row[1]);
+    var col3 = cleanText(row[2]);
+    if (!col1 && !col2 && !col3) continue;
+
+    sampledRows += 1;
+    var projectNameLooksLegacy = /\s/.test(col3);
+    var idLikeCols = col1 && col2 && !/\s/.test(col1) && !/\s/.test(col2);
+    if (projectNameLooksLegacy && idLikeCols) {
+      legacySignals += 1;
+    }
+  }
+
+  if (sampledRows < 3) return false;
+  return legacySignals / sampledRows >= 0.6;
+}
+
+function migrateLegacyActivityDataColumns(sheet, lastColumn) {
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return;
+
+  for (var rowIdx = 1; rowIdx < values.length; rowIdx += 1) {
+    var row = values[rowIdx] || [];
+    var legacyActivityId = row[0];
+    var legacyProjectId = row[1];
+    var legacyProjectName = row[2];
+    row[0] = legacyProjectId;
+    row[1] = legacyProjectName;
+    row[2] = legacyActivityId;
+  }
+
+  sheet.getRange(1, 1, values.length, Math.max(lastColumn, sheet.getLastColumn())).setValues(values);
 }
 
 function normalizeIncomingProject(input) {
