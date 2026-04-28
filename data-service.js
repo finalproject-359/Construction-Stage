@@ -3,6 +3,8 @@
     "https://script.google.com/macros/s/AKfycbzS5JmCF8kxtUybOAa5gtthqOeynoRRVIKFYuScLaVjb7Njp2oOYS2GwwkmnzGyDpBY/exec";
 
   const EXPECTED_HEADER_ALIASES = [
+    "project id",
+    "project name",
     "activity id",
     "project id",
     "project",
