@@ -866,7 +866,8 @@ const updateKpis = (sourceActivities) => {
     (activitiesTypeFilter?.value && activitiesTypeFilter.value !== "All Activity Types") ||
     Boolean(state.dateRange.start || state.dateRange.end);
 
-  if (!hasActiveFilters && window.activitiesMeta?.kpi) {
+  const canUseGlobalMeta = !hasSelectedProject() && !hasActiveFilters && window.activitiesMeta?.kpi;
+  if (canUseGlobalMeta) {
     const metaKpis = window.activitiesMeta.kpi;
     if (kpiEls.total) kpiEls.total.textContent = window.activitiesMeta.totalCount ?? sourceActivities.length;
     if (kpiEls.completed) kpiEls.completed.textContent = Number(metaKpis.completed) || 0;
@@ -897,7 +898,12 @@ const updateKpis = (sourceActivities) => {
 const updateSummary = () => {
   if (!activitiesTableSummary) return;
 
-  const totalCount = Number(window.activitiesMeta?.totalCount) || state.allActivities.length;
+  const projectScopedTotal = hasSelectedProject()
+    ? state.allActivities.filter((item) => item.project === state.selectedProject).length
+    : state.allActivities.length;
+  const totalCount = hasSelectedProject()
+    ? projectScopedTotal
+    : Number(window.activitiesMeta?.totalCount) || projectScopedTotal;
   const filteredCount = state.filteredActivities.length;
 
   if (!filteredCount) {
@@ -1025,7 +1031,10 @@ const renderTable = () => {
   }
 
   if (!state.filteredActivities.length) {
-    if (!state.allActivities.length) {
+    const hasActivitiesForSelectedProject = state.allActivities.some(
+      (item) => item.project === state.selectedProject
+    );
+    if (!hasActivitiesForSelectedProject) {
       renderEmptyState();
     } else {
       renderEmptyState("No activities found for the selected filters.");
