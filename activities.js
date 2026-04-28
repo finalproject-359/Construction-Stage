@@ -401,10 +401,18 @@ const countPhilippineWorkingDaysInclusive = (startDate, finishDate) => {
 };
 
 const toDurationLabel = (durationRaw, plannedStartDate, plannedFinishDate) => {
-  const numericDuration = Number(String(durationRaw ?? "").replace("%", "").trim());
-  if (Number.isFinite(numericDuration) && numericDuration >= 0) {
-    const roundedDuration = Math.round(numericDuration);
-    return `${roundedDuration} day${roundedDuration === 1 ? "" : "s"}`;
+  const durationText = String(durationRaw ?? "").trim();
+  if (durationText) {
+    const numericMatch = durationText.match(/-?\d+(\.\d+)?/);
+    if (numericMatch) {
+      const numericDuration = Number(numericMatch[0]);
+      if (Number.isFinite(numericDuration) && numericDuration >= 0) {
+        const roundedDuration = Math.round(numericDuration);
+        return `${roundedDuration} day${roundedDuration === 1 ? "" : "s"}`;
+      }
+    }
+
+    return durationText;
   }
 
   if (!(plannedStartDate instanceof Date) || !(plannedFinishDate instanceof Date)) return "-";
@@ -478,6 +486,7 @@ const state = {
   filteredActivities: initialActivities,
   currentPage: 1,
   selectedProject: null,
+  openActivityMenuKey: null,
   projectSearch: "",
   projectDateRange: {
     start: null,
@@ -489,6 +498,10 @@ const state = {
   },
   didHydrateProjectFromUrl: false,
   editingActivityKey: null,
+};
+
+const closeActivityActionMenus = () => {
+  state.openActivityMenuKey = null;
 };
 
 const updateActivitiesUrlParams = ({ project = state.selectedProject, keepAddedFlag = false } = {}) => {
@@ -709,7 +722,28 @@ const loadActivitiesAndProjectsFromSource = async () => {
       },
     };
   } catch (error) {
-    throw new Error(`Unable to load activities from backend: ${error?.message || "Unknown error"}`);
+    const fallbackActivities = Array.isArray(window.activitiesData)
+      ? window.activitiesData.map(normalizeActivity)
+      : [];
+    const fallbackProjects = mergeProjects(
+      Array.isArray(window.activitiesProjectCatalog) ? window.activitiesProjectCatalog.map(normalizeProject) : [],
+      localProjects
+    );
+
+    return {
+      activities: fallbackActivities,
+      projects: fallbackProjects,
+      meta: {
+        totalCount: fallbackActivities.length,
+        kpi: {
+          completed: fallbackActivities.filter((activity) => activity.status === "Completed").length,
+          inProgress: fallbackActivities.filter((activity) => activity.status === "In Progress").length,
+          notStarted: fallbackActivities.filter((activity) => activity.status === "Not Started").length,
+          delayed: fallbackActivities.filter((activity) => activity.status === "Delayed").length,
+        },
+      },
+      loadError: error,
+    };
   }
 };
 
@@ -1608,6 +1642,9 @@ const handleAddedActivityNotice = () => {
 
 const bootstrapActivitiesPage = async () => {
   const source = await loadActivitiesAndProjectsFromSource();
+  if (source.loadError) {
+    console.warn("Unable to load activities from backend. Using fallback data.", source.loadError);
+  }
   const nextSignature = JSON.stringify({
     activities: source.activities,
     projects: source.projects,
