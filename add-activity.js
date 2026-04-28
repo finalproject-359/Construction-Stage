@@ -31,23 +31,76 @@ if (activityStartDateInput && activityFinishDateInput) {
 }
 
 const createActivityInSource = async (activity) => {
-  const response = await fetch(DATA_SOURCE_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      resource: "activities",
-      action: "create",
-      activity,
-    }),
-  });
+  const requestPayload = {
+    resource: "activities",
+    action: "create",
+    activity,
+  };
+
+  const postWithFormat = async (format) =>
+    fetch(DATA_SOURCE_URL, {
+      method: "POST",
+      headers: format === "json" ? { "Content-Type": "application/json" } : undefined,
+      body:
+        format === "json"
+          ? JSON.stringify(requestPayload)
+          : new URLSearchParams({ payload: JSON.stringify(requestPayload) }),
+    });
+
+  const parseResponsePayload = async (response) => {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  };
+
+  let response;
+  let payload;
+  const sendViaGet = async () => {
+    const url = new URL(DATA_SOURCE_URL);
+    url.searchParams.set("payload", JSON.stringify(requestPayload));
+    response = await fetch(url.toString(), { cache: "no-store" });
+    payload = await parseResponsePayload(response);
+  };
+
+  try {
+    response = await postWithFormat("form");
+    payload = await parseResponsePayload(response);
+
+    const needsJsonFallback =
+      !response.ok ||
+      (payload?.ok === false &&
+        /invalid payload|invalid payload parameter json|invalid json payload/i.test(String(payload.error)));
+
+    if (needsJsonFallback) {
+      response = await postWithFormat("json");
+      payload = await parseResponsePayload(response);
+    }
+  } catch (error) {
+    const maybeCorsIssue =
+      DATA_SOURCE_URL.includes("script.google.com/macros/s/") &&
+      /failed to fetch|networkerror|cors/i.test(String(error?.message || ""));
+    if (maybeCorsIssue) {
+      try {
+        await sendViaGet();
+      } catch {
+        // Fallback failed. Shared error path below will surface guidance.
+      }
+    }
+
+    if (!response || payload?.ok === false) {
+      const guidance = maybeCorsIssue
+        ? "CORS check failed for POST. Verify your Google Apps Script Web App is deployed to Anyone and use the latest /exec deployment URL."
+        : "Unable to reach the Google Sheet endpoint.";
+      throw new Error(`${guidance} If this endpoint was recently changed, update DATA_SOURCE_URL in data-service.js.`);
+    }
+  }
 
   if (!response.ok) {
     throw new Error(`Unable to save activity (HTTP ${response.status})`);
   }
 
-  const payload = await response.json();
   if (payload?.ok === false) {
     throw new Error(payload.error || "Unable to save activity");
   }
