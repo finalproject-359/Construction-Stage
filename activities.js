@@ -585,8 +585,10 @@ const openDateRangePanel = () => {
 };
 
 const updateKpis = (sourceActivities) => {
+  // A selected project scopes the table dataset and must count as an active filter.
+  const hasProjectSelection = Boolean(state.selectedProject);
   const hasActiveFilters =
-    hasSelectedProject() ||
+    hasProjectSelection ||
     Boolean(activitiesSearchInput?.value.trim()) ||
     (activitiesStatusFilter?.value && activitiesStatusFilter.value !== "All Statuses") ||
     (activitiesTypeFilter?.value && activitiesTypeFilter.value !== "All Activity Types") ||
