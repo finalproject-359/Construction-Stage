@@ -614,6 +614,11 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     return;
   }
 
+  if (isActivitiesSheetExpectedHeaders(expectedHeaders) && needsLegacyActivityColumnMigration(firstRow, expectedHeaders)) {
+    migrateLegacyActivityColumns(sheet, firstRow, expectedHeaders, lastColumn);
+    firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  }
+
   const normalizedExpected = normalizeHeaders(expectedHeaders);
   const normalizedExisting = normalizeHeaders(firstRow);
   const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
@@ -669,6 +674,84 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   if (needsHeaderSync) {
     sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
   }
+}
+
+function isActivitiesSheetExpectedHeaders(expectedHeaders) {
+  if (!expectedHeaders || !expectedHeaders.length) return false;
+  const normalized = expectedHeaders.map(function(header) {
+    return normalizeHeader(header);
+  });
+
+  return normalized.indexOf('activity id') >= 0 &&
+    normalized.indexOf('project id') >= 0 &&
+    normalized.indexOf('planned start') >= 0;
+}
+
+function needsLegacyActivityColumnMigration(existingHeaders, expectedHeaders) {
+  const normalizedExisting = existingHeaders.map(function(header) {
+    return normalizeHeader(header);
+  });
+  const normalizedExpected = expectedHeaders.map(function(header) {
+    return normalizeHeader(header);
+  });
+
+  const existingActivityIdIndex = normalizedExisting.indexOf('activity id');
+  const existingProjectIdIndex = normalizedExisting.indexOf('project id');
+  const expectedActivityIdIndex = normalizedExpected.indexOf('activity id');
+  const expectedProjectIdIndex = normalizedExpected.indexOf('project id');
+
+  if (existingActivityIdIndex < 0 || existingProjectIdIndex < 0) return false;
+  if (expectedActivityIdIndex < 0 || expectedProjectIdIndex < 0) return false;
+
+  return existingActivityIdIndex < existingProjectIdIndex && expectedActivityIdIndex > expectedProjectIdIndex;
+}
+
+function migrateLegacyActivityColumns(sheet, existingHeaders, expectedHeaders, lastColumn) {
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return;
+
+  const normalizeList = function(items) {
+    return items.map(function(item) {
+      return normalizeHeader(item);
+    });
+  };
+  const normalizedExisting = normalizeList(existingHeaders);
+  const normalizedExpected = normalizeList(expectedHeaders);
+  const aliasMap = {
+    'project id': ['project id', 'projectid'],
+    'project name': ['project name', 'project'],
+    'activity id': ['activity id', 'id', 'activity code'],
+    'activity': ['activity', 'activity name', 'name'],
+    'planned start': ['planned start', 'start date'],
+    'planned finish': ['planned finish', 'finish date'],
+    'duration': ['duration', 'duration days'],
+    'status': ['status'],
+    '% complete': ['% complete', 'percent complete', 'progress'],
+    'notes': ['notes', 'remarks'],
+  };
+
+  const indexByExpectedHeader = normalizedExpected.map(function(expectedHeader) {
+    const aliases = aliasMap[expectedHeader] || [expectedHeader];
+    for (var aliasIdx = 0; aliasIdx < aliases.length; aliasIdx += 1) {
+      const foundIndex = normalizedExisting.indexOf(normalizeHeader(aliases[aliasIdx]));
+      if (foundIndex >= 0) return foundIndex;
+    }
+    return -1;
+  });
+
+  const updatedValues = values.map(function(row, rowIndex) {
+    if (rowIndex === 0) return row;
+
+    const migrated = row.slice();
+    for (var targetIdx = 0; targetIdx < normalizedExpected.length; targetIdx += 1) {
+      const sourceIdx = indexByExpectedHeader[targetIdx];
+      if (sourceIdx < 0) continue;
+      migrated[targetIdx] = row[sourceIdx];
+    }
+    return migrated;
+  });
+
+  sheet.getRange(1, 1, updatedValues.length, Math.max(lastColumn, sheet.getLastColumn())).setValues(updatedValues);
 }
 
 function normalizeIncomingProject(input) {
