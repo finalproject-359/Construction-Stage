@@ -656,7 +656,13 @@ const mutateActivityInSource = async ({ action, activity }) => {
     throw new Error(`Unable to ${action} activity (HTTP ${response.status})`);
   }
 
-  if (payload?.ok === false) {
+  if (!payload || typeof payload !== "object" || typeof payload.ok !== "boolean") {
+    throw new Error(
+      "Unexpected response from Google Sheets endpoint. Verify DATA_SOURCE_URL points to the latest Apps Script /exec deployment URL."
+    );
+  }
+
+  if (payload.ok === false) {
     throw new Error(payload.error || `Unable to ${action} activity`);
   }
 
