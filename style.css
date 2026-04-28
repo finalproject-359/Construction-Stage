@@ -279,14 +279,14 @@ th { color: var(--muted); }
   grid-template-columns: repeat(5, minmax(180px, 1fr));
 }
 
-.projects-page .main-content {
+.page-projects .main-content {
   padding: 20px 22px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-.projects-page .topbar h1 {
+.page-projects .topbar h1 {
   margin-bottom: 10px;
   font-size: clamp(1.6rem, 2vw, 2.1rem);
 }
