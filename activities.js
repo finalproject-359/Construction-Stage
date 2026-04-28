@@ -1062,15 +1062,6 @@ const openEditActivityModal = (activityKey) => {
   state.editingActivityKey = activityKey;
   idInput.value = activity.id || "";
   nameInput.value = activity.name || "";
-  const activityType = activity.type || "";
-  const matchingOption = Array.from(typeInput.options).find((option) => option.value === activityType);
-  if (!matchingOption && activityType) {
-    const customOption = document.createElement("option");
-    customOption.value = activityType;
-    customOption.textContent = activityType;
-    typeInput.append(customOption);
-  }
-  typeInput.value = activityType;
   updateActivityModalProjectDetails(activity.project || state.selectedProject || "");
   if (activityModalStartDateInput) activityModalStartDateInput.value = toInputDate(activity.plannedStartDate || activity.plannedStart);
   if (activityModalFinishDateInput) {
@@ -1452,11 +1443,15 @@ if (activityModalForm) {
       return;
     }
 
+    const isEditing = Boolean(state.editingActivityKey);
+    const existingActivity = isEditing ? state.allActivities[findActivityIndexByKey(state.editingActivityKey)] : null;
+    const preservedType = existingActivity?.type || existingActivity?.activityType || "-";
+
     const nextActivity = normalizeActivity({
       id: String(formData.get("activityId") || "").trim(),
       name: String(formData.get("activityName") || "").trim(),
       project: state.selectedProject,
-      type: "-",
+      type: preservedType,
       status: "Not Started",
       plannedStart,
       plannedFinish,
@@ -1464,7 +1459,6 @@ if (activityModalForm) {
       durationStatus: "-",
     });
 
-    const isEditing = Boolean(state.editingActivityKey);
     if (isEditing) {
       const index = findActivityIndexByKey(state.editingActivityKey);
       if (index < 0) {
