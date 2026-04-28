@@ -32,6 +32,14 @@ const activitiesProjectDateApplyBtn = document.getElementById("activitiesProject
 const activitiesHowItWorksBtn = document.getElementById("activitiesHowItWorksBtn");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
 const activitiesPagination = document.querySelector(".activities-pagination");
+const activityModal = document.getElementById("activityModal");
+const activityModalBackdrop = document.getElementById("activityModalBackdrop");
+const activityModalCloseBtn = document.getElementById("activityModalCloseBtn");
+const activityModalCancelBtn = document.getElementById("activityModalCancelBtn");
+const activityModalForm = document.getElementById("activityModalForm");
+const activityModalProjectInput = document.getElementById("activityModalProjectInput");
+const activityModalStartDateInput = document.getElementById("activityModalStartDateInput");
+const activityModalFinishDateInput = document.getElementById("activityModalFinishDateInput");
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const LOCAL_STORAGE_KEY = "constructionStageActivities";
 const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
@@ -818,14 +826,34 @@ const applyFilters = () => {
 };
 
 
-const openAddActivityPage = () => {
+const closeAddActivityModal = ({ resetForm = true } = {}) => {
+  if (!activityModal) return;
+  activityModal.classList.add("hidden");
+  document.body.style.overflow = "";
+  if (resetForm && activityModalForm) {
+    activityModalForm.reset();
+    if (activityModalFinishDateInput) {
+      activityModalFinishDateInput.min = "";
+    }
+  }
+};
+
+const openAddActivityModal = () => {
   if (!hasSelectedProject()) {
     window.alert("Please select a project first.");
     activitiesProjectPickerSearch?.focus();
     return;
   }
 
-  window.location.href = `add-activity.html?project=${encodeURIComponent(state.selectedProject)}`;
+  if (!activityModal) return;
+  if (activityModalProjectInput) {
+    activityModalProjectInput.value = state.selectedProject;
+  }
+  activityModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  window.setTimeout(() => {
+    document.getElementById("activityModalIdInput")?.focus();
+  }, 0);
 };
 
 const refreshFilterOptions = () => {
@@ -911,7 +939,7 @@ if (activitiesPagination) {
 }
 
 if (activitiesAddButton) {
-  activitiesAddButton.addEventListener("click", openAddActivityPage);
+  activitiesAddButton.addEventListener("click", openAddActivityModal);
 }
 
 if (activitiesProjectPickerSearch) {
@@ -1023,11 +1051,16 @@ if (activitiesBackToProjectsBtn) {
 activitiesTableBody.addEventListener("click", (event) => {
   const button = event.target.closest("#activitiesAddButtonEmpty");
   if (!button) return;
-  openAddActivityPage();
+  openAddActivityModal();
 });
 
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && activityModal && !activityModal.classList.contains("hidden")) {
+    closeAddActivityModal();
+    return;
+  }
+
   if (event.key === "Escape" && activitiesDateRangePanel && !activitiesDateRangePanel.classList.contains("hidden")) {
     closeDateRangePanel();
     return;
@@ -1109,6 +1142,63 @@ document.addEventListener("click", (event) => {
     closeProjectDateRangePanel();
   }
 });
+
+if (activityModalStartDateInput && activityModalFinishDateInput) {
+  activityModalStartDateInput.addEventListener("change", () => {
+    activityModalFinishDateInput.min = activityModalStartDateInput.value || "";
+  });
+}
+
+if (activityModalCloseBtn) {
+  activityModalCloseBtn.addEventListener("click", () => closeAddActivityModal());
+}
+
+if (activityModalCancelBtn) {
+  activityModalCancelBtn.addEventListener("click", () => closeAddActivityModal());
+}
+
+if (activityModalBackdrop) {
+  activityModalBackdrop.addEventListener("click", () => closeAddActivityModal());
+}
+
+if (activityModalForm) {
+  activityModalForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!hasSelectedProject()) {
+      window.alert("Please select a project first.");
+      closeAddActivityModal();
+      return;
+    }
+
+    const formData = new FormData(activityModalForm);
+    const plannedStart = String(formData.get("plannedStart") || "");
+    const plannedFinish = String(formData.get("plannedFinish") || "");
+    if (plannedStart && plannedFinish && new Date(plannedStart) > new Date(plannedFinish)) {
+      window.alert("Planned finish date must be on or after planned start date.");
+      return;
+    }
+
+    const nextActivity = normalizeActivity({
+      id: String(formData.get("activityId") || "").trim(),
+      name: String(formData.get("activityName") || "").trim(),
+      project: state.selectedProject,
+      type: String(formData.get("activityType") || "").trim(),
+      description: String(formData.get("description") || "").trim(),
+      status: "Not Started",
+      plannedStart,
+      plannedFinish,
+      progress: 0,
+      costStatus: "On Budget",
+    });
+
+    state.allActivities.unshift(nextActivity);
+    saveActivitiesToLocalStorage(state.allActivities);
+    refreshFilterOptions();
+    applyFilters();
+    closeAddActivityModal();
+    window.alert("Activity saved successfully.");
+  });
+}
 
 
 
