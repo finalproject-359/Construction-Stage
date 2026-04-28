@@ -25,6 +25,10 @@ body {
   display: none !important;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
