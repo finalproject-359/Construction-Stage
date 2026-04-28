@@ -1,4 +1,6 @@
-const LOCAL_STORAGE_KEY = "constructionStageActivities";
+const DATA_SOURCE_URL =
+  window.DataBridge?.DEFAULT_DATA_SOURCE_URL ||
+  "https://script.google.com/macros/s/AKfycbzS5JmCF8kxtUybOAa5gtthqOeynoRRVIKFYuScLaVjb7Njp2oOYS2GwwkmnzGyDpBY/exec";
 
 const activityPageForm = document.getElementById("activityPageForm");
 const activityProjectInput = document.getElementById("activityProjectInput");
@@ -28,19 +30,33 @@ if (activityStartDateInput && activityFinishDateInput) {
   });
 }
 
-const readActivitiesFromLocalStorage = () => {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+const createActivityInSource = async (activity) => {
+  const response = await fetch(DATA_SOURCE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      resource: "activities",
+      action: "create",
+      activity,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to save activity (HTTP ${response.status})`);
   }
+
+  const payload = await response.json();
+  if (payload?.ok === false) {
+    throw new Error(payload.error || "Unable to save activity");
+  }
+
+  return payload;
 };
 
 if (activityPageForm) {
-  activityPageForm.addEventListener("submit", (event) => {
+  activityPageForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     if (!selectedProject) {
@@ -57,21 +73,24 @@ if (activityPageForm) {
       return;
     }
 
-    const nextActivity = {
-      activityId: String(formData.get("activityId") || "").trim(),
-      activityName: String(formData.get("activityName") || "").trim(),
+    const activityPayload = {
+      id: String(formData.get("activityId") || "").trim(),
+      name: String(formData.get("activityName") || "").trim(),
       project: selectedProject,
-      activityType: "-",
-      status: "Not Started",
       plannedStart,
       plannedFinish,
-      progress: 0,
-      costStatus: "On Budget",
+      status: "Not Started",
+      percentComplete: 0,
+      notes: "",
     };
 
-    const existingActivities = readActivitiesFromLocalStorage();
-    existingActivities.unshift(nextActivity);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(existingActivities));
+    try {
+      await createActivityInSource(activityPayload);
+    } catch (error) {
+      const reason = error?.message ? `\nReason: ${error.message}` : "";
+      window.alert(`Unable to save activity to Google Sheets. No local copy was saved.${reason}`);
+      return;
+    }
 
     window.location.href = selectedProject
       ? `activities.html?project=${encodeURIComponent(selectedProject)}&added=1`

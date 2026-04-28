@@ -337,10 +337,15 @@ function deleteProjectRow(projectId) {
 
 function normalizeIncomingActivity(input) {
   const source = input || {};
+  const inferredProject = resolveProjectIdentity(
+    cleanText(source.projectId || source.project_id || source.projectCode || source.project_code),
+    cleanText(source.project || source.projectName || source.project_name)
+  );
+
   return {
     id: cleanText(source.id || source.activityId || source.activity_id || source.code || source.activityCode || source.activity_code) || Utilities.getUuid(),
-    projectId: cleanText(source.projectId || source.project_id || source.projectCode || source.project_code || source.project),
-    project: cleanText(source.project || source.projectName || source.project_name),
+    projectId: inferredProject.id,
+    project: inferredProject.name,
     name: cleanText(source.name || source.activity || source.activityName || source.activity_name),
     status: cleanText(source.status) || 'Not Started',
     plannedStart: normalizeDate(source.plannedStart || source.planned_start || source.startDate || source.start_date),
@@ -349,6 +354,42 @@ function normalizeIncomingActivity(input) {
     percentComplete: parseNumber(source.percentComplete || source.percent_complete || source.progress),
     notes: cleanText(source.notes || source.note || source.remarks),
   };
+}
+
+function resolveProjectIdentity(projectIdInput, projectNameInput) {
+  var normalizedId = cleanText(projectIdInput);
+  var normalizedName = cleanText(projectNameInput);
+
+  if (!normalizedId && !normalizedName) {
+    return { id: '', name: '' };
+  }
+
+  const lookupSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+  ensureSheetHeaders(lookupSheet, CONFIG.headers.projects);
+  const columns = getProjectColumnMap(lookupSheet);
+
+  if (!columns.id && !columns.name) {
+    return { id: normalizedId, name: normalizedName };
+  }
+
+  const values = lookupSheet.getDataRange().getValues();
+  for (var rowIdx = 1; rowIdx < values.length; rowIdx += 1) {
+    const row = values[rowIdx];
+    const rowId = columns.id ? cleanText(row[columns.id - 1]) : '';
+    const rowName = columns.name ? cleanText(row[columns.name - 1]) : '';
+    if (!rowId && !rowName) continue;
+
+    const matchesId = normalizedId && rowId === normalizedId;
+    const matchesName = normalizedName && rowName === normalizedName;
+    if (!matchesId && !matchesName) continue;
+
+    return {
+      id: rowId || normalizedId,
+      name: rowName || normalizedName,
+    };
+  }
+
+  return { id: normalizedId, name: normalizedName };
 }
 
 function getActivityColumnMap(sheet) {
