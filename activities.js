@@ -44,8 +44,9 @@ const activityModalFinishDateInput = document.getElementById("activityModalFinis
 const activityModalTitle = document.getElementById("activityModalTitle");
 const activityModalSubtitle = document.querySelector(".activity-modal-header p");
 const activityModalSubmitBtn = activityModalForm?.querySelector('button[type="submit"]');
-const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
-const LOCAL_STORAGE_KEY = "constructionStageActivities";
+const DATA_SOURCE_URL =
+  window.DataBridge?.DEFAULT_DATA_SOURCE_URL ||
+  "https://script.google.com/macros/s/AKfycbzS5JmCF8kxtUybOAa5gtthqOeynoRRVIKFYuScLaVjb7Njp2oOYS2GwwkmnzGyDpBY/exec";
 const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
 
 if (!activitiesTableBody) {
@@ -506,24 +507,9 @@ const updateActivitiesUrlParams = ({ project = state.selectedProject, keepAddedF
   window.history.replaceState({}, "", nextHref);
 };
 
-const readActivitiesFromLocalStorage = () => {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeActivity);
-  } catch {
-    return [];
-  }
-};
-
-const saveActivitiesToLocalStorage = (activities) => {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(activities));
-  } catch {
-    // Ignore storage quota/access errors and keep in-memory state.
-  }
+const showActivityPersistenceError = (actionLabel, error) => {
+  const reason = error?.message ? `\nReason: ${error.message}` : "";
+  window.alert(`Unable to ${actionLabel} activity in Google Sheets. No local copy was saved.${reason}`);
 };
 
 const readProjectsFromLocalStorage = () => {
@@ -625,7 +611,6 @@ const mutateActivityInSource = async ({ action, activity }) => {
 };
 
 const loadActivitiesAndProjectsFromSource = async () => {
-  const localActivities = readActivitiesFromLocalStorage();
   const localProjects = readProjectsFromLocalStorage();
 
   try {
@@ -637,13 +622,10 @@ const loadActivitiesAndProjectsFromSource = async () => {
     const remoteActivities = Array.isArray(activitiesPayload?.activities)
       ? activitiesPayload.activities.map(normalizeActivity)
       : [];
-    const mergedActivities = mergeActivities(remoteActivities, localActivities);
     const remoteProjects = Array.isArray(projectsPayload?.projects)
       ? projectsPayload.projects.map(normalizeProject)
       : [];
     const mergedProjects = mergeProjects(remoteProjects, localProjects);
-
-    saveActivitiesToLocalStorage(mergedActivities);
 
     const computedKpis = {
       completed: 0,
@@ -652,35 +634,23 @@ const loadActivitiesAndProjectsFromSource = async () => {
       delayed: 0,
     };
 
-    mergedActivities.forEach((activity) => {
+    remoteActivities.forEach((activity) => {
       const key = statusTextToKey[activity.status];
       if (key && Object.prototype.hasOwnProperty.call(computedKpis, key)) {
         computedKpis[key] += 1;
       }
     });
 
-    const activityMeta = {
-      totalCount: mergedActivities.length,
-      kpi: computedKpis,
-    };
-
     return {
-      activities: mergedActivities,
+      activities: remoteActivities,
       projects: mergedProjects,
-      meta: activityMeta,
-    };
-  } catch (error) {
-    console.warn("Falling back to embedded activities data:", error);
-    const fallbackActivities = mergeActivities(localActivities, initialActivities);
-    saveActivitiesToLocalStorage(fallbackActivities);
-    return {
-      activities: fallbackActivities,
-      projects: mergeProjects(localProjects, initialProjectCatalog),
-      meta: window.activitiesMeta || {
-        totalCount: fallbackActivities.length,
-        kpi: { completed: 0, inProgress: 0, notStarted: 0, delayed: 0 },
+      meta: {
+        totalCount: remoteActivities.length,
+        kpi: computedKpis,
       },
     };
+  } catch (error) {
+    throw new Error(`Unable to load activities from backend: ${error?.message || "Unknown error"}`);
   }
 };
 
@@ -1131,11 +1101,11 @@ const handleDeleteActivity = async (activityKey) => {
       },
     });
   } catch (error) {
-    console.warn("Unable to delete activity from source, falling back to local storage.", error);
+    showActivityPersistenceError("delete", error);
+    return;
   }
 
   state.allActivities.splice(index, 1);
-  saveActivitiesToLocalStorage(state.allActivities);
   refreshFilterOptions();
   applyFilters();
   window.alert("Activity deleted successfully.");
@@ -1529,7 +1499,8 @@ if (activityModalForm) {
           activity: nextActivityPayload,
         });
       } catch (error) {
-        console.warn("Unable to update activity in source, falling back to local storage.", error);
+        showActivityPersistenceError("update", error);
+        return;
       }
       state.allActivities[index] = nextActivity;
     } else {
@@ -1539,12 +1510,11 @@ if (activityModalForm) {
           activity: nextActivityPayload,
         });
       } catch (error) {
-        console.warn("Unable to create activity in source, falling back to local storage.", error);
+        showActivityPersistenceError("save", error);
+        return;
       }
       state.allActivities.unshift(nextActivity);
     }
-
-    saveActivitiesToLocalStorage(state.allActivities);
     refreshFilterOptions();
     applyFilters();
     closeAddActivityModal();
