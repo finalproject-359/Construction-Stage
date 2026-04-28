@@ -29,6 +29,7 @@ if (!projectModal || !projectForm || !projectsTableBody) {
 
 const LOCAL_STORAGE_KEY = "constructionStageProjects";
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
+const PROJECTS_REFRESH_INTERVAL_MS = 20 * 1000;
 
 const budgetInput = projectForm.elements.namedItem("budget");
 const pesoBudgetFormatter = new Intl.NumberFormat("en-PH", {
@@ -43,6 +44,10 @@ const state = {
   filteredProjects: [],
   editingProjectId: null,
 };
+
+let projectsRefreshTimer = null;
+let isProjectsSyncInFlight = false;
+let lastProjectsSignature = "";
 
 const getValueByAliases = (source, aliases = []) => {
   if (!source || typeof source !== "object") return undefined;
@@ -688,9 +693,47 @@ projectsSearchInput?.addEventListener("input", applyFilters);
 projectsStatusFilter?.addEventListener("change", applyFilters);
 projectsTypeFilter?.addEventListener("change", applyFilters);
 
-(async () => {
+const bootstrapProjectsPage = async () => {
   const projects = await loadProjectsFromSource();
-  state.allProjects = Array.isArray(projects) ? projects : [];
+  const normalizedProjects = Array.isArray(projects) ? projects : [];
+  const nextSignature = JSON.stringify(normalizedProjects);
+  if (nextSignature === lastProjectsSignature) return;
+  lastProjectsSignature = nextSignature;
+
+  state.allProjects = normalizedProjects;
   hydrateFilters();
   applyFilters();
-})();
+};
+
+const refreshProjectsIfVisible = async ({ force = false } = {}) => {
+  if (isProjectsSyncInFlight) return;
+  if (!force && document.visibilityState === "hidden") return;
+
+  isProjectsSyncInFlight = true;
+  try {
+    await bootstrapProjectsPage();
+  } finally {
+    isProjectsSyncInFlight = false;
+  }
+};
+
+const setupProjectsRealtimeSync = () => {
+  if (projectsRefreshTimer) {
+    clearInterval(projectsRefreshTimer);
+  }
+
+  projectsRefreshTimer = setInterval(() => {
+    refreshProjectsIfVisible();
+  }, PROJECTS_REFRESH_INTERVAL_MS);
+
+  window.addEventListener("focus", () => refreshProjectsIfVisible({ force: true }));
+  window.addEventListener("online", () => refreshProjectsIfVisible({ force: true }));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshProjectsIfVisible({ force: true });
+    }
+  });
+};
+
+refreshProjectsIfVisible({ force: true });
+setupProjectsRealtimeSync();
