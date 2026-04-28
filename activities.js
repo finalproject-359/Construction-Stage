@@ -586,6 +586,7 @@ const openDateRangePanel = () => {
 
 const updateKpis = (sourceActivities) => {
   const hasActiveFilters =
+    hasSelectedProject() ||
     Boolean(activitiesSearchInput?.value.trim()) ||
     (activitiesStatusFilter?.value && activitiesStatusFilter.value !== "All Statuses") ||
     (activitiesTypeFilter?.value && activitiesTypeFilter.value !== "All Activity Types") ||
