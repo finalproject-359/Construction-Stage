@@ -247,8 +247,8 @@ function handleProjectMutation(action, payload) {
 function handleActivityMutation(action, payload) {
   if (action === 'create') {
     const activity = normalizeIncomingActivity(payload.activity || payload);
-    if (!activity.name || !activity.id || !activity.project) {
-      throw new Error('Activity ID, Activity Name, and Project are required.');
+    if (!activity.name || !activity.id || (!activity.project && !activity.projectId)) {
+      throw new Error('Activity ID, Activity Name, and Project (ID or Name) are required.');
     }
     validateActivityForMutation(activity, action);
 
@@ -351,8 +351,11 @@ function normalizeIncomingActivity(input) {
   const duration = cleanText(source.duration || source.durationDays || source.duration_days) || calculateDurationDays(plannedStart, plannedFinish);
   const percentComplete = clampPercent(source.percentComplete || source.percent_complete || source.progress);
 
+  const rawId = cleanText(source.id || source.activityId || source.activity_id || source.code || source.activityCode || source.activity_code);
+  const normalizedId = ['-', '--', 'n/a', 'na', 'none', 'null', 'undefined'].indexOf(rawId.toLowerCase()) >= 0 ? '' : rawId;
+
   return {
-    id: cleanText(source.id || source.activityId || source.activity_id || source.code || source.activityCode || source.activity_code) || Utilities.getUuid(),
+    id: normalizedId || Utilities.getUuid(),
     projectId: inferredProject.id,
     project: inferredProject.name,
     name: cleanText(source.name || source.activity || source.activityName || source.activity_name),
