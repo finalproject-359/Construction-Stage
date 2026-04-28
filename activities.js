@@ -200,24 +200,35 @@ const normalizeActivity = (activity = {}) => {
   let plannedStartRaw = getValueByAliases(activity, ["plannedStart", "planned_start", "startDate", "plannedStartDate"]);
   let plannedFinishRaw = getValueByAliases(activity, ["plannedFinish", "planned_finish", "finishDate", "plannedFinishDate"]);
   let progressRaw = getValueByAliases(activity, ["progress", "percentComplete", "percent_complete"]);
-  let costStatus = getValueByAliases(activity, ["costStatus", "cost_status", "budgetStatus"]);
+  let durationStatus = getValueByAliases(activity, [
+    "durationStatus",
+    "duration_status",
+    "scheduleStatus",
+    "schedule_status",
+    "costStatus",
+    "cost_status",
+    "budgetStatus",
+  ]);
 
   const isDateLike = (value) => Boolean(parseDateValue(value));
   const isKnownStatus = (value) => Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_STATUS, String(value || "").trim());
   const isNumericLike = (value) => /^-?\d+(\.\d+)?%?$/.test(String(value || "").trim());
-  const isKnownCostStatus = (value) => ["Under Budget", "On Budget", "Over Budget"].includes(String(value || "").trim());
+  const isKnownDurationStatus = (value) =>
+    ["On Time", "Delayed", "Ahead of Schedule", "Behind Schedule", "Under Budget", "On Budget", "Over Budget"].includes(
+      String(value || "").trim()
+    );
   const normalizedType = String(type || "").trim();
 
   // Guard against shifted source data where values are offset by one column:
   // type <- status, status <- plannedStart, plannedStart <- plannedFinish,
-  // plannedFinish <- progress, progress <- costStatus.
+  // plannedFinish <- progress, progress <- durationStatus.
   const looksShifted =
     isKnownStatus(normalizedType) &&
     isDateLike(status) &&
     isDateLike(plannedStartRaw) &&
     (
-      (isNumericLike(plannedFinishRaw) && isKnownCostStatus(progressRaw)) ||
-      (isNumericLike(progressRaw) && isKnownCostStatus(costStatus)) ||
+      (isNumericLike(plannedFinishRaw) && isKnownDurationStatus(progressRaw)) ||
+      (isNumericLike(progressRaw) && isKnownDurationStatus(durationStatus)) ||
       (!plannedFinishRaw && isNumericLike(progressRaw))
     );
 
@@ -226,14 +237,14 @@ const normalizeActivity = (activity = {}) => {
     const shiftedPlannedStart = status;
     const shiftedPlannedFinish = plannedStartRaw;
     const shiftedProgress = isNumericLike(plannedFinishRaw) ? plannedFinishRaw : progressRaw;
-    const shiftedCostStatus = isKnownCostStatus(progressRaw) ? progressRaw : costStatus;
+    const shiftedDurationStatus = isKnownDurationStatus(progressRaw) ? progressRaw : durationStatus;
 
     type = "-";
     status = shiftedStatus;
     plannedStartRaw = shiftedPlannedStart;
     plannedFinishRaw = shiftedPlannedFinish;
     progressRaw = shiftedProgress;
-    costStatus = shiftedCostStatus;
+    durationStatus = shiftedDurationStatus;
   }
 
   if (!status && Object.prototype.hasOwnProperty.call(BADGE_CLASS_BY_STATUS, normalizedType)) {
@@ -242,7 +253,7 @@ const normalizeActivity = (activity = {}) => {
   }
 
   status = status || "Not Started";
-  costStatus = costStatus || "On Budget";
+  durationStatus = durationStatus || "-";
   const progress = progressRaw ?? (status === "Completed" ? 100 : 0);
 
   return {
@@ -256,7 +267,7 @@ const normalizeActivity = (activity = {}) => {
     plannedStartDate: parseDateValue(plannedStartRaw),
     plannedFinishDate: parseDateValue(plannedFinishRaw),
     progress: toPercent(progress),
-    costStatus,
+    durationStatus,
   };
 };
 
@@ -281,7 +292,6 @@ const toInputDate = (value) => {
 
 const buildActivityRowHtml = (activity) => {
   const progressClass = PROGRESS_CLASS_BY_STATUS[activity.status] || "";
-  const statusClass = BADGE_CLASS_BY_STATUS[activity.status] || "badge-on";
   const rowKey = createActivityKey(activity);
   return `
     <tr>
@@ -289,7 +299,7 @@ const buildActivityRowHtml = (activity) => {
       <td>${escapeHtml(activity.name)}</td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>${escapeHtml(activity.plannedFinish)}</td>
-      <td><span class="badge ${statusClass}">${escapeHtml(activity.status)}</span></td>
+      <td>${escapeHtml(activity.durationStatus)}</td>
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>
@@ -1320,7 +1330,7 @@ if (activityModalForm) {
       plannedStart,
       plannedFinish,
       progress: 0,
-      costStatus: "On Budget",
+      durationStatus: "-",
     });
 
     const isEditing = Boolean(state.editingActivityKey);
