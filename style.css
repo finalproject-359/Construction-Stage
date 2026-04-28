@@ -25,6 +25,10 @@ body {
   display: none !important;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
@@ -1087,11 +1091,11 @@ th { color: var(--muted); }
   display: grid;
   gap: 10px;
   grid-template-columns:
-    minmax(230px, 1.5fr)
-    minmax(140px, 0.9fr)
-    minmax(180px, 1fr)
-    minmax(210px, 1fr)
-    minmax(140px, 0.7fr);
+    minmax(260px, 1.6fr)
+    minmax(165px, 1fr)
+    minmax(200px, 1.1fr)
+    minmax(170px, 0.95fr)
+    auto;
   align-items: center;
 }
 
@@ -1254,6 +1258,7 @@ th { color: var(--muted); }
   display: flex;
   gap: 0;
   justify-content: flex-end;
+  min-width: 150px;
 }
 
 .activities-add-btn {
@@ -1505,12 +1510,11 @@ th { color: var(--muted); }
 
   .activities-filter-row {
     grid-template-columns:
-      minmax(200px, 1.2fr)
-      minmax(130px, 0.9fr)
-      minmax(130px, 0.9fr)
+      minmax(220px, 1.3fr)
+      minmax(145px, 0.95fr)
       minmax(165px, 1fr)
-      minmax(200px, 0.95fr)
-      minmax(140px, 0.8fr);
+      minmax(165px, 0.95fr)
+      auto;
   }
 }
 
