@@ -1055,9 +1055,8 @@ const openEditActivityModal = (activityKey) => {
   const activity = state.allActivities[index];
   const idInput = document.getElementById("activityModalIdInput");
   const nameInput = document.getElementById("activityModalNameInput");
-  const typeInput = document.getElementById("activityModalTypeInput");
 
-  if (!activityModal || !idInput || !nameInput || !typeInput) return;
+  if (!activityModal || !idInput || !nameInput) return;
 
   setActivityModalMode("edit");
   state.editingActivityKey = activityKey;
@@ -1457,7 +1456,7 @@ if (activityModalForm) {
       id: String(formData.get("activityId") || "").trim(),
       name: String(formData.get("activityName") || "").trim(),
       project: state.selectedProject,
-      type: String(formData.get("activityType") || "").trim(),
+      type: "-",
       status: "Not Started",
       plannedStart,
       plannedFinish,

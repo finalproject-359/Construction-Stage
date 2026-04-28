@@ -61,7 +61,7 @@ if (activityPageForm) {
       activityId: String(formData.get("activityId") || "").trim(),
       activityName: String(formData.get("activityName") || "").trim(),
       project: selectedProject,
-      activityType: String(formData.get("activityType") || "").trim(),
+      activityType: "-",
       status: "Not Started",
       plannedStart,
       plannedFinish,
