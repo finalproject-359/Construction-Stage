@@ -330,6 +330,22 @@ const state = {
   didHydrateProjectFromUrl: false,
 };
 
+const updateActivitiesUrlParams = ({ project = state.selectedProject, keepAddedFlag = false } = {}) => {
+  const nextUrl = new URL(window.location.href);
+  if (project) {
+    nextUrl.searchParams.set("project", project);
+  } else {
+    nextUrl.searchParams.delete("project");
+  }
+
+  if (!keepAddedFlag) {
+    nextUrl.searchParams.delete("added");
+  }
+
+  const nextHref = `${nextUrl.pathname}${nextUrl.search ? `?${nextUrl.searchParams.toString()}` : ""}${nextUrl.hash}`;
+  window.history.replaceState({}, "", nextHref);
+};
+
 const readActivitiesFromLocalStorage = () => {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -931,6 +947,7 @@ if (activitiesProjectPickerGrid) {
     if (!button) return;
     const project = button.dataset.project || "All Projects";
     state.selectedProject = project;
+    updateActivitiesUrlParams({ project, keepAddedFlag: true });
     applyFilters();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
@@ -950,6 +967,7 @@ const handleBackToProjects = () => {
     activitiesFilterEndDate.min = "";
   }
   syncDateFilterLabel();
+  updateActivitiesUrlParams({ project: null });
   applyFilters();
   activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
@@ -1062,7 +1080,15 @@ const hydrateSelectedProjectFromUrl = () => {
   const matchedProject = projectSummaries.find((project) => project.name === projectFromUrl);
   if (matchedProject) {
     state.selectedProject = matchedProject.name;
+    updateActivitiesUrlParams({ project: matchedProject.name, keepAddedFlag: true });
   }
+};
+
+const handleAddedActivityNotice = () => {
+  const query = new URLSearchParams(window.location.search);
+  if (query.get("added") !== "1") return;
+  window.alert("Activity saved successfully.");
+  updateActivitiesUrlParams({ keepAddedFlag: false });
 };
 
 const bootstrapActivitiesPage = async () => {
@@ -1093,6 +1119,7 @@ const bootstrapActivitiesPage = async () => {
   refreshFilterOptions();
   renderProjectPicker();
   hydrateSelectedProjectFromUrl();
+  handleAddedActivityNotice();
   applyFilters();
 };
 
