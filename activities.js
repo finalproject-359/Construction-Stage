@@ -80,7 +80,7 @@ const PROGRESS_CLASS_BY_STATUS = {
 };
 
 const PAGE_SIZE = 8;
-const ACTIVITIES_REFRESH_INTERVAL_MS = 20 * 1000;
+const ACTIVITIES_REFRESH_INTERVAL_MS = 30 * 1000;
 
 let activitiesRefreshTimer = null;
 let isActivitiesSyncInFlight = false;

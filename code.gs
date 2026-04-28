@@ -82,12 +82,12 @@ function handleRequest(payload) {
     const resource = normalizeResource(source.resource || 'dashboard');
     const action = cleanText(source.action).toLowerCase();
 
-    ensureWorkbookStructure();
-
     if (action) {
       if (resource !== 'projects') {
         throw new Error('Only "projects" is supported for mutations.');
       }
+      const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+      ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
       return handleProjectMutation(action, source);
     }
 
@@ -96,7 +96,7 @@ function handleRequest(payload) {
       name: cleanText(source.project || source.projectName || source.project_name || ''),
     };
 
-    const allData = loadAllData();
+    const allData = loadDataByResource(resource);
     const filtered = applyProjectFilter(allData, projectFilter);
 
     const payloadByResource = {
@@ -124,6 +124,51 @@ function handleRequest(payload) {
       generatedAt: new Date().toISOString(),
     });
   }
+}
+
+function createEmptyDataBundle() {
+  return {
+    projects: [],
+    activities: [],
+    costs: [],
+    sheets: {},
+  };
+}
+
+function loadDataByResource(resource) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const bundle = createEmptyDataBundle();
+
+  const readResource = function(targetKey, sheetName, expectedHeaders, normalizer) {
+    const result = readSheetRows(ss, sheetName, expectedHeaders);
+    bundle[targetKey] = result.rows.map(normalizer);
+    bundle.sheets[targetKey] = result.meta;
+  };
+
+  if (resource === 'projects') {
+    readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
+    return bundle;
+  }
+
+  if (resource === 'activities' || resource === 'dashboard') {
+    readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
+    return bundle;
+  }
+
+  if (resource === 'costs') {
+    readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
+    return bundle;
+  }
+
+  if (resource === 'reports' || resource === 'all') {
+    readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
+    readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
+    readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
+    return bundle;
+  }
+
+  readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
+  return bundle;
 }
 
 function handleProjectMutation(action, payload) {
@@ -540,37 +585,13 @@ function getProjectColumnMap(sheet) {
   };
 }
 
-function loadAllData() {
-  ensureWorkbookStructure();
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const projects = readSheetRows(ss, CONFIG.sheetNames.projects);
-  const activities = readSheetRows(ss, CONFIG.sheetNames.activities);
-  const costs = readSheetRows(ss, CONFIG.sheetNames.costs);
-
-  return {
-    projects: projects.rows.map(normalizeProjectRecord),
-    activities: activities.rows.map(normalizeActivityRecord),
-    costs: costs.rows.map(normalizeCostRecord),
-    sheets: {
-      projects: projects.meta,
-      activities: activities.meta,
-      costs: costs.meta,
-    },
-  };
-}
-
-function readSheetRows(ss, sheetName) {
+function readSheetRows(ss, sheetName, expectedHeaders) {
   const sheet = getOrCreateSheet(sheetName);
-  const expectedHeadersBySheet = {};
-  expectedHeadersBySheet[CONFIG.sheetNames.projects] = CONFIG.headers.projects;
-  expectedHeadersBySheet[CONFIG.sheetNames.activities] = CONFIG.headers.activities;
-  expectedHeadersBySheet[CONFIG.sheetNames.costs] = CONFIG.headers.costs;
-  ensureSheetHeaders(sheet, expectedHeadersBySheet[sheetName] || []);
+  ensureSheetHeaders(sheet, expectedHeaders || []);
 
-  const displayValues = sheet.getDataRange().getDisplayValues();
   const rawValues = sheet.getDataRange().getValues();
 
-  if (!displayValues.length) {
+  if (!rawValues.length) {
     return {
       rows: [],
       meta: {
@@ -581,8 +602,13 @@ function readSheetRows(ss, sheetName) {
     };
   }
 
-  const headerRowIndex = findHeaderRowIndex(displayValues);
-  const headers = displayValues[headerRowIndex].map(function(header) {
+  const stringRows = rawValues.map(function(row) {
+    return row.map(function(cell) {
+      return String(cell || '');
+    });
+  });
+  const headerRowIndex = findHeaderRowIndex(stringRows);
+  const headers = stringRows[headerRowIndex].map(function(header) {
     return String(header || '').trim();
   });
 

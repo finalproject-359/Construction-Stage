@@ -28,7 +28,7 @@ let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
 
 const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
-const DASHBOARD_REFRESH_INTERVAL_MS = 5 * 1000;
+const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
 
 const getNiceStep = (rawStep) => {
   if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
