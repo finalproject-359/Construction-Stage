@@ -1676,7 +1676,7 @@ th { color: var(--muted); }
 
 .activity-modal-card {
   position: relative;
-  width: min(760px, calc(100vw - 32px));
+  width: min(900px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   overflow: auto;
   background: #fff;
@@ -1718,10 +1718,58 @@ th { color: var(--muted); }
   padding: 20px 26px 18px;
 }
 
+.activity-project-highlight {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+  background: #f6f8ff;
+  border: 1px solid #e1e8f6;
+}
+
+.activity-project-highlight-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #dce6ff;
+  display: grid;
+  place-items: center;
+  color: #2f55ff;
+}
+
+.activity-project-highlight-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+}
+
+.activity-project-highlight-copy p {
+  margin: 0;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: .03em;
+  color: #667085;
+}
+
+.activity-project-highlight-copy h3 {
+  margin: 4px 0 0;
+  font-size: 1.95rem;
+  color: #0f172a;
+}
+
 .activity-form-section h3 {
   margin: 0 0 14px;
   font-size: 1.5rem;
   color: #0f172a;
+}
+
+.activity-form-section + .activity-form-section {
+  margin-top: 16px;
+  padding-top: 18px;
+  border-top: 1px solid #e8edf7;
 }
 
 .activity-field,
