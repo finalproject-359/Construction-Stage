@@ -199,6 +199,7 @@ const normalizeActivity = (activity = {}) => {
   let status = getValueByAliases(activity, ["status"]);
   let plannedStartRaw = getValueByAliases(activity, ["plannedStart", "planned_start", "startDate", "plannedStartDate"]);
   let plannedFinishRaw = getValueByAliases(activity, ["plannedFinish", "planned_finish", "finishDate", "plannedFinishDate"]);
+  const durationRaw = getValueByAliases(activity, ["duration", "durationDays", "duration_days"]);
   let progressRaw = getValueByAliases(activity, ["progress", "percentComplete", "percent_complete"]);
   let durationStatus = getValueByAliases(activity, [
     "durationStatus",
@@ -255,6 +256,8 @@ const normalizeActivity = (activity = {}) => {
   status = status || "Not Started";
   durationStatus = durationStatus || "-";
   const progress = progressRaw ?? (status === "Completed" ? 100 : 0);
+  const plannedStartDate = parseDateValue(plannedStartRaw);
+  const plannedFinishDate = parseDateValue(plannedFinishRaw);
 
   return {
     id: id || "-",
@@ -264,8 +267,9 @@ const normalizeActivity = (activity = {}) => {
     status,
     plannedStart: toDisplayDate(plannedStartRaw),
     plannedFinish: toDisplayDate(plannedFinishRaw),
-    plannedStartDate: parseDateValue(plannedStartRaw),
-    plannedFinishDate: parseDateValue(plannedFinishRaw),
+    plannedStartDate,
+    plannedFinishDate,
+    duration: toDurationLabel(durationRaw, plannedStartDate, plannedFinishDate),
     progress: toPercent(progress),
     durationStatus,
   };
@@ -290,6 +294,124 @@ const toInputDate = (value) => {
   return `${year}-${month}-${day}`;
 };
 
+const PH_FIXED_HOLIDAYS = new Set([
+  "01-01", // New Year's Day
+  "04-09", // Araw ng Kagitingan
+  "05-01", // Labor Day
+  "06-12", // Independence Day
+  "08-21", // Ninoy Aquino Day
+  "11-01", // All Saints' Day
+  "11-30", // Bonifacio Day
+  "12-08", // Feast of the Immaculate Conception
+  "12-25", // Christmas Day
+  "12-30", // Rizal Day
+  "12-31", // Last Day of the Year (special non-working holiday)
+]);
+
+const PH_YEAR_SPECIFIC_HOLIDAYS = {
+  2024: ["02-10", "04-10", "06-17"], // Chinese New Year, Eid'l Fitr, Eid'l Adha
+  2025: ["01-29", "03-31", "06-06"],
+  2026: ["02-17", "03-20", "05-27"],
+  2027: ["02-07", "03-10", "05-17"],
+  2028: ["01-27", "02-27", "05-05"],
+  2029: ["02-14", "02-15", "04-24"],
+  2030: ["02-03", "02-05", "04-13"],
+};
+
+const formatMonthDayKey = (date) => {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${month}-${day}`;
+};
+
+const getEasterSunday = (year) => {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month, day);
+};
+
+const getPhilippineHolidaySetForYear = (year) => {
+  const holidays = new Set(PH_FIXED_HOLIDAYS);
+  (PH_YEAR_SPECIFIC_HOLIDAYS[year] || []).forEach((holiday) => holidays.add(holiday));
+
+  // National Heroes Day: last Monday of August
+  const lastDayOfAugust = new Date(year, 8, 0);
+  const nationalHeroesDay = new Date(lastDayOfAugust);
+  while (nationalHeroesDay.getDay() !== 1) {
+    nationalHeroesDay.setDate(nationalHeroesDay.getDate() - 1);
+  }
+  holidays.add(formatMonthDayKey(nationalHeroesDay));
+
+  // Holy Week (Maundy Thursday, Good Friday, Black Saturday)
+  const easterSunday = getEasterSunday(year);
+  const holyWeekOffsets = [-3, -2, -1];
+  holyWeekOffsets.forEach((offset) => {
+    const holidayDate = new Date(easterSunday);
+    holidayDate.setDate(easterSunday.getDate() + offset);
+    holidays.add(formatMonthDayKey(holidayDate));
+  });
+
+  return holidays;
+};
+
+const countPhilippineWorkingDaysInclusive = (startDate, finishDate) => {
+  if (!(startDate instanceof Date) || !(finishDate instanceof Date)) return null;
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(finishDate.getTime())) return null;
+  if (finishDate < startDate) return null;
+
+  const cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(finishDate);
+  end.setHours(0, 0, 0, 0);
+
+  let workingDays = 0;
+  let currentYear = null;
+  let yearHolidaySet = null;
+
+  while (cursor <= end) {
+    const dayOfWeek = cursor.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const year = cursor.getFullYear();
+
+    if (year !== currentYear) {
+      currentYear = year;
+      yearHolidaySet = getPhilippineHolidaySetForYear(year);
+    }
+
+    const isHoliday = yearHolidaySet?.has(formatMonthDayKey(cursor));
+    if (!isWeekend && !isHoliday) workingDays += 1;
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return workingDays;
+};
+
+const toDurationLabel = (durationRaw, plannedStartDate, plannedFinishDate) => {
+  const numericDuration = Number(String(durationRaw ?? "").replace("%", "").trim());
+  if (Number.isFinite(numericDuration) && numericDuration >= 0) {
+    const roundedDuration = Math.round(numericDuration);
+    return `${roundedDuration} day${roundedDuration === 1 ? "" : "s"}`;
+  }
+
+  if (!(plannedStartDate instanceof Date) || !(plannedFinishDate instanceof Date)) return "-";
+  const dayCount = countPhilippineWorkingDaysInclusive(plannedStartDate, plannedFinishDate);
+  if (!Number.isFinite(dayCount) || dayCount <= 0) return "-";
+  return `${dayCount} day${dayCount === 1 ? "" : "s"}`;
+};
+
 const buildActivityRowHtml = (activity) => {
   const progressClass = PROGRESS_CLASS_BY_STATUS[activity.status] || "";
   const rowKey = createActivityKey(activity);
@@ -299,7 +421,8 @@ const buildActivityRowHtml = (activity) => {
       <td>${escapeHtml(activity.name)}</td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>${escapeHtml(activity.plannedFinish)}</td>
-      <td>${escapeHtml(activity.durationStatus)}</td>
+      <td>${escapeHtml(activity.duration)}</td>
+      <td>${escapeHtml(activity.status)}</td>
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>
