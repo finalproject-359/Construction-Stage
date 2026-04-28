@@ -13,6 +13,11 @@ const returnToActivities = selectedProject
   ? `activities.html?project=${encodeURIComponent(selectedProject)}`
   : "activities.html";
 
+if (!selectedProject) {
+  window.alert("Please select a project in Activities before opening the Add Activity page.");
+  window.location.replace("activities.html");
+}
+
 if (addActivityBackLink) addActivityBackLink.href = returnToActivities;
 if (activityFormCancelLink) activityFormCancelLink.href = returnToActivities;
 if (activityProjectInput) activityProjectInput.value = selectedProject;
