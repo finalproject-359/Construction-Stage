@@ -1353,7 +1353,7 @@ th { color: var(--muted); }
 .activities-table-panel td {
   padding: 15px 16px;
   vertical-align: middle;
-  width: calc(100% / 8);
+  width: calc(100% / 9);
   word-break: break-word;
 }
 
