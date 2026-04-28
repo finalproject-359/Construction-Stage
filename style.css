@@ -740,12 +740,6 @@ th { color: var(--muted); }
   animation: activities-fade-up 220ms ease;
 }
 
-.activities-project-selection-filters[hidden],
-.activities-project-selection[hidden],
-.activities-view-shell[hidden] {
-  display: none !important;
-}
-
 @keyframes activities-fade-up {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

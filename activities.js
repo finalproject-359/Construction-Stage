@@ -976,6 +976,26 @@ if (activitiesBackToProjectsBtn) {
   });
 }
 
+if (activitiesBackToProjectsBtn) {
+  activitiesBackToProjectsBtn.addEventListener("click", () => {
+    state.selectedProject = null;
+    state.currentPage = 1;
+    if (activitiesSearchInput) activitiesSearchInput.value = "";
+    if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
+    if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
+    state.dateRange.start = null;
+    state.dateRange.end = null;
+    if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
+    if (activitiesFilterEndDate) {
+      activitiesFilterEndDate.value = "";
+      activitiesFilterEndDate.min = "";
+    }
+    syncDateFilterLabel();
+    applyFilters();
+    activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 activitiesTableBody.addEventListener("click", (event) => {
   const button = event.target.closest("#activitiesAddButtonEmpty");
   if (!button) return;
