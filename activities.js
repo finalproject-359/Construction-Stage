@@ -897,6 +897,7 @@ const onPaginationClick = (event) => {
 };
 
 refreshFilterOptions();
+syncWorkflowState();
 
 [activitiesSearchInput, activitiesStatusFilter, activitiesTypeFilter]
   .filter(Boolean)
