@@ -250,10 +250,13 @@ function handleActivityMutation(action, payload) {
     if (!activity.name || !activity.id || !activity.project) {
       throw new Error('Activity ID, Activity Name, and Project are required.');
     }
+    validateActivityForMutation(activity, action);
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.activities);
     ensureSheetHeaders(sheet, CONFIG.headers.activities);
     const columns = getActivityColumnMap(sheet);
+    assertActivitySheetColumns(columns);
+    ensureActivityDoesNotExist(activity, sheet, columns);
     const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length, columns.maxColumn);
     const rowValues = new Array(lastColumn).fill('');
 
@@ -281,6 +284,7 @@ function handleActivityMutation(action, payload) {
   if (action === 'update') {
     const activity = normalizeIncomingActivity(payload.activity || payload);
     if (!activity.id) throw new Error('Activity ID is required for update.');
+    validateActivityForMutation(activity, action);
 
     const updateResult = updateActivityRow(activity);
     return jsonResponse({
@@ -342,16 +346,21 @@ function normalizeIncomingActivity(input) {
     cleanText(source.project || source.projectName || source.project_name)
   );
 
+  const plannedStart = normalizeDate(source.plannedStart || source.planned_start || source.startDate || source.start_date);
+  const plannedFinish = normalizeDate(source.plannedFinish || source.planned_finish || source.finishDate || source.finish_date);
+  const duration = cleanText(source.duration || source.durationDays || source.duration_days) || calculateDurationDays(plannedStart, plannedFinish);
+  const percentComplete = clampPercent(source.percentComplete || source.percent_complete || source.progress);
+
   return {
     id: cleanText(source.id || source.activityId || source.activity_id || source.code || source.activityCode || source.activity_code) || Utilities.getUuid(),
     projectId: inferredProject.id,
     project: inferredProject.name,
     name: cleanText(source.name || source.activity || source.activityName || source.activity_name),
     status: cleanText(source.status) || 'Not Started',
-    plannedStart: normalizeDate(source.plannedStart || source.planned_start || source.startDate || source.start_date),
-    plannedFinish: normalizeDate(source.plannedFinish || source.planned_finish || source.finishDate || source.finish_date),
-    duration: cleanText(source.duration || source.durationDays || source.duration_days),
-    percentComplete: parseNumber(source.percentComplete || source.percent_complete || source.progress),
+    plannedStart: plannedStart,
+    plannedFinish: plannedFinish,
+    duration: duration,
+    percentComplete: percentComplete,
     notes: cleanText(source.notes || source.note || source.remarks),
   };
 }
@@ -379,8 +388,8 @@ function resolveProjectIdentity(projectIdInput, projectNameInput) {
     const rowName = columns.name ? cleanText(row[columns.name - 1]) : '';
     if (!rowId && !rowName) continue;
 
-    const matchesId = normalizedId && rowId === normalizedId;
-    const matchesName = normalizedName && rowName === normalizedName;
+    const matchesId = normalizedId && rowId.toLowerCase() === normalizedId.toLowerCase();
+    const matchesName = normalizedName && rowName.toLowerCase() === normalizedName.toLowerCase();
     if (!matchesId && !matchesName) continue;
 
     return {
@@ -455,6 +464,7 @@ function findActivitySheetRow(activityId, projectId, projectName) {
 function updateActivityRow(activity) {
   const lookup = findActivitySheetRow(activity.id, activity.projectId, activity.project);
   if (!lookup) throw new Error('Activity not found.');
+  assertActivitySheetColumns(lookup.columns);
 
   const rowValues = lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).getValues()[0];
   if (lookup.columns.id) rowValues[lookup.columns.id - 1] = activity.id;
@@ -1255,6 +1265,71 @@ function compactHeader(value) {
 
 function cleanText(value) {
   return String(value || '').trim();
+}
+
+function clampPercent(value) {
+  const parsed = parseNumber(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(100, parsed));
+}
+
+function calculateDurationDays(startDate, finishDate) {
+  if (!startDate || !finishDate) return '';
+  const start = new Date(startDate);
+  const finish = new Date(finishDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(finish.getTime())) return '';
+  const dayMs = 24 * 60 * 60 * 1000;
+  const diff = Math.floor((finish.getTime() - start.getTime()) / dayMs) + 1;
+  if (diff <= 0) return '';
+  return String(diff);
+}
+
+function validateActivityForMutation(activity, action) {
+  if (!activity.projectId && !activity.project) {
+    throw new Error('Activity is missing project reference. Provide Project ID or Project Name.');
+  }
+
+  if (activity.plannedStart && activity.plannedFinish) {
+    const start = new Date(activity.plannedStart);
+    const finish = new Date(activity.plannedFinish);
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(finish.getTime()) && start.getTime() > finish.getTime()) {
+      throw new Error('Planned Start cannot be after Planned Finish.');
+    }
+  }
+
+  if (action === 'create' && !activity.id) {
+    throw new Error('Activity ID is required for create.');
+  }
+}
+
+function assertActivitySheetColumns(columns) {
+  if (!columns.id) throw new Error('Activities sheet is missing "Activity ID" column.');
+  if (!columns.projectId) throw new Error('Activities sheet is missing "Project ID" column.');
+  if (!columns.project) throw new Error('Activities sheet is missing "Project Name" column.');
+  if (!columns.name) throw new Error('Activities sheet is missing "Activity" column.');
+}
+
+function ensureActivityDoesNotExist(activity, sheet, columns) {
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return;
+  const incomingId = cleanText(activity.id).toLowerCase();
+  const incomingProjectId = cleanText(activity.projectId).toLowerCase();
+  const incomingProjectName = cleanText(activity.project).toLowerCase();
+
+  for (var rowIdx = 1; rowIdx < values.length; rowIdx += 1) {
+    const row = values[rowIdx];
+    const rowId = cleanText(row[columns.id - 1]).toLowerCase();
+    if (!rowId || rowId !== incomingId) continue;
+
+    const rowProjectId = columns.projectId ? cleanText(row[columns.projectId - 1]).toLowerCase() : '';
+    const rowProjectName = columns.project ? cleanText(row[columns.project - 1]).toLowerCase() : '';
+    const projectIdMatch = !incomingProjectId || incomingProjectId === rowProjectId;
+    const projectNameMatch = !incomingProjectName || incomingProjectName === rowProjectName;
+
+    if (projectIdMatch && projectNameMatch) {
+      throw new Error('Activity already exists for this project. Use update instead of create.');
+    }
+  }
 }
 
 function jsonResponse(payload) {
