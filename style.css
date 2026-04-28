@@ -120,6 +120,7 @@ body {
 
 .main-content {
   padding: 24px 26px;
+  min-width: 0;
 }
 
 .topbar h1 {
@@ -240,7 +241,10 @@ body {
 
 .chart-card h4 { margin: 0 0 8px; }
 
-.table-wrap { overflow-x: auto; }
+.table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
 
 table {
   width: 100%;
@@ -742,6 +746,7 @@ th { color: var(--muted); }
   display: grid;
   gap: 12px;
   animation: activities-fade-up 220ms ease;
+  min-width: 0;
 }
 
 @keyframes activities-fade-up {
