@@ -1,4 +1,18 @@
-/* Page-specific styles for activities.html. */
+/* Page-specific styles for activities and add-activity pages. */
 body.page-activities {
   /* Reserved for activities-only overrides. */
+}
+
+.add-activity-page-panel {
+  max-width: 840px;
+}
+
+.add-activity-page-panel .activity-form {
+  padding: 22px 24px;
+}
+
+a.activity-cancel-btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }

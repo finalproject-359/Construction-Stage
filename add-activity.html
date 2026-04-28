@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2f55ff" />
+  <title>FloodControl | Add Activity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="activities.css" />
+</head>
+<body class="page-activities">
+  <div class="app-shell">
+    <aside class="sidebar"><div class="brand"><div class="brand-logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20V7l5-3v16H4Z" /><path d="M11 20V3l5 4v13h-5Z" /><path d="M18 20v-9l2 1.6V20h-2Z" /></svg></div><div class="brand-copy"><h2>FloodControl</h2><p>Pati Piso, Limas</p></div></div>
+      <nav class="menu">
+        <a href="index.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"/></svg></span>Dashboard</a>
+        <a href="projects.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></span>Projects</a>
+        <a class="active" href="activities.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>Activities</a>
+        <a href="cost-management.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 21V10m7 11V3m7 18v-7"/></svg></span>Cost Management</a>
+        <a href="reports.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 0v6h6"/></svg></span>Reports</a>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar activities-topbar">
+        <div>
+          <h1>Add New Activity</h1>
+          <p class="activities-subtitle">Create an activity and attach it to your selected project.</p>
+        </div>
+        <a id="addActivityBackLink" class="secondary-btn" href="activities.html">← Back to Activities</a>
+      </header>
+
+      <section class="table-panel add-activity-page-panel">
+        <form id="activityPageForm" class="activity-form">
+          <div class="activity-form-section">
+            <h3>Activity Information</h3>
+
+            <label class="activity-field">
+              <span>Activity ID <em>*</em></span>
+              <input id="activityIdInput" name="activityId" type="text" required placeholder="Enter activity ID" />
+            </label>
+
+            <label class="activity-field">
+              <span>Activity Name <em>*</em></span>
+              <input id="activityNameInput" name="activityName" type="text" required placeholder="Enter activity name" />
+            </label>
+
+            <label class="activity-field">
+              <span>Project <em>*</em></span>
+              <input id="activityProjectInput" name="project" type="text" required placeholder="Select project in Activities page" readonly />
+            </label>
+
+            <label class="activity-field">
+              <span>Activity Type <em>*</em></span>
+              <input id="activityTypeInput" name="activityType" type="text" required placeholder="Enter activity type" />
+            </label>
+
+            <label class="activity-field">
+              <span>Description</span>
+              <textarea id="activityDescriptionInput" name="description" maxlength="500" placeholder="Enter activity description (optional)"></textarea>
+            </label>
+          </div>
+
+          <div class="activity-form-section">
+            <h3>Schedule</h3>
+            <div class="activity-field-grid">
+              <label class="activity-field">
+                <span>Planned Start <em>*</em></span>
+                <input id="activityStartDateInput" name="plannedStart" type="date" required />
+              </label>
+              <label class="activity-field">
+                <span>Planned Finish <em>*</em></span>
+                <input id="activityFinishDateInput" name="plannedFinish" type="date" required />
+              </label>
+            </div>
+          </div>
+
+          <footer class="activity-form-actions">
+            <a id="activityFormCancelLink" class="activity-cancel-btn" href="activities.html">Cancel</a>
+            <button type="submit" class="activities-add-btn">Save Activity</button>
+          </footer>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script src="add-activity.js"></script>
+</body>
+</html>

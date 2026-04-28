@@ -32,14 +32,6 @@ const activitiesProjectDateApplyBtn = document.getElementById("activitiesProject
 const activitiesHowItWorksBtn = document.getElementById("activitiesHowItWorksBtn");
 const activitiesAddButton = document.getElementById("activitiesAddButton");
 const activitiesPagination = document.querySelector(".activities-pagination");
-const activityModal = document.getElementById("activityModal");
-const activityModalBackdrop = document.getElementById("activityModalBackdrop");
-const activityModalClose = document.getElementById("activityModalClose");
-const activityForm = document.getElementById("activityForm");
-const activityFormCancel = document.getElementById("activityFormCancel");
-const activityStartDateInput = document.getElementById("activityStartDateInput");
-const activityFinishDateInput = document.getElementById("activityFinishDateInput");
-const activityProjectInput = document.getElementById("activityProjectInput");
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const LOCAL_STORAGE_KEY = "constructionStageActivities";
 const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
@@ -335,6 +327,7 @@ const state = {
     start: null,
     end: null,
   },
+  didHydrateProjectFromUrl: false,
 };
 
 const readActivitiesFromLocalStorage = () => {
@@ -799,27 +792,14 @@ const applyFilters = () => {
 };
 
 
-const openActivityModal = () => {
-  if (!activityModal || !activityForm) return;
+const openAddActivityPage = () => {
   if (!hasSelectedProject()) {
     window.alert("Please select a project first.");
     activitiesProjectPickerSearch?.focus();
     return;
   }
 
-  activityModal.classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-  activityForm.reset();
-  if (activityProjectInput) {
-    activityProjectInput.value = state.selectedProject;
-    activityProjectInput.readOnly = true;
-  }
-};
-
-const closeActivityModal = () => {
-  if (!activityModal) return;
-  activityModal.classList.add("hidden");
-  document.body.style.overflow = "";
+  window.location.href = `add-activity.html?project=${encodeURIComponent(state.selectedProject)}`;
 };
 
 const refreshFilterOptions = () => {
@@ -874,7 +854,7 @@ if (activitiesPagination) {
 }
 
 if (activitiesAddButton) {
-  activitiesAddButton.addEventListener("click", openActivityModal);
+  activitiesAddButton.addEventListener("click", openAddActivityPage);
 }
 
 if (activitiesProjectPickerSearch) {
@@ -956,55 +936,34 @@ if (activitiesProjectPickerGrid) {
   });
 }
 
-if (activitiesBackToProjectsBtn) {
-  activitiesBackToProjectsBtn.addEventListener("click", () => {
-    state.selectedProject = null;
-    state.currentPage = 1;
-    if (activitiesSearchInput) activitiesSearchInput.value = "";
-    if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
-    if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
-    state.dateRange.start = null;
-    state.dateRange.end = null;
-    if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
-    if (activitiesFilterEndDate) {
-      activitiesFilterEndDate.value = "";
-      activitiesFilterEndDate.min = "";
-    }
-    syncDateFilterLabel();
-    applyFilters();
-    activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-}
+const handleBackToProjects = () => {
+  state.selectedProject = null;
+  state.currentPage = 1;
+  if (activitiesSearchInput) activitiesSearchInput.value = "";
+  if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
+  if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
+  state.dateRange.start = null;
+  state.dateRange.end = null;
+  if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
+  if (activitiesFilterEndDate) {
+    activitiesFilterEndDate.value = "";
+    activitiesFilterEndDate.min = "";
+  }
+  syncDateFilterLabel();
+  applyFilters();
+  activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 
 if (activitiesBackToProjectsBtn) {
-  activitiesBackToProjectsBtn.addEventListener("click", () => {
-    state.selectedProject = null;
-    state.currentPage = 1;
-    if (activitiesSearchInput) activitiesSearchInput.value = "";
-    if (activitiesStatusFilter) activitiesStatusFilter.value = "All Statuses";
-    if (activitiesTypeFilter) activitiesTypeFilter.value = "All Activity Types";
-    state.dateRange.start = null;
-    state.dateRange.end = null;
-    if (activitiesFilterStartDate) activitiesFilterStartDate.value = "";
-    if (activitiesFilterEndDate) {
-      activitiesFilterEndDate.value = "";
-      activitiesFilterEndDate.min = "";
-    }
-    syncDateFilterLabel();
-    applyFilters();
-    activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
+  activitiesBackToProjectsBtn.addEventListener("click", handleBackToProjects);
 }
 
 activitiesTableBody.addEventListener("click", (event) => {
   const button = event.target.closest("#activitiesAddButtonEmpty");
   if (!button) return;
-  openActivityModal();
+  openAddActivityPage();
 });
 
-[activityModalBackdrop, activityModalClose, activityFormCancel]
-  .filter(Boolean)
-  .forEach((el) => el.addEventListener("click", closeActivityModal));
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && activitiesDateRangePanel && !activitiesDateRangePanel.classList.contains("hidden")) {
@@ -1017,9 +976,6 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
-  if (event.key === "Escape" && activityModal && !activityModal.classList.contains("hidden")) {
-    closeActivityModal();
-  }
 });
 
 if (activitiesDateFilterBtn) {
@@ -1092,48 +1048,22 @@ document.addEventListener("click", (event) => {
   }
 });
 
-if (activityForm) {
-  activityForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (!hasSelectedProject()) {
-      window.alert("Please select a project first.");
-      activitiesProjectPickerSearch?.focus();
-      return;
-    }
 
-    const formData = new FormData(activityForm);
-    const plannedStart = formData.get("plannedStart");
-    const plannedFinish = formData.get("plannedFinish");
-    if (plannedStart && plannedFinish && new Date(plannedStart) > new Date(plannedFinish)) {
-      window.alert("Planned finish date must be on or after planned start date.");
-      return;
-    }
 
-    const newActivity = normalizeActivity({
-      activityId: formData.get("activityId"),
-      activityName: formData.get("activityName"),
-      project: state.selectedProject,
-      activityType: formData.get("activityType"),
-      status: "Not Started",
-      plannedStart,
-      plannedFinish,
-      progress: 0,
-      costStatus: "On Budget",
-    });
+const hydrateSelectedProjectFromUrl = () => {
+  if (state.didHydrateProjectFromUrl) return;
+  state.didHydrateProjectFromUrl = true;
 
-    state.allActivities.unshift(newActivity);
-    saveActivitiesToLocalStorage(state.allActivities);
-    refreshFilterOptions();
-    applyFilters();
-    closeActivityModal();
-  });
-}
+  const query = new URLSearchParams(window.location.search);
+  const projectFromUrl = query.get("project");
+  if (!projectFromUrl) return;
 
-if (activityStartDateInput && activityFinishDateInput) {
-  activityStartDateInput.addEventListener("change", () => {
-    activityFinishDateInput.min = activityStartDateInput.value;
-  });
-}
+  const projectSummaries = buildProjectSummaries();
+  const matchedProject = projectSummaries.find((project) => project.name === projectFromUrl);
+  if (matchedProject) {
+    state.selectedProject = matchedProject.name;
+  }
+};
 
 const bootstrapActivitiesPage = async () => {
   const source = await loadActivitiesAndProjectsFromSource();
@@ -1162,6 +1092,7 @@ const bootstrapActivitiesPage = async () => {
   syncProjectDateFilterLabel();
   refreshFilterOptions();
   renderProjectPicker();
+  hydrateSelectedProjectFromUrl();
   applyFilters();
 };
 
