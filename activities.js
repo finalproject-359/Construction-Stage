@@ -1061,15 +1061,6 @@ const openEditActivityModal = (activityKey) => {
   state.editingActivityKey = activityKey;
   idInput.value = activity.id || "";
   nameInput.value = activity.name || "";
-  const activityType = activity.type || "";
-  const matchingOption = Array.from(typeInput.options).find((option) => option.value === activityType);
-  if (!matchingOption && activityType) {
-    const customOption = document.createElement("option");
-    customOption.value = activityType;
-    customOption.textContent = activityType;
-    typeInput.append(customOption);
-  }
-  typeInput.value = activityType;
   updateActivityModalProjectDetails(activity.project || state.selectedProject || "");
   if (activityModalStartDateInput) activityModalStartDateInput.value = toInputDate(activity.plannedStartDate || activity.plannedStart);
   if (activityModalFinishDateInput) {
