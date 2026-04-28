@@ -420,6 +420,13 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   }
 };
 
+const showProjectPersistenceError = (actionLabel, error) => {
+  const reason = error?.message ? `\nReason: ${error.message}` : "";
+  window.alert(
+    `Unable to ${actionLabel} project in Google Sheets. Changes were not saved locally so the interface stays aligned with real-time data.${reason}`
+  );
+};
+
 const loadProjectsFromSource = async () => {
   const localProjects = readFromLocalStorage();
 
@@ -569,7 +576,7 @@ projectsTableBody.addEventListener("click", async (event) => {
       await deleteProject(projectId);
     } catch (error) {
       console.warn(error);
-      window.alert("Failed to delete project from Google Sheet. Please try again.");
+      showProjectPersistenceError("delete", error);
     }
   }
 });
@@ -677,11 +684,7 @@ projectForm.addEventListener("submit", async (event) => {
     }
   } catch (error) {
     console.warn(error);
-    window.alert(
-      error instanceof Error
-        ? error.message
-        : "Failed to sync project to Google Sheet. Please verify Apps Script deployment access and try again."
-    );
+    showProjectPersistenceError(state.editingProjectId ? "update" : "save", error);
     return;
   }
 
