@@ -40,6 +40,9 @@ const activityModalForm = document.getElementById("activityModalForm");
 const activityModalProjectInput = document.getElementById("activityModalProjectInput");
 const activityModalStartDateInput = document.getElementById("activityModalStartDateInput");
 const activityModalFinishDateInput = document.getElementById("activityModalFinishDateInput");
+const activityModalTitle = document.getElementById("activityModalTitle");
+const activityModalSubtitle = document.querySelector(".activity-modal-header p");
+const activityModalSubmitBtn = activityModalForm?.querySelector('button[type="submit"]');
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const LOCAL_STORAGE_KEY = "constructionStageActivities";
 const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
@@ -256,9 +259,29 @@ const normalizeActivity = (activity = {}) => {
   };
 };
 
+const createActivityKey = (activity = {}) =>
+  [
+    String(activity.id || "").trim().toLowerCase(),
+    String(activity.project || "").trim().toLowerCase(),
+    String(activity.name || "").trim().toLowerCase(),
+    String(activity.type || "").trim().toLowerCase(),
+    String(activity.plannedStart || "").trim().toLowerCase(),
+    String(activity.plannedFinish || "").trim().toLowerCase(),
+  ].join("::");
+
+const toInputDate = (value) => {
+  const dateValue = parseDateValue(value);
+  if (!dateValue) return "";
+  const year = dateValue.getFullYear();
+  const month = String(dateValue.getMonth() + 1).padStart(2, "0");
+  const day = String(dateValue.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const buildActivityRowHtml = (activity) => {
   const progressClass = PROGRESS_CLASS_BY_STATUS[activity.status] || "";
   const statusClass = BADGE_CLASS_BY_STATUS[activity.status] || "badge-on";
+  const rowKey = createActivityKey(activity);
   return `
     <tr>
       <td>${escapeHtml(activity.id)}</td>
@@ -270,7 +293,13 @@ const buildActivityRowHtml = (activity) => {
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>
-      <td class="actions-col">⋮</td>
+      <td class="actions-col">
+        <button type="button" class="action-menu-trigger" aria-label="Open activity actions" aria-expanded="false" data-menu-trigger data-activity-key="${escapeHtml(rowKey)}">⋮</button>
+        <div class="project-actions-menu" hidden data-action-menu data-activity-key="${escapeHtml(rowKey)}">
+          <button type="button" class="project-action-btn" data-action="edit" data-activity-key="${escapeHtml(rowKey)}">Edit</button>
+          <button type="button" class="project-action-btn danger" data-action="delete" data-activity-key="${escapeHtml(rowKey)}">Delete</button>
+        </div>
+      </td>
     </tr>
   `;
 };
@@ -326,6 +355,36 @@ const state = {
     end: null,
   },
   didHydrateProjectFromUrl: false,
+  editingActivityKey: null,
+  openActivityMenuKey: null,
+};
+
+const closeActivityActionMenus = () => {
+  state.openActivityMenuKey = null;
+  activitiesTableBody
+    .querySelectorAll("[data-action-menu]")
+    .forEach((menuEl) => {
+      menuEl.hidden = true;
+    });
+  activitiesTableBody
+    .querySelectorAll("[data-menu-trigger]")
+    .forEach((triggerEl) => {
+      triggerEl.setAttribute("aria-expanded", "false");
+    });
+};
+
+const toggleActivityActionMenu = (activityKey) => {
+  const shouldOpen = state.openActivityMenuKey !== activityKey;
+  closeActivityActionMenus();
+  if (!shouldOpen) return;
+
+  const menu = activitiesTableBody.querySelector(`[data-action-menu][data-activity-key="${CSS.escape(activityKey)}"]`);
+  const trigger = activitiesTableBody.querySelector(`[data-menu-trigger][data-activity-key="${CSS.escape(activityKey)}"]`);
+  if (!menu || !trigger) return;
+
+  menu.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+  state.openActivityMenuKey = activityKey;
 };
 
 const updateActivitiesUrlParams = ({ project = state.selectedProject, keepAddedFlag = false } = {}) => {
@@ -822,9 +881,25 @@ const closeAddActivityModal = ({ resetForm = true } = {}) => {
   document.body.style.overflow = "";
   if (resetForm && activityModalForm) {
     activityModalForm.reset();
+    state.editingActivityKey = null;
     if (activityModalFinishDateInput) {
       activityModalFinishDateInput.min = "";
     }
+  }
+};
+
+const setActivityModalMode = (mode = "add") => {
+  const isEdit = mode === "edit";
+  if (activityModalTitle) {
+    activityModalTitle.textContent = isEdit ? "Edit Activity" : "Add New Activity";
+  }
+  if (activityModalSubtitle) {
+    activityModalSubtitle.textContent = isEdit
+      ? "Update the activity details for your selected project."
+      : "Create an activity and attach it to your selected project.";
+  }
+  if (activityModalSubmitBtn) {
+    activityModalSubmitBtn.textContent = isEdit ? "Update Activity" : "Save Activity";
   }
 };
 
@@ -836,6 +911,8 @@ const openAddActivityModal = () => {
   }
 
   if (!activityModal) return;
+  state.editingActivityKey = null;
+  setActivityModalMode("add");
   if (activityModalProjectInput) {
     activityModalProjectInput.value = state.selectedProject;
   }
@@ -844,6 +921,62 @@ const openAddActivityModal = () => {
   window.setTimeout(() => {
     document.getElementById("activityModalIdInput")?.focus();
   }, 0);
+};
+
+const findActivityIndexByKey = (activityKey) =>
+  state.allActivities.findIndex((item) => createActivityKey(item) === activityKey);
+
+const openEditActivityModal = (activityKey) => {
+  if (!hasSelectedProject()) return;
+
+  const index = findActivityIndexByKey(activityKey);
+  if (index < 0) {
+    window.alert("Activity not found.");
+    return;
+  }
+
+  const activity = state.allActivities[index];
+  const idInput = document.getElementById("activityModalIdInput");
+  const nameInput = document.getElementById("activityModalNameInput");
+  const typeInput = document.getElementById("activityModalTypeInput");
+
+  if (!activityModal || !idInput || !nameInput || !typeInput) return;
+
+  setActivityModalMode("edit");
+  state.editingActivityKey = activityKey;
+  idInput.value = activity.id || "";
+  nameInput.value = activity.name || "";
+  typeInput.value = activity.type || "";
+  if (activityModalProjectInput) activityModalProjectInput.value = activity.project || state.selectedProject || "";
+  if (activityModalStartDateInput) activityModalStartDateInput.value = toInputDate(activity.plannedStartDate || activity.plannedStart);
+  if (activityModalFinishDateInput) {
+    activityModalFinishDateInput.value = toInputDate(activity.plannedFinishDate || activity.plannedFinish);
+    activityModalFinishDateInput.min = activityModalStartDateInput?.value || "";
+  }
+
+  activityModal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  window.setTimeout(() => {
+    idInput.focus();
+  }, 0);
+};
+
+const handleDeleteActivity = (activityKey) => {
+  const index = findActivityIndexByKey(activityKey);
+  if (index < 0) {
+    window.alert("Activity not found.");
+    return;
+  }
+
+  const activity = state.allActivities[index];
+  const shouldDelete = window.confirm(`Delete activity "${activity.name}"?`);
+  if (!shouldDelete) return;
+
+  state.allActivities.splice(index, 1);
+  saveActivitiesToLocalStorage(state.allActivities);
+  refreshFilterOptions();
+  applyFilters();
+  window.alert("Activity deleted successfully.");
 };
 
 const refreshFilterOptions = () => {
@@ -1039,15 +1172,47 @@ if (activitiesBackToProjectsBtn) {
 }
 
 activitiesTableBody.addEventListener("click", (event) => {
-  const button = event.target.closest("#activitiesAddButtonEmpty");
-  if (!button) return;
-  openAddActivityModal();
+  const addButton = event.target.closest("#activitiesAddButtonEmpty");
+  if (addButton) {
+    openAddActivityModal();
+    return;
+  }
+
+  const menuTrigger = event.target.closest("[data-menu-trigger][data-activity-key]");
+  if (menuTrigger) {
+    const activityKey = menuTrigger.dataset.activityKey || "";
+    if (!activityKey) return;
+    toggleActivityActionMenu(activityKey);
+    return;
+  }
+
+  const actionButton = event.target.closest("[data-action][data-activity-key]");
+  if (!actionButton) return;
+
+  const action = actionButton.dataset.action;
+  const activityKey = actionButton.dataset.activityKey || "";
+  if (!activityKey) return;
+  closeActivityActionMenus();
+
+  if (action === "edit") {
+    openEditActivityModal(activityKey);
+    return;
+  }
+
+  if (action === "delete") {
+    handleDeleteActivity(activityKey);
+  }
 });
 
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && activityModal && !activityModal.classList.contains("hidden")) {
     closeAddActivityModal();
+    return;
+  }
+
+  if (event.key === "Escape" && state.openActivityMenuKey) {
+    closeActivityActionMenus();
     return;
   }
 
@@ -1114,6 +1279,10 @@ if (activitiesDateClearBtn) {
 }
 
 document.addEventListener("click", (event) => {
+  if (state.openActivityMenuKey && !event.target.closest(".actions-col")) {
+    closeActivityActionMenus();
+  }
+
   if (
     activitiesDateFilterWrap &&
     activitiesDateRangePanel &&
@@ -1180,12 +1349,24 @@ if (activityModalForm) {
       costStatus: "On Budget",
     });
 
-    state.allActivities.unshift(nextActivity);
+    const isEditing = Boolean(state.editingActivityKey);
+    if (isEditing) {
+      const index = findActivityIndexByKey(state.editingActivityKey);
+      if (index < 0) {
+        window.alert("Unable to update. Activity no longer exists.");
+        closeAddActivityModal();
+        return;
+      }
+      state.allActivities[index] = nextActivity;
+    } else {
+      state.allActivities.unshift(nextActivity);
+    }
+
     saveActivitiesToLocalStorage(state.allActivities);
     refreshFilterOptions();
     applyFilters();
     closeAddActivityModal();
-    window.alert("Activity saved successfully.");
+    window.alert(isEditing ? "Activity updated successfully." : "Activity saved successfully.");
   });
 }
 
