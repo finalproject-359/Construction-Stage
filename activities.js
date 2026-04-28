@@ -574,7 +574,12 @@ const mergeProjects = (primary, secondary) => {
 const fetchSourcePayload = async (resource) => {
   if (!DATA_SOURCE_URL) return null;
 
-  const response = await fetch(`${DATA_SOURCE_URL}?resource=${encodeURIComponent(resource)}`, {
+  const url = new URL(DATA_SOURCE_URL);
+  url.searchParams.set("resource", resource);
+  // Bust intermediary caches so project/activity lists reflect Google Sheet updates quickly.
+  url.searchParams.set("_ts", String(Date.now()));
+
+  const response = await fetch(url.toString(), {
     cache: "no-store",
   });
   if (!response.ok) {
@@ -697,7 +702,6 @@ const loadActivitiesAndProjectsFromSource = async () => {
     const remoteProjects = Array.isArray(projectsPayload?.projects)
       ? projectsPayload.projects.map(normalizeProject)
       : [];
-    const mergedProjects = mergeProjects(remoteProjects, localProjects);
 
     const computedKpis = {
       completed: 0,
@@ -715,7 +719,10 @@ const loadActivitiesAndProjectsFromSource = async () => {
 
     return {
       activities: remoteActivities,
-      projects: mergedProjects,
+      // Keep project selection aligned with Google Sheets in real time.
+      // Activity-linked projects that are missing from this list are still surfaced
+      // by buildProjectSummaries().
+      projects: remoteProjects,
       meta: {
         totalCount: remoteActivities.length,
         kpi: computedKpis,
