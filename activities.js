@@ -1508,16 +1508,11 @@ if (activityModalForm) {
       project: nextActivity.project,
       projectId: getProjectIdByName(nextActivity.project),
       name: nextActivity.name,
-      type: nextActivity.type,
       status: nextActivity.status,
       plannedStart: toInputDate(nextActivity.plannedStartDate || nextActivity.plannedStart),
       plannedFinish: toInputDate(nextActivity.plannedFinishDate || nextActivity.plannedFinish),
+      duration: nextActivity.duration,
       percentComplete: nextActivity.progress,
-      plannedValue: 0,
-      actualCost: 0,
-      earnedValue: 0,
-      costVariance: 0,
-      notes: "",
     };
 
     if (isEditing) {

@@ -29,20 +29,15 @@ const CONFIG = {
       'Created At',
     ],
     activities: [
-      'Activity ID',
       'Project ID',
-      'Project',
+      'Project Name',
+      'Activity ID',
       'Activity',
-      'Type',
-      'Status',
       'Planned Start',
       'Planned Finish',
+      'Duration',
+      'Status',
       '% Complete',
-      'Planned Value',
-      'Actual Cost',
-      'Earned Value',
-      'Cost Variance',
-      'Notes',
       'Created At',
     ],
     costs: [
@@ -262,20 +257,15 @@ function handleActivityMutation(action, payload) {
     const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length, columns.maxColumn);
     const rowValues = new Array(lastColumn).fill('');
 
-    if (columns.id) rowValues[columns.id - 1] = activity.id;
     if (columns.projectId) rowValues[columns.projectId - 1] = activity.projectId;
     if (columns.project) rowValues[columns.project - 1] = activity.project;
+    if (columns.id) rowValues[columns.id - 1] = activity.id;
     if (columns.name) rowValues[columns.name - 1] = activity.name;
-    if (columns.type) rowValues[columns.type - 1] = activity.type;
     if (columns.status) rowValues[columns.status - 1] = activity.status;
     if (columns.plannedStart) rowValues[columns.plannedStart - 1] = activity.plannedStart;
     if (columns.plannedFinish) rowValues[columns.plannedFinish - 1] = activity.plannedFinish;
+    if (columns.duration) rowValues[columns.duration - 1] = activity.duration;
     if (columns.percentComplete) rowValues[columns.percentComplete - 1] = activity.percentComplete;
-    if (columns.plannedValue) rowValues[columns.plannedValue - 1] = activity.plannedValue;
-    if (columns.actualCost) rowValues[columns.actualCost - 1] = activity.actualCost;
-    if (columns.earnedValue) rowValues[columns.earnedValue - 1] = activity.earnedValue;
-    if (columns.costVariance) rowValues[columns.costVariance - 1] = activity.costVariance;
-    if (columns.notes) rowValues[columns.notes - 1] = activity.notes;
     if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
 
     sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
@@ -352,16 +342,11 @@ function normalizeIncomingActivity(input) {
     projectId: cleanText(source.projectId || source.project_id || source.projectCode || source.project_code || source.project),
     project: cleanText(source.project || source.projectName || source.project_name),
     name: cleanText(source.name || source.activity || source.activityName || source.activity_name),
-    type: cleanText(source.type || source.activityType || source.activity_type) || 'General',
     status: cleanText(source.status) || 'Not Started',
     plannedStart: normalizeDate(source.plannedStart || source.planned_start || source.startDate || source.start_date),
     plannedFinish: normalizeDate(source.plannedFinish || source.planned_finish || source.finishDate || source.finish_date),
+    duration: cleanText(source.duration || source.durationDays || source.duration_days),
     percentComplete: parseNumber(source.percentComplete || source.percent_complete || source.progress),
-    plannedValue: parseNumber(source.plannedValue || source.planned_value || source.budget),
-    actualCost: parseNumber(source.actualCost || source.actual_cost),
-    earnedValue: parseNumber(source.earnedValue || source.earned_value),
-    costVariance: parseNumber(source.costVariance || source.cost_variance),
-    notes: cleanText(source.notes || source.note || source.remarks),
   };
 }
 
@@ -381,18 +366,13 @@ function getActivityColumnMap(sheet) {
   return {
     id: indexOfHeader(['Activity ID', 'ID']),
     projectId: indexOfHeader(['Project ID']),
-    project: indexOfHeader(['Project', 'Project Name']),
+    project: indexOfHeader(['Project Name', 'Project']),
     name: indexOfHeader(['Activity', 'Activity Name', 'Name']),
-    type: indexOfHeader(['Type', 'Activity Type']),
-    status: indexOfHeader(['Status']),
     plannedStart: indexOfHeader(['Planned Start', 'Start Date']),
     plannedFinish: indexOfHeader(['Planned Finish', 'Finish Date']),
+    duration: indexOfHeader(['Duration', 'Duration Days']),
+    status: indexOfHeader(['Status']),
     percentComplete: indexOfHeader(['% Complete', 'Percent Complete', 'Progress']),
-    plannedValue: indexOfHeader(['Planned Value', 'Planned Cost', 'Budget']),
-    actualCost: indexOfHeader(['Actual Cost', 'AC', 'Actual']),
-    earnedValue: indexOfHeader(['Earned Value', 'EV']),
-    costVariance: indexOfHeader(['Cost Variance', 'CV']),
-    notes: indexOfHeader(['Notes', 'Remarks']),
     createdAt: indexOfHeader(['Created At']),
     maxColumn: headers.length,
   };
@@ -439,16 +419,11 @@ function updateActivityRow(activity) {
   if (lookup.columns.projectId) rowValues[lookup.columns.projectId - 1] = activity.projectId;
   if (lookup.columns.project) rowValues[lookup.columns.project - 1] = activity.project;
   if (lookup.columns.name) rowValues[lookup.columns.name - 1] = activity.name;
-  if (lookup.columns.type) rowValues[lookup.columns.type - 1] = activity.type;
-  if (lookup.columns.status) rowValues[lookup.columns.status - 1] = activity.status;
   if (lookup.columns.plannedStart) rowValues[lookup.columns.plannedStart - 1] = activity.plannedStart;
   if (lookup.columns.plannedFinish) rowValues[lookup.columns.plannedFinish - 1] = activity.plannedFinish;
+  if (lookup.columns.duration) rowValues[lookup.columns.duration - 1] = activity.duration;
+  if (lookup.columns.status) rowValues[lookup.columns.status - 1] = activity.status;
   if (lookup.columns.percentComplete) rowValues[lookup.columns.percentComplete - 1] = activity.percentComplete;
-  if (lookup.columns.plannedValue) rowValues[lookup.columns.plannedValue - 1] = activity.plannedValue;
-  if (lookup.columns.actualCost) rowValues[lookup.columns.actualCost - 1] = activity.actualCost;
-  if (lookup.columns.earnedValue) rowValues[lookup.columns.earnedValue - 1] = activity.earnedValue;
-  if (lookup.columns.costVariance) rowValues[lookup.columns.costVariance - 1] = activity.costVariance;
-  if (lookup.columns.notes) rowValues[lookup.columns.notes - 1] = activity.notes;
   lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
   return activity;
 }
@@ -927,7 +902,9 @@ function normalizeActivityRecord(row) {
     status: cleanText(getCell(row, ['status'])) || 'Not Started',
     plannedStart: normalizeDate(getCell(row, ['planned start', 'start date', 'planned_start'])),
     plannedFinish: normalizeDate(getCell(row, ['planned finish', 'finish date', 'planned_finish'])),
+    duration: cleanText(getCell(row, ['duration', 'duration days', 'duration_days'])),
     percentComplete: parseNumber(getCell(row, ['% complete', 'percent complete', 'progress'])),
+    createdAt: normalizeDate(getCell(row, ['created at', 'created_at', 'timestamp', 'date created'])),
     plannedValue: parseNumber(getCell(row, ['planned value', 'planned cost', 'budget'])),
     actualCost: parseNumber(getCell(row, ['actual cost', 'ac', 'actual'])),
     earnedValue: parseNumber(getCell(row, ['earned value', 'ev'])),

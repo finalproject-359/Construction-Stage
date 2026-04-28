@@ -3,14 +3,16 @@
     "https://script.google.com/macros/s/AKfycbzS5JmCF8kxtUybOAa5gtthqOeynoRRVIKFYuScLaVjb7Njp2oOYS2GwwkmnzGyDpBY/exec";
 
   const EXPECTED_HEADER_ALIASES = [
+    "project id",
+    "project name",
     "activity id",
     "activity",
-    "planned value",
-    "actual cost",
-    "earned value",
+    "planned start",
+    "planned finish",
+    "duration",
+    "status",
     "complete",
-    "cost variance",
-    "budget",
+    "created at",
   ];
 
   const normalizeHeader = (value) =>
