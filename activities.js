@@ -290,6 +290,7 @@ const buildActivityRowHtml = (activity) => {
       <td><span class="badge ${statusClass}">${escapeHtml(activity.status)}</span></td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>${escapeHtml(activity.plannedFinish)}</td>
+      <td><span class="badge ${statusClass}">${escapeHtml(activity.status)}</span></td>
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>
