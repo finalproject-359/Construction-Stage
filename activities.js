@@ -589,6 +589,41 @@ const fetchSourcePayload = async (resource) => {
   return payload;
 };
 
+const getProjectIdByName = (projectName) => {
+  if (!projectName) return "";
+  const summaries = buildProjectSummaries();
+  const found = summaries.find((project) => project.name === projectName);
+  return found?.code || projectName;
+};
+
+const mutateActivityInSource = async ({ action, activity }) => {
+  if (!DATA_SOURCE_URL) return null;
+  if (!action) throw new Error("Missing activity mutation action.");
+
+  const response = await fetch(DATA_SOURCE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      resource: "activities",
+      action,
+      activity,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to ${action} activity (HTTP ${response.status})`);
+  }
+
+  const payload = await response.json();
+  if (payload?.ok === false) {
+    throw new Error(payload.error || `Unable to ${action} activity`);
+  }
+
+  return payload;
+};
+
 const loadActivitiesAndProjectsFromSource = async () => {
   const localActivities = readActivitiesFromLocalStorage();
   const localProjects = readProjectsFromLocalStorage();
@@ -1075,7 +1110,7 @@ const openEditActivityModal = (activityKey) => {
   }, 0);
 };
 
-const handleDeleteActivity = (activityKey) => {
+const handleDeleteActivity = async (activityKey) => {
   const index = findActivityIndexByKey(activityKey);
   if (index < 0) {
     window.alert("Activity not found.");
@@ -1085,6 +1120,19 @@ const handleDeleteActivity = (activityKey) => {
   const activity = state.allActivities[index];
   const shouldDelete = window.confirm(`Delete activity "${activity.name}"?`);
   if (!shouldDelete) return;
+
+  try {
+    await mutateActivityInSource({
+      action: "delete",
+      activity: {
+        id: activity.id,
+        project: activity.project,
+        projectId: getProjectIdByName(activity.project),
+      },
+    });
+  } catch (error) {
+    console.warn("Unable to delete activity from source, falling back to local storage.", error);
+  }
 
   state.allActivities.splice(index, 1);
   saveActivitiesToLocalStorage(state.allActivities);
@@ -1426,7 +1474,7 @@ if (activityModalBackdrop) {
 }
 
 if (activityModalForm) {
-  activityModalForm.addEventListener("submit", (event) => {
+  activityModalForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!hasSelectedProject()) {
       window.alert("Please select a project first.");
@@ -1455,6 +1503,23 @@ if (activityModalForm) {
     });
 
     const isEditing = Boolean(state.editingActivityKey);
+    const nextActivityPayload = {
+      id: nextActivity.id,
+      project: nextActivity.project,
+      projectId: getProjectIdByName(nextActivity.project),
+      name: nextActivity.name,
+      type: nextActivity.type,
+      status: nextActivity.status,
+      plannedStart: toInputDate(nextActivity.plannedStartDate || nextActivity.plannedStart),
+      plannedFinish: toInputDate(nextActivity.plannedFinishDate || nextActivity.plannedFinish),
+      percentComplete: nextActivity.progress,
+      plannedValue: 0,
+      actualCost: 0,
+      earnedValue: 0,
+      costVariance: 0,
+      notes: "",
+    };
+
     if (isEditing) {
       const index = findActivityIndexByKey(state.editingActivityKey);
       if (index < 0) {
@@ -1462,8 +1527,24 @@ if (activityModalForm) {
         closeAddActivityModal();
         return;
       }
+      try {
+        await mutateActivityInSource({
+          action: "update",
+          activity: nextActivityPayload,
+        });
+      } catch (error) {
+        console.warn("Unable to update activity in source, falling back to local storage.", error);
+      }
       state.allActivities[index] = nextActivity;
     } else {
+      try {
+        await mutateActivityInSource({
+          action: "create",
+          activity: nextActivityPayload,
+        });
+      } catch (error) {
+        console.warn("Unable to create activity in source, falling back to local storage.", error);
+      }
       state.allActivities.unshift(nextActivity);
     }
 

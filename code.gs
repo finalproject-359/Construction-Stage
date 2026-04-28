@@ -83,12 +83,19 @@ function handleRequest(payload) {
     const action = cleanText(source.action).toLowerCase();
 
     if (action) {
-      if (resource !== 'projects') {
-        throw new Error('Only "projects" is supported for mutations.');
+      if (resource === 'projects') {
+        const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+        ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
+        return handleProjectMutation(action, source);
       }
-      const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
-      ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
-      return handleProjectMutation(action, source);
+
+      if (resource === 'activities') {
+        const activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+        ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
+        return handleActivityMutation(action, source);
+      }
+
+      throw new Error('Only "projects" and "activities" are supported for mutations.');
     }
 
     const projectFilter = {
@@ -242,6 +249,74 @@ function handleProjectMutation(action, payload) {
   throw new Error('Unsupported action. Use action=create|update|delete.');
 }
 
+function handleActivityMutation(action, payload) {
+  if (action === 'create') {
+    const activity = normalizeIncomingActivity(payload.activity || payload);
+    if (!activity.name || !activity.id || !activity.project) {
+      throw new Error('Activity ID, Activity Name, and Project are required.');
+    }
+
+    const sheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+    ensureSheetHeaders(sheet, CONFIG.headers.activities);
+    const columns = getActivityColumnMap(sheet);
+    const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length, columns.maxColumn);
+    const rowValues = new Array(lastColumn).fill('');
+
+    if (columns.id) rowValues[columns.id - 1] = activity.id;
+    if (columns.projectId) rowValues[columns.projectId - 1] = activity.projectId;
+    if (columns.project) rowValues[columns.project - 1] = activity.project;
+    if (columns.name) rowValues[columns.name - 1] = activity.name;
+    if (columns.type) rowValues[columns.type - 1] = activity.type;
+    if (columns.status) rowValues[columns.status - 1] = activity.status;
+    if (columns.plannedStart) rowValues[columns.plannedStart - 1] = activity.plannedStart;
+    if (columns.plannedFinish) rowValues[columns.plannedFinish - 1] = activity.plannedFinish;
+    if (columns.percentComplete) rowValues[columns.percentComplete - 1] = activity.percentComplete;
+    if (columns.plannedValue) rowValues[columns.plannedValue - 1] = activity.plannedValue;
+    if (columns.actualCost) rowValues[columns.actualCost - 1] = activity.actualCost;
+    if (columns.earnedValue) rowValues[columns.earnedValue - 1] = activity.earnedValue;
+    if (columns.costVariance) rowValues[columns.costVariance - 1] = activity.costVariance;
+    if (columns.notes) rowValues[columns.notes - 1] = activity.notes;
+    if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
+
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
+
+    return jsonResponse({
+      ok: true,
+      message: 'Activity saved successfully.',
+      activity: activity,
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  if (action === 'update') {
+    const activity = normalizeIncomingActivity(payload.activity || payload);
+    if (!activity.id) throw new Error('Activity ID is required for update.');
+
+    const updateResult = updateActivityRow(activity);
+    return jsonResponse({
+      ok: true,
+      message: 'Activity updated successfully.',
+      activity: updateResult,
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  if (action === 'delete') {
+    const activity = normalizeIncomingActivity(payload.activity || payload);
+    if (!activity.id) throw new Error('Activity ID is required for delete.');
+
+    deleteActivityRow(activity.id, activity.projectId, activity.project);
+    return jsonResponse({
+      ok: true,
+      message: 'Activity deleted successfully.',
+      activityId: activity.id,
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  throw new Error('Unsupported action. Use action=create|update|delete.');
+}
+
 function updateProjectRow(project) {
   const lookup = findProjectSheetRow(project.id);
   if (!lookup) {
@@ -267,6 +342,120 @@ function deleteProjectRow(projectId) {
     throw new Error('Project not found.');
   }
 
+  lookup.sheet.deleteRow(lookup.rowNumber);
+}
+
+function normalizeIncomingActivity(input) {
+  const source = input || {};
+  return {
+    id: cleanText(source.id || source.activityId || source.activity_id || source.code || source.activityCode || source.activity_code) || Utilities.getUuid(),
+    projectId: cleanText(source.projectId || source.project_id || source.projectCode || source.project_code || source.project),
+    project: cleanText(source.project || source.projectName || source.project_name),
+    name: cleanText(source.name || source.activity || source.activityName || source.activity_name),
+    type: cleanText(source.type || source.activityType || source.activity_type) || 'General',
+    status: cleanText(source.status) || 'Not Started',
+    plannedStart: normalizeDate(source.plannedStart || source.planned_start || source.startDate || source.start_date),
+    plannedFinish: normalizeDate(source.plannedFinish || source.planned_finish || source.finishDate || source.finish_date),
+    percentComplete: parseNumber(source.percentComplete || source.percent_complete || source.progress),
+    plannedValue: parseNumber(source.plannedValue || source.planned_value || source.budget),
+    actualCost: parseNumber(source.actualCost || source.actual_cost),
+    earnedValue: parseNumber(source.earnedValue || source.earned_value),
+    costVariance: parseNumber(source.costVariance || source.cost_variance),
+    notes: cleanText(source.notes || source.note || source.remarks),
+  };
+}
+
+function getActivityColumnMap(sheet) {
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length)).getValues()[0]
+    .map(function(header) { return normalizeHeader(header); });
+
+  const indexOfHeader = function(candidates) {
+    for (var i = 0; i < candidates.length; i += 1) {
+      var candidate = normalizeHeader(candidates[i]);
+      var found = headers.indexOf(candidate);
+      if (found >= 0) return found + 1;
+    }
+    return 0;
+  };
+
+  return {
+    id: indexOfHeader(['Activity ID', 'ID']),
+    projectId: indexOfHeader(['Project ID']),
+    project: indexOfHeader(['Project', 'Project Name']),
+    name: indexOfHeader(['Activity', 'Activity Name', 'Name']),
+    type: indexOfHeader(['Type', 'Activity Type']),
+    status: indexOfHeader(['Status']),
+    plannedStart: indexOfHeader(['Planned Start', 'Start Date']),
+    plannedFinish: indexOfHeader(['Planned Finish', 'Finish Date']),
+    percentComplete: indexOfHeader(['% Complete', 'Percent Complete', 'Progress']),
+    plannedValue: indexOfHeader(['Planned Value', 'Planned Cost', 'Budget']),
+    actualCost: indexOfHeader(['Actual Cost', 'AC', 'Actual']),
+    earnedValue: indexOfHeader(['Earned Value', 'EV']),
+    costVariance: indexOfHeader(['Cost Variance', 'CV']),
+    notes: indexOfHeader(['Notes', 'Remarks']),
+    createdAt: indexOfHeader(['Created At']),
+    maxColumn: headers.length,
+  };
+}
+
+function findActivitySheetRow(activityId, projectId, projectName) {
+  const sheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+  ensureSheetHeaders(sheet, CONFIG.headers.activities);
+
+  const values = sheet.getDataRange().getValues();
+  if (!values.length) return null;
+  const columns = getActivityColumnMap(sheet);
+  if (!columns.id) throw new Error('Activity ID column is missing.');
+
+  var rowNumber = 0;
+  for (var rowIdx = 1; rowIdx < values.length; rowIdx += 1) {
+    var rowId = cleanText(values[rowIdx][columns.id - 1]);
+    if (rowId !== activityId) continue;
+
+    var matchesProjectId = !projectId || !columns.projectId || cleanText(values[rowIdx][columns.projectId - 1]) === cleanText(projectId);
+    var matchesProjectName = !projectName || !columns.project || cleanText(values[rowIdx][columns.project - 1]) === cleanText(projectName);
+    if (matchesProjectId && matchesProjectName) {
+      rowNumber = rowIdx + 1;
+      break;
+    }
+  }
+
+  if (!rowNumber) return null;
+
+  return {
+    sheet: sheet,
+    rowNumber: rowNumber,
+    columns: columns,
+    lastColumn: Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length),
+  };
+}
+
+function updateActivityRow(activity) {
+  const lookup = findActivitySheetRow(activity.id, activity.projectId, activity.project);
+  if (!lookup) throw new Error('Activity not found.');
+
+  const rowValues = lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).getValues()[0];
+  if (lookup.columns.id) rowValues[lookup.columns.id - 1] = activity.id;
+  if (lookup.columns.projectId) rowValues[lookup.columns.projectId - 1] = activity.projectId;
+  if (lookup.columns.project) rowValues[lookup.columns.project - 1] = activity.project;
+  if (lookup.columns.name) rowValues[lookup.columns.name - 1] = activity.name;
+  if (lookup.columns.type) rowValues[lookup.columns.type - 1] = activity.type;
+  if (lookup.columns.status) rowValues[lookup.columns.status - 1] = activity.status;
+  if (lookup.columns.plannedStart) rowValues[lookup.columns.plannedStart - 1] = activity.plannedStart;
+  if (lookup.columns.plannedFinish) rowValues[lookup.columns.plannedFinish - 1] = activity.plannedFinish;
+  if (lookup.columns.percentComplete) rowValues[lookup.columns.percentComplete - 1] = activity.percentComplete;
+  if (lookup.columns.plannedValue) rowValues[lookup.columns.plannedValue - 1] = activity.plannedValue;
+  if (lookup.columns.actualCost) rowValues[lookup.columns.actualCost - 1] = activity.actualCost;
+  if (lookup.columns.earnedValue) rowValues[lookup.columns.earnedValue - 1] = activity.earnedValue;
+  if (lookup.columns.costVariance) rowValues[lookup.columns.costVariance - 1] = activity.costVariance;
+  if (lookup.columns.notes) rowValues[lookup.columns.notes - 1] = activity.notes;
+  lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
+  return activity;
+}
+
+function deleteActivityRow(activityId, projectId, projectName) {
+  const lookup = findActivitySheetRow(cleanText(activityId), cleanText(projectId), cleanText(projectName));
+  if (!lookup) throw new Error('Activity not found.');
   lookup.sheet.deleteRow(lookup.rowNumber);
 }
 
