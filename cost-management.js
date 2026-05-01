@@ -86,10 +86,6 @@ const buildDetailsMarkup = (project) => {
   const axisLabels = [1, 0.75, 0.5, 0.25, 0].map((multiplier) => formatBudget(axisMax * multiplier));
 
   return `
-    <header class="details-header">
-      <h2>Cost Management</h2>
-      <p>Track and manage project costs efficiently.</p>
-    </header>
     <section class="selected-project-banner" aria-label="Selected project">
       <div>
         <p class="selected-project-label">Selected Project</p>
@@ -97,6 +93,10 @@ const buildDetailsMarkup = (project) => {
       </div>
       <a href="cost-management.html" class="ghost-btn">← Back to Projects</a>
     </section>
+    <header class="details-header">
+      <h2>Cost Management</h2>
+      <p>Track and manage project costs efficiently.</p>
+    </header>
     <nav class="details-tabs" aria-label="Cost tabs">
       <button class="tab-btn active" type="button">Overview</button>
       <button class="tab-btn" type="button">Costing Record</button>
