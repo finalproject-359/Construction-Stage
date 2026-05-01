@@ -136,9 +136,14 @@ const buildDetailsMarkup = (project, rows) => {
 
 const renderDailyCostModal = (projectId, activityId) => {
   const modal = detailsView.querySelector("#dailyCostModal");
+  const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
+  const projectName = String(project?.name || "").trim().toLowerCase();
   const activities = loadCostActivities();
   const dailyCosts = loadDailyCosts();
-  const activity = activities.find((item) => item.projectId === projectId && item.id === activityId);
+  const activity = activities.find((item) => {
+    const activityProjectRef = String(item.projectId || "").trim();
+    return item.id === activityId && (activityProjectRef === projectId || (projectName && activityProjectRef.toLowerCase() === projectName));
+  });
   if (!modal || !activity) return;
   const entries = dailyCosts.filter((item) => item.projectId === projectId && item.activityId === activityId).sort((a, b) => a.date.localeCompare(b.date));
   const rows = entries.length ? entries.map((entry) => `<tr><td>${entry.date}</td><td>${formatBudget(entry.actualCost)}</td></tr>`).join("") : '<tr><td colspan="2" class="empty-cell">No daily costs yet.</td></tr>';
