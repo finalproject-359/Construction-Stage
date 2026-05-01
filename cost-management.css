@@ -21,6 +21,10 @@ body.page-cost-management .main-content {
   text-decoration: none;
 }
 
+.selected-project-banner-host {
+  margin-bottom: 14px;
+}
+
 .cost-card {
   background: #fff;
   border: 1px solid var(--border);

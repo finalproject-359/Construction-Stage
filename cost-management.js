@@ -6,6 +6,7 @@ const projectsList = document.getElementById("costProjectsList");
 const projectsEmpty = document.getElementById("costProjectsEmpty");
 const selectionView = document.getElementById("costSelectionView");
 const detailsView = document.getElementById("costDetailsView");
+const selectedProjectBannerHost = document.getElementById("selectedProjectBannerHost");
 
 const loadProjects = () => {
   try {
@@ -72,6 +73,16 @@ const formatBudget = (value) =>
     maximumFractionDigits: 2,
   }).format(value || 0);
 
+const buildSelectedProjectBannerMarkup = (project) => `
+  <section class="selected-project-banner" aria-label="Selected project">
+    <div>
+      <p class="selected-project-label">Selected Project</p>
+      <h3>${escapeHtml(project.name)}</h3>
+    </div>
+    <a href="cost-management.html" class="ghost-btn">← Back to Projects</a>
+  </section>
+`;
+
 const buildDetailsMarkup = (project) => {
   const plannedCost = project.budget || 0;
   const actualCost = plannedCost * 0.661;
@@ -86,13 +97,6 @@ const buildDetailsMarkup = (project) => {
   const axisLabels = [1, 0.75, 0.5, 0.25, 0].map((multiplier) => formatBudget(axisMax * multiplier));
 
   return `
-    <section class="selected-project-banner" aria-label="Selected project">
-      <div>
-        <p class="selected-project-label">Selected Project</p>
-        <h3>${escapeHtml(project.name)}</h3>
-      </div>
-      <a href="cost-management.html" class="ghost-btn">← Back to Projects</a>
-    </section>
     <header class="details-header">
       <h2>Cost Management</h2>
       <p>Track and manage project costs efficiently.</p>
@@ -155,8 +159,10 @@ const buildDetailsMarkup = (project) => {
 
 const showProjectDetails = (projectId) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
-  if (!project || !selectionView || !detailsView) return false;
+  if (!project || !selectionView || !detailsView || !selectedProjectBannerHost) return false;
   selectionView.classList.add("hidden");
+  selectedProjectBannerHost.classList.remove("hidden");
+  selectedProjectBannerHost.innerHTML = buildSelectedProjectBannerMarkup(project);
   detailsView.classList.remove("hidden");
   detailsView.innerHTML = buildDetailsMarkup(project);
   return true;
