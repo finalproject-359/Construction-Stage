@@ -61,12 +61,20 @@ const normalizeCostActivity = (activity = {}) => ({
 });
 
 const loadCostActivities = () => {
-  const costActivities = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
-  if (costActivities.length) return costActivities;
+  const activitiesSource = safeJsonParse(localStorage.getItem(ACTIVITIES_LOCAL_STORAGE_KEY), []).map(normalizeCostActivity);
+  const costSource = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
 
-  return safeJsonParse(localStorage.getItem(ACTIVITIES_LOCAL_STORAGE_KEY), [])
-    .map(normalizeCostActivity)
-    .filter((item) => item.projectId);
+  // Prefer the Activities page source because it is the actively maintained dataset.
+  // Keep a fallback to legacy cost-specific storage to avoid losing historical entries.
+  const merged = [...activitiesSource, ...costSource].filter((item) => item.projectId);
+  const dedupedByProjectAndActivity = new Map();
+  merged.forEach((item) => {
+    const key = `${String(item.projectId).trim()}::${String(item.id).trim()}`;
+    if (!key || key === '::') return;
+    if (!dedupedByProjectAndActivity.has(key)) dedupedByProjectAndActivity.set(key, item);
+  });
+
+  return Array.from(dedupedByProjectAndActivity.values());
 };
 
 const getProjectCostData = (projectId) => {
