@@ -48,6 +48,7 @@ const DATA_SOURCE_URL =
   window.DataBridge?.DEFAULT_DATA_SOURCE_URL ||
   "https://script.google.com/macros/s/AKfycbw-jTCH3608w8QhMjpNEjTudfEUREshU9tU8oAaCUqb9xVfAERH4NbC3bkhqsKHxbM/exec";
 const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
+const COST_ACTIVITY_KEY = "constructionStageCostActivities";
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -191,6 +192,31 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+
+const persistCostActivities = (activities = []) => {
+  const existingByKey = new Map(
+    (() => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(COST_ACTIVITY_KEY) || "[]");
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map((item) => [`${String(item.projectId || "").trim()}::${String(item.id || "").trim()}`, item]);
+      } catch {
+        return [];
+      }
+    })()
+  );
+  const payload = activities.map((activity) => ({
+    ...(existingByKey.get(`${String(activity.project || "").trim()}::${String(activity.id || "").trim()}`) || {}),
+    id: String(activity.id || "").trim(),
+    name: String(activity.name || "Untitled Activity").trim(),
+    projectId: String(activity.project || "").trim(),
+    startDate: toInputDate(activity.plannedStartDate || activity.plannedStart),
+    finishDate: toInputDate(activity.plannedFinishDate || activity.plannedFinish),
+    durationDays: Number(activity.duration) || 0,
+    plannedCost: 0,
+  }));
+  localStorage.setItem(COST_ACTIVITY_KEY, JSON.stringify(payload));
+};
 
 const normalizeActivity = (activity = {}) => {
   const id = getValueByAliases(activity, ["id", "activityId", "activity_id", "code", "activityCode", "activity_code"]);
@@ -1661,6 +1687,7 @@ const bootstrapActivitiesPage = async () => {
   state.allActivities = source.activities;
   state.filteredActivities = source.activities;
   window.activitiesMeta = source.meta;
+  persistCostActivities(state.allActivities);
 
   initialProjectCatalog.length = 0;
   source.projects.forEach((project) => {
