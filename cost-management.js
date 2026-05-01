@@ -37,7 +37,9 @@ const buildDetailsMarkup = (project) => {
   const plannedCost = project.budget || 0;
   const actualCost = plannedCost * 0.661;
   const variance = actualCost - plannedCost;
+  const variancePercent = plannedCost ? ((Math.abs(variance) / plannedCost) * 100) : 0;
   const totalDuration = 128;
+  const avgCostPerDay = totalDuration ? actualCost / totalDuration : 0;
 
   return `
     <a href="cost-management.html" class="back-link">← Back to Projects Selection</a>
@@ -48,13 +50,49 @@ const buildDetailsMarkup = (project) => {
       </div>
       <button class="ghost-btn" type="button">How it works</button>
     </header>
+    <nav class="details-tabs" aria-label="Cost tabs">
+      <button class="tab-btn active" type="button">Overview</button>
+      <button class="tab-btn" type="button">Costing Record</button>
+    </nav>
     <section class="details-kpis">
-      <article class="kpi-card"><h4>Total Planned Cost</h4><p>${formatBudget(plannedCost)}</p></article>
-      <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p></article>
-      <article class="kpi-card"><h4>Variance</h4><p>${formatBudget(variance)}</p></article>
-      <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p></article>
+      <article class="kpi-card"><h4>Total Planned Cost</h4><p>${formatBudget(plannedCost)}</p><small>Across all activities</small></article>
+      <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p><small>66.10% of planned cost</small></article>
+      <article class="kpi-card"><h4>Variance</h4><p>${formatBudget(variance)}</p><small class="good">${variancePercent.toFixed(2)}% under budget</small></article>
+      <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p><small>Across all activities</small></article>
     </section>
-    <div class="info-banner"><p>Detailed analytics and the full costing record are shown here for <strong>${project.code}</strong>.</p></div>
+    <section class="overview-grid">
+      <article class="panel chart-panel">
+        <h3>Budget vs Actual</h3>
+        <div class="bars">
+          <div class="bar-wrap"><div class="bar planned" style="height:100%"></div><strong>${formatBudget(plannedCost)}</strong><p>Total Planned Cost</p></div>
+          <div class="bar-wrap"><div class="bar actual" style="height:${Math.max(20, (actualCost / (plannedCost || 1)) * 100)}%"></div><strong>${formatBudget(actualCost)}</strong><p>Total Actual Cost</p></div>
+        </div>
+      </article>
+      <article class="panel summary-panel">
+        <h3>Cost Summary</h3>
+        <ul>
+          <li><span>Total Planned Cost</span><strong>${formatBudget(plannedCost)}</strong></li>
+          <li><span>Total Actual Cost</span><strong>${formatBudget(actualCost)}</strong></li>
+          <li><span>Variance</span><strong class="good">${formatBudget(variance)}</strong></li>
+          <li><span>Variance Percent</span><strong class="good">${variancePercent.toFixed(2)}% under budget</strong></li>
+          <li><span>Total Duration</span><strong>${totalDuration} days</strong></li>
+          <li><span>Average Cost per Day (Actual)</span><strong>${formatBudget(avgCostPerDay)}</strong></li>
+        </ul>
+      </article>
+      <article class="panel donut-panel">
+        <h3>Cost Status (by Actual vs Planned)</h3>
+        <div class="donut"></div>
+        <p class="legend">Under Budget 71.43% · Over Budget 14.29% · No Actual Cost 14.29%</p>
+      </article>
+      <article class="panel table-panel">
+        <h3>Top Over Budget Activities</h3>
+        <table>
+          <thead><tr><th>Activity ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead>
+          <tbody><tr><td>ACT-002</td><td>Site Preparation</td><td>₱1,250,000.00</td><td>₱1,300,000.00</td><td class="bad">+₱50,000.00</td></tr></tbody>
+        </table>
+      </article>
+    </section>
+    <div class="info-banner"><p>Costs are based on activities. Manage actual costs in the <a href="#">Costing Record</a> tab.</p></div>
   `;
 };
 
