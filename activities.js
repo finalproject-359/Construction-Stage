@@ -617,7 +617,21 @@ const getProjectIdByName = (projectName) => {
 
 const getSelectedProjectSummary = () => buildProjectSummaries().find((project) => String(project.id || project.code || "").trim() === String(state.selectedProjectId || "").trim());
 
-const getActivityProjectId = (activity) => getProjectIdByName(activity?.project);
+const buildProjectIdLookup = () => {
+  const lookup = new Map();
+  buildProjectSummaries().forEach((project) => {
+    if (!project?.name) return;
+    lookup.set(project.name, project.id || project.code || project.name);
+  });
+  return lookup;
+};
+
+const getActivityProjectId = (activity, projectIdLookup = null) => {
+  const projectName = activity?.project;
+  if (!projectName) return "";
+  if (projectIdLookup?.has(projectName)) return projectIdLookup.get(projectName) || projectName;
+  return getProjectIdByName(projectName);
+};
 
 const mutateActivityInSource = async ({ action, activity }) => {
   if (!DATA_SOURCE_URL) return null;
@@ -1086,8 +1100,9 @@ const applyFilters = () => {
   if (!hasSelectedProject()) {
     state.filteredActivities = [];
   } else {
+    const projectIdLookup = buildProjectIdLookup();
     state.filteredActivities = state.allActivities.filter((item) => {
-    const projectMatch = getActivityProjectId(item) === state.selectedProjectId;
+    const projectMatch = getActivityProjectId(item, projectIdLookup) === state.selectedProjectId;
     const statusMatch = statusValue === "All Statuses" || item.status === statusValue;
     const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
     const textMatch =
