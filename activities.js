@@ -205,16 +205,25 @@ const persistCostActivities = (activities = []) => {
       }
     })()
   );
-  const payload = activities.map((activity) => ({
-    ...(existingByKey.get(`${String(activity.project || "").trim()}::${String(activity.id || "").trim()}`) || {}),
-    id: String(activity.id || "").trim(),
-    name: String(activity.name || "Untitled Activity").trim(),
-    projectId: String(activity.project || "").trim(),
-    startDate: toInputDate(activity.plannedStartDate || activity.plannedStart),
-    finishDate: toInputDate(activity.plannedFinishDate || activity.plannedFinish),
-    durationDays: Number(activity.duration) || 0,
-    plannedCost: 0,
-  }));
+  const payload = activities.map((activity) => {
+    const activityId = String(activity.id || "").trim();
+    const projectName = String(activity.project || "").trim();
+    const resolvedProjectId =
+      String(activity.projectId || "").trim() || String(getProjectIdByName(projectName) || "").trim() || projectName;
+    const existing = existingByKey.get(`${resolvedProjectId}::${activityId}`) || existingByKey.get(`${projectName}::${activityId}`) || {};
+
+    return {
+      ...existing,
+      id: activityId,
+      name: String(activity.name || "Untitled Activity").trim(),
+      projectId: resolvedProjectId,
+      projectName,
+      startDate: toInputDate(activity.plannedStartDate || activity.plannedStart),
+      finishDate: toInputDate(activity.plannedFinishDate || activity.plannedFinish),
+      durationDays: Number(activity.duration) || 0,
+      plannedCost: Number(existing.plannedCost) || 0,
+    };
+  });
   localStorage.setItem(COST_ACTIVITY_KEY, JSON.stringify(payload));
 };
 
