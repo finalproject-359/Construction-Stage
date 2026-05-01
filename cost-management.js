@@ -99,61 +99,82 @@ const buildDetailsMarkup = (project) => {
   return `
     <header class="details-header">
       <h2>Cost Management</h2>
-      <p>Track and manage project costs efficiently.</p>
+      <p>Project: <strong>${escapeHtml(project.name)}</strong></p>
     </header>
     <nav class="details-tabs" aria-label="Cost tabs">
-      <button class="tab-btn active" type="button">Overview</button>
-      <button class="tab-btn" type="button">Costing Record</button>
+      <button class="tab-btn active" data-tab="overview" type="button">Overview</button>
+      <button class="tab-btn" data-tab="costing" type="button">Costing Record</button>
     </nav>
-    <section class="details-kpis">
-      <article class="kpi-card"><h4>Total Planned Cost</h4><p>${formatBudget(plannedCost)}</p><small>Across all activities</small></article>
-      <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p><small>No actual cost data yet</small></article>
-      <article class="kpi-card"><h4>Variance</h4><p>${formatBudget(variance)}</p><small class="good">${variancePercent.toFixed(2)}% under budget</small></article>
-      <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p><small>No duration data yet</small></article>
-    </section>
-    <section class="overview-grid">
-      <article class="panel chart-panel">
-        <h3>Budget vs Actual</h3>
-        <div class="bars" role="img" aria-label="Comparison of planned and actual project costs">
-          <div class="bars-grid" aria-hidden="true">
-            <span>${axisLabels[0]}</span><span>${axisLabels[1]}</span><span>${axisLabels[2]}</span><span>${axisLabels[3]}</span><span>${axisLabels[4]}</span>
+    <section class="details-tab-panel" data-panel="overview">
+      <section class="details-kpis">
+        <article class="kpi-card"><h4>Total Planned Cost</h4><p>${formatBudget(plannedCost)}</p><small>Across all activities</small></article>
+        <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p><small>No actual cost data yet</small></article>
+        <article class="kpi-card"><h4>Variance</h4><p>${formatBudget(variance)}</p><small class="good">${variancePercent.toFixed(2)}% under budget</small></article>
+        <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p><small>No duration data yet</small></article>
+      </section>
+      <section class="overview-grid">
+        <article class="panel chart-panel">
+          <h3>Budget vs Actual</h3>
+          <div class="bars" role="img" aria-label="Comparison of planned and actual project costs">
+            <div class="bars-grid" aria-hidden="true">
+              <span>${axisLabels[0]}</span><span>${axisLabels[1]}</span><span>${axisLabels[2]}</span><span>${axisLabels[3]}</span><span>${axisLabels[4]}</span>
+            </div>
+            <div class="bars-track">
+              <div class="bar-wrap"><strong>${formatBudget(plannedCost)}</strong><div class="bar planned" style="height:100%"></div><p>Total Planned Cost</p></div>
+              <div class="bar-wrap"><strong>${formatBudget(actualCost)}</strong><div class="bar actual" style="height:${normalizedBarHeight}%"></div><p>Total Actual Cost</p></div>
+            </div>
+            <ul class="bars-legend" aria-label="Cost legend">
+              <li><span class="legend-dot planned"></span>Planned Cost</li>
+              <li><span class="legend-dot actual"></span>Actual Cost</li>
+            </ul>
           </div>
-          <div class="bars-track">
-            <div class="bar-wrap"><strong>${formatBudget(plannedCost)}</strong><div class="bar planned" style="height:100%"></div><p>Total Planned Cost</p></div>
-            <div class="bar-wrap"><strong>${formatBudget(actualCost)}</strong><div class="bar actual" style="height:${normalizedBarHeight}%"></div><p>Total Actual Cost</p></div>
-          </div>
-          <ul class="bars-legend" aria-label="Cost legend">
-            <li><span class="legend-dot planned"></span>Planned Cost</li>
-            <li><span class="legend-dot actual"></span>Actual Cost</li>
+          <p class="chart-caption">Actual spending is ${spendPercent.toFixed(2)}% of the planned cost.</p>
+        </article>
+        <article class="panel summary-panel">
+          <h3>Cost Summary</h3>
+          <ul>
+            <li><span>Total Planned Cost</span><strong>${formatBudget(plannedCost)}</strong></li>
+            <li><span>Total Actual Cost</span><strong>${formatBudget(actualCost)}</strong></li>
+            <li><span>Variance</span><strong class="good">${formatBudget(variance)}</strong></li>
+            <li><span>Variance Percent</span><strong class="good">${variancePercent.toFixed(2)}% under budget</strong></li>
+            <li><span>Total Duration</span><strong>${totalDuration} days</strong></li>
+            <li><span>Average Cost per Day (Actual)</span><strong>${formatBudget(avgCostPerDay)}</strong></li>
           </ul>
-        </div>
-        <p class="chart-caption">Actual spending is ${spendPercent.toFixed(2)}% of the planned cost.</p>
-      </article>
-      <article class="panel summary-panel">
-        <h3>Cost Summary</h3>
-        <ul>
-          <li><span>Total Planned Cost</span><strong>${formatBudget(plannedCost)}</strong></li>
-          <li><span>Total Actual Cost</span><strong>${formatBudget(actualCost)}</strong></li>
-          <li><span>Variance</span><strong class="good">${formatBudget(variance)}</strong></li>
-          <li><span>Variance Percent</span><strong class="good">${variancePercent.toFixed(2)}% under budget</strong></li>
-          <li><span>Total Duration</span><strong>${totalDuration} days</strong></li>
-          <li><span>Average Cost per Day (Actual)</span><strong>${formatBudget(avgCostPerDay)}</strong></li>
-        </ul>
-      </article>
-      <article class="panel donut-panel">
-        <h3>Cost Status (by Actual vs Planned)</h3>
-        <div class="donut"></div>
-        <p class="legend">No activity-level cost data available yet.</p>
-      </article>
-      <article class="panel table-panel">
-        <h3>Top Over Budget Activities</h3>
-        <table>
-          <thead><tr><th>Activity ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead>
-          <tbody><tr><td colspan="5">No costing records yet.</td></tr></tbody>
-        </table>
-      </article>
+        </article>
+        <article class="panel donut-panel">
+          <h3>Cost Status (by Actual vs Planned)</h3>
+          <div class="donut"></div>
+          <p class="legend">No activity-level cost data available yet.</p>
+        </article>
+        <article class="panel table-panel">
+          <h3>Top Over Budget Activities</h3>
+          <table>
+            <thead><tr><th>Activity ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead>
+            <tbody><tr><td colspan="5">No costing records yet.</td></tr></tbody>
+          </table>
+        </article>
+      </section>
     </section>
-    <div class="info-banner"><p>Costing integration is not connected yet. Values shown are planned-cost only until costing records become available.</p></div>
+    <section class="details-tab-panel hidden" data-panel="costing">
+      <section class="cost-record-head panel">
+        <div>
+          <h3>Costing Record</h3>
+          <p>Manage planned and actual costs for all project activities.</p>
+        </div>
+        <div class="cost-record-actions">
+          <label class="search-box" for="costRecordSearch"><span>🔍</span><input id="costRecordSearch" type="search" placeholder="Search activities..." disabled></label>
+          <button type="button" class="ghost-btn" disabled>Filter</button>
+          <button type="button" class="primary-btn" disabled>+ Add Activity</button>
+        </div>
+      </section>
+      <section class="panel">
+        <table>
+          <thead><tr><th>Activity ID</th><th>Activity</th><th>Duration</th><th>Planned Cost</th><th>Planned Cost/Day</th><th>Actual Cost</th><th>Actions</th></tr></thead>
+          <tbody><tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr></tbody>
+        </table>
+      </section>
+      <div class="info-banner"><p>Tip: Update actual costs regularly to track project performance and budget variance.</p></div>
+    </section>
   `;
 };
 
@@ -165,6 +186,17 @@ const showProjectDetails = (projectId) => {
   selectedProjectBannerHost.innerHTML = buildSelectedProjectBannerMarkup(project);
   detailsView.classList.remove("hidden");
   detailsView.innerHTML = buildDetailsMarkup(project);
+
+  detailsView.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.tab;
+      detailsView.querySelectorAll(".tab-btn").forEach((item) => item.classList.toggle("active", item === btn));
+      detailsView.querySelectorAll(".details-tab-panel").forEach((panel) => {
+        panel.classList.toggle("hidden", panel.dataset.panel !== target);
+      });
+    });
+  });
+
   return true;
 };
 

@@ -258,3 +258,11 @@ body.page-cost-management .main-content {
 
 .chart-panel, .donut-panel { max-width: 100%; }
 .table-panel { width: 100%; }
+
+.details-tab-panel { margin-top: 8px; }
+.cost-record-head { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.cost-record-head h3 { margin:0; }
+.cost-record-head p { margin:6px 0 0; color:#4f638b; }
+.cost-record-actions { display:flex; align-items:center; gap:10px; }
+.empty-cell { text-align:center; color:#6a7da1; padding:18px; }
+@media (max-width: 980px) { .cost-record-head, .cost-record-actions { flex-direction: column; align-items: stretch; } }
