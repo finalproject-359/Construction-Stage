@@ -52,7 +52,8 @@ const toDateInputValue = (value) => {
 };
 const normalizeCostActivity = (activity = {}) => ({
   id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
-  projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project", "projectName", "project_name"]) || "").trim(),
+  projectId: String(getValueByAliases(activity, ["projectId", "project_id"]) || "").trim(),
+  projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim(),
   name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
   startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
   finishDate: toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"])),
@@ -77,9 +78,19 @@ const loadCostActivities = () => {
   return Array.from(dedupedByProjectAndActivity.values());
 };
 
+const normalizeLookup = (value) => String(value || "").trim().toLowerCase();
+
 const isActivityForProject = (activity, projectId, projectName = "") => {
-  const activityProjectRef = String(activity?.projectId || "").trim();
-  return activityProjectRef === projectId || (projectName && activityProjectRef.toLowerCase() === projectName);
+  const activityProjectId = normalizeLookup(activity?.projectId);
+  const activityProjectName = normalizeLookup(activity?.projectName);
+  const projectIdLookup = normalizeLookup(projectId);
+  const projectNameLookup = normalizeLookup(projectName);
+
+  if (activityProjectId && activityProjectId === projectIdLookup) return true;
+  if (projectNameLookup && activityProjectName && activityProjectName === projectNameLookup) return true;
+  if (projectNameLookup && activityProjectId && activityProjectId === projectNameLookup) return true;
+  if (projectIdLookup && activityProjectName && activityProjectName === projectIdLookup) return true;
+  return false;
 };
 
 const getProjectCostData = (projectId) => {
