@@ -193,7 +193,7 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
-const persistCostActivities = (activities = []) => {
+const persistCostActivities = (activities = [], projectCatalog = null) => {
   const existingByKey = new Map(
     (() => {
       try {
@@ -205,11 +205,20 @@ const persistCostActivities = (activities = []) => {
       }
     })()
   );
+  const catalogByName = new Map(
+    (Array.isArray(projectCatalog) ? projectCatalog : [])
+      .map((project) => normalizeProject(project))
+      .map((project) => [project.name, String(project.code || "").trim()])
+  );
+
   const payload = activities.map((activity) => {
     const activityId = String(activity.id || "").trim();
     const projectName = String(activity.project || "").trim();
     const resolvedProjectId =
-      String(activity.projectId || "").trim() || String(getProjectIdByName(projectName) || "").trim() || projectName;
+      String(activity.projectId || "").trim() ||
+      String(catalogByName.get(projectName) || "").trim() ||
+      String(getProjectIdByName(projectName) || "").trim() ||
+      projectName;
     const existing = existingByKey.get(`${resolvedProjectId}::${activityId}`) || existingByKey.get(`${projectName}::${activityId}`) || {};
 
     return {
@@ -1696,12 +1705,13 @@ const bootstrapActivitiesPage = async () => {
   state.allActivities = source.activities;
   state.filteredActivities = source.activities;
   window.activitiesMeta = source.meta;
-  persistCostActivities(state.allActivities);
 
   initialProjectCatalog.length = 0;
   source.projects.forEach((project) => {
     initialProjectCatalog.push(project);
   });
+
+  persistCostActivities(state.allActivities, source.projects);
 
   syncDateFilterLabel();
   syncProjectDateFilterLabel();
