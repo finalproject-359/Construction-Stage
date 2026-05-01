@@ -23,7 +23,58 @@
         <a href="reports.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 0v6h6"/></svg></span>Reports</a>
       </nav>
     </aside>
-    <main class="main-content"><header class="topbar"><h1>Cost Management</h1></header><section class="table-panel"><div class="panel-header"><h3>Cost Management Workspace</h3></div><p>This page is now wired in navigation and ready for cost management features.</p></section></main>
+
+    <main class="main-content">
+      <header class="cost-header">
+        <div>
+          <h1>Cost Management</h1>
+          <p>Track and manage project costs efficiently.</p>
+        </div>
+        <button class="ghost-btn" type="button">How it works</button>
+      </header>
+
+      <section class="cost-card">
+        <div class="toolbar-row">
+          <label class="search-box" for="costTopSearch">
+            <span>🔍</span>
+            <input id="costTopSearch" type="search" placeholder="Search projects..." />
+          </label>
+          <button type="button" class="date-btn">May 1, 2024 - May 31, 2024</button>
+        </div>
+
+        <section class="selection-empty" id="selectionPrompt">
+          <div class="state-icon" aria-hidden="true">📁</div>
+          <h2>Select a project to view cost details</h2>
+          <p>Cost data is organized by project.<br />Choose a project below to start tracking budgets and expenses.</p>
+          <label class="search-box search-center" for="projectListSearch">
+            <span>🔍</span>
+            <input id="projectListSearch" type="search" placeholder="Search projects..." />
+          </label>
+        </section>
+
+        <hr />
+
+        <section>
+          <h3>All Projects</h3>
+          <div class="projects-list" id="costProjectsList"></div>
+          <div class="projects-empty" id="costProjectsEmpty">
+            <div class="state-icon muted" aria-hidden="true">🗂️</div>
+            <h2>No Projects</h2>
+            <p>There are currently no projects in the system.<br />Create a project first to start managing costs.</p>
+            <a class="primary-btn" href="projects.html">+ Create Project</a>
+          </div>
+        </section>
+
+        <div class="info-banner">
+          <div>
+            <h4>Can’t find the project you’re looking for?</h4>
+            <p>Make sure the project has been created. You can create a new project from the <a href="projects.html">Projects</a> page.</p>
+          </div>
+          <a class="ghost-link" href="projects.html">Go to Projects</a>
+        </div>
+      </section>
+    </main>
   </div>
+  <script src="cost-management.js"></script>
 </body>
 </html>
