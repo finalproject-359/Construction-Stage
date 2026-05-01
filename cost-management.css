@@ -164,18 +164,24 @@ body.page-cost-management .main-content {
   overflow-x: auto;
 }
 
-.bars { display: grid; grid-template-columns: 56px 1fr; gap: 12px; height: 240px; margin-top: 8px; }
+.bars { display: grid; grid-template-columns: 82px 1fr auto; gap: 14px; height: 270px; margin-top: 8px; align-items: stretch; }
 .bars-grid { display: grid; grid-template-rows: repeat(5, 1fr); font-size: .85rem; color: #7d8eb0; text-align: right; padding-top: 2px; }
-.bars-track { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 36px; border-left: 1px solid #d7deed; border-bottom: 1px solid #d7deed; padding: 8px 14px 0; background: repeating-linear-gradient(to top, #eef3ff 0 1px, transparent 1px 25%); }
-.bar-wrap { text-align: center; width: 170px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
-.bar { width: 100%; border-radius: 10px 10px 0 0; min-height: 30px; box-shadow: 0 6px 18px rgba(47,85,255,.16); transition: transform .2s ease; }
+.bars-track { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 78px; border-left: 1px solid #d7deed; border-bottom: 1px solid #d7deed; padding: 8px 24px 0; background: repeating-linear-gradient(to top, #eef3ff 0 1px, transparent 1px 25%); }
+.bar-wrap { text-align: center; width: 190px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.bar { width: 72px; border-radius: 6px 6px 0 0; min-height: 30px; box-shadow: 0 6px 18px rgba(47,85,255,.16); transition: transform .2s ease; }
 .bar:hover { transform: translateY(-2px); }
 .bar.planned { background: linear-gradient(180deg, #2f67ff, #1f52e8); }
 .bar.actual { background: linear-gradient(180deg, #38c26d, #2ca75a); }
-.bar-wrap strong { display: block; margin: 8px 0 6px; color: #2f55ff; font-size: 1.05rem; }
-.bar-wrap p { margin: 0; color: #6a7da1; font-size: 1.05rem; }
+.bar-wrap strong { display: block; margin: 0 0 8px; color: #2f55ff; font-size: 1rem; }
+.bar-wrap p { margin: 8px 0 0; color: #6a7da1; font-size: .95rem; }
 .chart-caption { margin: 12px 0 0; color: #5f7092; font-size: .95rem; text-align: center; }
 
+
+.bars-legend { list-style: none; padding: 56px 0 0; margin: 0; display: grid; gap: 14px; color: #4f638b; font-size: .92rem; }
+.bars-legend li { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.legend-dot.planned { background: #2f67ff; }
+.legend-dot.actual { background: #38c26d; }
 .summary-panel ul { list-style: none; padding: 0; margin: 0; }
 .summary-panel li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #edf1f8; gap: 10px; }
 

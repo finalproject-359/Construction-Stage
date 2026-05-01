@@ -82,6 +82,8 @@ const buildDetailsMarkup = (project) => {
 
   const spendPercent = plannedCost > 0 ? (actualCost / plannedCost) * 100 : 0;
   const normalizedBarHeight = Math.max(20, Math.min(100, spendPercent));
+  const axisMax = plannedCost > 0 ? plannedCost * 1.12 : 1;
+  const axisLabels = [1, 0.75, 0.5, 0.25, 0].map((multiplier) => formatBudget(axisMax * multiplier));
 
   return `
     <header class="details-header">
@@ -110,12 +112,16 @@ const buildDetailsMarkup = (project) => {
         <h3>Budget vs Actual</h3>
         <div class="bars" role="img" aria-label="Comparison of planned and actual project costs">
           <div class="bars-grid" aria-hidden="true">
-            <span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span>
+            <span>${axisLabels[0]}</span><span>${axisLabels[1]}</span><span>${axisLabels[2]}</span><span>${axisLabels[3]}</span><span>${axisLabels[4]}</span>
           </div>
           <div class="bars-track">
-            <div class="bar-wrap"><div class="bar planned" style="height:100%"></div><strong>${formatBudget(plannedCost)}</strong><p>Total Planned Cost</p></div>
-            <div class="bar-wrap"><div class="bar actual" style="height:${normalizedBarHeight}%"></div><strong>${formatBudget(actualCost)}</strong><p>Total Actual Cost</p></div>
+            <div class="bar-wrap"><strong>${formatBudget(plannedCost)}</strong><div class="bar planned" style="height:100%"></div><p>Total Planned Cost</p></div>
+            <div class="bar-wrap"><strong>${formatBudget(actualCost)}</strong><div class="bar actual" style="height:${normalizedBarHeight}%"></div><p>Total Actual Cost</p></div>
           </div>
+          <ul class="bars-legend" aria-label="Cost legend">
+            <li><span class="legend-dot planned"></span>Planned Cost</li>
+            <li><span class="legend-dot actual"></span>Actual Cost</li>
+          </ul>
         </div>
         <p class="chart-caption">Actual spending is ${spendPercent.toFixed(2)}% of the planned cost.</p>
       </article>
