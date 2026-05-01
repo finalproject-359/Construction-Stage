@@ -85,10 +85,10 @@ const buildSelectedProjectBannerMarkup = (project) => `
 
 const buildDetailsMarkup = (project) => {
   const plannedCost = project.budget || 0;
-  const actualCost = plannedCost * 0.661;
+  const actualCost = 0;
   const variance = actualCost - plannedCost;
   const variancePercent = plannedCost ? ((Math.abs(variance) / plannedCost) * 100) : 0;
-  const totalDuration = 128;
+  const totalDuration = 0;
   const avgCostPerDay = totalDuration ? actualCost / totalDuration : 0;
 
   const spendPercent = plannedCost > 0 ? (actualCost / plannedCost) * 100 : 0;
@@ -107,9 +107,9 @@ const buildDetailsMarkup = (project) => {
     </nav>
     <section class="details-kpis">
       <article class="kpi-card"><h4>Total Planned Cost</h4><p>${formatBudget(plannedCost)}</p><small>Across all activities</small></article>
-      <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p><small>66.10% of planned cost</small></article>
+      <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p><small>No actual cost data yet</small></article>
       <article class="kpi-card"><h4>Variance</h4><p>${formatBudget(variance)}</p><small class="good">${variancePercent.toFixed(2)}% under budget</small></article>
-      <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p><small>Across all activities</small></article>
+      <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p><small>No duration data yet</small></article>
     </section>
     <section class="overview-grid">
       <article class="panel chart-panel">
@@ -143,17 +143,17 @@ const buildDetailsMarkup = (project) => {
       <article class="panel donut-panel">
         <h3>Cost Status (by Actual vs Planned)</h3>
         <div class="donut"></div>
-        <p class="legend">Under Budget 71.43% · Over Budget 14.29% · No Actual Cost 14.29%</p>
+        <p class="legend">No activity-level cost data available yet.</p>
       </article>
       <article class="panel table-panel">
         <h3>Top Over Budget Activities</h3>
         <table>
           <thead><tr><th>Activity ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead>
-          <tbody><tr><td>ACT-002</td><td>Site Preparation</td><td>₱1,250,000.00</td><td>₱1,300,000.00</td><td class="bad">+₱50,000.00</td></tr></tbody>
+          <tbody><tr><td colspan="5">No costing records yet.</td></tr></tbody>
         </table>
       </article>
     </section>
-    <div class="info-banner"><p>Costs are based on activities. Manage actual costs in the <a href="#">Costing Record</a> tab.</p></div>
+    <div class="info-banner"><p>Costing integration is not connected yet. Values shown are planned-cost only until costing records become available.</p></div>
   `;
 };
 
