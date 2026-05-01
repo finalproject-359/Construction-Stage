@@ -83,7 +83,7 @@ const getProjectCostData = (projectId) => {
 const buildSelectedProjectBannerMarkup = (project) => `<section class="selected-project-banner"><div><p class="selected-project-label">Selected Project</p><h3>${escapeHtml(project.name)}</h3></div><a href="cost-management.html" class="ghost-btn">← Back to Projects</a></section>`;
 
 const buildDetailsMarkup = (project, rows) => {
-  const plannedCost = rows.reduce((sum, row) => sum + parseBudgetValue(row.plannedCost), 0) || project.budget || 0;
+  const plannedCost = rows.reduce((sum, row) => sum + parseBudgetValue(row.plannedCost), 0);
   const actualCost = rows.reduce((sum, row) => sum + row.actualCost, 0);
   const variance = plannedCost - actualCost;
   const variancePercent = plannedCost ? (variance / plannedCost) * 100 : 0;
