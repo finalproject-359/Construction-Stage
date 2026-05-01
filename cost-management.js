@@ -91,13 +91,27 @@ const buildDetailsMarkup = (project, rows) => {
     ? rows.map((row) => `<tr><td>${escapeHtml(row.id)}</td><td>${escapeHtml(row.name)}</td><td>${row.durationDays || "-"} days</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget((row.plannedCost || 0) / (row.durationDays || 1))}</td><td>${formatBudget(row.actualCost)}</td><td><button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(row.id)}">View / Add Daily Cost</button></td></tr>`).join("")
     : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
+  const maxCost = Math.max(plannedCost, actualCost, 1);
+  const plannedHeight = Math.max(10, Math.round((plannedCost / maxCost) * 100));
+  const actualHeight = Math.max(10, Math.round((actualCost / maxCost) * 100));
+  const varianceLabel = variance >= 0 ? "Under budget" : "Over budget";
+  const varianceClass = variance >= 0 ? "good" : "bad";
+  const topRows = rows
+    .slice()
+    .sort((a, b) => b.actualCost - a.actualCost)
+    .slice(0, 5)
+    .map((row) => `<tr><td>${escapeHtml(row.id)}</td><td>${escapeHtml(row.name)}</td><td>${formatBudget(row.actualCost)}</td><td>${formatBudget(row.plannedCost)}</td></tr>`)
+    .join("") || '<tr><td colspan="4" class="empty-cell">No activity costs to summarize yet.</td></tr>';
+
   return `<header class="details-header"><h2>Cost Management</h2><p>Project: <strong>${escapeHtml(project.name)}</strong></p></header>
   <nav class="details-tabs"><button class="tab-btn active" data-tab="overview" type="button">Overview</button><button class="tab-btn" data-tab="costing" type="button">Costing Record</button></nav>
   <section class="details-tab-panel" data-panel="overview"><section class="details-kpis">
   <article class="kpi-card"><h4>Total Planned Cost</h4><p>${formatBudget(plannedCost)}</p></article>
   <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p></article>
-  <article class="kpi-card"><h4>Variance</h4><p>${formatBudget(variance)}</p></article>
-  <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p></article></section></section>
+  <article class="kpi-card"><h4>Variance</h4><p class="${varianceClass}">${formatBudget(variance)}</p><small>${varianceLabel}</small></article>
+  <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p></article></section>
+  <section class="overview-grid"><article class="panel chart-panel"><h3>Planned vs Actual Cost</h3><div class="bars"><div class="bars-grid"><span>${formatBudget(maxCost)}</span><span>${formatBudget(maxCost * 0.75)}</span><span>${formatBudget(maxCost * 0.5)}</span><span>${formatBudget(maxCost * 0.25)}</span><span>0</span></div><div class="bars-track"><div class="bar-wrap"><strong>${formatBudget(plannedCost)}</strong><div class="bar planned" style="height:${plannedHeight}%"></div><p>Planned</p></div><div class="bar-wrap"><strong>${formatBudget(actualCost)}</strong><div class="bar actual" style="height:${actualHeight}%"></div><p>Actual</p></div></div><ul class="bars-legend"><li><span class="legend-dot planned"></span> Planned</li><li><span class="legend-dot actual"></span> Actual</li></ul></div><p class="chart-caption">Quick visual of budget performance for this project.</p></article>
+  <article class="panel table-panel"><h3>Highest Cost Activities (Actual)</h3><table><thead><tr><th>Activity ID</th><th>Activity</th><th>Actual Cost</th><th>Planned Cost</th></tr></thead><tbody>${topRows}</tbody></table></article></section></section>
   <section class="details-tab-panel hidden" data-panel="costing"><section class="cost-record-head panel"><div><h3>Costing Record</h3><p>Manage planned and actual costs for all project activities.</p></div><div class="cost-record-actions"><p class="muted-note">Activities are managed in the Activities page.</p></div></section>
   <section class="panel"><table><thead><tr><th>Activity ID</th><th>Activity</th><th>Duration</th><th>Planned Cost</th><th>Planned Cost/Day</th><th>Actual Cost</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section><div class="info-banner"><p>Tip: add daily actual costs by date via “View / Add Daily Cost”.</p></div></section>
   <section class="daily-cost-modal hidden" id="dailyCostModal"></section>`;
