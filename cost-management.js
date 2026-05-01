@@ -194,11 +194,11 @@ const buildDetailsMarkup = (project, rows) => {
   <section class="daily-cost-modal hidden" id="dailyCostModal"></section>`;
 };
 
-const renderDailyCostModal = (projectId, activityId) => {
+const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities()) => {
   const modal = detailsView.querySelector("#dailyCostModal");
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   const projectName = String(project?.name || "").trim().toLowerCase();
-  const activities = loadCostActivities();
+  const activities = Array.isArray(allActivities) ? allActivities : loadCostActivities();
   const dailyCosts = loadDailyCosts();
   const activity = activities.find((item) => item.id === activityId && isActivityForProject(item, projectId, projectName));
   if (!modal || !activity) return;
@@ -227,8 +227,8 @@ const renderDailyCostModal = (projectId, activityId) => {
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
-    showProjectDetails(projectId, activeTab, allActivities);
-    renderDailyCostModal(projectId, activityId);
+    showProjectDetails(projectId, activeTab, activities);
+    renderDailyCostModal(projectId, activityId, activities);
   });
 };
 
@@ -257,7 +257,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
     applyActiveTab(target);
   }));
 
-  detailsView.querySelectorAll(".view-daily-cost-btn").forEach((btn) => btn.addEventListener("click", () => renderDailyCostModal(projectId, btn.dataset.activityId)));
+  detailsView.querySelectorAll(".view-daily-cost-btn").forEach((btn) => btn.addEventListener("click", () => renderDailyCostModal(projectId, btn.dataset.activityId, allActivities)));
   return true;
 };
 
