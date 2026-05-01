@@ -85,6 +85,38 @@ const loadCostActivities = () => {
   return Array.from(dedupedByProjectAndActivity.values());
 };
 
+const normalizeRemoteActivity = (row = {}) => {
+  const projectId = String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim();
+  const startDate = toDateInputValue(getValueByAliases(row, ["startDate", "plannedStart", "planned_start", "planned start"]));
+  const finishDate = toDateInputValue(getValueByAliases(row, ["finishDate", "plannedFinish", "planned_finish", "planned finish"]));
+  const explicitDuration = Number(String(getValueByAliases(row, ["durationDays", "duration_days", "duration", "duration day"]) || "0").replace(/[^\d.-]/g, "")) || 0;
+  const computedDuration = startDate && finishDate
+    ? Math.max(1, Math.round((new Date(finishDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1)
+    : 0;
+
+  return normalizeCostActivity({
+    id: getValueByAliases(row, ["id", "activityId", "activity_id", "activity id", "code"]),
+    projectId,
+    projectName: getValueByAliases(row, ["project", "projectName", "project_name", "project name"]),
+    name: getValueByAliases(row, ["name", "activity", "activityName", "activity_name"]),
+    startDate,
+    finishDate,
+    durationDays: explicitDuration || computedDuration,
+    plannedCost: getValueByAliases(row, ["plannedCost", "planned_cost", "plannedValue", "planned value", "budget"]),
+  });
+};
+
+const loadRemoteCostActivities = async () => {
+  if (!window.DataBridge?.fetchRowsFromSource) return [];
+  try {
+    const { rows } = await window.DataBridge.fetchRowsFromSource();
+    return (rows || []).map(normalizeRemoteActivity).filter((item) => item.projectId && item.id);
+  } catch (error) {
+    console.warn("Unable to load cost activities from Google Sheets:", error);
+    return [];
+  }
+};
+
 const normalizeLookup = (value) => String(value || "").trim().toLowerCase();
 
 const isActivityForProject = (activity, projectId, projectName = "") => {
@@ -100,10 +132,10 @@ const isActivityForProject = (activity, projectId, projectName = "") => {
   return false;
 };
 
-const getProjectCostData = (projectId) => {
+const getProjectCostData = (projectId, allActivities = loadCostActivities()) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   const projectName = String(project?.name || "").trim().toLowerCase();
-  const activities = loadCostActivities().filter((item) => isActivityForProject(item, projectId, projectName));
+  const activities = allActivities.filter((item) => isActivityForProject(item, projectId, projectName));
   const daily = loadDailyCosts().filter((item) => String(item.projectId || "").trim() === projectId);
   const rows = activities.map((activity) => {
     const dailyItems = daily.filter((entry) => entry.activityId === activity.id);
@@ -195,19 +227,19 @@ const renderDailyCostModal = (projectId, activityId) => {
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
-    showProjectDetails(projectId, activeTab);
+    showProjectDetails(projectId, activeTab, allActivities);
     renderDailyCostModal(projectId, activityId);
   });
 };
 
-const showProjectDetails = (projectId, activeTab = "overview") => {
+const showProjectDetails = (projectId, activeTab = "overview", allActivities = loadCostActivities()) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   if (!project || !selectionView || !detailsView || !selectedProjectBannerHost) return false;
   selectionView.classList.add("hidden");
   selectedProjectBannerHost.classList.remove("hidden");
   selectedProjectBannerHost.innerHTML = buildSelectedProjectBannerMarkup(project);
   detailsView.classList.remove("hidden");
-  const { rows } = getProjectCostData(projectId);
+  const { rows } = getProjectCostData(projectId, allActivities);
   detailsView.innerHTML = buildDetailsMarkup(project, rows);
 
   const applyActiveTab = (target = "overview") => {
@@ -261,4 +293,19 @@ const selectedProject = loadProjects().map(normalizeProject).find((project) =>
   (selectedProjectId && project.id === selectedProjectId)
   || (selectedProjectName && project.name === selectedProjectName)
 );
-if (!selectedProject || !showProjectDetails(selectedProject.id, selectedTab)) renderProjects();
+const bootstrapCostManagement = async () => {
+  const localActivities = loadCostActivities();
+  const remoteActivities = await loadRemoteCostActivities();
+  const merged = [...remoteActivities, ...localActivities];
+  const deduped = new Map();
+  merged.forEach((item) => {
+    const key = `${String(item.projectId).trim()}::${String(item.id).trim()}`;
+    if (!key || key === "::") return;
+    if (!deduped.has(key)) deduped.set(key, item);
+  });
+  const allActivities = Array.from(deduped.values());
+
+  if (!selectedProject || !showProjectDetails(selectedProject.id, selectedTab, allActivities)) renderProjects();
+};
+
+bootstrapCostManagement();
