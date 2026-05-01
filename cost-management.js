@@ -17,13 +17,52 @@ const loadProjects = () => {
   }
 };
 
+const getValueByAliases = (source, aliases = []) => {
+  if (!source || typeof source !== "object") return undefined;
+
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(source, alias)) {
+      return source[alias];
+    }
+  }
+
+  const normalizedEntries = Object.keys(source).map((key) => ({
+    key,
+    normalized: String(key).toLowerCase().replace(/[^a-z0-9]/g, ""),
+  }));
+
+  for (const alias of aliases) {
+    const normalizedAlias = String(alias).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matched = normalizedEntries.find((entry) => entry.normalized === normalizedAlias);
+    if (matched) return source[matched.key];
+  }
+
+  return undefined;
+};
+
+const parseBudgetValue = (value) => {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const cleaned = String(value).replace(/[^\d.-]/g, "");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const normalizeProject = (project = {}) => ({
-  id: String(project.id || project.projectId || "").trim(),
-  name: String(project.name || project.projectName || "Untitled Project").trim(),
-  code: String(project.code || project.projectCode || "-").trim(),
-  status: String(project.status || "Not Started").trim(),
-  budget: Number(project.budget) || 0,
+  id: String(getValueByAliases(project, ["id", "projectId", "project_id"]) || "").trim(),
+  name: String(getValueByAliases(project, ["name", "project", "projectName", "project_name"]) || "Untitled Project").trim(),
+  code: String(getValueByAliases(project, ["code", "projectCode", "project_code"]) || "-").trim(),
+  status: String(getValueByAliases(project, ["status", "projectStatus", "project_status"]) || "Not Started").trim(),
+  budget: parseBudgetValue(getValueByAliases(project, ["budget", "plannedCost", "planned_cost", "plannedValue", "planned_value"])),
 });
+
+const escapeHtml = (value) =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 
 const formatBudget = (value) =>
   new Intl.NumberFormat("en-PH", {
@@ -41,6 +80,9 @@ const buildDetailsMarkup = (project) => {
   const totalDuration = 128;
   const avgCostPerDay = totalDuration ? actualCost / totalDuration : 0;
 
+  const spendPercent = plannedCost > 0 ? (actualCost / plannedCost) * 100 : 0;
+  const normalizedBarHeight = Math.max(20, Math.min(100, spendPercent));
+
   return `
     <header class="details-header">
       <h2>Cost Management</h2>
@@ -49,7 +91,7 @@ const buildDetailsMarkup = (project) => {
     <section class="selected-project-banner" aria-label="Selected project">
       <div>
         <p class="selected-project-label">Selected Project</p>
-        <h3>${project.name}</h3>
+        <h3>${escapeHtml(project.name)}</h3>
       </div>
       <a href="cost-management.html" class="ghost-btn">← Back to Projects</a>
     </section>
@@ -72,10 +114,10 @@ const buildDetailsMarkup = (project) => {
           </div>
           <div class="bars-track">
             <div class="bar-wrap"><div class="bar planned" style="height:100%"></div><strong>${formatBudget(plannedCost)}</strong><p>Total Planned Cost</p></div>
-            <div class="bar-wrap"><div class="bar actual" style="height:${Math.max(20, (actualCost / (plannedCost || 1)) * 100)}%"></div><strong>${formatBudget(actualCost)}</strong><p>Total Actual Cost</p></div>
+            <div class="bar-wrap"><div class="bar actual" style="height:${normalizedBarHeight}%"></div><strong>${formatBudget(actualCost)}</strong><p>Total Actual Cost</p></div>
           </div>
         </div>
-        <p class="chart-caption">Actual spending is ${((actualCost / (plannedCost || 1)) * 100).toFixed(2)}% of the planned cost.</p>
+        <p class="chart-caption">Actual spending is ${spendPercent.toFixed(2)}% of the planned cost.</p>
       </article>
       <article class="panel summary-panel">
         <h3>Cost Summary</h3>
@@ -137,8 +179,8 @@ const renderProjects = (query = "") => {
     row.className = "project-row";
     row.innerHTML = `
       <div class="project-meta">
-        <strong>${project.code} · ${project.name}</strong>
-        <p>Status: ${project.status}</p>
+        <strong>${escapeHtml(project.code)} · ${escapeHtml(project.name)}</strong>
+        <p>Status: ${escapeHtml(project.status)}</p>
       </div>
       <strong>${formatBudget(project.budget)}</strong>
     `;
