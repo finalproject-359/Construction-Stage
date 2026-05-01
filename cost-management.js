@@ -77,14 +77,16 @@ const loadCostActivities = () => {
   return Array.from(dedupedByProjectAndActivity.values());
 };
 
+const isActivityForProject = (activity, projectId, projectName = "") => {
+  const activityProjectRef = String(activity?.projectId || "").trim();
+  return activityProjectRef === projectId || (projectName && activityProjectRef.toLowerCase() === projectName);
+};
+
 const getProjectCostData = (projectId) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   const projectName = String(project?.name || "").trim().toLowerCase();
-  const activities = loadCostActivities().filter((item) => {
-    const activityProjectRef = String(item.projectId || "").trim();
-    return activityProjectRef === projectId || (projectName && activityProjectRef.toLowerCase() === projectName);
-  });
-  const daily = loadDailyCosts().filter((item) => item.projectId === projectId);
+  const activities = loadCostActivities().filter((item) => isActivityForProject(item, projectId, projectName));
+  const daily = loadDailyCosts().filter((item) => String(item.projectId || "").trim() === projectId);
   const rows = activities.map((activity) => {
     const dailyItems = daily.filter((entry) => entry.activityId === activity.id);
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
@@ -144,11 +146,15 @@ const buildDetailsMarkup = (project, rows) => {
 
 const renderDailyCostModal = (projectId, activityId) => {
   const modal = detailsView.querySelector("#dailyCostModal");
+  const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
+  const projectName = String(project?.name || "").trim().toLowerCase();
   const activities = loadCostActivities();
   const dailyCosts = loadDailyCosts();
-  const activity = activities.find((item) => item.projectId === projectId && item.id === activityId);
+  const activity = activities.find((item) => item.id === activityId && isActivityForProject(item, projectId, projectName));
   if (!modal || !activity) return;
-  const entries = dailyCosts.filter((item) => item.projectId === projectId && item.activityId === activityId).sort((a, b) => a.date.localeCompare(b.date));
+  const entries = dailyCosts
+    .filter((item) => String(item.projectId || "").trim() === projectId && String(item.activityId || "").trim() === activityId)
+    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
   const rows = entries.length ? entries.map((entry) => `<tr><td>${entry.date}</td><td>${formatBudget(entry.actualCost)}</td></tr>`).join("") : '<tr><td colspan="2" class="empty-cell">No daily costs yet.</td></tr>';
   modal.classList.remove("hidden");
   modal.innerHTML = `<div class="daily-cost-dialog panel"><h3>${escapeHtml(activity.name)} Daily Cost</h3><p>${escapeHtml(activity.startDate)} to ${escapeHtml(activity.finishDate)}</p>
@@ -161,7 +167,11 @@ const renderDailyCostModal = (projectId, activityId) => {
     const formData = new FormData(event.currentTarget);
     const date = String(formData.get("date") || "");
     const actualCost = parseBudgetValue(formData.get("actualCost"));
-    const existingIndex = dailyCosts.findIndex((item) => item.projectId === projectId && item.activityId === activityId && item.date === date);
+    const existingIndex = dailyCosts.findIndex((item) =>
+      String(item.projectId || "").trim() === projectId
+      && String(item.activityId || "").trim() === activityId
+      && String(item.date || "") === date
+    );
     const payload = { projectId, activityId, date, actualCost };
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
