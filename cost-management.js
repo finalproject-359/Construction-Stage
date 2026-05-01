@@ -51,13 +51,21 @@ const renderProjects = (query = "") => {
   projects.forEach((project) => {
     const row = document.createElement("article");
     row.className = "project-row";
-    row.innerHTML = `
-      <div class="project-meta">
-        <strong>${project.code} · ${project.name}</strong>
-        <p>Status: ${project.status}</p>
-      </div>
-      <strong>${formatBudget(project.budget)}</strong>
-    `;
+
+    const meta = document.createElement("div");
+    meta.className = "project-meta";
+
+    const title = document.createElement("strong");
+    title.textContent = `${project.code} · ${project.name}`;
+
+    const status = document.createElement("p");
+    status.textContent = `Status: ${project.status}`;
+
+    const budget = document.createElement("strong");
+    budget.textContent = formatBudget(project.budget);
+
+    meta.append(title, status);
+    row.append(meta, budget);
     projectsList.append(row);
   });
 };
