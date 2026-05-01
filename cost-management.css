@@ -266,3 +266,25 @@ body.page-cost-management .main-content {
 .cost-record-actions { display:flex; align-items:center; gap:10px; }
 .empty-cell { text-align:center; color:#6a7da1; padding:18px; }
 @media (max-width: 980px) { .cost-record-head, .cost-record-actions { flex-direction: column; align-items: stretch; } }
+
+.daily-cost-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.32);
+  display: grid;
+  place-items: center;
+  z-index: 20;
+}
+.daily-cost-dialog {
+  width: min(720px, 92vw);
+  max-height: 86vh;
+  overflow: auto;
+}
+.daily-cost-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.daily-cost-form input { padding: 9px 10px; border: 1px solid #d8deec; border-radius: 8px; }
+
+.muted-note { margin: 0; color: #6a7da1; font-weight: 600; }
