@@ -106,13 +106,13 @@ const normalizeRemoteActivity = (row = {}) => {
   });
 };
 
-const loadRemoteCostActivities = async () => {
-  const resourceRows = await loadActivitiesFromResourceEndpoint();
+const loadRemoteCostActivities = async (projectFilter = {}) => {
+  const resourceRows = await loadActivitiesFromResourceEndpoint(projectFilter);
   if (resourceRows.length) return resourceRows;
 
   if (!window.DataBridge?.fetchRowsFromSource) return [];
   try {
-    const { rows } = await window.DataBridge.fetchRowsFromSource();
+    const { rows } = await window.DataBridge.fetchRowsFromSource(window.DataBridge.DEFAULT_DATA_SOURCE_URL);
     return (rows || []).map(normalizeRemoteActivity).filter((item) => item.projectId && item.id);
   } catch (error) {
     console.warn("Unable to load cost activities from Google Sheets:", error);
@@ -121,12 +121,16 @@ const loadRemoteCostActivities = async () => {
 };
 
 
-const loadActivitiesFromResourceEndpoint = async () => {
+const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!dataSourceUrl) return [];
   try {
     const url = new URL(dataSourceUrl);
     url.searchParams.set("resource", "activities");
+    const projectIdFilter = String(projectFilter?.projectId || "").trim();
+    const projectNameFilter = String(projectFilter?.projectName || "").trim();
+    if (projectIdFilter) url.searchParams.set("projectId", projectIdFilter);
+    if (projectNameFilter) url.searchParams.set("project", projectNameFilter);
     url.searchParams.set("_ts", String(Date.now()));
     const response = await fetch(url.toString(), { cache: "no-store" });
     if (!response.ok) return [];
@@ -317,7 +321,10 @@ const selectedProject = loadProjects().map(normalizeProject).find((project) =>
 );
 const bootstrapCostManagement = async () => {
   const localActivities = loadCostActivities();
-  const remoteActivities = await loadRemoteCostActivities();
+  const remoteActivities = await loadRemoteCostActivities({
+    projectId: selectedProject?.id || selectedProjectId,
+    projectName: selectedProject?.name || selectedProjectName,
+  });
   const merged = [...remoteActivities, ...localActivities];
   const deduped = new Map();
   merged.forEach((item) => {
