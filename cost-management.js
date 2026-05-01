@@ -52,7 +52,7 @@ const toDateInputValue = (value) => {
 };
 const normalizeCostActivity = (activity = {}) => ({
   id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
-  projectId: String(getValueByAliases(activity, ["projectId", "project_id"]) || "").trim(),
+  projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project", "projectName", "project_name"]) || "").trim(),
   projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim(),
   name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
   startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
@@ -67,10 +67,11 @@ const loadCostActivities = () => {
 
   // Prefer the Activities page source because it is the actively maintained dataset.
   // Keep a fallback to legacy cost-specific storage to avoid losing historical entries.
-  const merged = [...activitiesSource, ...costSource].filter((item) => item.projectId);
+  const merged = [...activitiesSource, ...costSource].filter((item) => item.projectId || item.projectName);
   const dedupedByProjectAndActivity = new Map();
   merged.forEach((item) => {
-    const key = `${String(item.projectId).trim()}::${String(item.id).trim()}`;
+    const projectLookup = String(item.projectId || item.projectName).trim();
+    const key = `${projectLookup}::${String(item.id).trim()}`;
     if (!key || key === '::') return;
     if (!dedupedByProjectAndActivity.has(key)) dedupedByProjectAndActivity.set(key, item);
   });
