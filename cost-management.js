@@ -187,12 +187,13 @@ const renderDailyCostModal = (projectId, activityId) => {
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
-    showProjectDetails(projectId);
+    const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
+    showProjectDetails(projectId, activeTab);
     renderDailyCostModal(projectId, activityId);
   });
 };
 
-const showProjectDetails = (projectId) => {
+const showProjectDetails = (projectId, activeTab = "overview") => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   if (!project || !selectionView || !detailsView || !selectedProjectBannerHost) return false;
   selectionView.classList.add("hidden");
@@ -202,10 +203,19 @@ const showProjectDetails = (projectId) => {
   const { rows } = getProjectCostData(projectId);
   detailsView.innerHTML = buildDetailsMarkup(project, rows);
 
-  detailsView.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
-    const target = btn.dataset.tab;
-    detailsView.querySelectorAll(".tab-btn").forEach((item) => item.classList.toggle("active", item === btn));
+  const applyActiveTab = (target = "overview") => {
+    detailsView.querySelectorAll(".tab-btn").forEach((item) => item.classList.toggle("active", item.dataset.tab === target));
     detailsView.querySelectorAll(".details-tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.dataset.panel !== target));
+  };
+
+  applyActiveTab(activeTab);
+
+  detailsView.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
+    const target = btn.dataset.tab || "overview";
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("tab", target);
+    window.history.replaceState({}, "", nextUrl.toString());
+    applyActiveTab(target);
   }));
 
   detailsView.querySelectorAll(".view-daily-cost-btn").forEach((btn) => btn.addEventListener("click", () => renderDailyCostModal(projectId, btn.dataset.activityId)));
@@ -238,4 +248,5 @@ listSearch?.addEventListener("input", (event) => syncSearches(event.target.value
 
 const params = new URLSearchParams(window.location.search);
 const selectedProjectId = params.get("projectId");
-if (!selectedProjectId || !showProjectDetails(selectedProjectId)) renderProjects();
+const selectedTab = params.get("tab") === "costing" ? "costing" : "overview";
+if (!selectedProjectId || !showProjectDetails(selectedProjectId, selectedTab)) renderProjects();
