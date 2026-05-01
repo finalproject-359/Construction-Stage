@@ -1,5 +1,8 @@
 body.page-cost-management .main-content {
   padding: 22px;
+  font-family: "Inter", "Segoe UI", Tahoma, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .cost-header {
@@ -8,8 +11,8 @@ body.page-cost-management .main-content {
   align-items: flex-start;
   margin-bottom: 14px;
 }
-.cost-header h1 { margin: 0; font-size: 3rem; }
-.cost-header p { margin: 6px 0 0; color: #4f638b; font-size: 1.5rem; }
+.cost-header h1 { margin: 0; font-size: clamp(1.75rem, 2.8vw, 2.35rem); font-weight: 700; }
+.cost-header p { margin: 6px 0 0; color: #4f638b; font-size: clamp(0.95rem, 1.6vw, 1.1rem); }
 
 .ghost-btn, .ghost-link {
   border: 1px solid #cfd9f4;
@@ -46,11 +49,11 @@ body.page-cost-management .main-content {
 .selection-empty { text-align: center; padding: 26px 0; }
 .state-icon { width: 72px; height: 72px; border-radius: 50%; background: #eff4ff; display: grid; place-items: center; margin: 0 auto 14px; font-size: 2rem; }
 .state-icon.muted { background: #f3f4f7; }
-.selection-empty h2, .projects-empty h2 { margin: 6px 0; font-size: 1.8rem; }
+.selection-empty h2, .projects-empty h2 { margin: 6px 0; font-size: clamp(1.2rem, 2vw, 1.5rem); }
 .selection-empty p, .projects-empty p { color: #4f638b; line-height: 1.5; }
 .search-center { max-width: 520px; margin: 14px auto 0; }
 .cost-card hr { border: none; border-top: 1px solid var(--border); margin: 8px 0 18px; }
-.cost-card h3 { margin: 0 0 12px; }
+.cost-card h3 { margin: 0 0 12px; font-size: 1.1rem; }
 .projects-list { display: grid; gap: 10px; }
 .project-row { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; }
 .project-meta p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
@@ -86,7 +89,7 @@ body.page-cost-management .main-content {
 
 .details-header h2 {
   margin: 0;
-  font-size: 2.2rem;
+  font-size: clamp(1.35rem, 2.3vw, 1.8rem);
 }
 
 .details-header p {
@@ -110,14 +113,14 @@ body.page-cost-management .main-content {
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 1.1rem;
+  font-size: 0.78rem;
   color: #6f7e9a;
   font-weight: 600;
 }
 
 .selected-project-banner h3 {
   margin: 6px 0 0;
-  font-size: 2.2rem;
+  font-size: clamp(1.25rem, 2.2vw, 1.7rem);
 }
 
 .details-kpis {
@@ -137,11 +140,13 @@ body.page-cost-management .main-content {
 .kpi-card h4 {
   margin: 0 0 8px;
   color: #4f638b;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .kpi-card p {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: clamp(1.2rem, 2.1vw, 1.6rem);
   font-weight: 700;
 }
 
@@ -156,7 +161,7 @@ body.page-cost-management .main-content {
   margin-top: 6px;
 }
 
-.tab-btn { border: 0; background: transparent; padding: 10px 4px 12px; font-size: 1.7rem; font-weight: 600; color: #5f7092; cursor: pointer; }
+.tab-btn { border: 0; background: transparent; padding: 10px 4px 12px; font-size: clamp(0.95rem, 1.7vw, 1.1rem); font-weight: 600; color: #5f7092; cursor: pointer; }
 .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 
 .overview-grid {
