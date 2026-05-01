@@ -107,12 +107,34 @@ const normalizeRemoteActivity = (row = {}) => {
 };
 
 const loadRemoteCostActivities = async () => {
+  const resourceRows = await loadActivitiesFromResourceEndpoint();
+  if (resourceRows.length) return resourceRows;
+
   if (!window.DataBridge?.fetchRowsFromSource) return [];
   try {
     const { rows } = await window.DataBridge.fetchRowsFromSource();
     return (rows || []).map(normalizeRemoteActivity).filter((item) => item.projectId && item.id);
   } catch (error) {
     console.warn("Unable to load cost activities from Google Sheets:", error);
+    return [];
+  }
+};
+
+
+const loadActivitiesFromResourceEndpoint = async () => {
+  const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
+  if (!dataSourceUrl) return [];
+  try {
+    const url = new URL(dataSourceUrl);
+    url.searchParams.set("resource", "activities");
+    url.searchParams.set("_ts", String(Date.now()));
+    const response = await fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.activities) ? payload.activities : [];
+    return rows.map(normalizeRemoteActivity).filter((item) => item.projectId && item.id);
+  } catch (error) {
+    console.warn("Unable to load cost activities from activities resource endpoint:", error);
     return [];
   }
 };
