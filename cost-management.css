@@ -288,3 +288,10 @@ body.page-cost-management .main-content {
 .daily-cost-form input { padding: 9px 10px; border: 1px solid #d8deec; border-radius: 8px; }
 
 .muted-note { margin: 0; color: #6a7da1; font-weight: 600; }
+
+.donut-wrap { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.status-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; color: #4f638b; }
+.status-list li { display: flex; align-items: center; gap: 8px; }
+.status-list strong { margin-left: auto; color: #1e2b45; }
+.legend-dot.bad-dot { background: #ef5050; }
+.legend-dot.neutral-dot { background: #f0c23f; }
