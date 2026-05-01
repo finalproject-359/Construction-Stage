@@ -42,14 +42,17 @@ const buildDetailsMarkup = (project) => {
   const avgCostPerDay = totalDuration ? actualCost / totalDuration : 0;
 
   return `
-    <a href="cost-management.html" class="back-link">← Back to Projects Selection</a>
     <header class="details-header">
-      <div>
-        <h2>Cost Management</h2>
-        <p>Project: <strong>${project.name}</strong></p>
-      </div>
-      <button class="ghost-btn" type="button">How it works</button>
+      <h2>Cost Management</h2>
+      <p>Track and manage project costs efficiently.</p>
     </header>
+    <section class="selected-project-banner" aria-label="Selected project">
+      <div>
+        <p class="selected-project-label">Selected Project</p>
+        <h3>${project.name}</h3>
+      </div>
+      <a href="cost-management.html" class="ghost-btn">← Back to Projects</a>
+    </section>
     <nav class="details-tabs" aria-label="Cost tabs">
       <button class="tab-btn active" type="button">Overview</button>
       <button class="tab-btn" type="button">Costing Record</button>
