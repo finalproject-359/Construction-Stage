@@ -40,7 +40,7 @@ const renderProjects = (query = "") => {
     );
   });
 
-  projectsList.innerHTML = "";
+  projectsList.replaceChildren();
 
   if (!projects.length) {
     projectsEmpty.classList.remove("hidden");
