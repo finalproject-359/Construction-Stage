@@ -1,5 +1,6 @@
 const LOCAL_STORAGE_KEY = "constructionStageProjects";
 const COST_ACTIVITY_KEY = "constructionStageCostActivities";
+const ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
 const COST_DAILY_KEY = "constructionStageDailyCosts";
 
 const topSearch = document.getElementById("costTopSearch");
@@ -20,7 +21,6 @@ const safeJsonParse = (raw, fallback = []) => {
 };
 
 const loadProjects = () => safeJsonParse(localStorage.getItem(LOCAL_STORAGE_KEY), []);
-const loadCostActivities = () => safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []);
 const loadDailyCosts = () => safeJsonParse(localStorage.getItem(COST_DAILY_KEY), []);
 const saveDailyCosts = (items) => localStorage.setItem(COST_DAILY_KEY, JSON.stringify(items));
 
@@ -49,6 +49,24 @@ const toDateInputValue = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
+};
+const normalizeCostActivity = (activity = {}) => ({
+  id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
+  projectId: String(getValueByAliases(activity, ["projectId", "project_id"]) || "").trim(),
+  name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
+  startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
+  finishDate: toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"])),
+  durationDays: Number(getValueByAliases(activity, ["durationDays", "duration_days", "duration"])) || 0,
+  plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "plannedValue", "planned_value", "budget"])),
+});
+
+const loadCostActivities = () => {
+  const costActivities = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
+  if (costActivities.length) return costActivities;
+
+  return safeJsonParse(localStorage.getItem(ACTIVITIES_LOCAL_STORAGE_KEY), [])
+    .map(normalizeCostActivity)
+    .filter((item) => item.projectId);
 };
 
 const getProjectCostData = (projectId) => {
