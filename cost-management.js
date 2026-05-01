@@ -50,16 +50,22 @@ const toDateInputValue = (value) => {
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
 };
-const normalizeCostActivity = (activity = {}) => ({
-  id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
-  projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project", "projectName", "project_name"]) || "").trim(),
-  projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim(),
-  name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
-  startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
-  finishDate: toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"])),
-  durationDays: Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0,
-  plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "plannedValue", "planned_value", "budget"])),
-});
+const normalizeCostActivity = (activity = {}) => {
+  const canonicalProjectId = String(getValueByAliases(activity, ["projectId", "project_id"]) || "").trim();
+  const legacyProjectRef = String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim();
+
+  return {
+    id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
+    // Preserve legacy aliases to avoid dropping historical activities during load filtering.
+    projectId: canonicalProjectId || legacyProjectRef,
+    projectName: legacyProjectRef,
+    name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
+    startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
+    finishDate: toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"])),
+    durationDays: Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0,
+    plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "plannedValue", "planned_value", "budget"])),
+  };
+};
 
 const loadCostActivities = () => {
   const activitiesSource = safeJsonParse(localStorage.getItem(ACTIVITIES_LOCAL_STORAGE_KEY), []).map(normalizeCostActivity);
