@@ -45,6 +45,13 @@ const normalizeProject = (project = {}) => ({
 });
 const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 const formatBudget = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 2 }).format(value || 0);
+const formatProjectIdentityLabel = (project) => {
+  const projectId = String(project?.id || "").trim();
+  const projectName = String(project?.name || "").trim();
+  if (!projectId) return projectName || "Untitled Project";
+  if (!projectName) return projectId;
+  return `${projectId} - ${projectName}`;
+};
 const toDateInputValue = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
@@ -106,7 +113,7 @@ const getProjectCostData = (projectId) => {
   return { rows, activities, daily };
 };
 
-const buildSelectedProjectBannerMarkup = (project) => `<section class="selected-project-banner"><div><p class="selected-project-label">Selected Project</p><h3>${escapeHtml(project.name)}</h3></div><a href="cost-management.html" class="ghost-btn">← Back to Projects</a></section>`;
+const buildSelectedProjectBannerMarkup = (project) => `<section class="selected-project-banner"><div><p class="selected-project-label">Selected Project</p><h3>${escapeHtml(formatProjectIdentityLabel(project))}</h3></div><a href="cost-management.html" class="ghost-btn">← Back to Projects</a></section>`;
 
 const buildDetailsMarkup = (project, rows) => {
   const plannedCost = rows.reduce((sum, row) => sum + parseBudgetValue(row.plannedCost), 0);
@@ -139,7 +146,7 @@ const buildDetailsMarkup = (project, rows) => {
     .map((row) => `<tr><td>${escapeHtml(row.id)}</td><td>${escapeHtml(row.name)}</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget(row.actualCost)}</td><td class="bad">-${formatBudget(row.actualCost - row.plannedCost)}</td></tr>`)
     .join("") || '<tr><td colspan="5" class="empty-cell">No over budget activities.</td></tr>';
 
-  return `<header class="details-header"><h2>Cost Management</h2><p>Project: <strong>${escapeHtml(project.name)}</strong></p></header>
+  return `<header class="details-header"><h2>Cost Management</h2><p>Project: <strong>${escapeHtml(formatProjectIdentityLabel(project))}</strong></p></header>
   <nav class="details-tabs"><button class="tab-btn active" data-tab="overview" type="button">Overview</button><button class="tab-btn" data-tab="costing" type="button">Costing Record</button></nav>
   <section class="details-tab-panel" data-panel="overview"><section class="details-kpis">
   <article class="kpi-card"><h4>Total Planned Cost</h4><p>${formatBudget(plannedCost)}</p></article>
@@ -232,7 +239,7 @@ const renderProjects = (query = "") => {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "project-row";
-    row.innerHTML = `<div class="project-meta"><strong>${escapeHtml(project.code)} · ${escapeHtml(project.name)}</strong><p>Status: ${escapeHtml(project.status)}</p></div><strong>${formatBudget(project.budget)}</strong>`;
+    row.innerHTML = `<div class="project-meta"><strong>${escapeHtml(formatProjectIdentityLabel(project))}</strong><p>Status: ${escapeHtml(project.status)}</p></div><strong>${formatBudget(project.budget)}</strong>`;
     row.addEventListener("click", () => {
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.set("projectId", project.id);
@@ -247,6 +254,11 @@ topSearch?.addEventListener("input", (event) => syncSearches(event.target.value)
 listSearch?.addEventListener("input", (event) => syncSearches(event.target.value));
 
 const params = new URLSearchParams(window.location.search);
-const selectedProjectId = params.get("projectId");
+const selectedProjectId = params.get("projectId") || "";
+const selectedProjectName = params.get("project") || "";
 const selectedTab = params.get("tab") === "costing" ? "costing" : "overview";
-if (!selectedProjectId || !showProjectDetails(selectedProjectId, selectedTab)) renderProjects();
+const selectedProject = loadProjects().map(normalizeProject).find((project) =>
+  (selectedProjectId && project.id === selectedProjectId)
+  || (selectedProjectName && project.name === selectedProjectName)
+);
+if (!selectedProject || !showProjectDetails(selectedProject.id, selectedTab)) renderProjects();

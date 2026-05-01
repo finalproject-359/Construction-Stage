@@ -159,6 +159,7 @@ const parseDateValue = (value) => {
 };
 
 const normalizeProject = (project = {}) => {
+  const id = getValueByAliases(project, ["id", "projectId", "project_id", "code", "projectCode", "project_code"]);
   const name = getValueByAliases(project, ["name", "project", "projectName", "project_name"]);
   const code = getValueByAliases(project, ["code", "projectCode", "project_code"]);
   const location = getValueByAliases(project, ["location", "site", "address"]);
@@ -168,6 +169,7 @@ const normalizeProject = (project = {}) => {
   const endDateRaw = getValueByAliases(project, ["endDate", "plannedFinish", "planned_finish"]);
 
   return {
+    id: String(id || code || name || "").trim(),
     name: name || "Untitled Project",
     code: code || "",
     location: location || "",
@@ -191,6 +193,14 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+
+const formatProjectIdentityLabel = (projectId, projectName) => {
+  const safeName = String(projectName || "").trim();
+  const safeId = String(projectId || "").trim();
+  if (!safeId) return safeName || "—";
+  if (!safeName) return safeId;
+  return `${safeId} - ${safeName}`;
+};
 
 const normalizeActivity = (activity = {}) => {
   const id = getValueByAliases(activity, ["id", "activityId", "activity_id", "code", "activityCode", "activity_code"]);
@@ -486,6 +496,7 @@ const state = {
   filteredActivities: initialActivities,
   currentPage: 1,
   selectedProject: null,
+  selectedProjectId: null,
   openActivityMenuKey: null,
   projectSearch: "",
   projectDateRange: {
@@ -504,12 +515,16 @@ const closeActivityActionMenus = () => {
   state.openActivityMenuKey = null;
 };
 
-const updateActivitiesUrlParams = ({ project = state.selectedProject, keepAddedFlag = false } = {}) => {
+const updateActivitiesUrlParams = ({ project = state.selectedProject, projectId = state.selectedProjectId || "", keepAddedFlag = false } = {}) => {
   const nextUrl = new URL(window.location.href);
   if (project) {
     nextUrl.searchParams.set("project", project);
+    const resolvedProjectId = projectId || getProjectIdByName(project);
+    if (resolvedProjectId) nextUrl.searchParams.set("projectId", resolvedProjectId);
+    else nextUrl.searchParams.delete("projectId");
   } else {
     nextUrl.searchParams.delete("project");
+    nextUrl.searchParams.delete("projectId");
   }
 
   if (!keepAddedFlag) {
@@ -597,8 +612,12 @@ const getProjectIdByName = (projectName) => {
   if (!projectName) return "";
   const summaries = buildProjectSummaries();
   const found = summaries.find((project) => project.name === projectName);
-  return found?.code || projectName;
+  return found?.id || found?.code || projectName;
 };
+
+const getSelectedProjectSummary = () => buildProjectSummaries().find((project) => String(project.id || project.code || "").trim() === String(state.selectedProjectId || "").trim());
+
+const getActivityProjectId = (activity) => getProjectIdByName(activity?.project);
 
 const mutateActivityInSource = async ({ action, activity }) => {
   if (!DATA_SOURCE_URL) return null;
@@ -754,7 +773,7 @@ const loadActivitiesAndProjectsFromSource = async () => {
   }
 };
 
-const hasSelectedProject = () => Boolean(state.selectedProject);
+const hasSelectedProject = () => Boolean(state.selectedProjectId);
 
 const formatDateRangeLabel = () => {
   const { start, end } = state.dateRange;
@@ -817,6 +836,7 @@ const buildProjectSummaries = () => {
     if (!activity.project || activity.project === "-") return;
     if (!projectMap.has(activity.project)) {
       projectMap.set(activity.project, {
+        id: "",
         name: activity.project,
         code: "",
         location: "",
@@ -840,6 +860,7 @@ const buildProjectSummaries = () => {
       const activityEndDate = finishes.length ? new Date(Math.max(...finishes.map((date) => date.getTime()))) : null;
 
       return {
+        id: summary.id || summary.code || summary.name,
         name: summary.name,
         code: summary.code,
         location: summary.location,
@@ -906,7 +927,7 @@ const updateSummary = () => {
   if (!activitiesTableSummary) return;
 
   const projectScopedTotal = hasSelectedProject()
-    ? state.allActivities.filter((item) => item.project === state.selectedProject).length
+    ? state.allActivities.filter((item) => getActivityProjectId(item) === state.selectedProjectId).length
     : state.allActivities.length;
   const totalCount = hasSelectedProject()
     ? projectScopedTotal
@@ -979,8 +1000,8 @@ const renderProjectPicker = () => {
   activitiesProjectPickerGrid.innerHTML = projects
     .map(
       (project) => `
-        <button type="button" class="activities-project-picker-card" data-project="${encodeURIComponent(project.name)}">
-          <span>${escapeHtml(project.code ? `${project.code} · ${project.name}` : project.name)}</span>
+        <button type="button" class="activities-project-picker-card" data-project-id="${encodeURIComponent(project.id || "")}" data-project="${encodeURIComponent(project.name)}">
+          <span>${escapeHtml(formatProjectIdentityLabel(project.id || project.code, project.name))}</span>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
       `
@@ -1000,7 +1021,8 @@ const syncWorkflowState = () => {
     activitiesViewShell.hidden = shouldShowProjectSelection;
   }
   if (activitiesSelectedProjectName) {
-    activitiesSelectedProjectName.textContent = state.selectedProject || "—";
+    const selectedProjectSummary = getSelectedProjectSummary();
+    activitiesSelectedProjectName.textContent = formatProjectIdentityLabel(selectedProjectSummary?.id || selectedProjectSummary?.code, selectedProjectSummary?.name);
   }
 };
 
@@ -1039,7 +1061,7 @@ const renderTable = () => {
 
   if (!state.filteredActivities.length) {
     const hasActivitiesForSelectedProject = state.allActivities.some(
-      (item) => item.project === state.selectedProject
+      (item) => getActivityProjectId(item) === state.selectedProjectId
     );
     if (!hasActivitiesForSelectedProject) {
       renderEmptyState();
@@ -1065,7 +1087,7 @@ const applyFilters = () => {
     state.filteredActivities = [];
   } else {
     state.filteredActivities = state.allActivities.filter((item) => {
-    const projectMatch = item.project === state.selectedProject;
+    const projectMatch = getActivityProjectId(item) === state.selectedProjectId;
     const statusMatch = statusValue === "All Statuses" || item.status === statusValue;
     const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
     const textMatch =
@@ -1145,7 +1167,7 @@ const openAddActivityModal = () => {
   if (!activityModal) return;
   state.editingActivityKey = null;
   setActivityModalMode("add");
-  updateActivityModalProjectDetails(state.selectedProject);
+  updateActivityModalProjectDetails(getSelectedProjectSummary()?.name || state.selectedProject);
   activityModal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
   window.setTimeout(() => {
@@ -1256,10 +1278,11 @@ const refreshFilterOptions = () => {
       : "All Statuses";
   }
 
-  if (state.selectedProject) {
-    const projectStillExists = projectSummaries.some((project) => project.name === state.selectedProject);
+  if (state.selectedProjectId) {
+    const projectStillExists = projectSummaries.some((project) => String(project.id || project.code || "").trim() === String(state.selectedProjectId).trim());
     if (!projectStillExists) {
       state.selectedProject = null;
+      state.selectedProjectId = null;
     }
   }
   renderProjectPicker();
@@ -1380,10 +1403,12 @@ if (activitiesProjectPickerGrid) {
     if (!button) return;
     const encodedProject = button.dataset.project || "";
     const project = encodedProject ? decodeURIComponent(encodedProject) : "All Projects";
+    const projectId = decodeURIComponent(button.dataset.projectId || "");
     state.selectedProject = project;
+    state.selectedProjectId = projectId || getProjectIdByName(project);
     syncWorkflowState();
     closeProjectDateRangePanel();
-    updateActivitiesUrlParams({ project, keepAddedFlag: true });
+    updateActivitiesUrlParams({ project, projectId: state.selectedProjectId, keepAddedFlag: true });
     applyFilters();
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
@@ -1557,7 +1582,7 @@ if (activityModalForm) {
     const nextActivity = normalizeActivity({
       id: String(formData.get("activityId") || "").trim(),
       name: String(formData.get("activityName") || "").trim(),
-      project: state.selectedProject,
+      project: getSelectedProjectSummary()?.name || state.selectedProject,
       type: "-",
       status: "Not Started",
       plannedStart,
@@ -1624,13 +1649,18 @@ const hydrateSelectedProjectFromUrl = () => {
 
   const query = new URLSearchParams(window.location.search);
   const projectFromUrl = query.get("project");
-  if (!projectFromUrl) return;
+  const projectIdFromUrl = query.get("projectId");
+  if (!projectFromUrl && !projectIdFromUrl) return;
 
   const projectSummaries = buildProjectSummaries();
-  const matchedProject = projectSummaries.find((project) => project.name === projectFromUrl);
+  const matchedProject = projectSummaries.find((project) =>
+    (projectFromUrl && project.name === projectFromUrl)
+    || (projectIdFromUrl && String(project.id || "").trim() === String(projectIdFromUrl).trim())
+  );
   if (matchedProject) {
     state.selectedProject = matchedProject.name;
-    updateActivitiesUrlParams({ project: matchedProject.name, keepAddedFlag: true });
+    state.selectedProjectId = matchedProject.id || matchedProject.code || "";
+    updateActivitiesUrlParams({ project: matchedProject.name, projectId: state.selectedProjectId, keepAddedFlag: true });
   }
 };
 
