@@ -63,10 +63,16 @@ const buildDetailsMarkup = (project) => {
     <section class="overview-grid">
       <article class="panel chart-panel">
         <h3>Budget vs Actual</h3>
-        <div class="bars">
-          <div class="bar-wrap"><div class="bar planned" style="height:100%"></div><strong>${formatBudget(plannedCost)}</strong><p>Total Planned Cost</p></div>
-          <div class="bar-wrap"><div class="bar actual" style="height:${Math.max(20, (actualCost / (plannedCost || 1)) * 100)}%"></div><strong>${formatBudget(actualCost)}</strong><p>Total Actual Cost</p></div>
+        <div class="bars" role="img" aria-label="Comparison of planned and actual project costs">
+          <div class="bars-grid" aria-hidden="true">
+            <span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span>
+          </div>
+          <div class="bars-track">
+            <div class="bar-wrap"><div class="bar planned" style="height:100%"></div><strong>${formatBudget(plannedCost)}</strong><p>Total Planned Cost</p></div>
+            <div class="bar-wrap"><div class="bar actual" style="height:${Math.max(20, (actualCost / (plannedCost || 1)) * 100)}%"></div><strong>${formatBudget(actualCost)}</strong><p>Total Actual Cost</p></div>
+          </div>
         </div>
+        <p class="chart-caption">Actual spending is ${((actualCost / (plannedCost || 1)) * 100).toFixed(2)}% of the planned cost.</p>
       </article>
       <article class="panel summary-panel">
         <h3>Cost Summary</h3>
