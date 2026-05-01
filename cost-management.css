@@ -57,7 +57,7 @@ body.page-cost-management .main-content {
 .info-banner p { margin: 6px 0 0; color: #4f638b; }
 
 @media (max-width: 980px) {
-  .toolbar-row, .cost-header, .info-banner { flex-direction: column; align-items: stretch; }
+  .toolbar-row, .cost-header, .info-banner, .selected-project-banner { flex-direction: column; align-items: stretch; }
   .search-box { min-width: 0; width: 100%; }
 }
 
@@ -77,9 +77,6 @@ body.page-cost-management .main-content {
 }
 
 .details-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 14px;
 }
 
@@ -91,6 +88,32 @@ body.page-cost-management .main-content {
 .details-header p {
   margin: 6px 0 0;
   color: #4f638b;
+}
+
+.selected-project-banner {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #f3f6fd;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.selected-project-label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 1.1rem;
+  color: #6f7e9a;
+  font-weight: 600;
+}
+
+.selected-project-banner h3 {
+  margin: 6px 0 0;
+  font-size: 2.2rem;
 }
 
 .details-kpis {
