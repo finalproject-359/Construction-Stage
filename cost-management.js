@@ -50,6 +50,12 @@ const toDateInputValue = (value) => {
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
 };
+const projectRefMatches = (activityProjectRef, projectId, projectName) => {
+  const normalizedRef = String(activityProjectRef || "").trim().toLowerCase();
+  const normalizedProjectId = String(projectId || "").trim().toLowerCase();
+  const normalizedProjectName = String(projectName || "").trim().toLowerCase();
+  return Boolean(normalizedRef) && (normalizedRef === normalizedProjectId || (normalizedProjectName && normalizedRef === normalizedProjectName));
+};
 const normalizeCostActivity = (activity = {}) => ({
   id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
   projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project", "projectName", "project_name"]) || "").trim(),
@@ -72,10 +78,7 @@ const loadCostActivities = () => {
 const getProjectCostData = (projectId) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   const projectName = String(project?.name || "").trim().toLowerCase();
-  const activities = loadCostActivities().filter((item) => {
-    const activityProjectRef = String(item.projectId || "").trim();
-    return activityProjectRef === projectId || (projectName && activityProjectRef.toLowerCase() === projectName);
-  });
+  const activities = loadCostActivities().filter((item) => projectRefMatches(item.projectId, projectId, projectName));
   const daily = loadDailyCosts().filter((item) => item.projectId === projectId);
   const rows = activities.map((activity) => {
     const dailyItems = daily.filter((entry) => entry.activityId === activity.id);
@@ -140,10 +143,7 @@ const renderDailyCostModal = (projectId, activityId) => {
   const projectName = String(project?.name || "").trim().toLowerCase();
   const activities = loadCostActivities();
   const dailyCosts = loadDailyCosts();
-  const activity = activities.find((item) => {
-    const activityProjectRef = String(item.projectId || "").trim();
-    return item.id === activityId && (activityProjectRef === projectId || (projectName && activityProjectRef.toLowerCase() === projectName));
-  });
+  const activity = activities.find((item) => item.id === activityId && projectRefMatches(item.projectId, projectId, projectName));
   if (!modal || !activity) return;
   const entries = dailyCosts.filter((item) => item.projectId === projectId && item.activityId === activityId).sort((a, b) => a.date.localeCompare(b.date));
   const rows = entries.length ? entries.map((entry) => `<tr><td>${entry.date}</td><td>${formatBudget(entry.actualCost)}</td></tr>`).join("") : '<tr><td colspan="2" class="empty-cell">No daily costs yet.</td></tr>';
