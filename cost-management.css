@@ -1,4 +1,62 @@
-/* Page-specific styles for cost-management.html. */
-body.page-cost-management {
-  /* Reserved for cost management-only overrides. */
+body.page-cost-management .main-content {
+  padding: 22px;
+}
+
+.cost-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.cost-header h1 { margin: 0; font-size: 3rem; }
+.cost-header p { margin: 6px 0 0; color: #4f638b; font-size: 1.5rem; }
+
+.ghost-btn, .ghost-link {
+  border: 1px solid #cfd9f4;
+  background: #f8fbff;
+  color: #2f55ff;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cost-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.toolbar-row { display: flex; gap: 12px; }
+.search-box {
+  border: 1px solid #d8deec;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 320px;
+}
+.search-box input { border: 0; outline: none; width: 100%; font: inherit; }
+.date-btn { border: 1px solid #d8deec; background: #fff; border-radius: 10px; padding: 10px 14px; }
+.selection-empty { text-align: center; padding: 26px 0; }
+.state-icon { width: 72px; height: 72px; border-radius: 50%; background: #eff4ff; display: grid; place-items: center; margin: 0 auto 14px; font-size: 2rem; }
+.state-icon.muted { background: #f3f4f7; }
+.selection-empty h2, .projects-empty h2 { margin: 6px 0; font-size: 1.8rem; }
+.selection-empty p, .projects-empty p { color: #4f638b; line-height: 1.5; }
+.search-center { max-width: 520px; margin: 14px auto 0; }
+.cost-card hr { border: none; border-top: 1px solid var(--border); margin: 8px 0 18px; }
+.cost-card h3 { margin: 0 0 12px; }
+.projects-list { display: grid; gap: 10px; }
+.project-row { border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; }
+.project-meta p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
+.projects-empty { text-align: center; padding: 20px 0 10px; }
+.primary-btn { background: var(--primary); color: #fff; text-decoration: none; padding: 11px 20px; border-radius: 10px; display: inline-block; font-weight: 600; }
+.info-banner { margin-top: 18px; background: #f5f7fd; border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.info-banner h4 { margin: 0; }
+.info-banner p { margin: 6px 0 0; color: #4f638b; }
+
+@media (max-width: 980px) {
+  .toolbar-row, .cost-header, .info-banner { flex-direction: column; align-items: stretch; }
+  .search-box { min-width: 0; width: 100%; }
 }
