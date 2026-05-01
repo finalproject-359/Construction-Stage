@@ -52,11 +52,11 @@ const toDateInputValue = (value) => {
 };
 const normalizeCostActivity = (activity = {}) => ({
   id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
-  projectId: String(getValueByAliases(activity, ["projectId", "project_id"]) || "").trim(),
+  projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project", "projectName", "project_name"]) || "").trim(),
   name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
   startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
   finishDate: toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"])),
-  durationDays: Number(getValueByAliases(activity, ["durationDays", "duration_days", "duration"])) || 0,
+  durationDays: Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0,
   plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "plannedValue", "planned_value", "budget"])),
 });
 
@@ -70,7 +70,12 @@ const loadCostActivities = () => {
 };
 
 const getProjectCostData = (projectId) => {
-  const activities = loadCostActivities().filter((item) => item.projectId === projectId);
+  const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
+  const projectName = String(project?.name || "").trim().toLowerCase();
+  const activities = loadCostActivities().filter((item) => {
+    const activityProjectRef = String(item.projectId || "").trim();
+    return activityProjectRef === projectId || (projectName && activityProjectRef.toLowerCase() === projectName);
+  });
   const daily = loadDailyCosts().filter((item) => item.projectId === projectId);
   const rows = activities.map((activity) => {
     const dailyItems = daily.filter((entry) => entry.activityId === activity.id);
