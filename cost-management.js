@@ -186,8 +186,13 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
     url.searchParams.set("resource", "activities");
     const projectIdFilter = String(projectFilter?.projectId || "").trim();
     const projectNameFilter = String(projectFilter?.projectName || "").trim();
-    if (projectIdFilter) url.searchParams.set("projectId", projectIdFilter);
-    if (projectNameFilter) url.searchParams.set("project", projectNameFilter);
+    // Send only one project filter at a time to avoid overly strict server-side AND matching.
+    // Prefer projectId because it is the canonical key; fall back to project name when ID is missing.
+    if (projectIdFilter) {
+      url.searchParams.set("projectId", projectIdFilter);
+    } else if (projectNameFilter) {
+      url.searchParams.set("project", projectNameFilter);
+    }
     url.searchParams.set("_ts", String(Date.now()));
     const response = await fetch(url.toString(), { cache: "no-store" });
     if (!response.ok) return [];
