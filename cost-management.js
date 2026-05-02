@@ -120,6 +120,30 @@ const loadRemoteCostActivities = async (projectFilter = {}) => {
   }
 };
 
+const normalizeRemoteProject = (row = {}) => normalizeProject({
+  id: getValueByAliases(row, ["id", "projectId", "project_id", "project id"]),
+  name: getValueByAliases(row, ["name", "project", "projectName", "project_name", "project name"]),
+  code: getValueByAliases(row, ["code", "projectCode", "project_code", "project code"]),
+  status: getValueByAliases(row, ["status", "projectStatus", "project_status", "project status"]),
+  budget: getValueByAliases(row, ["budget", "plannedCost", "planned_cost", "plannedValue", "planned value"]),
+});
+
+const loadRemoteProjects = async () => {
+  if (!window.DataBridge?.DEFAULT_DATA_SOURCE_URL) return [];
+  try {
+    const url = new URL(window.DataBridge.DEFAULT_DATA_SOURCE_URL);
+    url.searchParams.set("resource", "projects");
+    url.searchParams.set("_ts", String(Date.now()));
+    const response = await fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.projects) ? payload.projects : [];
+    return rows.map(normalizeRemoteProject).filter((item) => item.id);
+  } catch (error) {
+    console.warn("Unable to load projects from resource endpoint:", error);
+    return [];
+  }
+};
 
 const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
@@ -243,6 +267,16 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const formData = new FormData(event.currentTarget);
     const date = String(formData.get("date") || "");
     const actualCost = parseBudgetValue(formData.get("actualCost"));
+    const activityStartDate = String(activity.startDate || "");
+    const activityFinishDate = String(activity.finishDate || "");
+    if (activityStartDate && date < activityStartDate) {
+      alert(`Date must be on or after ${activityStartDate}.`);
+      return;
+    }
+    if (activityFinishDate && date > activityFinishDate) {
+      alert(`Date must be on or before ${activityFinishDate}.`);
+      return;
+    }
     const existingIndex = dailyCosts.findIndex((item) =>
       String(item.projectId || "").trim() === projectId
       && String(item.activityId || "").trim() === activityId
@@ -316,15 +350,23 @@ const params = new URLSearchParams(window.location.search);
 const selectedProjectId = params.get("projectId") || "";
 const selectedProjectName = params.get("project") || "";
 const selectedTab = params.get("tab") === "costing" ? "costing" : "overview";
-const selectedProject = loadProjects().map(normalizeProject).find((project) =>
-  (selectedProjectId && project.id === selectedProjectId)
-  || (selectedProjectName && project.name === selectedProjectName)
-);
 const bootstrapCostManagement = async () => {
+  const localProjects = loadProjects().map(normalizeProject).filter((project) => project.id);
+  if (!localProjects.length) {
+    const remoteProjects = await loadRemoteProjects();
+    if (remoteProjects.length) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remoteProjects));
+    }
+  }
+
+  const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).find((project) =>
+    (selectedProjectId && project.id === selectedProjectId)
+    || (selectedProjectName && project.name === selectedProjectName)
+  );
   const localActivities = loadCostActivities();
   const remoteActivities = await loadRemoteCostActivities({
-    projectId: selectedProject?.id || selectedProjectId,
-    projectName: selectedProject?.name || selectedProjectName,
+    projectId: selectedProjectAfterBootstrap?.id || selectedProjectId,
+    projectName: selectedProjectAfterBootstrap?.name || selectedProjectName,
   });
   const merged = [...remoteActivities, ...localActivities];
   const deduped = new Map();
@@ -335,7 +377,7 @@ const bootstrapCostManagement = async () => {
   });
   const allActivities = Array.from(deduped.values());
 
-  if (!selectedProject || !showProjectDetails(selectedProject.id, selectedTab, allActivities)) renderProjects();
+  if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, allActivities)) renderProjects();
 };
 
 bootstrapCostManagement();
