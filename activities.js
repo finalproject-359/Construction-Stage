@@ -1083,26 +1083,40 @@ const applyFilters = () => {
   const dateStartValue = state.dateRange.start;
   const dateEndValue = state.dateRange.end;
 
+  const compareActivitiesByStartPriority = (a, b) => {
+    const aStart = a.plannedStartDate?.getTime?.() ?? Number.POSITIVE_INFINITY;
+    const bStart = b.plannedStartDate?.getTime?.() ?? Number.POSITIVE_INFINITY;
+    if (aStart !== bStart) return aStart - bStart;
+
+    const aFinish = a.plannedFinishDate?.getTime?.() ?? Number.POSITIVE_INFINITY;
+    const bFinish = b.plannedFinishDate?.getTime?.() ?? Number.POSITIVE_INFINITY;
+    if (aFinish !== bFinish) return aFinish - bFinish;
+
+    return String(a.id || "").localeCompare(String(b.id || ""));
+  };
+
   if (!hasSelectedProject()) {
     state.filteredActivities = [];
   } else {
-    state.filteredActivities = state.allActivities.filter((item) => {
-    const projectMatch = getActivityProjectId(item) === state.selectedProjectId;
-    const statusMatch = statusValue === "All Statuses" || item.status === statusValue;
-    const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
-    const textMatch =
-      !searchValue ||
-      `${item.name} ${item.type} ${item.status}`.toLowerCase().includes(searchValue);
-    const dateValue = item.plannedStartDate;
-    const hasDateFilter = Boolean(dateStartValue || dateEndValue);
-    const dateMatch =
-      !hasDateFilter ||
-      (dateValue &&
-        (!dateStartValue || dateValue >= dateStartValue) &&
-        (!dateEndValue || dateValue <= dateEndValue));
+    state.filteredActivities = state.allActivities
+      .filter((item) => {
+        const projectMatch = getActivityProjectId(item) === state.selectedProjectId;
+        const statusMatch = statusValue === "All Statuses" || item.status === statusValue;
+        const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
+        const textMatch =
+          !searchValue ||
+          `${item.name} ${item.type} ${item.status}`.toLowerCase().includes(searchValue);
+        const dateValue = item.plannedStartDate;
+        const hasDateFilter = Boolean(dateStartValue || dateEndValue);
+        const dateMatch =
+          !hasDateFilter ||
+          (dateValue &&
+            (!dateStartValue || dateValue >= dateStartValue) &&
+            (!dateEndValue || dateValue <= dateEndValue));
 
-    return projectMatch && statusMatch && typeMatch && textMatch && dateMatch;
-  });
+        return projectMatch && statusMatch && typeMatch && textMatch && dateMatch;
+      })
+      .sort(compareActivitiesByStartPriority);
   }
 
   state.currentPage = 1;
