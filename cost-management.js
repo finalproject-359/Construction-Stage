@@ -501,7 +501,25 @@ const bootstrapCostManagement = async () => {
   merged.forEach((item) => {
     const key = `${String(item.projectId).trim()}::${String(getActivityRefId(item)).trim()}`;
     if (!key || key === "::") return;
-    if (!deduped.has(key)) deduped.set(key, item);
+
+    if (!deduped.has(key)) {
+      deduped.set(key, item);
+      return;
+    }
+
+    const existing = deduped.get(key) || {};
+    deduped.set(key, {
+      ...existing,
+      ...item,
+      // Keep user-maintained cost metadata from local overrides when available.
+      costId: String(existing.costId || item.costId || "").trim(),
+      plannedCost: parseBudgetValue(existing.plannedCost) || parseBudgetValue(item.plannedCost),
+      // Prefer rows that already have usable schedule data so durations display reliably.
+      startDate: existing.startDate || item.startDate || "",
+      finishDate: existing.finishDate || item.finishDate || "",
+      durationDays: Number(existing.durationDays) || Number(item.durationDays) || 0,
+      name: existing.name || item.name || "Untitled Activity",
+    });
   });
   const allActivities = Array.from(deduped.values());
 
