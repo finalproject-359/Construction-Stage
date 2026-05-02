@@ -50,6 +50,24 @@ const formatHumanDate = (value) => {
   if (Number.isNaN(date.getTime())) return String(value || "-");
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
+const formatLongHumanDate = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value || "-");
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+};
+
+const buildDateRangeOptions = (startDate, finishDate) => {
+  const start = new Date(startDate);
+  const end = new Date(finishDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+  const options = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    options.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return options;
+};
 const formatProjectIdentityLabel = (project) => {
   const projectId = String(project?.id || "").trim();
   const projectName = String(project?.name || "").trim();
@@ -376,8 +394,8 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     ? entries.map((entry) => `<tr><td>${formatHumanDate(entry.date)}</td><td>${formatBudget(entry.actualCost)}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`).join("")
     : '<tr><td colspan="3" class="empty-cell">No daily costs recorded yet.</td></tr>';
   modal.classList.remove("hidden");
-  modal.innerHTML = `<div class="daily-cost-dialog panel" role="dialog" aria-modal="true" aria-labelledby="dailyCostTitle"><div class="daily-cost-head"><h3 id="dailyCostTitle">${escapeHtml(activity.name)} Daily Cost</h3><button type="button" class="daily-cost-close" id="closeDailyModalBtn" aria-label="Close">×</button></div><p class="daily-cost-range">📅 ${escapeHtml(activity.startDate)} to ${escapeHtml(activity.finishDate)}</p>
-    <section class="daily-cost-section"><h4>Add Daily Cost</h4><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><input name="date" type="date" min="${activity.startDate}" max="${activity.finishDate}" required></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required></label><button class="primary-btn" type="submit">Add</button></form></section>
+  modal.innerHTML = `<div class="daily-cost-dialog panel" role="dialog" aria-modal="true" aria-labelledby="dailyCostTitle"><div class="daily-cost-head"><h3 id="dailyCostTitle">${escapeHtml(activity.name)} Daily Cost</h3><button type="button" class="daily-cost-close" id="closeDailyModalBtn" aria-label="Close">×</button></div><p class="daily-cost-range">📅 ${escapeHtml(formatLongHumanDate(activity.startDate))} to ${escapeHtml(formatLongHumanDate(activity.finishDate))}</p>
+    <section class="daily-cost-section"><h4>Add Daily Cost</h4><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><select name="date" required>${buildDateRangeOptions(activity.startDate, activity.finishDate).map((dateValue) => `<option value="${dateValue}">${formatLongHumanDate(dateValue)}</option>`).join("")}</select></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required></label><button class="primary-btn" type="submit">Add</button></form></section>
     <section class="daily-cost-section"><h4>Daily Cost Records</h4><div class="daily-cost-table-wrap"><table><thead><tr><th>Date</th><th>Amount (₱)</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></section>
     <div class="daily-cost-footer"><button type="button" class="ghost-btn" id="closeDailyModalBtnFooter">Close</button></div></div>`;
 
@@ -394,6 +412,12 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     showProjectDetails(projectId, activeTab, nextActivities);
     renderDailyCostModal(projectId, activityId);
   }));
+  const dateSelect = modal.querySelector("#dailyCostForm select[name=\"date\"]");
+  if (dateSelect) {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if ([...dateSelect.options].some((option) => option.value === todayIso)) dateSelect.value = todayIso;
+  }
+
   modal.querySelector("#dailyCostForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
