@@ -257,7 +257,19 @@ const buildDetailsMarkup = (project, rows) => {
   const overBudgetPct = (overBudgetCount / activityTotal) * 100;
 
   const tableRows = rows.length
-    ? rows.map((row) => `<tr><td>${escapeHtml(row.costId || "-")}</td><td>${escapeHtml(row.name)}</td><td>${row.durationDays || "-"} days</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget((row.plannedCost || 0) / (row.durationDays || 1))}</td><td>${formatBudget(row.actualCost)}</td><td><button type="button" class="ghost-btn edit-cost-meta-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">Edit Cost ID / Planned</button> <button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">View / Add Daily Cost</button></td></tr>`).join("")
+    ? rows.map((row) => {
+      const hasPlannedCost = parseBudgetValue(row.plannedCost) > 0;
+      const hasActualCost = parseBudgetValue(row.actualCost) > 0;
+      const plannedCostPerDay = hasPlannedCost && Number(row.durationDays) > 0
+        ? parseBudgetValue(row.plannedCost) / Number(row.durationDays)
+        : 0;
+      const costIdCell = row.costId ? escapeHtml(row.costId) : "—";
+      const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "—";
+      const plannedCostPerDayCell = hasPlannedCost ? formatBudget(plannedCostPerDay) : "—";
+      const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "—";
+
+      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${row.durationDays || "-"} days</td><td>${plannedCostCell}</td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td><button type="button" class="ghost-btn edit-cost-meta-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">Add / Edit Cost Details</button> <button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">View / Add Daily Cost</button></td></tr>`;
+    }).join("")
     : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
   const maxCost = Math.max(plannedCost, actualCost, 1);
