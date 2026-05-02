@@ -90,7 +90,15 @@ const loadCostActivities = () => {
   costSource.filter((item) => item.projectId).forEach((item) => {
     const key = `${String(item.projectId).trim()}::${String(item.activityRefId || item.id).trim()}`;
     if (!activitiesByKey.has(key)) return;
-    activitiesByKey.set(key, item);
+
+    const baseActivity = activitiesByKey.get(key) || {};
+    activitiesByKey.set(key, {
+      ...baseActivity,
+      // Keep canonical activity identity/schedule from Activities data,
+      // and only apply cost-specific metadata overrides from legacy cost entries.
+      id: String(item.id || baseActivity.id || "").trim(),
+      plannedCost: Number(item.plannedCost) || 0,
+    });
   });
 
   return Array.from(activitiesByKey.values());
