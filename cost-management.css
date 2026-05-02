@@ -410,16 +410,53 @@ body.page-cost-management .details-tab-panel .table-panel td.actions-col {
   z-index: 20;
 }
 .daily-cost-dialog {
-  width: min(720px, 92vw);
-  max-height: 86vh;
+  width: min(980px, 94vw);
+  max-height: 88vh;
   overflow: auto;
+  border-radius: 20px;
+  border: 1px solid #dfe6f4;
+  padding: 0;
 }
-.daily-cost-form {
+.daily-cost-head {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px 30px 8px;
 }
-.daily-cost-form input { padding: 9px 10px; border: 1px solid #d8deec; border-radius: 8px; }
+.daily-cost-head h3 { margin: 0; font-size: clamp(1.5rem, 2.3vw, 2rem); }
+.daily-cost-close {
+  border: none;
+  background: transparent;
+  font-size: 2.1rem;
+  color: #6f7e9a;
+  cursor: pointer;
+}
+.daily-cost-range {
+  margin: 0;
+  padding: 0 30px 18px;
+  color: #4f638b;
+  border-bottom: 1px solid #e8edf8;
+  font-size: 1.05rem;
+}
+.daily-cost-section { padding: 20px 30px 0; }
+.daily-cost-section h4 { margin: 0 0 14px; font-size: 1.9rem; font-weight: 700; color: #17264a; }
+.daily-cost-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+.daily-cost-form label { display: grid; gap: 8px; color: #415377; font-weight: 600; }
+.daily-cost-form input { padding: 13px 14px; border: 1px solid #cfd8eb; border-radius: 12px; font-size: 1rem; }
+.daily-cost-table-wrap { border: 1px solid #e0e7f4; border-radius: 12px; overflow: hidden; }
+.daily-cost-table-wrap table { width: 100%; border-collapse: collapse; }
+.daily-cost-table-wrap th, .daily-cost-table-wrap td { padding: 14px 18px; border-bottom: 1px solid #edf1f8; }
+.daily-cost-table-wrap th { background: #f4f7fc; color: #4a5a79; font-weight: 700; }
+.daily-cost-delete-btn { border: none; background: transparent; color: #d74646; font-weight: 600; cursor: pointer; }
+.daily-cost-footer { padding: 24px 30px 28px; display: flex; justify-content: flex-end; border-top: 1px solid #e8edf8; margin-top: 20px; }
+@media (max-width: 860px) {
+  .daily-cost-form { grid-template-columns: 1fr; }
+}
 
 .muted-note { margin: 0; color: #6a7da1; font-weight: 600; }
 
