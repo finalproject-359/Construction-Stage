@@ -59,6 +59,7 @@ const toDateInputValue = (value) => {
 };
 const normalizeCostActivity = (activity = {}) => ({
   id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
+  activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "sourceActivityId", "source_activity_id", "activityId", "activity_id", "id", "code"]) || "").trim(),
   projectId: String(getValueByAliases(activity, ["projectId", "project_id"]) || "").trim(),
   projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim(),
   name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
@@ -77,15 +78,16 @@ const loadCostActivities = () => {
   const merged = [...activitiesSource, ...costSource].filter((item) => item.projectId);
   const dedupedByProjectAndActivity = new Map();
   merged.forEach((item) => {
-    const key = `${String(item.projectId).trim()}::${String(item.id).trim()}`;
+    const key = `${String(item.projectId).trim()}::${String(item.activityRefId || item.id).trim()}`;
     if (!key || key === '::') return;
-    if (!dedupedByProjectAndActivity.has(key)) dedupedByProjectAndActivity.set(key, item);
+    dedupedByProjectAndActivity.set(key, item);
   });
 
   return Array.from(dedupedByProjectAndActivity.values());
 };
 
 const normalizeRemoteActivity = (row = {}) => {
+  const normalizedId = String(getValueByAliases(row, ["id", "activityId", "activity_id", "activity id", "code"]) || "").trim();
   const projectId = String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim();
   const startDate = toDateInputValue(getValueByAliases(row, ["startDate", "plannedStart", "planned_start", "planned start"]));
   const finishDate = toDateInputValue(getValueByAliases(row, ["finishDate", "plannedFinish", "planned_finish", "planned finish"]));
@@ -95,7 +97,8 @@ const normalizeRemoteActivity = (row = {}) => {
     : 0;
 
   return normalizeCostActivity({
-    id: getValueByAliases(row, ["id", "activityId", "activity_id", "activity id", "code"]),
+    id: normalizedId,
+    activityRefId: normalizedId,
     projectId,
     projectName: getValueByAliases(row, ["project", "projectName", "project_name", "project name"]),
     name: getValueByAliases(row, ["name", "activity", "activityName", "activity_name"]),
@@ -105,6 +108,7 @@ const normalizeRemoteActivity = (row = {}) => {
     plannedCost: getValueByAliases(row, ["plannedCost", "planned_cost", "plannedValue", "planned value", "budget"]),
   });
 };
+const getActivityRefId = (activity = {}) => String(activity.activityRefId || activity.id || "").trim();
 
 const loadRemoteCostActivities = async (projectFilter = {}) => {
   const resourceRows = await loadActivitiesFromResourceEndpoint(projectFilter);
@@ -188,7 +192,8 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   const activities = allActivities.filter((item) => isActivityForProject(item, projectId, projectName));
   const daily = loadDailyCosts().filter((item) => String(item.projectId || "").trim() === projectId);
   const rows = activities.map((activity) => {
-    const dailyItems = daily.filter((entry) => entry.activityId === activity.id);
+    const refId = getActivityRefId(activity);
+    const dailyItems = daily.filter((entry) => entry.activityId === refId);
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
     return { ...activity, actualCost, dailyItems };
   });
@@ -212,7 +217,7 @@ const buildDetailsMarkup = (project, rows) => {
   const overBudgetPct = (overBudgetCount / activityTotal) * 100;
 
   const tableRows = rows.length
-    ? rows.map((row) => `<tr><td>${escapeHtml(row.id)}</td><td>${escapeHtml(row.name)}</td><td>${row.durationDays || "-"} days</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget((row.plannedCost || 0) / (row.durationDays || 1))}</td><td>${formatBudget(row.actualCost)}</td><td><button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(row.id)}">View / Add Daily Cost</button></td></tr>`).join("")
+    ? rows.map((row) => `<tr><td>${escapeHtml(row.id)}</td><td>${escapeHtml(row.name)}</td><td>${row.durationDays || "-"} days</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget((row.plannedCost || 0) / (row.durationDays || 1))}</td><td>${formatBudget(row.actualCost)}</td><td><button type="button" class="ghost-btn edit-cost-meta-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">Edit Cost ID / Planned</button> <button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">View / Add Daily Cost</button></td></tr>`).join("")
     : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
   const maxCost = Math.max(plannedCost, actualCost, 1);
@@ -250,7 +255,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const projectName = String(project?.name || "").trim().toLowerCase();
   const activities = allActivities;
   const dailyCosts = loadDailyCosts();
-  const activity = activities.find((item) => item.id === activityId && isActivityForProject(item, projectId, projectName));
+  const activity = activities.find((item) => getActivityRefId(item) === activityId && isActivityForProject(item, projectId, projectName));
   if (!modal || !activity) return;
   const entries = dailyCosts
     .filter((item) => String(item.projectId || "").trim() === projectId && String(item.activityId || "").trim() === activityId)
@@ -319,7 +324,29 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
   }));
 
   detailsView.querySelectorAll(".view-daily-cost-btn").forEach((btn) => btn.addEventListener("click", () => renderDailyCostModal(projectId, btn.dataset.activityId, allActivities)));
+  detailsView.querySelectorAll(".edit-cost-meta-btn").forEach((btn) => btn.addEventListener("click", () => editCostMetadata(projectId, btn.dataset.activityId, allActivities)));
   return true;
+};
+
+const saveCostActivityOverrides = (items = []) => localStorage.setItem(COST_ACTIVITY_KEY, JSON.stringify(items));
+const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActivities()) => {
+  const target = allActivities.find((item) => String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId);
+  if (!target) return;
+  const nextCostId = window.prompt("Enter Cost ID:", target.id || target.activityRefId || "");
+  if (nextCostId === null) return;
+  const nextPlannedRaw = window.prompt("Enter Planned Cost:", String(target.plannedCost || 0));
+  if (nextPlannedRaw === null) return;
+  const nextPlannedCost = parseBudgetValue(nextPlannedRaw);
+  const existingOverrides = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
+  const nextOverrides = existingOverrides.filter((item) => !(String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId));
+  nextOverrides.push(normalizeCostActivity({
+    ...target,
+    id: String(nextCostId || "").trim() || target.id,
+    plannedCost: nextPlannedCost,
+    activityRefId,
+  }));
+  saveCostActivityOverrides(nextOverrides);
+  showProjectDetails(projectId, "costing", loadCostActivities());
 };
 
 const renderProjects = (query = "") => {
