@@ -60,7 +60,7 @@ const toDateInputValue = (value) => {
 const normalizeCostActivity = (activity = {}) => ({
   id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
   activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "sourceActivityId", "source_activity_id", "activityId", "activity_id", "id", "code"]) || "").trim(),
-  projectId: String(getValueByAliases(activity, ["projectId", "project_id"]) || "").trim(),
+  projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project", "projectName", "project_name"]) || "").trim(),
   projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim(),
   name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
   startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
@@ -68,6 +68,10 @@ const normalizeCostActivity = (activity = {}) => ({
   durationDays: Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0,
   plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "plannedValue", "planned_value", "budget"])),
 });
+
+const getActivityRefId = (activity = {}) => String(activity.activityRefId || activity.id || "").trim();
+const getCostActivityProjectKey = (activity = {}) => String(activity.projectId || activity.projectName || "").trim();
+const getCostActivityKey = (activity = {}) => `${getCostActivityProjectKey(activity)}::${getActivityRefId(activity)}`;
 
 const loadCostActivities = () => {
   const activitiesSource = safeJsonParse(localStorage.getItem(ACTIVITIES_LOCAL_STORAGE_KEY), []).map(normalizeCostActivity);
@@ -77,20 +81,28 @@ const loadCostActivities = () => {
   // Keep legacy cost entries only as metadata overrides when there is an existing activity match.
   // If there are no activities yet, use legacy data as a fallback for backward compatibility.
   const activitiesByKey = new Map();
-  activitiesSource.filter((item) => item.projectId).forEach((item) => {
-    const key = `${String(item.projectId).trim()}::${String(item.activityRefId || item.id).trim()}`;
-    if (!key || key === '::') return;
+  activitiesSource.forEach((item) => {
+    const key = getCostActivityKey(item);
+    if (!key || key === "::") return;
     activitiesByKey.set(key, item);
   });
 
   if (!activitiesByKey.size) {
-    return costSource.filter((item) => item.projectId);
+    return costSource;
   }
 
-  costSource.filter((item) => item.projectId).forEach((item) => {
-    const key = `${String(item.projectId).trim()}::${String(item.activityRefId || item.id).trim()}`;
+  costSource.forEach((item) => {
+    const key = getCostActivityKey(item);
     if (!activitiesByKey.has(key)) return;
-    activitiesByKey.set(key, item);
+
+    const baseActivity = activitiesByKey.get(key) || {};
+    activitiesByKey.set(key, {
+      ...baseActivity,
+      // Keep canonical activity identity/schedule from Activities data,
+      // and only apply cost-specific metadata overrides from legacy cost entries.
+      id: String(item.id || baseActivity.id || "").trim(),
+      plannedCost: Number(item.plannedCost) || 0,
+    });
   });
 
   return Array.from(activitiesByKey.values());
@@ -118,8 +130,6 @@ const normalizeRemoteActivity = (row = {}) => {
     plannedCost: getValueByAliases(row, ["plannedCost", "planned_cost", "plannedValue", "planned value", "budget"]),
   });
 };
-const getActivityRefId = (activity = {}) => String(activity.activityRefId || activity.id || "").trim();
-
 const loadRemoteCostActivities = async (projectFilter = {}) => {
   const resourceRows = await loadActivitiesFromResourceEndpoint(projectFilter);
   if (resourceRows.length) return resourceRows;
