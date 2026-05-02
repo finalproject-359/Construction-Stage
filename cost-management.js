@@ -58,11 +58,11 @@ const toDateInputValue = (value) => {
   return d.toISOString().slice(0, 10);
 };
 const normalizeCostActivity = (activity = {}) => ({
-  id: String(getValueByAliases(activity, ["activityId", "activity_id", "sourceActivityId", "source_activity_id", "code", "id"]) || "").trim(),
+  id: String(getValueByAliases(activity, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id", "source activity id", "code", "id"]) || "").trim(),
   costId: String(getValueByAliases(activity, ["costId", "cost_id", "costCode", "cost_code"]) || "").trim(),
-  activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "sourceActivityId", "source_activity_id", "activityId", "activity_id", "id", "code"]) || "").trim(),
-  projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project", "projectName", "project_name"]) || "").trim(),
-  projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim(),
+  activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "activity ref id", "sourceActivityId", "source_activity_id", "source activity id", "activityId", "activity_id", "activity id", "id", "code"]) || "").trim(),
+  projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project id", "project", "projectName", "project_name", "project name"]) || "").trim(),
+  projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name", "project name"]) || "").trim(),
   name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
   startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
   finishDate: toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"])),
