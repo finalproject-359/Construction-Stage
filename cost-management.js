@@ -322,7 +322,8 @@ const buildDetailsMarkup = (project, rows) => {
 
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "";
 
-      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${durationCell}</td><td>${plannedCostCell}</td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td><button type="button" class="ghost-btn edit-cost-meta-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">Add / Edit Cost Details</button> <button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">View / Add Daily Cost</button></td></tr>`;
+      const activityId = escapeHtml(getActivityRefId(row));
+      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${durationCell}</td><td>${plannedCostCell}</td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td class="actions-col"><button type="button" class="action-menu-trigger" data-cost-actions="${activityId}" aria-label="Open cost actions" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${activityId}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Add / Edit Cost Details</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
     }).join("")
     : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
@@ -429,8 +430,41 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
     applyActiveTab(target);
   }));
 
-  detailsView.querySelectorAll(".view-daily-cost-btn").forEach((btn) => btn.addEventListener("click", () => renderDailyCostModal(projectId, btn.dataset.activityId, allActivities)));
-  detailsView.querySelectorAll(".edit-cost-meta-btn").forEach((btn) => btn.addEventListener("click", () => editCostMetadata(projectId, btn.dataset.activityId, allActivities)));
+  const closeCostActionMenus = () => {
+    detailsView.querySelectorAll("[data-cost-menu]").forEach((menu) => menu.classList.add("hidden"));
+    detailsView.querySelectorAll("[data-cost-actions]").forEach((trigger) => trigger.setAttribute("aria-expanded", "false"));
+  };
+
+  detailsView.querySelectorAll("[data-cost-actions]").forEach((trigger) => {
+    trigger.addEventListener("click", (event) => {
+      const activityId = trigger.dataset.costActions;
+      const menu = detailsView.querySelector(`[data-cost-menu="${CSS.escape(activityId || "")}"]`);
+      if (!menu) return;
+      const isOpen = !menu.classList.contains("hidden");
+      closeCostActionMenus();
+      if (!isOpen) {
+        menu.classList.remove("hidden");
+        trigger.setAttribute("aria-expanded", "true");
+      }
+      event.stopPropagation();
+    });
+  });
+
+  detailsView.addEventListener("click", (event) => {
+    const actionBtn = event.target.closest(".view-daily-cost-btn, .edit-cost-meta-btn");
+    if (actionBtn) {
+      const activityId = actionBtn.dataset.activityId;
+      closeCostActionMenus();
+      if (actionBtn.classList.contains("view-daily-cost-btn")) {
+        renderDailyCostModal(projectId, activityId, allActivities);
+      } else {
+        editCostMetadata(projectId, activityId, allActivities);
+      }
+      return;
+    }
+    if (!event.target.closest(".actions-col")) closeCostActionMenus();
+  });
+
   return true;
 };
 

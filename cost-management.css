@@ -290,18 +290,25 @@ body.page-cost-management .main-content {
 .details-tab-panel th:nth-child(7),
 .details-tab-panel td:nth-child(7) {
   width: 1%;
+  text-align: center;
 }
 
-.details-tab-panel td:nth-child(7) {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.details-tab-panel td.actions-col {
+  position: relative;
 }
 
-.details-tab-panel td:nth-child(7) .ghost-btn {
-  padding: 8px 12px;
-  white-space: nowrap;
-  font-size: 0.82rem;
+.details-tab-panel td.actions-col .action-menu-trigger {
+  margin: 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.details-tab-panel td.actions-col .project-actions-menu {
+  right: 50%;
+  transform: translateX(50%);
+  min-width: 210px;
+  text-align: left;
 }
 
 @media (max-width: 980px) { .cost-record-head, .cost-record-actions { flex-direction: column; align-items: stretch; } }
