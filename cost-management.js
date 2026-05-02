@@ -45,6 +45,11 @@ const normalizeProject = (project = {}) => ({
 });
 const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 const formatBudget = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 2 }).format(value || 0);
+const formatHumanDate = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value || "-");
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
 const formatProjectIdentityLabel = (project) => {
   const projectId = String(project?.id || "").trim();
   const projectName = String(project?.name || "").trim();
@@ -367,13 +372,28 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const entries = dailyCosts
     .filter((item) => String(item.projectId || "").trim() === projectId && String(item.activityId || "").trim() === activityId)
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
-  const rows = entries.length ? entries.map((entry) => `<tr><td>${entry.date}</td><td>${formatBudget(entry.actualCost)}</td></tr>`).join("") : '<tr><td colspan="2" class="empty-cell">No daily costs yet.</td></tr>';
+  const rows = entries.length
+    ? entries.map((entry) => `<tr><td>${formatHumanDate(entry.date)}</td><td>${formatBudget(entry.actualCost)}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`).join("")
+    : '<tr><td colspan="3" class="empty-cell">No daily costs recorded yet.</td></tr>';
   modal.classList.remove("hidden");
-  modal.innerHTML = `<div class="daily-cost-dialog panel"><h3>${escapeHtml(activity.name)} Daily Cost</h3><p>${escapeHtml(activity.startDate)} to ${escapeHtml(activity.finishDate)}</p>
-    <form id="dailyCostForm" class="daily-cost-form"><input name="date" type="date" min="${activity.startDate}" max="${activity.finishDate}" required><input name="actualCost" type="number" min="0" step="0.01" placeholder="Actual cost" required><button class="primary-btn" type="submit">Save</button><button type="button" class="ghost-btn" id="closeDailyModalBtn">Close</button></form>
-    <table><thead><tr><th>Date</th><th>Actual Cost</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  modal.innerHTML = `<div class="daily-cost-dialog panel" role="dialog" aria-modal="true" aria-labelledby="dailyCostTitle"><div class="daily-cost-head"><h3 id="dailyCostTitle">${escapeHtml(activity.name)} Daily Cost</h3><button type="button" class="daily-cost-close" id="closeDailyModalBtn" aria-label="Close">×</button></div><p class="daily-cost-range">📅 ${escapeHtml(activity.startDate)} to ${escapeHtml(activity.finishDate)}</p>
+    <section class="daily-cost-section"><h4>Add Daily Cost</h4><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><input name="date" type="date" min="${activity.startDate}" max="${activity.finishDate}" required></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required></label><button class="primary-btn" type="submit">Add</button></form></section>
+    <section class="daily-cost-section"><h4>Daily Cost Records</h4><div class="daily-cost-table-wrap"><table><thead><tr><th>Date</th><th>Amount (₱)</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></section>
+    <div class="daily-cost-footer"><button type="button" class="ghost-btn" id="closeDailyModalBtnFooter">Close</button></div></div>`;
 
   modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", () => modal.classList.add("hidden"));
+  modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", () => modal.classList.add("hidden"));
+  modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", () => {
+    const date = String(button.dataset.deleteDate || "");
+    const nextDailyCosts = loadDailyCosts().filter((item) => !(String(item.projectId || "").trim() === projectId
+      && String(item.activityId || "").trim() === activityId
+      && String(item.date || "") === date));
+    saveDailyCosts(nextDailyCosts);
+    const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
+    const nextActivities = loadCostActivities();
+    showProjectDetails(projectId, activeTab, nextActivities);
+    renderDailyCostModal(projectId, activityId);
+  }));
   modal.querySelector("#dailyCostForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
