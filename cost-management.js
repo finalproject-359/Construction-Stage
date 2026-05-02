@@ -352,7 +352,8 @@ const buildDetailsMarkup = (project, rows) => {
   <article class="panel table-panel"><h3>Top Over Budget Activities</h3><table><thead><tr><th>Cost ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead><tbody>${topRows}</tbody></table></article></section></section>
   <section class="details-tab-panel hidden" data-panel="costing">
   <section class="panel"><table><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Planned Cost</th><th>Planned Cost/Day</th><th>Actual Cost</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section><div class="info-banner"><p>Tip: add daily actual costs by date via “View / Add Daily Cost”.</p></div></section>
-  <section class="daily-cost-modal hidden" id="dailyCostModal"></section>`;
+  <section class="daily-cost-modal hidden" id="dailyCostModal"></section>
+  <section class="cost-meta-modal hidden" id="costMetaModal"></section>`;
 };
 
 const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities()) => {
@@ -468,24 +469,43 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
 };
 
 const saveCostActivityOverrides = (items = []) => localStorage.setItem(COST_ACTIVITY_KEY, JSON.stringify(items));
+const renderCostMetadataModal = (projectId, activityRefId, target) => {
+  const modal = detailsView.querySelector("#costMetaModal");
+  if (!modal) return;
+
+  modal.classList.remove("hidden");
+  modal.innerHTML = `<div class="cost-meta-dialog panel" role="dialog" aria-modal="true" aria-labelledby="costMetaTitle"><div class="cost-meta-head"><h3 id="costMetaTitle">Add Cost</h3><button type="button" class="cost-meta-close" id="closeCostMetaModalBtn" aria-label="Close">×</button></div><form id="costMetaForm" class="cost-meta-form"><label for="costMetaIdInput">Cost ID <span aria-hidden="true">*</span></label><input id="costMetaIdInput" name="costId" type="text" placeholder="e.g., C001" value="${escapeHtml(target.costId || "")}" required><label for="costMetaPlannedInput">Planned Cost (₱) <span aria-hidden="true">*</span></label><input id="costMetaPlannedInput" name="plannedCost" type="number" min="0" step="0.01" placeholder="Enter planned cost" value="${Number(target.plannedCost) || 0}" required><div class="cost-meta-actions"><button type="button" class="ghost-btn" id="cancelCostMetaModalBtn">Cancel</button><button type="submit" class="primary-btn">Save Cost</button></div></form></div>`;
+
+  const closeModal = () => modal.classList.add("hidden");
+  modal.querySelector("#closeCostMetaModalBtn")?.addEventListener("click", closeModal);
+  modal.querySelector("#cancelCostMetaModalBtn")?.addEventListener("click", closeModal);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) closeModal();
+  });
+
+  modal.querySelector("#costMetaForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const nextCostId = String(formData.get("costId") || "").trim();
+    const nextPlannedCost = parseBudgetValue(formData.get("plannedCost"));
+    const existingOverrides = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
+    const nextOverrides = existingOverrides.filter((item) => !(String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId));
+    nextOverrides.push(normalizeCostActivity({
+      ...target,
+      costId: nextCostId,
+      plannedCost: nextPlannedCost,
+      activityRefId,
+    }));
+    saveCostActivityOverrides(nextOverrides);
+    closeModal();
+    showProjectDetails(projectId, "costing", loadCostActivities());
+  });
+};
+
 const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActivities()) => {
   const target = allActivities.find((item) => String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId);
   if (!target) return;
-  const nextCostId = window.prompt("Enter Cost ID:", target.costId || "");
-  if (nextCostId === null) return;
-  const nextPlannedRaw = window.prompt("Enter Planned Cost:", String(target.plannedCost || 0));
-  if (nextPlannedRaw === null) return;
-  const nextPlannedCost = parseBudgetValue(nextPlannedRaw);
-  const existingOverrides = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
-  const nextOverrides = existingOverrides.filter((item) => !(String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId));
-  nextOverrides.push(normalizeCostActivity({
-    ...target,
-    costId: String(nextCostId || "").trim(),
-    plannedCost: nextPlannedCost,
-    activityRefId,
-  }));
-  saveCostActivityOverrides(nextOverrides);
-  showProjectDetails(projectId, "costing", loadCostActivities());
+  renderCostMetadataModal(projectId, activityRefId, target);
 };
 
 const renderProjects = (query = "") => {
