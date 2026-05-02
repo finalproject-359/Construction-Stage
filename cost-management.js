@@ -112,7 +112,7 @@ const loadCostActivities = () => {
 
 const normalizeRemoteActivity = (row = {}) => {
   const normalizedId = String(getValueByAliases(row, ["id", "activityId", "activity_id", "activity id", "code"]) || "").trim();
-  const projectId = String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim();
+  const projectId = String(getValueByAliases(row, ["projectId", "project_id", "project id", "project", "projectName", "project_name", "project name"]) || "").trim();
   const startDate = toDateInputValue(getValueByAliases(row, ["startDate", "plannedStart", "planned_start", "planned start"]));
   const finishDate = toDateInputValue(getValueByAliases(row, ["finishDate", "plannedFinish", "planned_finish", "planned finish"]));
   const explicitDuration = Number(String(getValueByAliases(row, ["durationDays", "duration_days", "duration", "duration day"]) || "0").replace(/[^\d.-]/g, "")) || 0;
@@ -139,7 +139,9 @@ const loadRemoteCostActivities = async (projectFilter = {}) => {
   if (!window.DataBridge?.fetchRowsFromSource) return [];
   try {
     const { rows } = await window.DataBridge.fetchRowsFromSource(window.DataBridge.DEFAULT_DATA_SOURCE_URL);
-    return (rows || []).map(normalizeRemoteActivity).filter((item) => item.projectId && item.id);
+    return (rows || [])
+      .map(normalizeRemoteActivity)
+      .filter((item) => getCostActivityProjectKey(item) && item.id);
   } catch (error) {
     console.warn("Unable to load cost activities from Google Sheets:", error);
     return [];
@@ -186,7 +188,9 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
     if (!response.ok) return [];
     const payload = await response.json();
     const rows = Array.isArray(payload?.activities) ? payload.activities : [];
-    return rows.map(normalizeRemoteActivity).filter((item) => item.projectId && item.id);
+    return rows
+      .map(normalizeRemoteActivity)
+      .filter((item) => getCostActivityProjectKey(item) && item.id);
   } catch (error) {
     console.warn("Unable to load cost activities from activities resource endpoint:", error);
     return [];
