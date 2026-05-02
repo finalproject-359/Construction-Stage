@@ -58,7 +58,8 @@ const toDateInputValue = (value) => {
   return d.toISOString().slice(0, 10);
 };
 const normalizeCostActivity = (activity = {}) => ({
-  id: String(getValueByAliases(activity, ["id", "activityId", "activity_id", "code"]) || "").trim(),
+  id: String(getValueByAliases(activity, ["activityId", "activity_id", "sourceActivityId", "source_activity_id", "code", "id"]) || "").trim(),
+  costId: String(getValueByAliases(activity, ["costId", "cost_id", "costCode", "cost_code"]) || "").trim(),
   activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "sourceActivityId", "source_activity_id", "activityId", "activity_id", "id", "code"]) || "").trim(),
   projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project", "projectName", "project_name"]) || "").trim(),
   projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim(),
@@ -84,7 +85,7 @@ const loadCostActivities = () => {
   activitiesSource.forEach((item) => {
     const key = getCostActivityKey(item);
     if (!key || key === "::") return;
-    activitiesByKey.set(key, item);
+    activitiesByKey.set(key, { ...item, costId: "", plannedCost: 0 });
   });
 
   if (!activitiesByKey.size) {
@@ -100,7 +101,8 @@ const loadCostActivities = () => {
       ...baseActivity,
       // Keep canonical activity identity/schedule from Activities data,
       // and only apply cost-specific metadata overrides from legacy cost entries.
-      id: String(item.id || baseActivity.id || "").trim(),
+      // Cost-specific overrides are user-maintained values.
+      costId: String(item.costId || item.id || baseActivity.costId || "").trim(),
       plannedCost: Number(item.plannedCost) || 0,
     });
   });
@@ -127,7 +129,7 @@ const normalizeRemoteActivity = (row = {}) => {
     startDate,
     finishDate,
     durationDays: explicitDuration || computedDuration,
-    plannedCost: getValueByAliases(row, ["plannedCost", "planned_cost", "plannedValue", "planned value", "budget"]),
+    plannedCost: 0,
   });
 };
 const loadRemoteCostActivities = async (projectFilter = {}) => {
@@ -193,16 +195,34 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
 
 const normalizeLookup = (value) => String(value || "").trim().toLowerCase();
 
+const splitProjectIdentityLabel = (value = "") => {
+  const raw = String(value || "").trim();
+  if (!raw) return { id: "", name: "" };
+  const [idPart, ...nameParts] = raw.split("-");
+  if (!nameParts.length) return { id: "", name: raw };
+  return {
+    id: normalizeLookup(idPart),
+    name: normalizeLookup(nameParts.join("-").trim()),
+  };
+};
+
 const isActivityForProject = (activity, projectId, projectName = "") => {
   const activityProjectId = normalizeLookup(activity?.projectId);
   const activityProjectName = normalizeLookup(activity?.projectName);
   const projectIdLookup = normalizeLookup(projectId);
   const projectNameLookup = normalizeLookup(projectName);
+  const parsedFromProjectId = splitProjectIdentityLabel(activity?.projectId);
+  const parsedFromProjectName = splitProjectIdentityLabel(activity?.projectName);
 
   if (activityProjectId && activityProjectId === projectIdLookup) return true;
   if (projectNameLookup && activityProjectName && activityProjectName === projectNameLookup) return true;
   if (projectNameLookup && activityProjectId && activityProjectId === projectNameLookup) return true;
   if (projectIdLookup && activityProjectName && activityProjectName === projectIdLookup) return true;
+
+  if (projectIdLookup && (parsedFromProjectId.id === projectIdLookup || parsedFromProjectName.id === projectIdLookup)) return true;
+  if (projectNameLookup && (parsedFromProjectId.name === projectNameLookup || parsedFromProjectName.name === projectNameLookup)) return true;
+  if (projectIdLookup && (parsedFromProjectId.name === projectIdLookup || parsedFromProjectName.name === projectIdLookup)) return true;
+  if (projectNameLookup && (parsedFromProjectId.id === projectNameLookup || parsedFromProjectName.id === projectNameLookup)) return true;
   return false;
 };
 
@@ -237,7 +257,7 @@ const buildDetailsMarkup = (project, rows) => {
   const overBudgetPct = (overBudgetCount / activityTotal) * 100;
 
   const tableRows = rows.length
-    ? rows.map((row) => `<tr><td>${escapeHtml(row.id)}</td><td>${escapeHtml(row.name)}</td><td>${row.durationDays || "-"} days</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget((row.plannedCost || 0) / (row.durationDays || 1))}</td><td>${formatBudget(row.actualCost)}</td><td><button type="button" class="ghost-btn edit-cost-meta-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">Edit Cost ID / Planned</button> <button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">View / Add Daily Cost</button></td></tr>`).join("")
+    ? rows.map((row) => `<tr><td>${escapeHtml(row.costId || "-")}</td><td>${escapeHtml(row.name)}</td><td>${row.durationDays || "-"} days</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget((row.plannedCost || 0) / (row.durationDays || 1))}</td><td>${formatBudget(row.actualCost)}</td><td><button type="button" class="ghost-btn edit-cost-meta-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">Edit Cost ID / Planned</button> <button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">View / Add Daily Cost</button></td></tr>`).join("")
     : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
   const maxCost = Math.max(plannedCost, actualCost, 1);
@@ -250,7 +270,7 @@ const buildDetailsMarkup = (project, rows) => {
     .sort((a, b) => (b.actualCost - b.plannedCost) - (a.actualCost - a.plannedCost))
     .filter((row) => row.actualCost > row.plannedCost)
     .slice(0, 5)
-    .map((row) => `<tr><td>${escapeHtml(row.id)}</td><td>${escapeHtml(row.name)}</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget(row.actualCost)}</td><td class="bad">-${formatBudget(row.actualCost - row.plannedCost)}</td></tr>`)
+    .map((row) => `<tr><td>${escapeHtml(row.costId || "-")}</td><td>${escapeHtml(row.name)}</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget(row.actualCost)}</td><td class="bad">-${formatBudget(row.actualCost - row.plannedCost)}</td></tr>`)
     .join("") || '<tr><td colspan="5" class="empty-cell">No over budget activities.</td></tr>';
 
   return `<header class="details-header"><h2>Cost Management</h2><p>Project: <strong>${escapeHtml(formatProjectIdentityLabel(project))}</strong></p></header>
@@ -352,7 +372,7 @@ const saveCostActivityOverrides = (items = []) => localStorage.setItem(COST_ACTI
 const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActivities()) => {
   const target = allActivities.find((item) => String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId);
   if (!target) return;
-  const nextCostId = window.prompt("Enter Cost ID:", target.id || target.activityRefId || "");
+  const nextCostId = window.prompt("Enter Cost ID:", target.costId || "");
   if (nextCostId === null) return;
   const nextPlannedRaw = window.prompt("Enter Planned Cost:", String(target.plannedCost || 0));
   if (nextPlannedRaw === null) return;
@@ -361,7 +381,7 @@ const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActi
   const nextOverrides = existingOverrides.filter((item) => !(String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId));
   nextOverrides.push(normalizeCostActivity({
     ...target,
-    id: String(nextCostId || "").trim() || target.id,
+    costId: String(nextCostId || "").trim(),
     plannedCost: nextPlannedCost,
     activityRefId,
   }));
