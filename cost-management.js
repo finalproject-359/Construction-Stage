@@ -451,10 +451,12 @@ const bootstrapCostManagement = async () => {
     projectId: selectedProjectAfterBootstrap?.id || selectedProjectId,
     projectName: selectedProjectAfterBootstrap?.name || selectedProjectName,
   });
-  const merged = [...remoteActivities, ...localActivities];
+  // Prefer local activities first so unsynced edits remain visible on this device.
+  // Remote rows are still used as a fallback when local rows are missing.
+  const merged = [...localActivities, ...remoteActivities];
   const deduped = new Map();
   merged.forEach((item) => {
-    const key = `${String(item.projectId).trim()}::${String(item.id).trim()}`;
+    const key = `${String(item.projectId).trim()}::${String(getActivityRefId(item)).trim()}`;
     if (!key || key === "::") return;
     if (!deduped.has(key)) deduped.set(key, item);
   });
