@@ -28,6 +28,7 @@ let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
 
 const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
+const DASHBOARD_CACHE_TTL_MS = 30 * 1000;
 const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
 const EXTENSION_BRIDGE_DISCONNECT_MESSAGE =
   "Could not establish connection. Receiving end does not exist.";
@@ -598,7 +599,7 @@ const processRows = (rawRows, sourceName = "web app") => {
   }
 
   latestDashboardSignature = nextSignature;
-  localStorage.setItem(DASHBOARD_CACHE_KEY, nextSignature);
+  localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
   dashboardRows = rows;
   const totals = calculateTotalsFromRows(rows);
   const progressMetrics = calculateProgressMetrics(rows, totals);
@@ -617,9 +618,12 @@ const hydrateDashboardFromCache = () => {
   if (!cached) return;
 
   try {
-    const rows = JSON.parse(cached);
+    const parsedCache = JSON.parse(cached);
+    const rows = Array.isArray(parsedCache) ? parsedCache : parsedCache?.rows;
+    const savedAt = Array.isArray(parsedCache) ? 0 : Number(parsedCache?.savedAt || 0);
     if (!Array.isArray(rows) || !rows.length) return;
-    latestDashboardSignature = cached;
+    if (savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS) return;
+    latestDashboardSignature = JSON.stringify(rows);
     dashboardRows = rows;
     const totals = calculateTotalsFromRows(rows);
     const progressMetrics = calculateProgressMetrics(rows, totals);
