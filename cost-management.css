@@ -305,8 +305,9 @@ body.page-cost-management .main-content {
 }
 
 .details-tab-panel td.actions-col .project-actions-menu {
-  right: 50%;
-  transform: translateX(50%);
+  right: 0;
+  left: auto;
+  transform: none;
   min-width: 210px;
   text-align: left;
 }
@@ -376,6 +377,10 @@ body.page-cost-management .details-tab-panel .table-panel td:nth-child(7) { widt
 .details-tab-panel td.actions-col .project-actions-menu {
   width: clamp(170px, 20vw, 220px);
   max-width: min(220px, calc(100vw - 42px));
+}
+
+body.page-cost-management .details-tab-panel .table-panel td.actions-col {
+  overflow: visible;
 }
 
 @media (max-width: 980px) {
