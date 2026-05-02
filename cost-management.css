@@ -424,3 +424,68 @@ body.page-cost-management .details-tab-panel .table-panel td:nth-child(7) { widt
 .status-list strong { margin-left: auto; color: #1e2b45; }
 .legend-dot.bad-dot { background: #ef5050; }
 .legend-dot.neutral-dot { background: #f0c23f; }
+
+.cost-meta-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 30;
+  backdrop-filter: blur(2px);
+}
+.cost-meta-dialog {
+  width: min(640px, 92vw);
+  border-radius: 22px;
+  border: 1px solid #e1e7f5;
+  padding: 0;
+  overflow: hidden;
+}
+.cost-meta-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30px 36px 10px;
+}
+.cost-meta-head h3 { font-size: 2rem; }
+.cost-meta-close {
+  border: none;
+  background: transparent;
+  font-size: 2.4rem;
+  color: #6b7892;
+  cursor: pointer;
+  line-height: 1;
+}
+.cost-meta-form {
+  display: grid;
+  gap: 14px;
+  padding: 6px 36px 32px;
+}
+.cost-meta-form label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #2f3f61;
+}
+.cost-meta-form label span { color: #ef5050; }
+.cost-meta-form input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #d6deef;
+  border-radius: 14px;
+  font-size: 1.05rem;
+  color: #213255;
+}
+.cost-meta-form input::placeholder { color: #9aa7c5; }
+.cost-meta-form input:focus {
+  outline: none;
+  border-color: #2f55ff;
+  box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.16);
+}
+.cost-meta-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #e8edf8;
+  margin-top: 12px;
+  padding-top: 18px;
+}
