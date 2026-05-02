@@ -398,9 +398,11 @@ const bootstrapCostManagement = async () => {
   const merged = [...remoteActivities, ...localActivities];
   const deduped = new Map();
   merged.forEach((item) => {
-    const key = `${String(item.projectId).trim()}::${String(item.id).trim()}`;
+    const key = `${String(item.projectId).trim()}::${getActivityRefId(item)}`;
     if (!key || key === "::") return;
-    if (!deduped.has(key)) deduped.set(key, item);
+    // Keep the latest entry for each logical activity so local overrides
+    // (e.g. edited cost id/planned cost) replace remote bootstrap records.
+    deduped.set(key, item);
   });
   const allActivities = Array.from(deduped.values());
 
