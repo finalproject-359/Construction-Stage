@@ -447,7 +447,7 @@ body.page-cost-management .details-tab-panel .table-panel td.actions-col {
   align-items: end;
 }
 .daily-cost-form label { display: grid; gap: 8px; color: #415377; font-weight: 600; }
-.daily-cost-form input { padding: 13px 14px; border: 1px solid #cfd8eb; border-radius: 12px; font-size: 1rem; }
+.daily-cost-form input, .daily-cost-form select { padding: 13px 14px; border: 1px solid #cfd8eb; border-radius: 12px; font-size: 1rem; background: #fff; }
 .daily-cost-table-wrap { border: 1px solid #e0e7f4; border-radius: 12px; overflow: hidden; }
 .daily-cost-table-wrap table { width: 100%; border-collapse: collapse; }
 .daily-cost-table-wrap th, .daily-cost-table-wrap td { padding: 14px 18px; border-bottom: 1px solid #edf1f8; }
