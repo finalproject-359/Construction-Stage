@@ -311,6 +311,45 @@ body.page-cost-management .main-content {
   text-align: left;
 }
 
+
+
+body.page-cost-management .details-tab-panel .panel.table-panel {
+  margin-top: 14px;
+  padding: 0;
+  border-radius: 16px;
+  border-color: #e1e8f5;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+}
+
+body.page-cost-management .details-tab-panel .table-panel table {
+  min-width: 1080px;
+  table-layout: fixed;
+}
+
+body.page-cost-management .details-tab-panel .table-panel th,
+body.page-cost-management .details-tab-panel .table-panel td {
+  padding: 15px 16px;
+  border-bottom: 1px solid #edf1f8;
+}
+
+body.page-cost-management .details-tab-panel .table-panel th {
+  color: #344054;
+  font-weight: 600;
+  background: #fafbff;
+}
+
+body.page-cost-management .details-tab-panel .table-panel tbody tr:nth-child(odd) {
+  background: rgba(247, 249, 255, 0.5);
+}
+
+body.page-cost-management .details-tab-panel .table-panel tbody tr {
+  transition: background-color .18s ease;
+}
+
+body.page-cost-management .details-tab-panel .table-panel tbody tr:hover {
+  background: #eef4ff;
+}
+
 @media (max-width: 980px) { .cost-record-head, .cost-record-actions { flex-direction: column; align-items: stretch; } }
 
 .daily-cost-modal {
