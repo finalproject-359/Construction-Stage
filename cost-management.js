@@ -74,16 +74,26 @@ const loadCostActivities = () => {
   const costSource = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
 
   // Prefer the Activities page source because it is the actively maintained dataset.
-  // Keep a fallback to legacy cost-specific storage to avoid losing historical entries.
-  const merged = [...activitiesSource, ...costSource].filter((item) => item.projectId);
-  const dedupedByProjectAndActivity = new Map();
-  merged.forEach((item) => {
+  // Keep legacy cost entries only as metadata overrides when there is an existing activity match.
+  // If there are no activities yet, use legacy data as a fallback for backward compatibility.
+  const activitiesByKey = new Map();
+  activitiesSource.filter((item) => item.projectId).forEach((item) => {
     const key = `${String(item.projectId).trim()}::${String(item.activityRefId || item.id).trim()}`;
     if (!key || key === '::') return;
-    dedupedByProjectAndActivity.set(key, item);
+    activitiesByKey.set(key, item);
   });
 
-  return Array.from(dedupedByProjectAndActivity.values());
+  if (!activitiesByKey.size) {
+    return costSource.filter((item) => item.projectId);
+  }
+
+  costSource.filter((item) => item.projectId).forEach((item) => {
+    const key = `${String(item.projectId).trim()}::${String(item.activityRefId || item.id).trim()}`;
+    if (!activitiesByKey.has(key)) return;
+    activitiesByKey.set(key, item);
+  });
+
+  return Array.from(activitiesByKey.values());
 };
 
 const normalizeRemoteActivity = (row = {}) => {
