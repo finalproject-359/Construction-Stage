@@ -56,6 +56,68 @@ const formatLongHumanDate = (value) => {
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 };
 
+const PH_FIXED_HOLIDAYS = new Set([
+  "01-01",
+  "04-09",
+  "05-01",
+  "06-12",
+  "08-21",
+  "11-01",
+  "11-30",
+  "12-08",
+  "12-25",
+  "12-30",
+  "12-31",
+]);
+const PH_YEAR_SPECIFIC_HOLIDAYS = {
+  2024: ["02-10", "04-10", "06-17"],
+  2025: ["01-29", "03-31", "06-06"],
+  2026: ["02-17", "03-20", "05-27"],
+  2027: ["02-07", "03-10", "05-17"],
+  2028: ["01-27", "02-27", "05-05"],
+  2029: ["02-14", "02-15", "04-24"],
+  2030: ["02-03", "02-05", "04-13"],
+};
+const formatMonthDayKey = (date) => `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const getEasterSunday = (year) => {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month, day);
+};
+const getPhilippineHolidaySetForYear = (year) => {
+  const holidays = new Set(PH_FIXED_HOLIDAYS);
+  (PH_YEAR_SPECIFIC_HOLIDAYS[year] || []).forEach((holiday) => holidays.add(holiday));
+  const lastDayOfAugust = new Date(year, 8, 0);
+  const nationalHeroesDay = new Date(lastDayOfAugust);
+  while (nationalHeroesDay.getDay() !== 1) nationalHeroesDay.setDate(nationalHeroesDay.getDate() - 1);
+  holidays.add(formatMonthDayKey(nationalHeroesDay));
+  const easterSunday = getEasterSunday(year);
+  [-3, -2, -1].forEach((offset) => {
+    const holidayDate = new Date(easterSunday);
+    holidayDate.setDate(easterSunday.getDate() + offset);
+    holidays.add(formatMonthDayKey(holidayDate));
+  });
+  return holidays;
+};
+const isWorkingDate = (date) => {
+  const day = date.getDay();
+  if (day === 0 || day === 6) return false;
+  const holidays = getPhilippineHolidaySetForYear(date.getFullYear());
+  return !holidays.has(formatMonthDayKey(date));
+};
+
 const buildDateRangeOptions = (startDate, finishDate) => {
   const start = new Date(startDate);
   const end = new Date(finishDate);
@@ -63,7 +125,7 @@ const buildDateRangeOptions = (startDate, finishDate) => {
   const options = [];
   const cursor = new Date(start);
   while (cursor <= end) {
-    options.push(cursor.toISOString().slice(0, 10));
+    if (isWorkingDate(cursor)) options.push(cursor.toISOString().slice(0, 10));
     cursor.setDate(cursor.getDate() + 1);
   }
   return options;
@@ -431,6 +493,11 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     }
     if (activityFinishDate && date > activityFinishDate) {
       alert(`Date must be on or before ${activityFinishDate}.`);
+      return;
+    }
+    const selectedDate = new Date(date);
+    if (Number.isNaN(selectedDate.getTime()) || !isWorkingDate(selectedDate)) {
+      alert("Selected date must be a working day (Monday to Friday and not a holiday).");
       return;
     }
     const existingIndex = dailyCosts.findIndex((item) =>
