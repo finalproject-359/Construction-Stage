@@ -193,16 +193,34 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
 
 const normalizeLookup = (value) => String(value || "").trim().toLowerCase();
 
+const splitProjectIdentityLabel = (value = "") => {
+  const raw = String(value || "").trim();
+  if (!raw) return { id: "", name: "" };
+  const [idPart, ...nameParts] = raw.split("-");
+  if (!nameParts.length) return { id: "", name: raw };
+  return {
+    id: normalizeLookup(idPart),
+    name: normalizeLookup(nameParts.join("-").trim()),
+  };
+};
+
 const isActivityForProject = (activity, projectId, projectName = "") => {
   const activityProjectId = normalizeLookup(activity?.projectId);
   const activityProjectName = normalizeLookup(activity?.projectName);
   const projectIdLookup = normalizeLookup(projectId);
   const projectNameLookup = normalizeLookup(projectName);
+  const parsedFromProjectId = splitProjectIdentityLabel(activity?.projectId);
+  const parsedFromProjectName = splitProjectIdentityLabel(activity?.projectName);
 
   if (activityProjectId && activityProjectId === projectIdLookup) return true;
   if (projectNameLookup && activityProjectName && activityProjectName === projectNameLookup) return true;
   if (projectNameLookup && activityProjectId && activityProjectId === projectNameLookup) return true;
   if (projectIdLookup && activityProjectName && activityProjectName === projectIdLookup) return true;
+
+  if (projectIdLookup && (parsedFromProjectId.id === projectIdLookup || parsedFromProjectName.id === projectIdLookup)) return true;
+  if (projectNameLookup && (parsedFromProjectId.name === projectNameLookup || parsedFromProjectName.name === projectNameLookup)) return true;
+  if (projectIdLookup && (parsedFromProjectId.name === projectIdLookup || parsedFromProjectName.name === projectIdLookup)) return true;
+  if (projectNameLookup && (parsedFromProjectId.id === projectNameLookup || parsedFromProjectName.id === projectNameLookup)) return true;
   return false;
 };
 
