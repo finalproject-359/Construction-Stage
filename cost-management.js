@@ -75,8 +75,13 @@ const getCostActivityProjectKey = (activity = {}) => String(activity.projectId |
 const getCostActivityKey = (activity = {}) => `${getCostActivityProjectKey(activity)}::${getActivityRefId(activity)}`;
 
 const loadCostActivities = () => {
-  const activitiesSource = safeJsonParse(localStorage.getItem(ACTIVITIES_LOCAL_STORAGE_KEY), []).map(normalizeCostActivity);
-  const costSource = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
+  const projectLookups = buildProjectIdentityLookups(loadProjects());
+  const activitiesSource = safeJsonParse(localStorage.getItem(ACTIVITIES_LOCAL_STORAGE_KEY), [])
+    .map(normalizeCostActivity)
+    .map((activity) => ({ ...activity, projectId: resolveActivityProjectId(activity, projectLookups) || activity.projectId }));
+  const costSource = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), [])
+    .map(normalizeCostActivity)
+    .map((activity) => ({ ...activity, projectId: resolveActivityProjectId(activity, projectLookups) || activity.projectId }));
 
   // Prefer the Activities page source because it is the actively maintained dataset.
   // Keep legacy cost entries only as metadata overrides when there is an existing activity match.
@@ -198,6 +203,44 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
 };
 
 const normalizeLookup = (value) => String(value || "").trim().toLowerCase();
+
+const buildProjectIdentityLookups = (projects = []) => {
+  const byId = new Map();
+  const byName = new Map();
+
+  projects.forEach((project) => {
+    const normalized = normalizeProject(project);
+    const normalizedId = normalizeLookup(normalized.id);
+    const normalizedName = normalizeLookup(normalized.name);
+    if (normalizedId) byId.set(normalizedId, normalized.id);
+    if (normalizedName) byName.set(normalizedName, normalized.id);
+  });
+
+  return { byId, byName };
+};
+
+const resolveActivityProjectId = (activity = {}, lookups = buildProjectIdentityLookups(loadProjects())) => {
+  const directProjectId = String(activity.projectId || "").trim();
+  const directProjectName = String(activity.projectName || "").trim();
+  const parsedId = splitProjectIdentityLabel(directProjectId);
+  const parsedName = splitProjectIdentityLabel(directProjectName);
+
+  const candidates = [
+    normalizeLookup(directProjectId),
+    normalizeLookup(directProjectName),
+    parsedId.id,
+    parsedId.name,
+    parsedName.id,
+    parsedName.name,
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (lookups.byId.has(candidate)) return lookups.byId.get(candidate) || directProjectId;
+    if (lookups.byName.has(candidate)) return lookups.byName.get(candidate) || directProjectId;
+  }
+
+  return directProjectId;
+};
 
 const splitProjectIdentityLabel = (value = "") => {
   const raw = String(value || "").trim();
