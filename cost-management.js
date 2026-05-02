@@ -190,8 +190,14 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   const projectName = String(project?.name || "").trim().toLowerCase();
   const activities = allActivities.filter((item) => isActivityForProject(item, projectId, projectName));
+  const dedupedActivities = new Map();
+  activities.forEach((activity) => {
+    const key = `${String(activity.projectId || "").trim()}::${getActivityRefId(activity)}`;
+    if (!key || key === "::") return;
+    dedupedActivities.set(key, activity);
+  });
   const daily = loadDailyCosts().filter((item) => String(item.projectId || "").trim() === projectId);
-  const rows = activities.map((activity) => {
+  const rows = Array.from(dedupedActivities.values()).map((activity) => {
     const refId = getActivityRefId(activity);
     const dailyItems = daily.filter((entry) => entry.activityId === refId);
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
@@ -398,9 +404,11 @@ const bootstrapCostManagement = async () => {
   const merged = [...remoteActivities, ...localActivities];
   const deduped = new Map();
   merged.forEach((item) => {
-    const key = `${String(item.projectId).trim()}::${String(item.id).trim()}`;
+    const key = `${String(item.projectId).trim()}::${getActivityRefId(item)}`;
     if (!key || key === "::") return;
-    if (!deduped.has(key)) deduped.set(key, item);
+    // Keep the latest entry for each logical activity so local overrides
+    // (e.g. edited cost id/planned cost) replace remote bootstrap records.
+    deduped.set(key, item);
   });
   const allActivities = Array.from(deduped.values());
 
