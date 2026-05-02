@@ -278,7 +278,7 @@ body.page-cost-management .main-content {
 
 .details-tab-panel table {
   width: 100%;
-  min-width: 940px;
+  min-width: 100%;
   border-collapse: collapse;
 }
 
@@ -289,7 +289,7 @@ body.page-cost-management .main-content {
 
 .details-tab-panel th:nth-child(7),
 .details-tab-panel td:nth-child(7) {
-  min-width: 280px;
+  width: 1%;
 }
 
 .details-tab-panel td:nth-child(7) {

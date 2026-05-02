@@ -315,12 +315,14 @@ const buildDetailsMarkup = (project, rows) => {
       const plannedCostPerDay = hasPlannedCost && Number(row.durationDays) > 0
         ? parseBudgetValue(row.plannedCost) / Number(row.durationDays)
         : 0;
-      const costIdCell = row.costId ? escapeHtml(row.costId) : "—";
-      const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "—";
-      const plannedCostPerDayCell = hasPlannedCost ? formatBudget(plannedCostPerDay) : "—";
-      const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "—";
+      const costIdCell = row.costId ? escapeHtml(row.costId) : "";
+      const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "";
+      const plannedCostPerDayCell = hasPlannedCost ? formatBudget(plannedCostPerDay) : "";
+      const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "";
 
-      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${row.durationDays || "-"} days</td><td>${plannedCostCell}</td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td><button type="button" class="ghost-btn edit-cost-meta-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">Add / Edit Cost Details</button> <button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">View / Add Daily Cost</button></td></tr>`;
+      const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "";
+
+      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${durationCell}</td><td>${plannedCostCell}</td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td><button type="button" class="ghost-btn edit-cost-meta-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">Add / Edit Cost Details</button> <button type="button" class="ghost-btn view-daily-cost-btn" data-activity-id="${escapeHtml(getActivityRefId(row))}">View / Add Daily Cost</button></td></tr>`;
     }).join("")
     : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
