@@ -846,8 +846,12 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     return;
   }
 
-  const normalizedExpected = normalizeHeaders(expectedHeaders);
   const normalizedExistingFirstRow = normalizeHeaders(firstRow);
+  const normalizedExpected = normalizeHeaders(expectedHeaders);
+  if (shouldMigrateLegacyCostHeaders(normalizedExpected, normalizedExistingFirstRow)) {
+    migrateLegacyCostHeaderLayout(sheet, firstRow, expectedHeaders);
+    return;
+  }
   const expectedLookup = {};
   normalizedExpected.forEach(function(header) {
     expectedLookup[header] = true;
@@ -916,6 +920,58 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   if (needsHeaderSync) {
     sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
   }
+}
+
+function shouldMigrateLegacyCostHeaders(normalizedExpected, normalizedExisting) {
+  const expectedCostLayout = CONFIG.headers.costs.map(function(header) {
+    return normalizeHeader(header);
+  });
+  const isCostHeaderShape = normalizedExpected.length === expectedCostLayout.length &&
+    normalizedExpected.every(function(header, index) {
+      return header === expectedCostLayout[index];
+    });
+
+  if (!isCostHeaderShape) return false;
+
+  const legacySignature = [
+    'cost id',
+    'project id',
+    'project name',
+    'cost category',
+    'date',
+  ];
+  return legacySignature.every(function(header, index) {
+    return normalizedExisting[index] === header;
+  });
+}
+
+function migrateLegacyCostHeaderLayout(sheet, existingHeaders, expectedHeaders) {
+  const allValues = sheet.getDataRange().getValues();
+  if (!allValues || allValues.length <= 1) {
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    return;
+  }
+
+  const headerLookup = {};
+  existingHeaders.forEach(function(header, index) {
+    headerLookup[normalizeHeader(header)] = index;
+  });
+
+  const rowWidth = Math.max(sheet.getLastColumn(), expectedHeaders.length);
+  const remappedRows = allValues.slice(1).map(function(sourceRow) {
+    const targetRow = new Array(rowWidth).fill('');
+    for (var idx = 0; idx < expectedHeaders.length; idx += 1) {
+      const normalizedHeader = normalizeHeader(expectedHeaders[idx]);
+      const sourceIndex = headerLookup[normalizedHeader];
+      if (typeof sourceIndex === 'number' && sourceIndex >= 0) {
+        targetRow[idx] = sourceRow[sourceIndex];
+      }
+    }
+    return targetRow;
+  });
+
+  sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+  sheet.getRange(2, 1, remappedRows.length, rowWidth).setValues(remappedRows);
 }
 
 function normalizeIncomingProject(input) {
