@@ -393,7 +393,7 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     return rows.map((row) => ({
       projectId: String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim(),
       activityRefId: extractActivityRefIdFromCostRow(row),
-      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost code"]) || "").trim(),
+      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost code", "id"]) || "").trim(),
       plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "plannedCostPerDay", "planned_cost_per_day", "plannedValue"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
     })).filter((row) => row.projectId && row.activityRefId);
