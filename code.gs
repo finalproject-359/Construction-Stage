@@ -110,7 +110,7 @@ function handleRequest(payload) {
         return handleDailyCostMutation(action, source);
       }
 
-      throw new Error('Only "projects", "activities", and "costs" are supported for mutations.');
+      throw new Error('Only "projects", "activities", "costs", and "daily_costs" are supported for mutations.');
     }
 
     const projectFilter = {
@@ -177,8 +177,16 @@ function loadDataByResource(resource) {
     return bundle;
   }
 
-  if (resource === 'activities' || resource === 'dashboard') {
+  if (resource === 'activities') {
     readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
+    return bundle;
+  }
+
+  if (resource === 'dashboard') {
+    readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
+    readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
+    readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
+    readResource('dailyCosts', CONFIG.sheetNames.dailyCosts, CONFIG.headers.dailyCosts, normalizeDailyCostRecord);
     return bundle;
   }
 
@@ -196,10 +204,14 @@ function loadDataByResource(resource) {
     readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
     readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
     readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
+    readResource('dailyCosts', CONFIG.sheetNames.dailyCosts, CONFIG.headers.dailyCosts, normalizeDailyCostRecord);
     return bundle;
   }
 
+  readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
   readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
+  readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
+  readResource('dailyCosts', CONFIG.sheetNames.dailyCosts, CONFIG.headers.dailyCosts, normalizeDailyCostRecord);
   return bundle;
 }
 
