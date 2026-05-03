@@ -465,6 +465,7 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
         projectName: getValueByAliases(row, ["project", "projectName", "project_name", "project name"]),
       }, lookups),
       activityRefId: extractActivityRefIdFromCostRow(row),
+      activityName: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code", "id"]) || "").trim(),
       plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
