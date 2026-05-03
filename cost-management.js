@@ -7,6 +7,16 @@ const selectionView = document.getElementById("costSelectionView");
 const detailsView = document.getElementById("costDetailsView");
 const selectedProjectBannerHost = document.getElementById("selectedProjectBannerHost");
 
+const hasProjectSelectionInUrl = (() => {
+  const query = new URLSearchParams(window.location.search);
+  return Boolean(String(query.get("projectId") || "").trim() || String(query.get("project") || "").trim());
+})();
+
+if (hasProjectSelectionInUrl) {
+  selectionView?.classList.add("hidden");
+  detailsView?.classList.remove("hidden");
+}
+
 const safeJsonParse = (raw, fallback = []) => {
   try {
     const parsed = JSON.parse(raw || "[]");
@@ -1051,9 +1061,15 @@ const bootstrapCostManagement = async () => {
 
 let isCostManagementSyncInFlight = false;
 
+const hasOpenCostDialog = () => Boolean(
+  detailsView?.querySelector("#dailyCostModal:not(.hidden)")
+  || detailsView?.querySelector("#costMetaModal:not(.hidden)")
+);
+
 const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
   if (isCostManagementSyncInFlight) return;
   if (!force && document.visibilityState === "hidden") return;
+  if (hasOpenCostDialog()) return;
 
   isCostManagementSyncInFlight = true;
   try {
