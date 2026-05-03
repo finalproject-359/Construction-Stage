@@ -1,15 +1,19 @@
+body.page-cost-management {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(47, 85, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 100% 20%, rgba(56, 189, 248, 0.08), transparent 42%),
+    var(--bg);
+}
+
 body.page-cost-management .main-content {
-  padding: 22px;
-  font-family: "Inter", "Segoe UI", Tahoma, sans-serif;
-  font-size: 1rem;
-  line-height: 1.5;
+  gap: 14px;
 }
 
 .cost-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 14px;
+  align-items: center;
+  margin-bottom: 0;
 }
 .cost-header h1 { margin: 0; font-size: clamp(1.75rem, 2.8vw, 2.35rem); font-weight: 700; }
 .cost-header p { margin: 6px 0 0; color: #4f638b; font-size: clamp(0.95rem, 1.6vw, 1.1rem); }
@@ -22,33 +26,48 @@ body.page-cost-management .main-content {
   padding: 10px 16px;
   font-weight: 600;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 150ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+.ghost-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+.ghost-btn:hover, .ghost-link:hover { transform: translateY(-1px); }
+
+.cost-card {
+  border-radius: 16px;
+  border-color: #e1e8f5;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
 }
 
 .selected-project-banner-host {
   margin-bottom: 14px;
 }
 
-.cost-card {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-}
 .toolbar-row { display: flex; gap: 12px; }
 .search-box {
   border: 1px solid #d8deec;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 320px;
+  background: #fff;
 }
+.search-box svg { width: 18px; height: 18px; stroke: #6f7e9a; stroke-width: 1.8; }
 .search-box input { border: 0; outline: none; width: 100%; font: inherit; }
 .date-btn { border: 1px solid #d8deec; background: #fff; border-radius: 10px; padding: 10px 14px; }
 .selection-empty { text-align: center; padding: 26px 0; }
-.state-icon { width: 72px; height: 72px; border-radius: 50%; background: #eff4ff; display: grid; place-items: center; margin: 0 auto 14px; font-size: 2rem; }
+.state-icon { width: 72px; height: 72px; border-radius: 50%; background: #eff4ff; display: grid; place-items: center; margin: 0 auto 14px; }
+.state-icon svg { width: 34px; height: 34px; stroke: #2f55ff; stroke-width: 1.8; }
 .state-icon.muted { background: #f3f4f7; }
+.state-icon.muted svg { stroke: #7b8cae; }
 .selection-empty h2, .projects-empty h2 { margin: 6px 0; font-size: clamp(1.2rem, 2vw, 1.5rem); }
 .selection-empty p, .projects-empty p { color: #4f638b; line-height: 1.5; }
 .search-center { max-width: 520px; margin: 14px auto 0; }
