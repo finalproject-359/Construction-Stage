@@ -571,7 +571,8 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
     try {
-      await postToDataSource("daily_costs", "update", {
+      const dailyCostAction = existingIndex >= 0 ? "update" : "create";
+      await postToDataSource("daily_costs", dailyCostAction, {
       dailyCost: {
         projectId,
         costId: String(activity.costId || activityId || "").trim(),
