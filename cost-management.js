@@ -696,10 +696,14 @@ const bootstrapCostManagement = async () => {
       // Keep user-maintained cost metadata from local overrides when available.
       costId: String(existing.costId || item.costId || "").trim(),
       plannedCost: parseBudgetValue(existing.plannedCost) || parseBudgetValue(item.plannedCost),
-      // Prefer rows that already have usable schedule data so durations display reliably.
-      startDate: existing.startDate || item.startDate || "",
-      finishDate: existing.finishDate || item.finishDate || "",
-      durationDays: Number(existing.durationDays) || Number(item.durationDays) || 0,
+      // Keep schedule fields aligned with the freshest merged source row when available.
+      startDate: item.startDate || existing.startDate || "",
+      finishDate: item.finishDate || existing.finishDate || "",
+      durationDays: computeDurationDays(
+        item.startDate || existing.startDate || "",
+        item.finishDate || existing.finishDate || "",
+        Number(item.durationDays) || Number(existing.durationDays) || 0
+      ),
       name: existing.name || item.name || "Untitled Activity",
     });
   });
