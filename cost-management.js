@@ -678,6 +678,13 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const dailyCosts = loadDailyCosts();
   const activity = activities.find((item) => getActivityRefId(item) === activityId && isActivityForProject(item, projectId, projectName));
   if (!modal || !activity) return;
+  const activityCostId = String(activity.costId || "").trim();
+  const activityPlannedCost = parseBudgetValue(activity.plannedCost);
+  if (!activityCostId || activityPlannedCost <= 0) {
+    alert("Please add Cost ID and Planned Cost first before adding daily costs for this activity.");
+    editCostMetadata(projectId, activityId, allActivities);
+    return;
+  }
   const availableDates = buildDateRangeOptions(activity.startDate, activity.finishDate);
   const hasAvailableDates = availableDates.length > 0;
   const dateOptions = hasAvailableDates
@@ -753,7 +760,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       && String(item.activityId || "").trim() === activityId
       && String(item.date || "") === date
     );
-    const payload = { projectId, activityId, date, actualCost };
+    const payload = { projectId, costId: activityCostId, activityId, date, actualCost };
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
@@ -762,7 +769,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       await postToDataSource("daily_costs", dailyCostAction, {
       dailyCost: {
         projectId,
-        costId: String(activity.costId || activityId || "").trim(),
+        costId: activityCostId,
         activityId,
         date,
         actualCost,

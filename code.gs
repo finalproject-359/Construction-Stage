@@ -376,8 +376,8 @@ function handleCostMutation(action, payload) {
 function handleDailyCostMutation(action, payload) {
   if (action === 'create' || action === 'update') {
     const dailyCost = normalizeIncomingDailyCost(payload.dailyCost || payload.daily_cost || payload);
-    if (!dailyCost.projectId || !dailyCost.activityId || !dailyCost.date) {
-      throw new Error('Project ID, Activity ID, and Date are required.');
+    if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.activityId || !dailyCost.date) {
+      throw new Error('Project ID, Cost ID, Activity ID, and Date are required.');
     }
     upsertDailyCostRow(dailyCost);
     return jsonResponse({ ok: true, message: 'Daily cost saved successfully.', dailyCost: dailyCost, generatedAt: new Date().toISOString() });
