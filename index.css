@@ -2,3 +2,36 @@
 body.page-dashboard {
   /* Reserved for dashboard-only overrides. */
 }
+
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #dbe4ff;
+  border-radius: 10px;
+  background: #f4f7ff;
+  color: #2f55ff;
+  font-weight: 500;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d3dcff;
+  border-top-color: #2f55ff;
+  border-radius: 50%;
+  animation: spinner-rotate 0.8s linear infinite;
+}
+
+.loading-state p {
+  margin: 0;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}

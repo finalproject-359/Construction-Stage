@@ -8,6 +8,7 @@ const costSpentEl = document.getElementById("costSpent");
 const efficiencyGapEl = document.getElementById("efficiencyGap");
 const efficiencyCardEl = document.getElementById("efficiencyCard");
 const messageEl = document.getElementById("message");
+const loadingStateEl = document.getElementById("loadingState");
 const tableBodyEl = document.getElementById("activityTableBody");
 const overrunTableBodyEl = document.getElementById("overrunTableBody");
 
@@ -337,6 +338,11 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
 
+const setLoadingState = (isLoading) => {
+  if (!loadingStateEl) return;
+  loadingStateEl.classList.toggle("hidden", !isLoading);
+};
+
 const destroyCharts = () => {
   if (varianceChart) {
     varianceChart.destroy();
@@ -646,6 +652,7 @@ const refreshDashboardData = async ({ force = false } = {}) => {
   if (!DATA_SOURCE_URL.trim()) return;
 
   isDashboardFetchInFlight = true;
+  setLoadingState(true);
   try {
     if (force) {
       showMessage("Loading data source...");
@@ -656,6 +663,7 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     showMessage(`Error loading data source: ${error.message}`, true);
   } finally {
     isDashboardFetchInFlight = false;
+    setLoadingState(false);
   }
 };
 
