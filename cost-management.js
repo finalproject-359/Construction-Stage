@@ -266,7 +266,7 @@ const normalizeCostActivity = (activity = {}) => {
 
   return {
     id: String(getValueByAliases(activity, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id", "source activity id", "code", "id"]) || "").trim(),
-    costId: String(getValueByAliases(activity, ["costId", "cost_id", "costCode", "cost_code"]) || "").trim(),
+    costId: String(getValueByAliases(activity, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
     activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "activity ref id", "sourceActivityId", "source_activity_id", "source activity id", "activityId", "activity_id", "activity id", "id", "code"]) || "").trim(),
     projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project id", "project", "projectName", "project_name", "project name"]) || "").trim(),
     projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name", "project name"]) || "").trim(),
@@ -274,7 +274,7 @@ const normalizeCostActivity = (activity = {}) => {
     startDate,
     finishDate,
     durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
-    plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "plannedValue", "planned_value", "budget"])),
+    plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
   };
 };
 
@@ -451,8 +451,8 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     return rows.map((row) => ({
       projectId: String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim(),
       activityRefId: extractActivityRefIdFromCostRow(row),
-      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost code"]) || "").trim(),
-      plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "plannedCostPerDay", "planned_cost_per_day", "plannedValue"])),
+      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
+      plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedCostPerDay", "planned_cost_per_day", "plannedValue", "planned_value", "planned value"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
     })).filter((row) => row.projectId && row.activityRefId);
   } catch (error) {
