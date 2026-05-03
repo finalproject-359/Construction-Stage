@@ -46,7 +46,7 @@ const activityModalSubtitle = document.querySelector(".activity-modal-header p")
 const activityModalSubmitBtn = activityModalForm?.querySelector('button[type="submit"]');
 const DATA_SOURCE_URL =
   window.DataBridge?.DEFAULT_DATA_SOURCE_URL ||
-  "https://script.google.com/macros/s/AKfycbw-jTCH3608w8QhMjpNEjTudfEUREshU9tU8oAaCUqb9xVfAERH4NbC3bkhqsKHxbM/exec";
+  "https://script.google.com/macros/s/AKfycbzkE0m65U-fJPafbQtNjgsoGNM236J5zvulO3GwuMvUW5geGK-8MlzQ49BWeriyEjkO/exec";
 const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
 
 if (!activitiesTableBody) {
