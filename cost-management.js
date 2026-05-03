@@ -756,23 +756,28 @@ const bootstrapCostManagement = async () => {
   if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, allActivities)) renderProjects();
 };
 
-const refreshSelectedProjectCostView = () => {
-  const selectedProject = loadProjects().map(normalizeProject).find((project) =>
-    (selectedProjectId && project.id === selectedProjectId)
-    || (selectedProjectName && project.name === selectedProjectName)
-  );
-  if (!selectedProject) return;
-  showProjectDetails(selectedProject.id, selectedTab, loadCostActivities());
+let isCostManagementSyncInFlight = false;
+
+const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
+  if (isCostManagementSyncInFlight) return;
+  if (!force && document.visibilityState === "hidden") return;
+
+  isCostManagementSyncInFlight = true;
+  try {
+    await bootstrapCostManagement();
+  } finally {
+    isCostManagementSyncInFlight = false;
+  }
 };
 
 window.addEventListener("storage", (event) => {
   if (![ACTIVITIES_LOCAL_STORAGE_KEY, COST_ACTIVITY_KEY, COST_DAILY_KEY, LOCAL_STORAGE_KEY].includes(event.key)) return;
-  refreshSelectedProjectCostView();
+  refreshSelectedProjectCostView({ force: true });
 });
-window.addEventListener("focus", refreshSelectedProjectCostView);
-window.addEventListener("pageshow", refreshSelectedProjectCostView);
+window.addEventListener("focus", () => refreshSelectedProjectCostView({ force: true }));
+window.addEventListener("pageshow", () => refreshSelectedProjectCostView({ force: true }));
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) refreshSelectedProjectCostView();
+  if (!document.hidden) refreshSelectedProjectCostView({ force: true });
 });
 
-bootstrapCostManagement();
+refreshSelectedProjectCostView({ force: true });
