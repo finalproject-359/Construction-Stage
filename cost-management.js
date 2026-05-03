@@ -27,19 +27,72 @@ const postToDataSource = async (resource, action, payload) => {
   const endpoint = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!endpoint) throw new Error("Google Sheets endpoint is not configured.");
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resource, action, ...payload }),
-  });
+  const requestPayload = { resource, action, ...payload };
+
+  const parseResponsePayload = async (response) => {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  };
+
+  const postWithFormat = async (format) =>
+    fetch(endpoint, {
+      method: "POST",
+      headers: format === "json" ? { "Content-Type": "application/json" } : undefined,
+      body:
+        format === "json"
+          ? JSON.stringify(requestPayload)
+          : new URLSearchParams({ payload: JSON.stringify(requestPayload) }),
+    });
+
+  let response;
+  let body;
+
+  const sendViaGet = async () => {
+    const url = new URL(endpoint);
+    url.searchParams.set("payload", JSON.stringify(requestPayload));
+    response = await fetch(url.toString(), { cache: "no-store" });
+    body = await parseResponsePayload(response);
+  };
+
+  try {
+    response = await postWithFormat("form");
+    body = await parseResponsePayload(response);
+
+    const needsJsonFallback =
+      !response.ok ||
+      (body?.ok === false &&
+        /invalid payload|invalid payload parameter json|invalid json payload/i.test(String(body.error)));
+
+    if (needsJsonFallback) {
+      response = await postWithFormat("json");
+      body = await parseResponsePayload(response);
+    }
+  } catch (error) {
+    const maybeCorsIssue =
+      endpoint.includes("script.google.com/macros/s/") &&
+      /failed to fetch|networkerror|cors/i.test(String(error?.message || ""));
+
+    if (maybeCorsIssue) {
+      try {
+        await sendViaGet();
+      } catch {
+        // Continue to shared error handling.
+      }
+    }
+
+    if (!response || body?.ok === false) {
+      const guidance = maybeCorsIssue
+        ? "CORS check failed for POST. Verify your Google Apps Script Web App is deployed to Anyone and use the latest /exec deployment URL."
+        : "Unable to reach the Google Sheet endpoint.";
+      throw new Error(`${guidance} If this endpoint was recently changed, update DATA_SOURCE_URL in data-service.js.`);
+    }
+  }
 
   if (!response.ok) throw new Error(`Google Sheets sync failed (HTTP ${response.status}).`);
-
-  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-  if (!contentType.includes("application/json")) return null;
-
-  const body = await response.json().catch(() => null);
-  if (body?.error) throw new Error(String(body.error));
+  if (body?.ok === false || body?.error) throw new Error(String(body.error || "Google Sheets sync failed."));
   return body;
 };
 
