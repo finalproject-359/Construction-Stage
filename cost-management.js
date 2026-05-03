@@ -7,6 +7,16 @@ const selectionView = document.getElementById("costSelectionView");
 const detailsView = document.getElementById("costDetailsView");
 const selectedProjectBannerHost = document.getElementById("selectedProjectBannerHost");
 
+const hasProjectSelectionInUrl = (() => {
+  const query = new URLSearchParams(window.location.search);
+  return Boolean(String(query.get("projectId") || "").trim() || String(query.get("project") || "").trim());
+})();
+
+if (hasProjectSelectionInUrl) {
+  selectionView?.classList.add("hidden");
+  detailsView?.classList.remove("hidden");
+}
+
 const safeJsonParse = (raw, fallback = []) => {
   try {
     const parsed = JSON.parse(raw || "[]");
@@ -455,7 +465,6 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
         projectName: getValueByAliases(row, ["project", "projectName", "project_name", "project name"]),
       }, lookups),
       activityRefId: extractActivityRefIdFromCostRow(row),
-      activityName: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code", "id"]) || "").trim(),
       plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
@@ -1063,9 +1072,15 @@ const bootstrapCostManagement = async () => {
 
 let isCostManagementSyncInFlight = false;
 
+const hasOpenCostDialog = () => Boolean(
+  detailsView?.querySelector("#dailyCostModal:not(.hidden)")
+  || detailsView?.querySelector("#costMetaModal:not(.hidden)")
+);
+
 const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
   if (isCostManagementSyncInFlight) return;
   if (!force && document.visibilityState === "hidden") return;
+  if (hasOpenCostDialog()) return;
 
   isCostManagementSyncInFlight = true;
   try {
