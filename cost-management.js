@@ -1,7 +1,3 @@
-const LOCAL_STORAGE_KEY = "constructionStageProjects";
-const COST_ACTIVITY_KEY = "constructionStageCostActivities";
-const ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
-const COST_DAILY_KEY = "constructionStageDailyCosts";
 
 const topSearch = document.getElementById("costTopSearch");
 const listSearch = document.getElementById("projectListSearch");
@@ -20,9 +16,13 @@ const safeJsonParse = (raw, fallback = []) => {
   }
 };
 
-const loadProjects = () => safeJsonParse(localStorage.getItem(LOCAL_STORAGE_KEY), []);
-const loadDailyCosts = () => safeJsonParse(localStorage.getItem(COST_DAILY_KEY), []);
-const saveDailyCosts = (items) => localStorage.setItem(COST_DAILY_KEY, JSON.stringify(items));
+let projectsState = [];
+let costActivitiesState = [];
+let dailyCostsState = [];
+
+const loadProjects = () => projectsState.slice();
+const loadDailyCosts = () => dailyCostsState.slice();
+const saveDailyCosts = (items) => { dailyCostsState = Array.isArray(items) ? items.slice() : []; };
 const postToDataSource = async (resource, action, payload) => {
   const endpoint = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!endpoint) return;
@@ -194,46 +194,7 @@ const getActivityRefId = (activity = {}) => String(activity.activityRefId || act
 const getCostActivityProjectKey = (activity = {}) => String(activity.projectId || activity.projectName || "").trim();
 const getCostActivityKey = (activity = {}) => `${getCostActivityProjectKey(activity)}::${getActivityRefId(activity)}`;
 
-const loadCostActivities = () => {
-  const projectLookups = buildProjectIdentityLookups(loadProjects());
-  const activitiesSource = safeJsonParse(localStorage.getItem(ACTIVITIES_LOCAL_STORAGE_KEY), [])
-    .map(normalizeCostActivity)
-    .map((activity) => ({ ...activity, projectId: resolveActivityProjectId(activity, projectLookups) || activity.projectId }));
-  const costSource = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), [])
-    .map(normalizeCostActivity)
-    .map((activity) => ({ ...activity, projectId: resolveActivityProjectId(activity, projectLookups) || activity.projectId }));
-
-  // Prefer the Activities page source because it is the actively maintained dataset.
-  // Keep legacy cost entries only as metadata overrides when there is an existing activity match.
-  // If there are no activities yet, use legacy data as a fallback for backward compatibility.
-  const activitiesByKey = new Map();
-  activitiesSource.forEach((item) => {
-    const key = getCostActivityKey(item);
-    if (!key || key === "::") return;
-    activitiesByKey.set(key, { ...item, costId: "", plannedCost: 0 });
-  });
-
-  if (!activitiesByKey.size) {
-    return costSource;
-  }
-
-  costSource.forEach((item) => {
-    const key = getCostActivityKey(item);
-    if (!activitiesByKey.has(key)) return;
-
-    const baseActivity = activitiesByKey.get(key) || {};
-    activitiesByKey.set(key, {
-      ...baseActivity,
-      // Keep canonical activity identity/schedule from Activities data,
-      // and only apply cost-specific metadata overrides from legacy cost entries.
-      // Cost-specific overrides are user-maintained values.
-      costId: String(item.costId || item.id || baseActivity.costId || "").trim(),
-      plannedCost: Number(item.plannedCost) || 0,
-    });
-  });
-
-  return Array.from(activitiesByKey.values());
-};
+const loadCostActivities = () => costActivitiesState.slice();
 
 const normalizeRemoteActivity = (row = {}) => {
   const normalizedId = String(getValueByAliases(row, ["id", "activityId", "activity_id", "activity id", "code"]) || "").trim();
@@ -682,7 +643,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
   return true;
 };
 
-const saveCostActivityOverrides = (items = []) => localStorage.setItem(COST_ACTIVITY_KEY, JSON.stringify(items));
+const saveCostActivityOverrides = (items = []) => { costActivitiesState = Array.isArray(items) ? items.slice() : []; };
 const renderCostMetadataModal = (projectId, activityRefId, target) => {
   const modal = detailsView.querySelector("#costMetaModal");
   if (!modal) return;
@@ -702,7 +663,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     const formData = new FormData(event.currentTarget);
     const nextCostId = String(formData.get("costId") || "").trim();
     const nextPlannedCost = parseBudgetValue(formData.get("plannedCost"));
-    const existingOverrides = safeJsonParse(localStorage.getItem(COST_ACTIVITY_KEY), []).map(normalizeCostActivity);
+    const existingOverrides = loadCostActivities().map(normalizeCostActivity);
     const nextOverrides = existingOverrides.filter((item) => !(String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId));
     nextOverrides.push(normalizeCostActivity({
       ...target,
@@ -763,13 +724,7 @@ const selectedProjectId = params.get("projectId") || "";
 const selectedProjectName = params.get("project") || "";
 const selectedTab = params.get("tab") === "costing" ? "costing" : "overview";
 const bootstrapCostManagement = async () => {
-  const localProjects = loadProjects().map(normalizeProject).filter((project) => project.id);
-  if (!localProjects.length) {
-    const remoteProjects = await loadRemoteProjects();
-    if (remoteProjects.length) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remoteProjects));
-    }
-  }
+  projectsState = (await loadRemoteProjects()).map(normalizeProject).filter((project) => project.id);
 
   const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).find((project) =>
     (selectedProjectId && project.id === selectedProjectId)
@@ -780,9 +735,7 @@ const bootstrapCostManagement = async () => {
     projectId: selectedProjectAfterBootstrap?.id || selectedProjectId,
     projectName: selectedProjectAfterBootstrap?.name || selectedProjectName,
   });
-  // Prefer local activities first so unsynced edits remain visible on this device.
-  // Remote rows are still used as a fallback when local rows are missing.
-  const merged = [...localActivities, ...remoteActivities];
+    const merged = [...localActivities, ...remoteActivities];
   const deduped = new Map();
   merged.forEach((item) => {
     const key = `${String(item.projectId).trim()}::${String(getActivityRefId(item)).trim()}`;
@@ -812,18 +765,10 @@ const bootstrapCostManagement = async () => {
     });
   });
   const allActivities = Array.from(deduped.values());
+  costActivitiesState = allActivities.slice();
 
   const remoteDailyCosts = await loadRemoteDailyCosts({ projectId: selectedProjectAfterBootstrap?.id || selectedProjectId });
-  if (remoteDailyCosts.length) {
-    const localDaily = loadDailyCosts();
-    const mergedDaily = new Map();
-    [...localDaily, ...remoteDailyCosts].forEach((item) => {
-      const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${String(item.date || "").trim()}`;
-      if (!key || key === "::::") return;
-      mergedDaily.set(key, { ...item, actualCost: parseBudgetValue(item.actualCost) });
-    });
-    saveDailyCosts(Array.from(mergedDaily.values()));
-  }
+  saveDailyCosts(remoteDailyCosts);
 
   if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, allActivities)) renderProjects();
 };
@@ -842,10 +787,6 @@ const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
   }
 };
 
-window.addEventListener("storage", (event) => {
-  if (![ACTIVITIES_LOCAL_STORAGE_KEY, COST_ACTIVITY_KEY, COST_DAILY_KEY, LOCAL_STORAGE_KEY].includes(event.key)) return;
-  refreshSelectedProjectCostView({ force: true });
-});
 window.addEventListener("focus", () => refreshSelectedProjectCostView({ force: true }));
 window.addEventListener("pageshow", () => refreshSelectedProjectCostView({ force: true }));
 document.addEventListener("visibilitychange", () => {
