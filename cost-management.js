@@ -148,12 +148,15 @@ const toDateInputValue = (value) => {
   return d.toISOString().slice(0, 10);
 };
 const computeDurationDays = (startDate, finishDate, fallback = 0) => {
+  const fallbackValue = Number(fallback) || 0;
+  if (fallbackValue > 0) return fallbackValue;
+
   const start = new Date(startDate);
   const finish = new Date(finishDate);
   if (!Number.isNaN(start.getTime()) && !Number.isNaN(finish.getTime()) && finish >= start) {
     return Math.max(1, Math.round((finish.getTime() - start.getTime()) / 86400000) + 1);
   }
-  return Number(fallback) || 0;
+  return 0;
 };
 const normalizeCostActivity = (activity = {}) => {
   const startDate = toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"]));
