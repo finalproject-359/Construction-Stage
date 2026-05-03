@@ -132,8 +132,16 @@ const buildAllDateRangeOptions = (startDate, finishDate) => {
 };
 
 const buildDateRangeOptions = (startDate, finishDate) => {
-  const options = buildAllDateRangeOptions(startDate, finishDate);
-  return options.filter((value) => isWorkingDate(new Date(value)));
+  const start = new Date(startDate);
+  const end = new Date(finishDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+  const options = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    if (isWorkingDate(cursor)) options.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return options;
 };
 const formatProjectIdentityLabel = (project) => {
   const projectId = String(project?.id || "").trim();
