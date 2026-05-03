@@ -90,7 +90,13 @@ function handleRequest(payload) {
         return handleActivityMutation(action, source);
       }
 
-      throw new Error('Only "projects" and "activities" are supported for mutations.');
+      if (resource === 'costs') {
+        const costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+        ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+        return handleCostMutation(action, source);
+      }
+
+      throw new Error('Only "projects", "activities", and "costs" are supported for mutations.');
     }
 
     const projectFilter = {
@@ -309,6 +315,76 @@ function handleActivityMutation(action, payload) {
   }
 
   throw new Error('Unsupported action. Use action=create|update|delete.');
+}
+
+function handleCostMutation(action, payload) {
+  if (action === 'create' || action === 'update') {
+    const cost = normalizeIncomingCost(payload.cost || payload);
+    if (!cost.projectId || !cost.costId) {
+      throw new Error('Project ID and Cost ID are required.');
+    }
+
+    upsertCostRow(cost);
+    return jsonResponse({
+      ok: true,
+      message: action === 'create' ? 'Cost saved successfully.' : 'Cost updated successfully.',
+      cost: cost,
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
+  throw new Error('Unsupported action for costs. Use action=create|update.');
+}
+
+function normalizeIncomingCost(input) {
+  const source = input || {};
+  return {
+    costId: cleanText(source.costId || source.id),
+    projectId: cleanText(source.projectId || source.project_id),
+    project: cleanText(source.project || source.projectName || source.project_name),
+    category: cleanText(source.category || source.costCategory || source.cost_category) || 'General',
+    date: normalizeDate(source.date),
+    plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
+    actualCost: parseNumber(source.actualCost || source.actual_cost),
+    notes: cleanText(source.notes || source.note || source.remarks),
+  };
+}
+
+function upsertCostRow(cost) {
+  const sheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(sheet, CONFIG.headers.costs);
+  const values = sheet.getDataRange().getValues();
+  const columns = getCostColumnMap(sheet);
+  const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.costs.length, columns.maxColumn);
+
+  let rowNumber = -1;
+  for (let i = 1; i < values.length; i += 1) {
+    const row = values[i];
+    const rowCostId = cleanText(row[columns.costId - 1]);
+    const rowProjectId = cleanText(row[columns.projectId - 1]);
+    const rowDate = normalizeDate(row[columns.date - 1]);
+    if (rowCostId === cost.costId && rowProjectId === cost.projectId && rowDate === cost.date) {
+      rowNumber = i + 1;
+      break;
+    }
+  }
+
+  const rowValues = new Array(lastColumn).fill('');
+  if (columns.costId) rowValues[columns.costId - 1] = cost.costId;
+  if (columns.projectId) rowValues[columns.projectId - 1] = cost.projectId;
+  if (columns.project) rowValues[columns.project - 1] = cost.project;
+  if (columns.category) rowValues[columns.category - 1] = cost.category;
+  if (columns.date) rowValues[columns.date - 1] = cost.date;
+  if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
+  if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
+  if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
+  if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
+
+  if (rowNumber > 0) {
+    sheet.getRange(rowNumber, 1, 1, lastColumn).setValues([rowValues]);
+    return;
+  }
+  sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
 }
 
 function updateProjectRow(project) {
@@ -815,6 +891,33 @@ function getProjectColumnMap(sheet) {
     startDate: indexOfHeader(['Start Date', 'Planned Start']),
     finishDate: indexOfHeader(['Finish Date', 'End Date', 'Target Finish']),
     budget: indexOfHeader(['Budget', 'Planned Value', 'Planned Cost']),
+    createdAt: indexOfHeader(['Created At']),
+    maxColumn: headers.length,
+  };
+}
+
+function getCostColumnMap(sheet) {
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.costs.length)).getValues()[0]
+    .map(function(header) { return normalizeHeader(header); });
+
+  const indexOfHeader = function(candidates) {
+    for (var i = 0; i < candidates.length; i += 1) {
+      var candidate = normalizeHeader(candidates[i]);
+      var found = headers.indexOf(candidate);
+      if (found >= 0) return found + 1;
+    }
+    return 0;
+  };
+
+  return {
+    costId: indexOfHeader(['Cost ID', 'ID']),
+    projectId: indexOfHeader(['Project ID']),
+    project: indexOfHeader(['Project', 'Project Name']),
+    category: indexOfHeader(['Cost Category', 'Category', 'Type']),
+    date: indexOfHeader(['Date', 'Cost Date']),
+    plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
+    actualCost: indexOfHeader(['Actual Cost', 'Cost', 'Amount']),
+    notes: indexOfHeader(['Notes', 'Remarks']),
     createdAt: indexOfHeader(['Created At']),
     maxColumn: headers.length,
   };
