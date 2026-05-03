@@ -118,17 +118,22 @@ const isWorkingDate = (date) => {
   return !holidays.has(formatMonthDayKey(date));
 };
 
-const buildDateRangeOptions = (startDate, finishDate) => {
+const buildAllDateRangeOptions = (startDate, finishDate) => {
   const start = new Date(startDate);
   const end = new Date(finishDate);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
   const options = [];
   const cursor = new Date(start);
   while (cursor <= end) {
-    if (isWorkingDate(cursor)) options.push(cursor.toISOString().slice(0, 10));
+    options.push(cursor.toISOString().slice(0, 10));
     cursor.setDate(cursor.getDate() + 1);
   }
   return options;
+};
+
+const buildDateRangeOptions = (startDate, finishDate) => {
+  const options = buildAllDateRangeOptions(startDate, finishDate);
+  return options.filter((value) => isWorkingDate(new Date(value)));
 };
 const formatProjectIdentityLabel = (project) => {
   const projectId = String(project?.id || "").trim();
@@ -460,6 +465,12 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const dailyCosts = loadDailyCosts();
   const activity = activities.find((item) => getActivityRefId(item) === activityId && isActivityForProject(item, projectId, projectName));
   if (!modal || !activity) return;
+  const availableDates = buildDateRangeOptions(activity.startDate, activity.finishDate);
+  const hasAvailableDates = availableDates.length > 0;
+  const dateOptions = hasAvailableDates
+    ? availableDates.map((dateValue) => `<option value="${dateValue}">${formatLongHumanDate(dateValue)}</option>`).join("")
+    : `<option value="" selected disabled>No working days in this date range.</option>`;
+
   const entries = dailyCosts
     .filter((item) => String(item.projectId || "").trim() === projectId && String(item.activityId || "").trim() === activityId)
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
@@ -468,7 +479,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     : '<tr><td colspan="3" class="empty-cell">No daily costs recorded yet.</td></tr>';
   modal.classList.remove("hidden");
   modal.innerHTML = `<div class="daily-cost-dialog panel" role="dialog" aria-modal="true" aria-labelledby="dailyCostTitle"><div class="daily-cost-head"><h3 id="dailyCostTitle">${escapeHtml(activity.name)} Daily Cost</h3><button type="button" class="daily-cost-close" id="closeDailyModalBtn" aria-label="Close">×</button></div><p class="daily-cost-range">📅 ${escapeHtml(formatLongHumanDate(activity.startDate))} to ${escapeHtml(formatLongHumanDate(activity.finishDate))}</p>
-    <section class="daily-cost-section"><h4>Add Daily Cost</h4><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><select name="date" required>${buildDateRangeOptions(activity.startDate, activity.finishDate).map((dateValue) => `<option value="${dateValue}">${formatLongHumanDate(dateValue)}</option>`).join("")}</select></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required></label><button class="primary-btn" type="submit">Add</button></form></section>
+    <section class="daily-cost-section"><h4>Add Daily Cost</h4><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><select name="date" required ${hasAvailableDates ? "" : "disabled"}>${dateOptions}</select></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required ${hasAvailableDates ? "" : "disabled"}></label><button class="primary-btn" type="submit" ${hasAvailableDates ? "" : "disabled"}>Add</button></form></section>
     <section class="daily-cost-section"><h4>Daily Cost Records</h4><div class="daily-cost-table-wrap"><table><thead><tr><th>Date</th><th>Amount (₱)</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></section>
     <div class="daily-cost-footer"><button type="button" class="ghost-btn" id="closeDailyModalBtnFooter">Close</button></div></div>`;
 
@@ -496,6 +507,18 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const formData = new FormData(event.currentTarget);
     const date = String(formData.get("date") || "");
     const actualCost = parseBudgetValue(formData.get("actualCost"));
+    if (!hasAvailableDates) {
+      alert("No valid working dates are available for this activity range.");
+      return;
+    }
+    if (!date) {
+      alert("Please select a date.");
+      return;
+    }
+    if (actualCost <= 0) {
+      alert("Daily cost must be greater than 0.");
+      return;
+    }
     const activityStartDate = String(activity.startDate || "");
     const activityFinishDate = String(activity.finishDate || "");
     if (activityStartDate && date < activityStartDate) {
