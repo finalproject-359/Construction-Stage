@@ -694,9 +694,8 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
         projectId,
         project: target.projectName || "",
         category: "Planned Cost",
-        date: new Date().toISOString().slice(0, 10),
+        date: target.startDate || target.plannedStart || target.finishDate || new Date().toISOString().slice(0, 10),
         plannedCost: nextPlannedCost,
-        actualCost: 0,
         notes: `Activity ID: ${activityRefId}`,
       },
     });
