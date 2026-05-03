@@ -385,7 +385,25 @@ const isActivityForProject = (activity, projectId, projectName = "") => {
 const getProjectCostData = (projectId, allActivities = loadCostActivities()) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   const projectName = String(project?.name || "").trim().toLowerCase();
-  const activities = allActivities.filter((item) => isActivityForProject(item, projectId, projectName));
+  const compareActivitiesByStartPriority = (a, b) => {
+    const aStart = new Date(a?.startDate || "").getTime();
+    const bStart = new Date(b?.startDate || "").getTime();
+    const aStartSafe = Number.isFinite(aStart) ? aStart : Number.POSITIVE_INFINITY;
+    const bStartSafe = Number.isFinite(bStart) ? bStart : Number.POSITIVE_INFINITY;
+    if (aStartSafe !== bStartSafe) return aStartSafe - bStartSafe;
+
+    const aFinish = new Date(a?.finishDate || "").getTime();
+    const bFinish = new Date(b?.finishDate || "").getTime();
+    const aFinishSafe = Number.isFinite(aFinish) ? aFinish : Number.POSITIVE_INFINITY;
+    const bFinishSafe = Number.isFinite(bFinish) ? bFinish : Number.POSITIVE_INFINITY;
+    if (aFinishSafe !== bFinishSafe) return aFinishSafe - bFinishSafe;
+
+    return String(getActivityRefId(a)).localeCompare(String(getActivityRefId(b)));
+  };
+
+  const activities = allActivities
+    .filter((item) => isActivityForProject(item, projectId, projectName))
+    .sort(compareActivitiesByStartPriority);
   const daily = loadDailyCosts().filter((item) => String(item.projectId || "").trim() === projectId);
   const rows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
