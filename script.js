@@ -729,7 +729,6 @@ const setupServiceWorkerUpdates = async () => {
 
 setupServiceWorkerUpdates();
 if (DATA_SOURCE_URL.trim()) {
-  localStorage.removeItem(DASHBOARD_CACHE_KEY);
   hydrateDashboardFromCache();
   refreshDashboardData({ force: true });
   setupRealtimeDashboardSync();
