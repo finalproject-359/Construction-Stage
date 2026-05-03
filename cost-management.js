@@ -967,6 +967,10 @@ const params = new URLSearchParams(window.location.search);
 const selectedProjectId = params.get("projectId") || "";
 const selectedProjectName = params.get("project") || "";
 const selectedTab = params.get("tab") === "costing" ? "costing" : "overview";
+const getSelectedProjectFilter = (project = null) => ({
+  projectId: project?.id || selectedProjectId,
+  projectName: project?.name || selectedProjectName,
+});
 const bootstrapCostManagement = async () => {
   projectsState = (await loadRemoteProjects()).map(normalizeProject).filter((project) => project.id);
 
@@ -974,10 +978,12 @@ const bootstrapCostManagement = async () => {
     (selectedProjectId && project.id === selectedProjectId)
     || (selectedProjectName && project.name === selectedProjectName)
   );
-  const remoteActivities = await loadRemoteCostActivities({
-    projectId: selectedProjectAfterBootstrap?.id || selectedProjectId,
-    projectName: selectedProjectAfterBootstrap?.name || selectedProjectName,
-  });
+  const projectFilter = getSelectedProjectFilter(selectedProjectAfterBootstrap);
+  const [remoteActivities, remoteDailyCosts, remoteCostMetadataRows] = await Promise.all([
+    loadRemoteCostActivities(projectFilter),
+    loadRemoteDailyCosts(projectFilter),
+    loadRemoteCostMetadata(projectFilter),
+  ]);
   const merged = [...remoteActivities];
   const deduped = new Map();
   merged.forEach((item) => {
@@ -1010,7 +1016,6 @@ const bootstrapCostManagement = async () => {
   const allActivities = Array.from(deduped.values());
   costActivitiesState = allActivities.slice();
 
-  const remoteDailyCosts = await loadRemoteDailyCosts({ projectId: selectedProjectAfterBootstrap?.id || selectedProjectId });
   const mergedDailyCosts = [...remoteDailyCosts];
   const dedupedDailyCosts = new Map();
   mergedDailyCosts.forEach((item) => {
@@ -1026,7 +1031,6 @@ const bootstrapCostManagement = async () => {
   });
   saveDailyCosts(Array.from(dedupedDailyCosts.values()));
 
-  const remoteCostMetadataRows = await loadRemoteCostMetadata({ projectId: selectedProjectAfterBootstrap?.id || selectedProjectId });
   if (remoteCostMetadataRows.length) {
     const metadataByActivityId = new Map();
     const metadataByActivityName = new Map();
