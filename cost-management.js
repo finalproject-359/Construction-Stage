@@ -692,18 +692,27 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
       activityRefId,
     }));
     saveCostActivityOverrides(nextOverrides);
-    await postToDataSource("costs", "update", {
-      cost: {
-        costId: nextCostId,
-        projectId,
-        project: target.projectName || "",
-        category: "Planned Cost",
-        date: new Date().toISOString().slice(0, 10),
-        plannedCost: nextPlannedCost,
-        actualCost: 0,
-        notes: `Activity ID: ${activityRefId}`,
-      },
-    });
+    try {
+      await postToDataSource("costs", "create", {
+        cost: {
+          costId: nextCostId,
+          projectId,
+          project: target.projectName || "",
+          activity: target.name || "",
+          category: "Planned Cost",
+          date: new Date().toISOString().slice(0, 10),
+          plannedCost: nextPlannedCost,
+          plannedCostPerDay: 0,
+          actualCost: 0,
+          notes: `Activity ID: ${activityRefId}`,
+        },
+      });
+    } catch (error) {
+      console.warn("Unable to save cost record to Google Sheets:", error);
+      saveCostActivityOverrides(existingOverrides);
+      alert(`Unable to save cost record to Google Sheets. ${error?.message || "Please verify your Apps Script deployment settings and try again."}`);
+      return;
+    }
     closeModal();
     showProjectDetails(projectId, "costing", loadCostActivities());
   });
