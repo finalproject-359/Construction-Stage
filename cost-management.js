@@ -324,6 +324,31 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
   }
 };
 
+
+const loadRemoteDailyCosts = async (projectFilter = {}) => {
+  const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
+  if (!dataSourceUrl) return [];
+  try {
+    const url = new URL(dataSourceUrl);
+    url.searchParams.set("resource", "daily_costs");
+    if (projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
+    url.searchParams.set("_ts", String(Date.now()));
+    const response = await fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.dailyCosts) ? payload.dailyCosts : [];
+    return rows.map((row) => ({
+      projectId: String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim(),
+      activityId: String(getValueByAliases(row, ["activityId", "activity_id", "activity id"]) || "").trim(),
+      date: String(getValueByAliases(row, ["date"]) || "").trim(),
+      actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
+    })).filter((r) => r.projectId && r.activityId && r.date);
+  } catch (error) {
+    console.warn("Unable to load daily costs from resource endpoint:", error);
+    return [];
+  }
+};
+
 const normalizeLookup = (value) => String(value || "").trim().toLowerCase();
 
 const buildProjectIdentityLookups = (projects = []) => {
@@ -525,6 +550,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       && String(item.activityId || "").trim() === activityId
       && String(item.date || "") === date));
     saveDailyCosts(nextDailyCosts);
+    postToDataSource("daily_costs", "delete", { dailyCost: { projectId, activityId, date } });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
@@ -577,16 +603,13 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
-    await postToDataSource("costs", "update", {
-      cost: {
-        costId: String(activity.costId || activityId || "").trim(),
+    await postToDataSource("daily_costs", "update", {
+      dailyCost: {
         projectId,
-        project: activity.projectName || project?.name || "",
-        category: "Daily Cost",
+        costId: String(activity.costId || activityId || "").trim(),
+        activityId,
         date,
-        plannedCost: Number(activity.plannedCost) || 0,
         actualCost,
-        notes: `Activity ID: ${activityId}`,
       },
     });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
@@ -789,6 +812,18 @@ const bootstrapCostManagement = async () => {
     });
   });
   const allActivities = Array.from(deduped.values());
+
+  const remoteDailyCosts = await loadRemoteDailyCosts({ projectId: selectedProjectAfterBootstrap?.id || selectedProjectId });
+  if (remoteDailyCosts.length) {
+    const localDaily = loadDailyCosts();
+    const mergedDaily = new Map();
+    [...localDaily, ...remoteDailyCosts].forEach((item) => {
+      const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${String(item.date || "").trim()}`;
+      if (!key || key === "::::") return;
+      mergedDaily.set(key, { ...item, actualCost: parseBudgetValue(item.actualCost) });
+    });
+    saveDailyCosts(Array.from(mergedDaily.values()));
+  }
 
   if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, allActivities)) renderProjects();
 };

@@ -2,7 +2,7 @@
  * Google Apps Script Web App endpoint for Construction Stage data.
  *
  * Supported query params:
- * - resource: dashboard | projects | activities | costs | reports | all
+ * - resource: dashboard | projects | activities | costs | daily-costs | reports | all
  * - projectId / project: optional project filter
  *
  * Expected sheet tabs (default names can be customized below):
@@ -15,6 +15,7 @@ const CONFIG = {
     projects: 'Projects',
     activities: 'Activities',
     costs: 'Costs',
+    dailyCosts: 'DailyCosts',
   },
   headers: {
     projects: [
@@ -41,14 +42,21 @@ const CONFIG = {
       'Notes',
     ],
     costs: [
-      'Cost ID',
       'Project ID',
-      'Project',
-      'Cost Category',
-      'Date',
+      'Project Name',
+      'Cost ID',
+      'Activity',
+      'Duration',
       'Planned Cost',
+      'Planned Cost/Day',
       'Actual Cost',
-      'Notes',
+    ],
+    dailyCosts: [
+      'Project ID',
+      'Cost ID',
+      'Activity ID',
+      'Date',
+      'Actual Cost',
       'Created At',
     ],
   },
@@ -96,6 +104,12 @@ function handleRequest(payload) {
         return handleCostMutation(action, source);
       }
 
+      if (resource === 'daily_costs') {
+        const dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+        ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
+        return handleDailyCostMutation(action, source);
+      }
+
       throw new Error('Only "projects", "activities", and "costs" are supported for mutations.');
     }
 
@@ -111,6 +125,10 @@ function handleRequest(payload) {
       projects: buildProjectsPayload(filtered.projects),
       activities: buildActivitiesPayload(filtered.activities),
       costs: buildCostsPayload(filtered.costs),
+      daily_costs: {
+        count: filtered.dailyCosts.length,
+        dailyCosts: filtered.dailyCosts,
+      },
       dashboard: buildDashboardPayload(filtered),
       reports: buildReportsPayload(filtered),
       all: buildAllPayload(filtered),
@@ -139,6 +157,7 @@ function createEmptyDataBundle() {
     projects: [],
     activities: [],
     costs: [],
+    dailyCosts: [],
     sheets: {},
   };
 }
@@ -165,6 +184,11 @@ function loadDataByResource(resource) {
 
   if (resource === 'costs') {
     readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
+    return bundle;
+  }
+
+  if (resource === 'daily_costs') {
+    readResource('dailyCosts', CONFIG.sheetNames.dailyCosts, CONFIG.headers.dailyCosts, normalizeDailyCostRecord);
     return bundle;
   }
 
@@ -336,15 +360,88 @@ function handleCostMutation(action, payload) {
   throw new Error('Unsupported action for costs. Use action=create|update.');
 }
 
+
+function handleDailyCostMutation(action, payload) {
+  if (action === 'create' || action === 'update') {
+    const dailyCost = normalizeIncomingDailyCost(payload.dailyCost || payload.daily_cost || payload);
+    if (!dailyCost.projectId || !dailyCost.activityId || !dailyCost.date) {
+      throw new Error('Project ID, Activity ID, and Date are required.');
+    }
+    upsertDailyCostRow(dailyCost);
+    return jsonResponse({ ok: true, message: 'Daily cost saved successfully.', dailyCost: dailyCost, generatedAt: new Date().toISOString() });
+  }
+
+  if (action === 'delete') {
+    const dailyCost = normalizeIncomingDailyCost(payload.dailyCost || payload.daily_cost || payload);
+    if (!dailyCost.projectId || !dailyCost.activityId || !dailyCost.date) {
+      throw new Error('Project ID, Activity ID, and Date are required for delete.');
+    }
+    deleteDailyCostRow(dailyCost);
+    return jsonResponse({ ok: true, message: 'Daily cost deleted successfully.', generatedAt: new Date().toISOString() });
+  }
+
+  throw new Error('Unsupported action for daily costs. Use action=create|update|delete.');
+}
+
+function normalizeIncomingDailyCost(input) {
+  var source = input || {};
+  return {
+    projectId: cleanText(source.projectId || source.project_id),
+    costId: cleanText(source.costId || source.cost_id || source.id),
+    activityId: cleanText(source.activityId || source.activity_id),
+    date: normalizeDate(source.date),
+    actualCost: parseNumber(source.actualCost || source.actual_cost || source.amount),
+  };
+}
+
+function upsertDailyCostRow(dailyCost) {
+  var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+  ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
+  var values = sheet.getDataRange().getValues();
+  var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length)).getValues()[0];
+  var idx = {
+    projectId: headers.indexOf('Project ID'),
+    costId: headers.indexOf('Cost ID'),
+    activityId: headers.indexOf('Activity ID'),
+    date: headers.indexOf('Date'),
+    actualCost: headers.indexOf('Actual Cost'),
+    createdAt: headers.indexOf('Created At'),
+  };
+  var rowNumber = -1;
+  for (var i = 1; i < values.length; i += 1) {
+    if (cleanText(values[i][idx.projectId]) === dailyCost.projectId
+      && cleanText(values[i][idx.activityId]) === dailyCost.activityId
+      && normalizeDate(values[i][idx.date]) === dailyCost.date) { rowNumber = i + 1; break; }
+  }
+  var row = new Array(Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length)).fill('');
+  row[idx.projectId] = dailyCost.projectId; row[idx.costId] = dailyCost.costId; row[idx.activityId] = dailyCost.activityId; row[idx.date] = dailyCost.date; row[idx.actualCost] = dailyCost.actualCost; row[idx.createdAt] = new Date();
+  if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
+  else sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+}
+
+function deleteDailyCostRow(dailyCost) {
+  var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+  ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
+  var values = sheet.getDataRange().getValues();
+  var headers = values[0] || [];
+  var p = headers.indexOf('Project ID'); var a = headers.indexOf('Activity ID'); var d = headers.indexOf('Date');
+  for (var i = values.length - 1; i >= 1; i -= 1) {
+    if (cleanText(values[i][p]) === dailyCost.projectId && cleanText(values[i][a]) === dailyCost.activityId && normalizeDate(values[i][d]) === dailyCost.date) sheet.deleteRow(i + 1);
+  }
+}
+
 function normalizeIncomingCost(input) {
   const source = input || {};
   return {
     costId: cleanText(source.costId || source.id),
     projectId: cleanText(source.projectId || source.project_id),
     project: cleanText(source.project || source.projectName || source.project_name),
+    activity: cleanText(source.activity || source.activityName),
+    duration: parseNumber(source.duration || source.durationDays),
     category: cleanText(source.category || source.costCategory || source.cost_category) || 'General',
     date: normalizeDate(source.date),
     plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
+    plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
     actualCost: parseNumber(source.actualCost || source.actual_cost),
     notes: cleanText(source.notes || source.note || source.remarks),
   };
@@ -362,8 +459,9 @@ function upsertCostRow(cost) {
     const row = values[i];
     const rowCostId = cleanText(row[columns.costId - 1]);
     const rowProjectId = cleanText(row[columns.projectId - 1]);
-    const rowDate = normalizeDate(row[columns.date - 1]);
-    if (rowCostId === cost.costId && rowProjectId === cost.projectId && rowDate === cost.date) {
+    const rowDate = columns.date ? normalizeDate(row[columns.date - 1]) : '';
+    const isSameDate = columns.date ? rowDate === cost.date : true;
+    if (rowCostId === cost.costId && rowProjectId === cost.projectId && isSameDate) {
       rowNumber = i + 1;
       break;
     }
@@ -373,10 +471,13 @@ function upsertCostRow(cost) {
   if (columns.costId) rowValues[columns.costId - 1] = cost.costId;
   if (columns.projectId) rowValues[columns.projectId - 1] = cost.projectId;
   if (columns.project) rowValues[columns.project - 1] = cost.project;
+  if (columns.activity) rowValues[columns.activity - 1] = cost.activity;
+  if (columns.duration) rowValues[columns.duration - 1] = cost.duration;
+  if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
+  if (columns.plannedCostPerDay) rowValues[columns.plannedCostPerDay - 1] = cost.plannedCostPerDay;
+  if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
-  if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
-  if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
   if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
 
@@ -620,8 +721,9 @@ function findProjectSheetRow(projectId) {
 }
 
 function normalizeResource(value) {
-  const supported = ['dashboard', 'projects', 'activities', 'costs', 'reports', 'all'];
+  const supported = ['dashboard', 'projects', 'activities', 'costs', 'daily_costs', 'reports', 'all'];
   const normalized = cleanText(value).toLowerCase();
+  if (normalized === 'daily-costs' || normalized === 'dailycosts' || normalized === 'dailycost') return 'daily_costs';
   return supported.indexOf(normalized) >= 0 ? normalized : 'dashboard';
 }
 
@@ -912,10 +1014,13 @@ function getCostColumnMap(sheet) {
   return {
     costId: indexOfHeader(['Cost ID', 'ID']),
     projectId: indexOfHeader(['Project ID']),
-    project: indexOfHeader(['Project', 'Project Name']),
+    project: indexOfHeader(['Project Name', 'Project']),
+    activity: indexOfHeader(['Activity', 'Activity Name']),
+    duration: indexOfHeader(['Duration']),
     category: indexOfHeader(['Cost Category', 'Category', 'Type']),
     date: indexOfHeader(['Date', 'Cost Date']),
     plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
+    plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost Per Day']),
     actualCost: indexOfHeader(['Actual Cost', 'Cost', 'Amount']),
     notes: indexOfHeader(['Notes', 'Remarks']),
     createdAt: indexOfHeader(['Created At']),
@@ -1104,6 +1209,17 @@ function normalizeCostRecord(row) {
   };
 }
 
+function normalizeDailyCostRecord(row) {
+  return {
+    projectId: cleanText(row['Project ID'] || row['projectId'] || row['project_id']),
+    costId: cleanText(row['Cost ID'] || row['costId'] || row['cost_id']),
+    activityId: cleanText(row['Activity ID'] || row['activityId'] || row['activity_id']),
+    date: normalizeDate(row['Date'] || row['date']),
+    actualCost: parseNumber(row['Actual Cost'] || row['actualCost'] || row['actual_cost']),
+    createdAt: normalizeDate(row['Created At'] || row['createdAt'] || row['created_at']),
+  };
+}
+
 function applyProjectFilter(data, filter) {
   const hasFilter = filter.id || filter.name;
   if (!hasFilter) return data;
@@ -1122,6 +1238,7 @@ function applyProjectFilter(data, filter) {
     projects: data.projects.filter(projectMatches),
     activities: data.activities.filter(projectMatches),
     costs: data.costs.filter(projectMatches),
+    dailyCosts: data.dailyCosts.filter(projectMatches),
     sheets: data.sheets,
   };
 }
