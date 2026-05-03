@@ -781,16 +781,19 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     }));
     saveCostActivityOverrides(nextOverrides);
     try {
+      const durationDays = Number(target.durationDays) || 0;
+      const plannedCostPerDay = durationDays > 0 ? nextPlannedCost / durationDays : 0;
       await postToDataSource("costs", "create", {
         cost: {
           costId: nextCostId,
           projectId,
           project: target.projectName || "",
           activity: target.name || "",
+          duration: durationDays,
           category: "Planned Cost",
           date: new Date().toISOString().slice(0, 10),
           plannedCost: nextPlannedCost,
-          plannedCostPerDay: 0,
+          plannedCostPerDay,
           actualCost: 0,
           notes: `Activity ID: ${activityRefId}`,
         },
