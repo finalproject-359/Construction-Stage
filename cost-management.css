@@ -314,6 +314,17 @@ body.page-cost-management .main-content {
 
 
 
+
+body.page-cost-management .details-tab-panel[data-panel="costing"] .table-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+body.page-cost-management .details-tab-panel[data-panel="costing"] .table-panel table {
+  flex: 1;
+  height: 100%;
+}
+
 body.page-cost-management .details-tab-panel .panel.table-panel {
   margin-top: 14px;
   padding: 0;
