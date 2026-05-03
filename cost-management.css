@@ -531,3 +531,36 @@ body.page-cost-management .details-tab-panel .table-panel td.actions-col {
   margin-top: 12px;
   padding-top: 18px;
 }
+
+/* Cost management selection UX improvements */
+.toolbar-row {
+  align-items: center;
+  margin-bottom: 8px;
+}
+.project-row {
+  align-items: center;
+  gap: 14px;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.project-row:hover,
+.project-row:focus-visible {
+  border-color: #b7c9ff;
+  box-shadow: 0 8px 18px rgba(47, 85, 255, 0.1);
+  transform: translateY(-1px);
+}
+.project-row strong:last-child {
+  color: #1f52e8;
+  white-space: nowrap;
+}
+.date-btn {
+  color: #4f638b;
+  font-weight: 600;
+  background: #f8fbff;
+}
+
+.daily-cost-form button[disabled],
+.daily-cost-form input[disabled],
+.daily-cost-form select[disabled] {
+  opacity: .6;
+  cursor: not-allowed;
+}
