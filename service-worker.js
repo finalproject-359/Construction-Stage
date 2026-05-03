@@ -1,4 +1,4 @@
-const CACHE_VERSION = "floodcontrol-v4";
+const CACHE_VERSION = "floodcontrol-v5";
 const APP_SHELL_FILES = [
   "./",
   "./index.html",
