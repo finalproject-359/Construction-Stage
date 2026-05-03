@@ -152,6 +152,12 @@ const formatLongHumanDate = (value) => {
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 };
 
+const normalizeDateKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value || "").trim();
+  return date.toISOString().slice(0, 10);
+};
+
 const PH_FIXED_HOLIDAYS = new Set([
   "01-01",
   "04-09",
@@ -412,7 +418,8 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     return rows.map((row) => ({
       projectId: resolveProjectIdFromDailyCost(row, lookups),
       activityId: String(getValueByAliases(row, ["activityId", "activity_id", "activity id"]) || "").trim(),
-      date: String(getValueByAliases(row, ["date"]) || "").trim(),
+      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id"]) || "").trim(),
+      date: normalizeDateKey(getValueByAliases(row, ["date"])),
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
     })).filter((r) => r.projectId && r.activityId && r.date);
   } catch (error) {
@@ -551,7 +558,12 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   const daily = loadDailyCosts().filter((item) => String(item.projectId || "").trim() === projectId);
   const rows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
-    const dailyItems = daily.filter((entry) => entry.activityId === refId);
+    const rowCostId = String(activity.costId || "").trim();
+    const dailyItems = daily.filter((entry) => {
+      const entryActivityId = String(entry.activityId || "").trim();
+      const entryCostId = String(entry.costId || "").trim();
+      return entryActivityId === refId || (rowCostId && entryCostId === rowCostId);
+    });
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
     return { ...activity, actualCost, dailyItems };
   });
@@ -952,12 +964,13 @@ const bootstrapCostManagement = async () => {
   const mergedDailyCosts = [...storedDailyCosts, ...remoteDailyCosts];
   const dedupedDailyCosts = new Map();
   mergedDailyCosts.forEach((item) => {
-    const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${String(item.date || "").trim()}`;
+    const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${normalizeDateKey(item.date)}`;
     if (!key || key === "::::") return;
     dedupedDailyCosts.set(key, {
       projectId: String(item.projectId || "").trim(),
       activityId: String(item.activityId || "").trim(),
-      date: String(item.date || "").trim(),
+      costId: String(item.costId || "").trim(),
+      date: normalizeDateKey(item.date),
       actualCost: parseBudgetValue(item.actualCost),
     });
   });
