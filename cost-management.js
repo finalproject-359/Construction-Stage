@@ -505,11 +505,19 @@ const resolveActivityProjectId = (activity = {}, lookups = buildProjectIdentityL
 const splitProjectIdentityLabel = (value = "") => {
   const raw = String(value || "").trim();
   if (!raw) return { id: "", name: "" };
-  const [idPart, ...nameParts] = raw.split("-");
-  if (!nameParts.length) return { id: "", name: raw };
+
+  const separatorMatch = raw.match(/\s[-–—]\s/);
+  if (!separatorMatch) return { id: "", name: normalizeLookup(raw) };
+
+  const separatorIndex = separatorMatch.index || 0;
+  const separatorLength = separatorMatch[0].length;
+  const idPart = raw.slice(0, separatorIndex).trim();
+  const namePart = raw.slice(separatorIndex + separatorLength).trim();
+  if (!idPart || !namePart) return { id: "", name: normalizeLookup(raw) };
+
   return {
     id: normalizeLookup(idPart),
-    name: normalizeLookup(nameParts.join("-").trim()),
+    name: normalizeLookup(namePart),
   };
 };
 
