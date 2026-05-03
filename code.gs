@@ -1209,9 +1209,11 @@ function normalizeCostRecord(row) {
 
   return {
     id: cleanText(getCell(row, ['cost id', 'id'])),
+    costId: cleanText(getCell(row, ['cost id', 'id'])),
     projectId: projectId,
     projectCode: projectId,
     project: cleanText(getCell(row, ['project', 'project name'])),
+    activityId: cleanText(getCell(row, ['activity id', 'activityid', 'activity_id', 'id activity'])),
     activity: cleanText(getCell(row, ['activity', 'activity name', 'name'])),
     duration: parseNumber(getCell(row, ['duration', 'duration days', 'duration_days'])),
     category: cleanText(getCell(row, ['cost category', 'category', 'type'])) || 'General',
