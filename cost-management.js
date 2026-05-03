@@ -142,18 +142,32 @@ const toDateInputValue = (value) => {
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
 };
-const normalizeCostActivity = (activity = {}) => ({
-  id: String(getValueByAliases(activity, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id", "source activity id", "code", "id"]) || "").trim(),
-  costId: String(getValueByAliases(activity, ["costId", "cost_id", "costCode", "cost_code"]) || "").trim(),
-  activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "activity ref id", "sourceActivityId", "source_activity_id", "source activity id", "activityId", "activity_id", "activity id", "id", "code"]) || "").trim(),
-  projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project id", "project", "projectName", "project_name", "project name"]) || "").trim(),
-  projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name", "project name"]) || "").trim(),
-  name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
-  startDate: toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"])),
-  finishDate: toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"])),
-  durationDays: Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0,
-  plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "plannedValue", "planned_value", "budget"])),
-});
+const computeDurationDays = (startDate, finishDate, fallback = 0) => {
+  const start = new Date(startDate);
+  const finish = new Date(finishDate);
+  if (!Number.isNaN(start.getTime()) && !Number.isNaN(finish.getTime()) && finish >= start) {
+    return Math.max(1, Math.round((finish.getTime() - start.getTime()) / 86400000) + 1);
+  }
+  return Number(fallback) || 0;
+};
+const normalizeCostActivity = (activity = {}) => {
+  const startDate = toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"]));
+  const finishDate = toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"]));
+  const explicitDuration = Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0;
+
+  return {
+    id: String(getValueByAliases(activity, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id", "source activity id", "code", "id"]) || "").trim(),
+    costId: String(getValueByAliases(activity, ["costId", "cost_id", "costCode", "cost_code"]) || "").trim(),
+    activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "activity ref id", "sourceActivityId", "source_activity_id", "source activity id", "activityId", "activity_id", "activity id", "id", "code"]) || "").trim(),
+    projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project id", "project", "projectName", "project_name", "project name"]) || "").trim(),
+    projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name", "project name"]) || "").trim(),
+    name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
+    startDate,
+    finishDate,
+    durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
+    plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "plannedValue", "planned_value", "budget"])),
+  };
+};
 
 const getActivityRefId = (activity = {}) => String(activity.activityRefId || activity.id || "").trim();
 const getCostActivityProjectKey = (activity = {}) => String(activity.projectId || activity.projectName || "").trim();
@@ -206,9 +220,6 @@ const normalizeRemoteActivity = (row = {}) => {
   const startDate = toDateInputValue(getValueByAliases(row, ["startDate", "plannedStart", "planned_start", "planned start"]));
   const finishDate = toDateInputValue(getValueByAliases(row, ["finishDate", "plannedFinish", "planned_finish", "planned finish"]));
   const explicitDuration = Number(String(getValueByAliases(row, ["durationDays", "duration_days", "duration", "duration day"]) || "0").replace(/[^\d.-]/g, "")) || 0;
-  const computedDuration = startDate && finishDate
-    ? Math.max(1, Math.round((new Date(finishDate).getTime() - new Date(startDate).getTime()) / 86400000) + 1)
-    : 0;
 
   return normalizeCostActivity({
     id: normalizedId,
@@ -218,7 +229,7 @@ const normalizeRemoteActivity = (row = {}) => {
     name: getValueByAliases(row, ["name", "activity", "activityName", "activity_name"]),
     startDate,
     finishDate,
-    durationDays: explicitDuration || computedDuration,
+    durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
     plannedCost: 0,
   });
 };
@@ -696,5 +707,24 @@ const bootstrapCostManagement = async () => {
 
   if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, allActivities)) renderProjects();
 };
+
+const refreshSelectedProjectCostView = () => {
+  const selectedProject = loadProjects().map(normalizeProject).find((project) =>
+    (selectedProjectId && project.id === selectedProjectId)
+    || (selectedProjectName && project.name === selectedProjectName)
+  );
+  if (!selectedProject) return;
+  showProjectDetails(selectedProject.id, selectedTab, loadCostActivities());
+};
+
+window.addEventListener("storage", (event) => {
+  if (![ACTIVITIES_LOCAL_STORAGE_KEY, COST_ACTIVITY_KEY, COST_DAILY_KEY, LOCAL_STORAGE_KEY].includes(event.key)) return;
+  refreshSelectedProjectCostView();
+});
+window.addEventListener("focus", refreshSelectedProjectCostView);
+window.addEventListener("pageshow", refreshSelectedProjectCostView);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshSelectedProjectCostView();
+});
 
 bootstrapCostManagement();
