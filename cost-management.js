@@ -45,7 +45,6 @@ const loadProjects = () => projectsState.slice();
 const loadDailyCosts = () => dailyCostsState.slice();
 const saveDailyCosts = (items) => {
   dailyCostsState = Array.isArray(items) ? items.slice() : [];
-  persistToLocalStorage(DAILY_COSTS_LOCAL_STORAGE_KEY, dailyCostsState);
 };
 const postToDataSource = async (resource, action, payload) => {
   const endpoint = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
@@ -825,7 +824,6 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
 
 const saveCostActivityOverrides = (items = []) => {
   costActivitiesState = Array.isArray(items) ? items.slice() : [];
-  persistToLocalStorage(COST_ACTIVITIES_LOCAL_STORAGE_KEY, costActivitiesState);
 };
 const renderCostMetadataModal = (projectId, activityRefId, target) => {
   const modal = detailsView.querySelector("#costMetaModal");
@@ -920,22 +918,16 @@ const selectedProjectName = params.get("project") || "";
 const selectedTab = params.get("tab") === "costing" ? "costing" : "overview";
 const bootstrapCostManagement = async () => {
   projectsState = (await loadRemoteProjects()).map(normalizeProject).filter((project) => project.id);
-  const storedActivityRows = [
-    ...loadFromLocalStorageArray(COST_ACTIVITIES_LOCAL_STORAGE_KEY),
-    ...loadFromLocalStorageArray(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY),
-  ].map(normalizeCostActivity).filter((item) => getCostActivityProjectKey(item) && item.id);
-  const storedDailyCosts = loadFromLocalStorageArray(DAILY_COSTS_LOCAL_STORAGE_KEY);
 
   const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).find((project) =>
     (selectedProjectId && project.id === selectedProjectId)
     || (selectedProjectName && project.name === selectedProjectName)
   );
-  const localActivities = storedActivityRows.length ? storedActivityRows : loadCostActivities();
   const remoteActivities = await loadRemoteCostActivities({
     projectId: selectedProjectAfterBootstrap?.id || selectedProjectId,
     projectName: selectedProjectAfterBootstrap?.name || selectedProjectName,
   });
-    const merged = [...localActivities, ...remoteActivities];
+  const merged = [...remoteActivities];
   const deduped = new Map();
   merged.forEach((item) => {
     const key = `${String(item.projectId).trim()}::${String(getActivityRefId(item)).trim()}`;
@@ -966,10 +958,9 @@ const bootstrapCostManagement = async () => {
   });
   const allActivities = Array.from(deduped.values());
   costActivitiesState = allActivities.slice();
-  persistToLocalStorage(COST_ACTIVITIES_LOCAL_STORAGE_KEY, costActivitiesState);
 
   const remoteDailyCosts = await loadRemoteDailyCosts({ projectId: selectedProjectAfterBootstrap?.id || selectedProjectId });
-  const mergedDailyCosts = [...storedDailyCosts, ...remoteDailyCosts];
+  const mergedDailyCosts = [...remoteDailyCosts];
   const dedupedDailyCosts = new Map();
   mergedDailyCosts.forEach((item) => {
     const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${normalizeDateKey(item.date)}`;
