@@ -439,6 +439,7 @@ const extractActivityRefIdFromCostRow = (row = {}) => {
 const loadRemoteCostMetadata = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!dataSourceUrl) return [];
+  const lookups = buildProjectIdentityLookups(loadProjects());
   try {
     const url = new URL(dataSourceUrl);
     url.searchParams.set("resource", "costs");
@@ -449,10 +450,13 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     const payload = await response.json();
     const rows = Array.isArray(payload?.costs) ? payload.costs : [];
     return rows.map((row) => ({
-      projectId: String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim(),
+      projectId: resolveProjectIdFromDailyCost({
+        projectId: getValueByAliases(row, ["projectId", "project_id", "project id"]),
+        projectName: getValueByAliases(row, ["project", "projectName", "project_name", "project name"]),
+      }, lookups),
       activityRefId: extractActivityRefIdFromCostRow(row),
-      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
-      plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedCostPerDay", "planned_cost_per_day", "plannedValue", "planned_value", "planned value"])),
+      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code", "id"]) || "").trim(),
+      plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
     })).filter((row) => row.projectId && row.activityRefId);
   } catch (error) {
