@@ -369,6 +369,40 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
   }
 };
 
+const extractActivityRefIdFromCostRow = (row = {}) => {
+  const directActivityId = String(getValueByAliases(row, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id"]) || "").trim();
+  if (directActivityId) return directActivityId;
+
+  const notesValue = String(getValueByAliases(row, ["notes", "note", "remarks"]) || "");
+  const notesMatch = notesValue.match(/activity\s*id\s*[:#-]?\s*([a-z0-9._-]+)/i);
+  return notesMatch?.[1] ? String(notesMatch[1]).trim() : "";
+};
+
+const loadRemoteCostMetadata = async (projectFilter = {}) => {
+  const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
+  if (!dataSourceUrl) return [];
+  try {
+    const url = new URL(dataSourceUrl);
+    url.searchParams.set("resource", "costs");
+    if (projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
+    url.searchParams.set("_ts", String(Date.now()));
+    const response = await fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) return [];
+    const payload = await response.json();
+    const rows = Array.isArray(payload?.costs) ? payload.costs : [];
+    return rows.map((row) => ({
+      projectId: String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim(),
+      activityRefId: extractActivityRefIdFromCostRow(row),
+      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost code"]) || "").trim(),
+      plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "plannedCostPerDay", "planned_cost_per_day", "plannedValue"])),
+      date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
+    })).filter((row) => row.projectId && row.activityRefId);
+  } catch (error) {
+    console.warn("Unable to load cost metadata from resource endpoint:", error);
+    return [];
+  }
+};
+
 const normalizeLookup = (value) => String(value || "").trim().toLowerCase();
 
 const buildProjectIdentityLookups = (projects = []) => {
@@ -853,7 +887,38 @@ const bootstrapCostManagement = async () => {
   const remoteDailyCosts = await loadRemoteDailyCosts({ projectId: selectedProjectAfterBootstrap?.id || selectedProjectId });
   saveDailyCosts(remoteDailyCosts);
 
-  if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, allActivities)) renderProjects();
+  const remoteCostMetadataRows = await loadRemoteCostMetadata({ projectId: selectedProjectAfterBootstrap?.id || selectedProjectId });
+  if (remoteCostMetadataRows.length) {
+    const metadataByActivity = new Map();
+    remoteCostMetadataRows.forEach((row) => {
+      const key = `${String(row.projectId || "").trim()}::${String(row.activityRefId || "").trim()}`;
+      if (!key || key === "::") return;
+      const existing = metadataByActivity.get(key);
+      if (!existing) {
+        metadataByActivity.set(key, row);
+        return;
+      }
+      const existingDate = new Date(existing.date || "").getTime();
+      const incomingDate = new Date(row.date || "").getTime();
+      const shouldReplace = Number.isFinite(incomingDate) && (!Number.isFinite(existingDate) || incomingDate >= existingDate);
+      if (shouldReplace) metadataByActivity.set(key, row);
+    });
+
+    costActivitiesState = costActivitiesState.map((activity) => {
+      const key = `${String(activity.projectId || "").trim()}::${String(getActivityRefId(activity) || "").trim()}`;
+      const metadata = metadataByActivity.get(key);
+      if (!metadata) return activity;
+      return normalizeCostActivity({
+        ...activity,
+        costId: String(metadata.costId || activity.costId || "").trim(),
+        plannedCost: parseBudgetValue(metadata.plannedCost) || parseBudgetValue(activity.plannedCost),
+      });
+    });
+  }
+
+  const activitiesForDisplay = loadCostActivities();
+
+  if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, activitiesForDisplay)) renderProjects();
 };
 
 let isCostManagementSyncInFlight = false;
