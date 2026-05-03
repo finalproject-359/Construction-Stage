@@ -658,24 +658,9 @@ const params = new URLSearchParams(window.location.search);
 const selectedProjectId = params.get("projectId") || "";
 const selectedProjectName = params.get("project") || "";
 const selectedTab = params.get("tab") === "costing" ? "costing" : "overview";
-const bootstrapCostManagement = async () => {
-  const localProjects = loadProjects().map(normalizeProject).filter((project) => project.id);
-  if (!localProjects.length) {
-    const remoteProjects = await loadRemoteProjects();
-    if (remoteProjects.length) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remoteProjects));
-    }
-  }
-
-  const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).find((project) =>
-    (selectedProjectId && project.id === selectedProjectId)
-    || (selectedProjectName && project.name === selectedProjectName)
-  );
+const loadMergedCostActivities = async ({ projectId, projectName } = {}) => {
   const localActivities = loadCostActivities();
-  const remoteActivities = await loadRemoteCostActivities({
-    projectId: selectedProjectAfterBootstrap?.id || selectedProjectId,
-    projectName: selectedProjectAfterBootstrap?.name || selectedProjectName,
-  });
+  const remoteActivities = await loadRemoteCostActivities({ projectId, projectName });
   // Prefer local activities first so unsynced edits remain visible on this device.
   // Remote rows are still used as a fallback when local rows are missing.
   const merged = [...localActivities, ...remoteActivities];
@@ -703,18 +688,42 @@ const bootstrapCostManagement = async () => {
       name: existing.name || item.name || "Untitled Activity",
     });
   });
-  const allActivities = Array.from(deduped.values());
+
+  return Array.from(deduped.values());
+};
+
+const bootstrapCostManagement = async () => {
+  const localProjects = loadProjects().map(normalizeProject).filter((project) => project.id);
+  if (!localProjects.length) {
+    const remoteProjects = await loadRemoteProjects();
+    if (remoteProjects.length) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remoteProjects));
+    }
+  }
+
+  const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).find((project) =>
+    (selectedProjectId && project.id === selectedProjectId)
+    || (selectedProjectName && project.name === selectedProjectName)
+  );
+  const allActivities = await loadMergedCostActivities({
+    projectId: selectedProjectAfterBootstrap?.id || selectedProjectId,
+    projectName: selectedProjectAfterBootstrap?.name || selectedProjectName,
+  });
 
   if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, allActivities)) renderProjects();
 };
 
-const refreshSelectedProjectCostView = () => {
+const refreshSelectedProjectCostView = async () => {
   const selectedProject = loadProjects().map(normalizeProject).find((project) =>
     (selectedProjectId && project.id === selectedProjectId)
     || (selectedProjectName && project.name === selectedProjectName)
   );
   if (!selectedProject) return;
-  showProjectDetails(selectedProject.id, selectedTab, loadCostActivities());
+  const allActivities = await loadMergedCostActivities({
+    projectId: selectedProject.id,
+    projectName: selectedProject.name,
+  });
+  showProjectDetails(selectedProject.id, selectedTab, allActivities);
 };
 
 window.addEventListener("storage", (event) => {
