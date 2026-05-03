@@ -439,6 +439,7 @@ const extractActivityRefIdFromCostRow = (row = {}) => {
 const loadRemoteCostMetadata = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!dataSourceUrl) return [];
+  const lookups = buildProjectIdentityLookups(loadProjects());
   try {
     const url = new URL(dataSourceUrl);
     url.searchParams.set("resource", "costs");
@@ -449,12 +450,16 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     const payload = await response.json();
     const rows = Array.isArray(payload?.costs) ? payload.costs : [];
     return rows.map((row) => ({
-      projectId: String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim(),
+      projectId: resolveProjectIdFromDailyCost({
+        projectId: getValueByAliases(row, ["projectId", "project_id", "project id"]),
+        projectName: getValueByAliases(row, ["project", "projectName", "project_name", "project name"]),
+      }, lookups),
       activityRefId: extractActivityRefIdFromCostRow(row),
-      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
-      plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedCostPerDay", "planned_cost_per_day", "plannedValue", "planned_value", "planned value"])),
+      activityName: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
+      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code", "id"]) || "").trim(),
+      plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
-    })).filter((row) => row.projectId && row.activityRefId);
+    })).filter((row) => row.projectId && (row.activityRefId || row.activityName));
   } catch (error) {
     console.warn("Unable to load cost metadata from resource endpoint:", error);
     return [];
@@ -1013,24 +1018,35 @@ const bootstrapCostManagement = async () => {
 
   const remoteCostMetadataRows = await loadRemoteCostMetadata({ projectId: selectedProjectAfterBootstrap?.id || selectedProjectId });
   if (remoteCostMetadataRows.length) {
-    const metadataByActivity = new Map();
-    remoteCostMetadataRows.forEach((row) => {
-      const key = `${String(row.projectId || "").trim()}::${String(row.activityRefId || "").trim()}`;
-      if (!key || key === "::") return;
-      const existing = metadataByActivity.get(key);
-      if (!existing) {
-        metadataByActivity.set(key, row);
-        return;
-      }
+    const metadataByActivityId = new Map();
+    const metadataByActivityName = new Map();
+    const pickLatest = (existing, incoming) => {
+      if (!existing) return incoming;
       const existingDate = new Date(existing.date || "").getTime();
-      const incomingDate = new Date(row.date || "").getTime();
+      const incomingDate = new Date(incoming.date || "").getTime();
       const shouldReplace = Number.isFinite(incomingDate) && (!Number.isFinite(existingDate) || incomingDate >= existingDate);
-      if (shouldReplace) metadataByActivity.set(key, row);
+      return shouldReplace ? incoming : existing;
+    };
+
+    remoteCostMetadataRows.forEach((row) => {
+      const projectKey = String(row.projectId || "").trim();
+      const activityRefKey = String(row.activityRefId || "").trim();
+      const activityNameKey = normalizeLookup(row.activityName);
+      if (activityRefKey) {
+        const byIdKey = `${projectKey}::${activityRefKey}`;
+        metadataByActivityId.set(byIdKey, pickLatest(metadataByActivityId.get(byIdKey), row));
+      }
+      if (activityNameKey) {
+        const byNameKey = `${projectKey}::${activityNameKey}`;
+        metadataByActivityName.set(byNameKey, pickLatest(metadataByActivityName.get(byNameKey), row));
+      }
     });
 
     costActivitiesState = costActivitiesState.map((activity) => {
-      const key = `${String(activity.projectId || "").trim()}::${String(getActivityRefId(activity) || "").trim()}`;
-      const metadata = metadataByActivity.get(key);
+      const projectKey = String(activity.projectId || "").trim();
+      const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
+      const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
+      const metadata = metadataByActivityId.get(activityKey) || metadataByActivityName.get(activityNameKey);
       if (!metadata) return activity;
       return normalizeCostActivity({
         ...activity,
