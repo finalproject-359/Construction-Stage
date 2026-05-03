@@ -23,6 +23,19 @@ const safeJsonParse = (raw, fallback = []) => {
 const loadProjects = () => safeJsonParse(localStorage.getItem(LOCAL_STORAGE_KEY), []);
 const loadDailyCosts = () => safeJsonParse(localStorage.getItem(COST_DAILY_KEY), []);
 const saveDailyCosts = (items) => localStorage.setItem(COST_DAILY_KEY, JSON.stringify(items));
+const postToDataSource = async (resource, action, payload) => {
+  const endpoint = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
+  if (!endpoint) return;
+  try {
+    await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resource, action, ...payload }),
+    });
+  } catch (error) {
+    console.warn(`Unable to sync ${resource} to Google Sheets:`, error);
+  }
+};
 
 const getValueByAliases = (source, aliases = []) => {
   if (!source || typeof source !== "object") return undefined;
@@ -523,7 +536,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     if ([...dateSelect.options].some((option) => option.value === todayIso)) dateSelect.value = todayIso;
   }
 
-  modal.querySelector("#dailyCostForm")?.addEventListener("submit", (event) => {
+  modal.querySelector("#dailyCostForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const date = String(formData.get("date") || "");
@@ -564,6 +577,18 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
+    await postToDataSource("costs", "update", {
+      cost: {
+        costId: String(activity.costId || activityId || "").trim(),
+        projectId,
+        project: activity.projectName || project?.name || "",
+        category: "Daily Cost",
+        date,
+        plannedCost: Number(activity.plannedCost) || 0,
+        actualCost,
+        notes: `Activity ID: ${activityId}`,
+      },
+    });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
@@ -649,7 +674,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     if (event.target === modal) closeModal();
   });
 
-  modal.querySelector("#costMetaForm")?.addEventListener("submit", (event) => {
+  modal.querySelector("#costMetaForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const nextCostId = String(formData.get("costId") || "").trim();
@@ -663,6 +688,18 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
       activityRefId,
     }));
     saveCostActivityOverrides(nextOverrides);
+    await postToDataSource("costs", "update", {
+      cost: {
+        costId: nextCostId,
+        projectId,
+        project: target.projectName || "",
+        category: "Planned Cost",
+        date: new Date().toISOString().slice(0, 10),
+        plannedCost: nextPlannedCost,
+        actualCost: 0,
+        notes: `Activity ID: ${activityRefId}`,
+      },
+    });
     closeModal();
     showProjectDetails(projectId, "costing", loadCostActivities());
   });
