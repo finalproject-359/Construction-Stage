@@ -567,6 +567,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       && String(item.date || "") === date
     );
     const payload = { projectId, activityId, date, actualCost };
+    const previousEntry = existingIndex >= 0 ? { ...dailyCosts[existingIndex] } : null;
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
@@ -587,7 +588,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         && String(item.activityId || "").trim() === activityId
         && String(item.date || "") === date
       ));
-      if (existingIndex >= 0) resetDailyCosts.push(dailyCosts[existingIndex]);
+      if (existingIndex >= 0 && previousEntry) resetDailyCosts.push(previousEntry);
       saveDailyCosts(resetDailyCosts);
       alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
       return;
