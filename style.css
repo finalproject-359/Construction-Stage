@@ -123,6 +123,40 @@ body {
   min-width: 0;
 }
 
+@media (min-width: 1280px) {
+  .app-shell {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 30px 20px;
+  }
+
+  .main-content {
+    padding: 28px 34px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(4, minmax(240px, 1fr));
+  }
+
+  .projects-kpis {
+    grid-template-columns: repeat(5, minmax(200px, 1fr));
+  }
+
+  .projects-toolbar {
+    grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(180px, 1fr)) auto;
+  }
+
+  .activities-project-selection-toolbar-left {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr) auto;
+  }
+}
+
 .topbar h1 {
   margin: 0 0 14px;
   font-size: clamp(2rem, 2.5vw, 2.8rem);
