@@ -25,16 +25,22 @@ const loadDailyCosts = () => dailyCostsState.slice();
 const saveDailyCosts = (items) => { dailyCostsState = Array.isArray(items) ? items.slice() : []; };
 const postToDataSource = async (resource, action, payload) => {
   const endpoint = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
-  if (!endpoint) return;
-  try {
-    await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resource, action, ...payload }),
-    });
-  } catch (error) {
-    console.warn(`Unable to sync ${resource} to Google Sheets:`, error);
-  }
+  if (!endpoint) throw new Error("Google Sheets endpoint is not configured.");
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resource, action, ...payload }),
+  });
+
+  if (!response.ok) throw new Error(`Google Sheets sync failed (HTTP ${response.status}).`);
+
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/json")) return null;
+
+  const body = await response.json().catch(() => null);
+  if (body?.error) throw new Error(String(body.error));
+  return body;
 };
 
 const getValueByAliases = (source, aliases = []) => {
@@ -564,7 +570,8 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
-    await postToDataSource("daily_costs", "update", {
+    try {
+      await postToDataSource("daily_costs", "update", {
       dailyCost: {
         projectId,
         costId: String(activity.costId || activityId || "").trim(),
@@ -572,7 +579,20 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         date,
         actualCost,
       },
-    });
+      });
+    } catch (error) {
+      console.warn("Unable to save daily cost to Google Sheets:", error);
+      const resetDailyCosts = loadDailyCosts().filter((item) => !(
+        String(item.projectId || "").trim() === projectId
+        && String(item.activityId || "").trim() === activityId
+        && String(item.date || "") === date
+      ));
+      if (existingIndex >= 0) resetDailyCosts.push(dailyCosts[existingIndex]);
+      saveDailyCosts(resetDailyCosts);
+      alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
+      return;
+    }
+
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
