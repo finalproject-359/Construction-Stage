@@ -369,9 +369,37 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
 };
 
 
+const normalizeProjectIdentityValue = (value = "") => {
+  const raw = String(value || "").trim();
+  if (!raw) return { raw: "", normalizedRaw: "", parsed: { id: "", name: "" } };
+  return {
+    raw,
+    normalizedRaw: normalizeLookup(raw),
+    parsed: splitProjectIdentityLabel(raw),
+  };
+};
+
+const resolveProjectIdFromDailyCost = (dailyCost = {}, lookups = buildProjectIdentityLookups(loadProjects())) => {
+  const candidateValues = [
+    getValueByAliases(dailyCost, ["projectId", "project_id", "project id", "project"]),
+    getValueByAliases(dailyCost, ["projectName", "project_name", "project name"]),
+  ].map(normalizeProjectIdentityValue);
+
+  for (const candidate of candidateValues) {
+    if (!candidate.raw) continue;
+    if (lookups.byId.has(candidate.normalizedRaw)) return lookups.byId.get(candidate.normalizedRaw) || candidate.raw;
+    if (lookups.byName.has(candidate.normalizedRaw)) return lookups.byName.get(candidate.normalizedRaw) || candidate.raw;
+    if (candidate.parsed.id && lookups.byId.has(candidate.parsed.id)) return lookups.byId.get(candidate.parsed.id) || candidate.raw;
+    if (candidate.parsed.name && lookups.byName.has(candidate.parsed.name)) return lookups.byName.get(candidate.parsed.name) || candidate.raw;
+  }
+
+  return candidateValues.find((entry) => entry.raw)?.raw || "";
+};
+
 const loadRemoteDailyCosts = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!dataSourceUrl) return [];
+  const lookups = buildProjectIdentityLookups(loadProjects());
   try {
     const url = new URL(dataSourceUrl);
     url.searchParams.set("resource", "daily_costs");
@@ -382,7 +410,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     const payload = await response.json();
     const rows = Array.isArray(payload?.dailyCosts) ? payload.dailyCosts : [];
     return rows.map((row) => ({
-      projectId: String(getValueByAliases(row, ["projectId", "project_id", "project id"]) || "").trim(),
+      projectId: resolveProjectIdFromDailyCost(row, lookups),
       activityId: String(getValueByAliases(row, ["activityId", "activity_id", "activity id"]) || "").trim(),
       date: String(getValueByAliases(row, ["date"]) || "").trim(),
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
