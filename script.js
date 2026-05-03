@@ -28,7 +28,7 @@ let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
 
 const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
-const DASHBOARD_CACHE_TTL_MS = 30 * 1000;
+const DASHBOARD_CACHE_TTL_MS = 5 * 1000;
 const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
 const EXTENSION_BRIDGE_DISCONNECT_MESSAGE =
   "Could not establish connection. Receiving end does not exist.";
@@ -632,7 +632,9 @@ const hydrateDashboardFromCache = () => {
     renderTable(rows);
     renderOverrunTable(rows);
     generateCharts(rows);
-    showMessage(`Loaded ${rows.length} cached activity row(s). Live updates are syncing...`);
+    showMessage(
+      `Loaded ${rows.length} cached activity row(s). Verifying against live source now...`
+    );
   } catch {
     localStorage.removeItem(DASHBOARD_CACHE_KEY);
   }
@@ -727,6 +729,7 @@ const setupServiceWorkerUpdates = async () => {
 
 setupServiceWorkerUpdates();
 if (DATA_SOURCE_URL.trim()) {
+  localStorage.removeItem(DASHBOARD_CACHE_KEY);
   hydrateDashboardFromCache();
   refreshDashboardData({ force: true });
   setupRealtimeDashboardSync();
