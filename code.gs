@@ -344,10 +344,21 @@ function normalizeIncomingCost(input) {
     project: cleanText(source.project || source.projectName || source.project_name),
     category: cleanText(source.category || source.costCategory || source.cost_category) || 'General',
     date: normalizeDate(source.date),
-    plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
-    actualCost: parseNumber(source.actualCost || source.actual_cost),
+    plannedCost: readOptionalNumber(source, ['plannedCost', 'planned_cost', 'plannedValue']),
+    actualCost: readOptionalNumber(source, ['actualCost', 'actual_cost']),
     notes: cleanText(source.notes || source.note || source.remarks),
   };
+}
+
+
+function readOptionalNumber(source, keys) {
+  for (var i = 0; i < keys.length; i += 1) {
+    var key = keys[i];
+    if (Object.prototype.hasOwnProperty.call(source || {}, key)) {
+      return parseNumber(source[key]);
+    }
+  }
+  return null;
 }
 
 function upsertCostRow(cost) {
@@ -375,8 +386,8 @@ function upsertCostRow(cost) {
   if (columns.project) rowValues[columns.project - 1] = cost.project;
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
-  if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
-  if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
+  if (columns.plannedCost && cost.plannedCost !== null) rowValues[columns.plannedCost - 1] = cost.plannedCost;
+  if (columns.actualCost && cost.actualCost !== null) rowValues[columns.actualCost - 1] = cost.actualCost;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
   if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
 
