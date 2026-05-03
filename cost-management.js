@@ -563,7 +563,7 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     .filter((item) => isActivityForProject(item, projectId, projectName))
     .sort(compareActivitiesByStartPriority);
   const daily = loadDailyCosts().filter((item) => String(item.projectId || "").trim() === projectId);
-  const rows = activities.map((activity) => {
+  const rawRows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
     const rowCostId = String(activity.costId || "").trim();
     const dailyItems = daily.filter((entry) => {
@@ -574,7 +574,36 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
     return { ...activity, actualCost, dailyItems };
   });
-  return { rows, activities, daily };
+
+  // Consolidate duplicate activity rows (same costId/activity) so daily-cost updates
+  // always appear on a single costing row instead of creating visual duplicates.
+  const consolidated = new Map();
+  rawRows.forEach((row) => {
+    const refId = String(getActivityRefId(row) || "").trim();
+    const costId = String(row.costId || "").trim();
+    const key = costId || refId || `${String(row.name || "").trim().toLowerCase()}::${String(row.startDate || "")}::${String(row.finishDate || "")}`;
+    if (!key) return;
+
+    if (!consolidated.has(key)) {
+      consolidated.set(key, row);
+      return;
+    }
+
+    const existing = consolidated.get(key) || {};
+    consolidated.set(key, {
+      ...existing,
+      ...row,
+      costId: String(existing.costId || row.costId || "").trim(),
+      activityRefId: String(getActivityRefId(existing) || getActivityRefId(row) || "").trim(),
+      plannedCost: Math.max(parseBudgetValue(existing.plannedCost), parseBudgetValue(row.plannedCost)),
+      actualCost: parseBudgetValue(existing.actualCost) + parseBudgetValue(row.actualCost),
+      durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
+      dailyItems: [...(existing.dailyItems || []), ...(row.dailyItems || [])],
+      name: existing.name || row.name || "Untitled Activity",
+    });
+  });
+
+  return { rows: Array.from(consolidated.values()), activities, daily };
 };
 
 const buildSelectedProjectBannerMarkup = (project) => `<section class="selected-project-banner"><div><p class="selected-project-label">Selected Project</p><h3>${escapeHtml(formatProjectIdentityLabel(project))}</h3></div><a href="cost-management.html" class="ghost-btn">← Back to Projects</a></section>`;
