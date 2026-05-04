@@ -458,7 +458,7 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
     : await loadRemoteDailyCosts(projectFilter);
   const dedupedDailyCosts = new Map();
   remoteDailyCosts.forEach((item) => {
-    const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${normalizeDateKey(item.date)}`;
+    const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${String(item.costId || "").trim()}::${normalizeDateKey(item.date)}`;
     if (!key || key === "::::") return;
     dedupedDailyCosts.set(key, {
       projectId: String(item.projectId || "").trim(),
@@ -938,6 +938,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const existingIndex = dailyCosts.findIndex((item) =>
       isDailyCostForProject(item, projectId, projectName)
       && String(item.activityId || "").trim() === activityId
+      && String(item.costId || "").trim() === activityCostId
       && String(item.date || "") === date
     );
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
@@ -978,6 +979,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       const resetDailyCosts = loadDailyCosts().filter((item) => !(
         isDailyCostForProject(item, projectId, projectName)
         && String(item.activityId || "").trim() === activityId
+        && String(item.costId || "").trim() === activityCostId
         && String(item.date || "") === date
       ));
       if (existingIndex >= 0) resetDailyCosts.push(dailyCosts[existingIndex]);
