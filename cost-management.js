@@ -689,15 +689,29 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     }
 
     const existing = consolidated.get(key) || {};
+    const mergedDailyItems = [...(existing.dailyItems || []), ...(row.dailyItems || [])];
+    const uniqueDailyItems = Array.from(new Map(
+      mergedDailyItems.map((entry) => {
+        const dedupeKey = [
+          String(entry.projectId || "").trim(),
+          String(entry.activityId || "").trim(),
+          String(entry.costId || "").trim(),
+          normalizeDateKey(entry.date),
+          parseBudgetValue(entry.actualCost),
+        ].join("::");
+        return [dedupeKey, entry];
+      }),
+    ).values());
+
     consolidated.set(key, {
       ...existing,
       ...row,
       costId: String(existing.costId || row.costId || "").trim(),
       activityRefId: String(getActivityRefId(existing) || getActivityRefId(row) || "").trim(),
       plannedCost: Math.max(parseBudgetValue(existing.plannedCost), parseBudgetValue(row.plannedCost)),
-      actualCost: parseBudgetValue(existing.actualCost) + parseBudgetValue(row.actualCost),
+      actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
       durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
-      dailyItems: [...(existing.dailyItems || []), ...(row.dailyItems || [])],
+      dailyItems: uniqueDailyItems,
       name: existing.name || row.name || "Untitled Activity",
     });
   });
