@@ -758,8 +758,10 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   if (!modal || !activity) return;
 
   const projectRows = getProjectCostData(projectId, allActivities).rows;
+  const normalizedActivityName = String(activity.name || "").trim().toLowerCase();
   const rowFallback = projectRows.find((row) => String(getActivityRefId(row) || "").trim() === activityId)
-    || projectRows.find((row) => String(row.costId || "").trim() && String(row.name || "").trim().toLowerCase() === String(activity.name || "").trim().toLowerCase());
+    || projectRows.find((row) => String(row.name || "").trim().toLowerCase() === normalizedActivityName)
+    || projectRows.find((row) => String(row.costId || "").trim() && String(row.name || "").trim().toLowerCase() === normalizedActivityName);
 
   const activityCostId = String(activity.costId || rowFallback?.costId || "").trim();
   const activityName = String(activity.name || rowFallback?.name || "").trim();
