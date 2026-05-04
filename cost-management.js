@@ -453,6 +453,14 @@ const extractActivityRefIdFromCostRow = (row = {}) => {
   return notesMatch?.[1] ? String(notesMatch[1]).trim() : "";
 };
 
+const extractCostRowsFromPayload = (payload = {}) => {
+  if (Array.isArray(payload?.costs)) return payload.costs;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
+
 const loadRemoteCostMetadata = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!dataSourceUrl) return [];
