@@ -51,6 +51,7 @@ const CONFIG = {
       'Planned Cost',
       'Planned Cost/Day',
       'Actual Cost',
+      'Created At',
     ],
     dailyCosts: [
       'Project ID',
