@@ -138,6 +138,12 @@ const getValueByAliases = (source, aliases = []) => {
     const matched = normalizedEntries.find((entry) => entry.normalized === normalizedAlias);
     if (matched) return source[matched.key];
   }
+  // Fallback for headers with suffix/prefix qualifiers like "Planned Cost (PHP)".
+  for (const alias of aliases) {
+    const normalizedAlias = String(alias).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matched = normalizedEntries.find((entry) => entry.normalized.includes(normalizedAlias) || normalizedAlias.includes(entry.normalized));
+    if (matched) return source[matched.key];
+  }
   return undefined;
 };
 const parseBudgetValue = (value) => Number(String(value ?? "0").replace(/[^\d.-]/g, "")) || 0;
@@ -459,7 +465,15 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     const response = await fetch(url.toString(), { cache: "no-store" });
     if (!response.ok) return [];
     const payload = await response.json();
-    const rows = Array.isArray(payload?.costs) ? payload.costs : [];
+    const rows = Array.isArray(payload?.costs)
+      ? payload.costs
+      : Array.isArray(payload?.rows)
+        ? payload.rows
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : [];
     return rows.map((row) => ({
       projectId: resolveProjectIdFromDailyCost({
         projectId: getValueByAliases(row, ["projectId", "project_id", "project id"]),
@@ -1035,6 +1049,8 @@ const bootstrapCostManagement = async () => {
   if (remoteCostMetadataRows.length) {
     const metadataByActivityId = new Map();
     const metadataByActivityName = new Map();
+    const metadataByActivityIdFallback = new Map();
+    const metadataByActivityNameFallback = new Map();
     const pickLatest = (existing, incoming) => {
       if (!existing) return incoming;
       const existingDate = new Date(existing.date || "").getTime();
@@ -1050,10 +1066,12 @@ const bootstrapCostManagement = async () => {
       if (activityRefKey) {
         const byIdKey = `${projectKey}::${activityRefKey}`;
         metadataByActivityId.set(byIdKey, pickLatest(metadataByActivityId.get(byIdKey), row));
+        metadataByActivityIdFallback.set(activityRefKey, pickLatest(metadataByActivityIdFallback.get(activityRefKey), row));
       }
       if (activityNameKey) {
         const byNameKey = `${projectKey}::${activityNameKey}`;
         metadataByActivityName.set(byNameKey, pickLatest(metadataByActivityName.get(byNameKey), row));
+        metadataByActivityNameFallback.set(activityNameKey, pickLatest(metadataByActivityNameFallback.get(activityNameKey), row));
       }
     });
 
@@ -1061,7 +1079,12 @@ const bootstrapCostManagement = async () => {
       const projectKey = String(activity.projectId || "").trim();
       const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
       const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
-      const metadata = metadataByActivityId.get(activityKey) || metadataByActivityName.get(activityNameKey);
+      const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
+      const fallbackActivityNameKey = normalizeLookup(activity.name);
+      const metadata = metadataByActivityId.get(activityKey)
+        || metadataByActivityName.get(activityNameKey)
+        || metadataByActivityIdFallback.get(fallbackActivityRefKey)
+        || metadataByActivityNameFallback.get(fallbackActivityNameKey);
       if (!metadata) return activity;
       return normalizeCostActivity({
         ...activity,
