@@ -138,6 +138,12 @@ const getValueByAliases = (source, aliases = []) => {
     const matched = normalizedEntries.find((entry) => entry.normalized === normalizedAlias);
     if (matched) return source[matched.key];
   }
+  // Fallback for headers with suffix/prefix qualifiers like "Planned Cost (PHP)".
+  for (const alias of aliases) {
+    const normalizedAlias = String(alias).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matched = normalizedEntries.find((entry) => entry.normalized.includes(normalizedAlias) || normalizedAlias.includes(entry.normalized));
+    if (matched) return source[matched.key];
+  }
   return undefined;
 };
 const parseBudgetValue = (value) => Number(String(value ?? "0").replace(/[^\d.-]/g, "")) || 0;
@@ -447,6 +453,26 @@ const extractActivityRefIdFromCostRow = (row = {}) => {
   return notesMatch?.[1] ? String(notesMatch[1]).trim() : "";
 };
 
+const isLikelyCostRow = (row = {}) => {
+  const hasCostId = String(getValueByAliases(row, ["costId", "cost_id", "cost id"]) || "").trim();
+  const hasPlanned = parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "budget"]));
+  const hasActivity = String(getValueByAliases(row, ["activity", "activityName", "activity_name"]) || "").trim();
+  return Boolean(hasCostId || hasPlanned > 0) && Boolean(hasActivity);
+};
+
+const extractCostRowsFromPayload = (payload = {}, { allowGeneric = true } = {}) => {
+  if (Array.isArray(payload?.costs)) return payload.costs;
+  if (!allowGeneric) return [];
+  const genericRows = Array.isArray(payload?.rows)
+    ? payload.rows
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.items)
+        ? payload.items
+        : [];
+  return genericRows.filter((row) => isLikelyCostRow(row));
+};
+
 const loadRemoteCostMetadata = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!dataSourceUrl) return [];
@@ -459,7 +485,20 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     const response = await fetch(url.toString(), { cache: "no-store" });
     if (!response.ok) return [];
     const payload = await response.json();
-    const rows = Array.isArray(payload?.costs) ? payload.costs : [];
+    let rows = extractCostRowsFromPayload(payload);
+
+    // Some deployments expose costs only under dashboard/all responses.
+    if (!rows.length) {
+      const fallbackUrl = new URL(dataSourceUrl);
+      fallbackUrl.searchParams.set("resource", "dashboard");
+      if (projectFilter?.projectId) fallbackUrl.searchParams.set("projectId", String(projectFilter.projectId));
+      fallbackUrl.searchParams.set("_ts", String(Date.now()));
+      const fallbackResponse = await fetch(fallbackUrl.toString(), { cache: "no-store" });
+      if (fallbackResponse.ok) {
+        const fallbackPayload = await fallbackResponse.json();
+        rows = extractCostRowsFromPayload(fallbackPayload, { allowGeneric: false });
+      }
+    }
     return rows.map((row) => ({
       projectId: resolveProjectIdFromDailyCost({
         projectId: getValueByAliases(row, ["projectId", "project_id", "project id"]),
@@ -467,7 +506,7 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
       }, lookups),
       activityRefId: extractActivityRefIdFromCostRow(row),
       activityName: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
-      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code", "id"]) || "").trim(),
+      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
       plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
     })).filter((row) => row.projectId && (row.activityRefId || row.activityName));
@@ -1035,6 +1074,8 @@ const bootstrapCostManagement = async () => {
   if (remoteCostMetadataRows.length) {
     const metadataByActivityId = new Map();
     const metadataByActivityName = new Map();
+    const metadataByActivityIdFallback = new Map();
+    const metadataByActivityNameFallback = new Map();
     const pickLatest = (existing, incoming) => {
       if (!existing) return incoming;
       const existingDate = new Date(existing.date || "").getTime();
@@ -1050,10 +1091,12 @@ const bootstrapCostManagement = async () => {
       if (activityRefKey) {
         const byIdKey = `${projectKey}::${activityRefKey}`;
         metadataByActivityId.set(byIdKey, pickLatest(metadataByActivityId.get(byIdKey), row));
+        metadataByActivityIdFallback.set(activityRefKey, pickLatest(metadataByActivityIdFallback.get(activityRefKey), row));
       }
       if (activityNameKey) {
         const byNameKey = `${projectKey}::${activityNameKey}`;
         metadataByActivityName.set(byNameKey, pickLatest(metadataByActivityName.get(byNameKey), row));
+        metadataByActivityNameFallback.set(activityNameKey, pickLatest(metadataByActivityNameFallback.get(activityNameKey), row));
       }
     });
 
@@ -1061,7 +1104,12 @@ const bootstrapCostManagement = async () => {
       const projectKey = String(activity.projectId || "").trim();
       const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
       const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
-      const metadata = metadataByActivityId.get(activityKey) || metadataByActivityName.get(activityNameKey);
+      const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
+      const fallbackActivityNameKey = normalizeLookup(activity.name);
+      const metadata = metadataByActivityId.get(activityKey)
+        || metadataByActivityName.get(activityNameKey)
+        || metadataByActivityIdFallback.get(fallbackActivityRefKey)
+        || metadataByActivityNameFallback.get(fallbackActivityNameKey);
       if (!metadata) return activity;
       return normalizeCostActivity({
         ...activity,
