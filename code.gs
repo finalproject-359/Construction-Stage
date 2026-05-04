@@ -397,12 +397,6 @@ function handleDailyCostMutation(action, payload) {
     }
     assertProjectExists(dailyCost.projectId);
     assertCostExists(dailyCost.projectId, dailyCost.costId);
-    if (action === 'create' && dailyCostExists(dailyCost.projectId, dailyCost.costId, dailyCost.date)) {
-      throw new Error('Daily cost already exists for this Project ID, Cost ID, and Date. Use update instead of create.');
-    }
-    if (action === 'update' && !dailyCostExists(dailyCost.projectId, dailyCost.costId, dailyCost.date)) {
-      throw new Error('Daily cost record not found for update. Create the daily cost first.');
-    }
     upsertDailyCostRow(dailyCost);
     syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
     return jsonResponse({ ok: true, message: 'Daily cost saved successfully.', dailyCost: dailyCost, generatedAt: new Date().toISOString() });
