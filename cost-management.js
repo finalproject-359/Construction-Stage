@@ -453,8 +453,10 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
 };
 
 
-const syncDailyCostsFromSheet = async (projectFilter = {}) => {
-  const remoteDailyCosts = await loadRemoteDailyCosts(projectFilter);
+const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts = null) => {
+  const remoteDailyCosts = Array.isArray(prefetchedDailyCosts)
+    ? prefetchedDailyCosts
+    : await loadRemoteDailyCosts(projectFilter);
   const dedupedDailyCosts = new Map();
   remoteDailyCosts.forEach((item) => {
     const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${normalizeDateKey(item.date)}`;
@@ -1224,7 +1226,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
   const allActivities = Array.from(deduped.values());
   saveCostActivityOverrides(allActivities);
 
-  await syncDailyCostsFromSheet(projectFilter);
+  await syncDailyCostsFromSheet(projectFilter, remoteDailyCosts);
 
   if (remoteCostMetadataRows.length) {
     const metadataByActivityId = new Map();
