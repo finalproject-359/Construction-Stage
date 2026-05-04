@@ -489,6 +489,29 @@ function normalizeIncomingDailyCost(input) {
   };
 }
 
+
+function dailyCostExists(projectId, costId, date) {
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedCostId = cleanText(costId);
+  var normalizedDate = normalizeDate(date);
+  if (!normalizedProjectId || !normalizedCostId || !normalizedDate) return false;
+
+  var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+  ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
+  var values = sheet.getDataRange().getValues();
+  var columns = getDailyCostColumnMap(sheet);
+
+  for (var i = 1; i < values.length; i += 1) {
+    if (cleanText(values[i][columns.projectId - 1]) === normalizedProjectId
+      && cleanText(values[i][columns.costId - 1]) === normalizedCostId
+      && normalizeDate(values[i][columns.date - 1]) === normalizedDate) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function upsertDailyCostRow(dailyCost) {
   var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
   ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
@@ -692,11 +715,9 @@ function deleteProjectRow(projectId) {
     throw new Error('Project not found.');
   }
 
-  deleteRowsByProjectId(CONFIG.sheetNames.activities, getActivityColumnMap, 'projectId', normalizedProjectId);
-  deleteRowsByProjectId(CONFIG.sheetNames.costs, getCostColumnMap, 'projectId', normalizedProjectId);
-  deleteRowsByProjectId(CONFIG.sheetNames.dailyCosts, getDailyCostColumnMap, 'projectId', normalizedProjectId);
-
-  lookup.sheet.deleteRow(lookup.rowNumber);
+  var rowValues = lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).getValues()[0];
+  if (lookup.columns.status) rowValues[lookup.columns.status - 1] = 'Archived';
+  lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
 }
 
 function deleteRowsByProjectId(sheetName, getColumnMap, projectColumnKey, projectId) {
