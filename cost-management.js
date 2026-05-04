@@ -705,18 +705,24 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
 const buildSelectedProjectBannerMarkup = (project) => `<section class="selected-project-banner"><div><p class="selected-project-label">Selected Project</p><h3>${escapeHtml(formatProjectIdentityLabel(project))}</h3></div><a href="cost-management.html" class="ghost-btn">← Back to Projects</a></section>`;
 
 const buildDetailsMarkup = (project, rows) => {
+  const budget = parseBudgetValue(project?.budget);
   const plannedCost = rows.reduce((sum, row) => sum + parseBudgetValue(row.plannedCost), 0);
   const actualCost = rows.reduce((sum, row) => sum + row.actualCost, 0);
+  const isBudgetEqualToPlanned = Math.abs(budget - plannedCost) < 0.01;
+  const comparisonItems = isBudgetEqualToPlanned
+    ? [
+      { key: "planned", label: "Total Planned Cost", value: plannedCost },
+      { key: "actual", label: "Total Actual Cost", value: actualCost },
+    ]
+    : [
+      { key: "budget", label: "Budget", value: budget },
+      { key: "planned", label: "Total Planned Cost", value: plannedCost },
+      { key: "actual", label: "Total Actual Cost", value: actualCost },
+    ];
   const variance = plannedCost - actualCost;
   const variancePercent = plannedCost ? (variance / plannedCost) * 100 : 0;
   const totalDuration = rows.reduce((sum, row) => sum + (Number(row.durationDays) || 0), 0);
   const avgActualPerDay = totalDuration > 0 ? actualCost / totalDuration : 0;
-  const underBudgetCount = rows.filter((row) => row.actualCost > 0 && row.actualCost < row.plannedCost).length;
-  const overBudgetCount = rows.filter((row) => row.actualCost > row.plannedCost).length;
-  const noActualCostCount = rows.filter((row) => row.actualCost === 0).length;
-  const activityTotal = Math.max(rows.length, 1);
-  const underBudgetPct = (underBudgetCount / activityTotal) * 100;
-  const overBudgetPct = (overBudgetCount / activityTotal) * 100;
 
   const tableRows = rows.length
     ? rows.map((row) => {
@@ -737,9 +743,30 @@ const buildDetailsMarkup = (project, rows) => {
     }).join("")
     : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
-  const maxCost = Math.max(plannedCost, actualCost, 1);
-  const plannedHeight = Math.max(10, Math.round((plannedCost / maxCost) * 100));
-  const actualHeight = Math.max(10, Math.round((actualCost / maxCost) * 100));
+  const maxCost = Math.max(...comparisonItems.map((item) => item.value), 1);
+  const comparisonBarsMarkup = comparisonItems
+    .map((item) => {
+      const height = item.value > 0 ? Math.max(10, Math.round((item.value / maxCost) * 100)) : 0;
+      return `<div class="bar-wrap"><strong>${formatBudget(item.value)}</strong><div class="bar ${item.key}" style="height:${height}%"></div><p>${item.label}</p></div>`;
+    })
+    .join("");
+  const comparisonLegendMarkup = comparisonItems
+    .map((item) => `<li><span class="legend-dot ${item.key}"></span> ${item.label}</li>`)
+    .join("");
+  const comparisonTotal = comparisonItems.reduce((sum, item) => sum + item.value, 0);
+  const donutSegments = comparisonItems.map((item, index) => {
+    const start = comparisonTotal > 0
+      ? (comparisonItems.slice(0, index).reduce((sum, entry) => sum + entry.value, 0) / comparisonTotal) * 100
+      : (index / comparisonItems.length) * 100;
+    const end = comparisonTotal > 0
+      ? ((comparisonItems.slice(0, index + 1).reduce((sum, entry) => sum + entry.value, 0) / comparisonTotal) * 100)
+      : (((index + 1) / comparisonItems.length) * 100);
+    const color = item.key === "budget" ? "#f0c23f" : item.key === "planned" ? "#2f67ff" : "#38c26d";
+    return `${color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+  }).join(", ");
+  const donutLegendMarkup = comparisonItems
+    .map((item) => `<li><span class="legend-dot ${item.key}"></span>${item.label} <strong>${formatBudget(item.value)}</strong></li>`)
+    .join("");
   const varianceLabel = variance >= 0 ? "Under budget" : "Over budget";
   const varianceClass = variance >= 0 ? "good" : "bad";
   const topRows = rows
@@ -756,9 +783,9 @@ const buildDetailsMarkup = (project, rows) => {
   <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p></article>
   <article class="kpi-card"><h4>Variance</h4><p class="${varianceClass}">${formatBudget(variance)}</p><small>${varianceLabel}</small></article>
   <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p></article></section>
-  <section class="overview-grid"><article class="panel chart-panel"><h3>Budget vs Actual</h3><div class="bars"><div class="bars-grid"><span>${formatBudget(maxCost)}</span><span>${formatBudget(maxCost * 0.75)}</span><span>${formatBudget(maxCost * 0.5)}</span><span>${formatBudget(maxCost * 0.25)}</span><span>0</span></div><div class="bars-track"><div class="bar-wrap"><strong>${formatBudget(plannedCost)}</strong><div class="bar planned" style="height:${plannedHeight}%"></div><p>Total Planned Cost</p></div><div class="bar-wrap"><strong>${formatBudget(actualCost)}</strong><div class="bar actual" style="height:${actualHeight}%"></div><p>Total Actual Cost</p></div></div><ul class="bars-legend"><li><span class="legend-dot planned"></span> Planned Cost</li><li><span class="legend-dot actual"></span> Actual Cost</li></ul></div></article>
+  <section class="overview-grid"><article class="panel chart-panel"><h3>Budget vs Actual</h3><div class="bars"><div class="bars-grid"><span>${formatBudget(maxCost)}</span><span>${formatBudget(maxCost * 0.75)}</span><span>${formatBudget(maxCost * 0.5)}</span><span>${formatBudget(maxCost * 0.25)}</span><span>0</span></div><div class="bars-track">${comparisonBarsMarkup}</div><ul class="bars-legend">${comparisonLegendMarkup}</ul></div></article>
   <article class="panel summary-panel"><h3>Cost Summary</h3><ul><li><span>Total Planned Cost</span><strong>${formatBudget(plannedCost)}</strong></li><li><span>Total Actual Cost</span><strong>${formatBudget(actualCost)}</strong></li><li><span>Variance</span><strong class="${varianceClass}">${formatBudget(variance)}</strong></li><li><span>Variance Percent</span><strong class="${varianceClass}">${variancePercent.toFixed(2)}%</strong></li><li><span>Total Duration</span><strong>${totalDuration} days</strong></li><li><span>Average Cost per Day (Actual)</span><strong>${formatBudget(avgActualPerDay)}</strong></li></ul></article>
-  <article class="panel donut-panel"><h3>Cost Status (by Actual vs Planned)</h3><div class="donut-wrap"><div class="donut" style="background: conic-gradient(#34b567 0 ${underBudgetPct.toFixed(2)}%, #ef5050 ${underBudgetPct.toFixed(2)}% ${(underBudgetPct + overBudgetPct).toFixed(2)}%, #f0c23f ${(underBudgetPct + overBudgetPct).toFixed(2)}% 100%);"></div><ul class="status-list"><li><span class="legend-dot actual"></span>Under Budget <strong>${underBudgetCount} activities</strong></li><li><span class="legend-dot bad-dot"></span>Over Budget <strong>${overBudgetCount} activities</strong></li><li><span class="legend-dot neutral-dot"></span>No Actual Cost <strong>${noActualCostCount} activities</strong></li></ul></div></article>
+  <article class="panel donut-panel"><h3>Cost Status</h3><div class="donut-wrap"><div class="donut" style="background: conic-gradient(${donutSegments});"></div><ul class="status-list">${donutLegendMarkup}</ul></div></article>
   <article class="panel table-panel"><h3>Top Over Budget Activities</h3><table><thead><tr><th>Cost ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead><tbody>${topRows}</tbody></table></article></section></section>
   <section class="details-tab-panel hidden" data-panel="costing">
   <section class="panel"><table><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Planned Cost</th><th>Planned Cost/Day</th><th>Actual Cost</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section><div class="info-banner"><p>Tip: add daily actual costs by date via “View / Add Daily Cost”.</p></div></section>
