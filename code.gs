@@ -930,6 +930,28 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   }
 
   const normalizedAfter = normalizeHeaders(firstRow);
+  const normalizedOldDailyCostHeaders = normalizeHeaders([
+    'Project ID',
+    'Cost ID',
+    'Planned Cost/Day',
+    'Date',
+    'Actual Cost',
+    'Created At',
+  ]);
+  const isDailyCostSchemaUpgrade =
+    normalizedExpected.indexOf(normalizeHeader('Activity')) >= 0 &&
+    normalizedExpected.indexOf(normalizeHeader('Planned Cost')) >= 0 &&
+    normalizedAfter.length >= normalizedOldDailyCostHeaders.length &&
+    normalizedOldDailyCostHeaders.every(function(header, idx) {
+      return normalizedAfter[idx] === header;
+    });
+
+  if (isDailyCostSchemaUpgrade) {
+    sheet.insertColumnsAfter(2, 2);
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    return;
+  }
+
   const needsHeaderSync = expectedHeaders.some(function(header, idx) {
     return normalizedAfter[idx] !== normalizeHeader(header);
   });
