@@ -416,25 +416,22 @@ function upsertDailyCostRow(dailyCost) {
   var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
   ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
   var values = sheet.getDataRange().getValues();
-  var headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length)).getValues()[0];
-  var idx = {
-    projectId: headers.indexOf('Project ID'),
-    costId: headers.indexOf('Cost ID'),
-    activity: headers.indexOf('Activity'),
-    plannedCost: headers.indexOf('Planned Cost'),
-    plannedCostPerDay: headers.indexOf('Planned Cost/Day'),
-    date: headers.indexOf('Date'),
-    actualCost: headers.indexOf('Actual Cost'),
-    createdAt: headers.indexOf('Created At'),
-  };
+  var columns = getDailyCostColumnMap(sheet);
   var rowNumber = -1;
   for (var i = 1; i < values.length; i += 1) {
-    if (cleanText(values[i][idx.projectId]) === dailyCost.projectId
-      && cleanText(values[i][idx.costId]) === dailyCost.costId
-      && normalizeDate(values[i][idx.date]) === dailyCost.date) { rowNumber = i + 1; break; }
+    if (cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId
+      && cleanText(values[i][columns.costId - 1]) === dailyCost.costId
+      && normalizeDate(values[i][columns.date - 1]) === dailyCost.date) { rowNumber = i + 1; break; }
   }
-  var row = new Array(Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length)).fill('');
-  row[idx.projectId] = dailyCost.projectId; row[idx.costId] = dailyCost.costId; row[idx.activity] = dailyCost.activity; row[idx.plannedCost] = dailyCost.plannedCost; row[idx.plannedCostPerDay] = dailyCost.plannedCostPerDay; row[idx.date] = dailyCost.date; row[idx.actualCost] = dailyCost.actualCost; row[idx.createdAt] = new Date();
+  var row = new Array(Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length, columns.maxColumn)).fill('');
+  if (columns.projectId) row[columns.projectId - 1] = dailyCost.projectId;
+  if (columns.costId) row[columns.costId - 1] = dailyCost.costId;
+  if (columns.activity) row[columns.activity - 1] = dailyCost.activity;
+  if (columns.plannedCost) row[columns.plannedCost - 1] = dailyCost.plannedCost;
+  if (columns.plannedCostPerDay) row[columns.plannedCostPerDay - 1] = dailyCost.plannedCostPerDay;
+  if (columns.date) row[columns.date - 1] = dailyCost.date;
+  if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
+  if (columns.createdAt) row[columns.createdAt - 1] = new Date();
   if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
   else sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
 }
@@ -443,10 +440,11 @@ function deleteDailyCostRow(dailyCost) {
   var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
   ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
   var values = sheet.getDataRange().getValues();
-  var headers = values[0] || [];
-  var p = headers.indexOf('Project ID'); var c = headers.indexOf('Cost ID'); var d = headers.indexOf('Date');
+  var columns = getDailyCostColumnMap(sheet);
   for (var i = values.length - 1; i >= 1; i -= 1) {
-    if (cleanText(values[i][p]) === dailyCost.projectId && cleanText(values[i][c]) === dailyCost.costId && normalizeDate(values[i][d]) === dailyCost.date) sheet.deleteRow(i + 1);
+    if (cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId
+      && cleanText(values[i][columns.costId - 1]) === dailyCost.costId
+      && normalizeDate(values[i][columns.date - 1]) === dailyCost.date) sheet.deleteRow(i + 1);
   }
 }
 
@@ -1061,6 +1059,33 @@ function getCostColumnMap(sheet) {
     plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost Per Day']),
     actualCost: indexOfHeader(['Actual Cost', 'Cost', 'Amount']),
     notes: indexOfHeader(['Notes', 'Remarks']),
+    createdAt: indexOfHeader(['Created At']),
+    maxColumn: headers.length,
+  };
+}
+
+
+function getDailyCostColumnMap(sheet) {
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length)).getValues()[0]
+    .map(function(header) { return normalizeHeader(header); });
+
+  const indexOfHeader = function(candidates) {
+    for (var i = 0; i < candidates.length; i += 1) {
+      var candidate = normalizeHeader(candidates[i]);
+      var found = headers.indexOf(candidate);
+      if (found >= 0) return found + 1;
+    }
+    return 0;
+  };
+
+  return {
+    projectId: indexOfHeader(['Project ID', 'Project']),
+    costId: indexOfHeader(['Cost ID', 'ID']),
+    activity: indexOfHeader(['Activity', 'Activity Name']),
+    plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
+    plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost per day', 'Planned Cost Per Day']),
+    date: indexOfHeader(['Date']),
+    actualCost: indexOfHeader(['Actual Cost', 'Cost', 'Amount']),
     createdAt: indexOfHeader(['Created At']),
     maxColumn: headers.length,
   };
