@@ -42,31 +42,26 @@
         <section id="costDetailsView" class="cost-details-view hidden" aria-live="polite"></section>
 
         <section id="costSelectionView">
-        <section class="table-panel cost-selection-filters" aria-label="Project filters">
-        <div class="toolbar-row" role="group" aria-label="Project selection filters">
-          <label class="search-box" for="costTopSearch">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input id="costTopSearch" type="search" placeholder="Search projects..." />
-          </label>
-          <button type="button" class="date-btn">May 1, 2024 - May 31, 2024</button>
-        </div>
-      </section>
-
         <section class="selection-empty" id="selectionPrompt">
           <div class="state-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
           </div>
           <h2>Select a project to view cost details</h2>
           <p>Cost data is organized by project.<br />Choose a project below to start tracking budgets and expenses.</p>
-          <label class="search-box search-center" for="projectListSearch">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input id="projectListSearch" type="search" placeholder="Search projects..." />
-          </label>
         </section>
 
         <hr />
 
         <section>
+          <section class="table-panel cost-selection-filters" aria-label="Project filters">
+            <div class="toolbar-row" role="group" aria-label="Project selection filters">
+              <label class="search-box" for="costTopSearch">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="costTopSearch" type="search" placeholder="Search projects..." />
+              </label>
+              <button type="button" class="date-btn">May 1, 2024 - May 31, 2024</button>
+            </div>
+          </section>
           <h3>All Projects</h3>
           <div class="projects-list" id="costProjectsList"></div>
           <div class="projects-empty" id="costProjectsEmpty">

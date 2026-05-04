@@ -1,6 +1,5 @@
 
 const topSearch = document.getElementById("costTopSearch");
-const listSearch = document.getElementById("projectListSearch");
 const projectsList = document.getElementById("costProjectsList");
 const projectsEmpty = document.getElementById("costProjectsEmpty");
 const selectionView = document.getElementById("costSelectionView");
@@ -1150,9 +1149,11 @@ const renderProjects = (query = "") => {
   });
 };
 
-const syncSearches = (value) => { topSearch.value = value; listSearch.value = value; renderProjects(value); };
+const syncSearches = (value) => {
+  if (topSearch) topSearch.value = value;
+  renderProjects(value);
+};
 topSearch?.addEventListener("input", (event) => syncSearches(event.target.value));
-listSearch?.addEventListener("input", (event) => syncSearches(event.target.value));
 
 const getSelectedViewParams = () => {
   const params = new URLSearchParams(window.location.search);
