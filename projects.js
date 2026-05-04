@@ -31,6 +31,12 @@ const LOCAL_STORAGE_KEY = "constructionStageProjects";
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const PROJECTS_REFRESH_INTERVAL_MS = 10 * 1000;
 
+const RELATED_LOCAL_STORAGE_KEYS = {
+  activities: "constructionStageActivities",
+  costActivities: "constructionStageCostActivities",
+  dailyCosts: "constructionStageDailyCosts",
+};
+
 const budgetInput = projectForm.elements.namedItem("budget");
 const pesoBudgetFormatter = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -506,8 +512,51 @@ const updateProject = async (updatedProject) => {
   applyFilters();
 };
 
+const removeRelatedProjectDataFromLocalStorage = (projectToDelete) => {
+  if (!projectToDelete) return;
+
+  const projectId = String(projectToDelete.id || "").trim();
+  const projectName = String(projectToDelete.name || "").trim().toLowerCase();
+
+  const safeParseArray = (rawValue) => {
+    try {
+      const parsed = JSON.parse(rawValue || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const normalizeProjectIdentity = (value) => String(value || "").trim().toLowerCase();
+
+  const shouldDeleteByProject = (entry) => {
+    const entryProjectId = normalizeProjectIdentity(entry?.projectId || entry?.project_id || entry?.project);
+    const entryProjectName = normalizeProjectIdentity(entry?.projectName || entry?.project_name || entry?.project);
+
+    if (projectId && entryProjectId === projectId.toLowerCase()) return true;
+    if (projectId && entryProjectName === projectId.toLowerCase()) return true;
+    if (projectName && entryProjectName === projectName) return true;
+    if (projectName && entryProjectId === projectName) return true;
+    return false;
+  };
+
+  const activities = safeParseArray(localStorage.getItem(RELATED_LOCAL_STORAGE_KEYS.activities));
+  const nextActivities = activities.filter((activity) => !shouldDeleteByProject(activity));
+  localStorage.setItem(RELATED_LOCAL_STORAGE_KEYS.activities, JSON.stringify(nextActivities));
+
+  const costActivities = safeParseArray(localStorage.getItem(RELATED_LOCAL_STORAGE_KEYS.costActivities));
+  const nextCostActivities = costActivities.filter((activity) => !shouldDeleteByProject(activity));
+  localStorage.setItem(RELATED_LOCAL_STORAGE_KEYS.costActivities, JSON.stringify(nextCostActivities));
+
+  const dailyCosts = safeParseArray(localStorage.getItem(RELATED_LOCAL_STORAGE_KEYS.dailyCosts));
+  const nextDailyCosts = dailyCosts.filter((dailyCost) => !shouldDeleteByProject(dailyCost));
+  localStorage.setItem(RELATED_LOCAL_STORAGE_KEYS.dailyCosts, JSON.stringify(nextDailyCosts));
+};
+
 const deleteProject = async (projectId) => {
+  const projectToDelete = state.allProjects.find((project) => project.id === projectId);
   await syncProjectWithGoogleSheet({ action: "delete", projectId });
+  removeRelatedProjectDataFromLocalStorage(projectToDelete);
   state.allProjects = state.allProjects.filter((project) => project.id !== projectId);
   saveToLocalStorage(state.allProjects);
   hydrateFilters();
@@ -570,7 +619,7 @@ projectsTableBody.addEventListener("click", async (event) => {
     const projectToDelete = state.allProjects.find((project) => project.id === projectId);
     if (!projectToDelete) return;
     closeAllActionMenus();
-    const isConfirmed = window.confirm(`Delete "${projectToDelete.name}"? This action cannot be undone.`);
+    const isConfirmed = window.confirm(`Delete "${projectToDelete.name}"? This will also delete all related activities and costing records. This action cannot be undone.`);
     if (!isConfirmed) return;
     try {
       await deleteProject(projectId);
