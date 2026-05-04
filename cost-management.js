@@ -1035,6 +1035,8 @@ const bootstrapCostManagement = async () => {
   if (remoteCostMetadataRows.length) {
     const metadataByActivityId = new Map();
     const metadataByActivityName = new Map();
+    const metadataByActivityIdFallback = new Map();
+    const metadataByActivityNameFallback = new Map();
     const pickLatest = (existing, incoming) => {
       if (!existing) return incoming;
       const existingDate = new Date(existing.date || "").getTime();
@@ -1050,10 +1052,12 @@ const bootstrapCostManagement = async () => {
       if (activityRefKey) {
         const byIdKey = `${projectKey}::${activityRefKey}`;
         metadataByActivityId.set(byIdKey, pickLatest(metadataByActivityId.get(byIdKey), row));
+        metadataByActivityIdFallback.set(activityRefKey, pickLatest(metadataByActivityIdFallback.get(activityRefKey), row));
       }
       if (activityNameKey) {
         const byNameKey = `${projectKey}::${activityNameKey}`;
         metadataByActivityName.set(byNameKey, pickLatest(metadataByActivityName.get(byNameKey), row));
+        metadataByActivityNameFallback.set(activityNameKey, pickLatest(metadataByActivityNameFallback.get(activityNameKey), row));
       }
     });
 
@@ -1061,7 +1065,12 @@ const bootstrapCostManagement = async () => {
       const projectKey = String(activity.projectId || "").trim();
       const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
       const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
-      const metadata = metadataByActivityId.get(activityKey) || metadataByActivityName.get(activityNameKey);
+      const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
+      const fallbackActivityNameKey = normalizeLookup(activity.name);
+      const metadata = metadataByActivityId.get(activityKey)
+        || metadataByActivityName.get(activityNameKey)
+        || metadataByActivityIdFallback.get(fallbackActivityRefKey)
+        || metadataByActivityNameFallback.get(fallbackActivityNameKey);
       if (!metadata) return activity;
       return normalizeCostActivity({
         ...activity,
