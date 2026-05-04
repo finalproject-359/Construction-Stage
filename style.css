@@ -1,15 +1,15 @@
 :root {
-  --bg: #f4f6fb;
+  --bg: #f3f5f9;
   --panel: #ffffff;
   --text: #111827;
   --muted: #667085;
-  --primary: #2f55ff;
-  --border: #e6eaf2;
+  --primary: #0d2f63;
+  --border: #e1e7f0;
   --green: #16a34a;
   --green-soft: #ecfdf3;
   --red: #dc2626;
   --red-soft: #fef2f2;
-  --shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+  --shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
 }
 
 * { box-sizing: border-box; }
@@ -36,8 +36,8 @@ body {
 }
 
 .sidebar {
-  background: #f8f9fd;
-  border-right: 1px solid var(--border);
+  background: radial-gradient(circle at 0% 0%, rgba(16, 52, 106, 0.75), transparent 35%), linear-gradient(180deg, #04152f 0%, #082548 52%, #031128 100%);
+  border-right: 1px solid rgba(173, 188, 214, 0.18);
   padding: 26px 18px;
 }
 
@@ -48,11 +48,12 @@ body {
 }
 
 .brand-logo {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
-  background: #e9edff;
-  color: #2f55ff;
+  background: rgba(248, 181, 17, 0.16);
+  border: 1px solid rgba(248, 181, 17, 0.45);
+  color: #f8b511;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -68,8 +69,8 @@ body {
   opacity: .95;
 }
 
-.brand h2 { margin: 0; color: #172554; }
-.brand p { margin: 3px 0 0; color: var(--muted); font-size: 0.9rem; }
+.brand h2 { margin: 0; color: #f7fbff; }
+.brand p { margin: 3px 0 0; color: #b7c9e8; font-size: 0.9rem; }
 
 .menu {
   margin-top: 24px;
@@ -78,7 +79,7 @@ body {
 }
 
 .menu a {
-  color: #344054;
+  color: #dbe7f9;
   text-decoration: none;
   padding: 10px 12px;
   border-radius: 10px;
@@ -91,7 +92,7 @@ body {
 .menu-icon {
   width: 16px;
   height: 16px;
-  color: #667085;
+  color: #94a9cb;
   flex-shrink: 0;
 }
 
@@ -109,17 +110,18 @@ body {
 
 .menu a.active,
 .menu a:hover {
-  background: #ebefff;
-  color: var(--primary);
+  background: linear-gradient(90deg, rgba(188, 138, 20, 0.9), rgba(152, 106, 6, 0.92));
+  color: #fff;
 }
 
 .menu a.active .menu-icon,
 .menu a:hover .menu-icon {
-  color: var(--primary);
+  color: #fff;
 }
 
 .main-content {
   padding: 24px 26px;
+  background: linear-gradient(180deg, #f7f9fc 0%, #f3f5f9 100%);
   min-width: 0;
 }
 
@@ -384,8 +386,8 @@ th { color: var(--muted); }
 .projects-controls {
   margin-top: 14px;
   padding: 14px;
-  background: #eef2f7;
-  border-color: #dde3ee;
+  background: #f6f8fb;
+  border-color: #dde4ef;
   box-shadow: none;
 }
 
@@ -457,7 +459,7 @@ th { color: var(--muted); }
   border-radius: 10px;
   min-height: 46px;
   padding: 0 18px;
-  background: #2f55ff;
+  background: linear-gradient(180deg, #143f79 0%, #0a2b5e 100%);
   color: #fff;
   font-family: inherit;
   font-size: 0.92rem;
