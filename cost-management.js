@@ -139,9 +139,14 @@ const getValueByAliases = (source, aliases = []) => {
     if (matched) return source[matched.key];
   }
   // Fallback for headers with suffix/prefix qualifiers like "Planned Cost (PHP)".
+  // Avoid over-broad matches (e.g., alias "costId" matching key "id").
   for (const alias of aliases) {
     const normalizedAlias = String(alias).toLowerCase().replace(/[^a-z0-9]/g, "");
-    const matched = normalizedEntries.find((entry) => entry.normalized.includes(normalizedAlias) || normalizedAlias.includes(entry.normalized));
+    if (normalizedAlias.length < 4) continue;
+    const matched = normalizedEntries.find((entry) => {
+      if (entry.normalized.length < 4) return false;
+      return entry.normalized.includes(normalizedAlias) || normalizedAlias.includes(entry.normalized);
+    });
     if (matched) return source[matched.key];
   }
   return undefined;
