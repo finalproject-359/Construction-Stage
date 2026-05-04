@@ -904,7 +904,13 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert("Unable to delete daily cost because Project ID is missing.");
       return;
     }
-    await postToDataSource("daily_costs", "delete", { dailyCost: { projectId: resolvedProjectId, costId: activityCostId, activityId, date } });
+    try {
+      await postToDataSource("daily_costs", "delete", { dailyCost: { projectId: resolvedProjectId, costId: activityCostId, activityId, date } });
+    } catch (error) {
+      console.warn("Unable to delete daily cost from Google Sheets:", error);
+      alert(`Unable to delete in strict mode. ${error?.message || "Missing project/cost parent record."}`);
+      return;
+    }
     await syncDailyCostsFromSheet({ projectId, projectName });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
@@ -958,6 +964,10 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
     if (!resolvedProjectId) {
       alert("Unable to save daily cost because Project ID is missing.");
+      return;
+    }
+    if (!activityCostId) {
+      alert("Strict mode: please add a valid Cost ID first before saving daily costs.");
       return;
     }
     const payload = {
