@@ -479,9 +479,7 @@ function upsertCostRow(cost) {
     const row = values[i];
     const rowCostId = cleanText(row[columns.costId - 1]);
     const rowProjectId = cleanText(row[columns.projectId - 1]);
-    const rowDate = columns.date ? normalizeDate(row[columns.date - 1]) : '';
-    const isSameDate = columns.date ? rowDate === cost.date : true;
-    if (rowCostId === cost.costId && rowProjectId === cost.projectId && isSameDate) {
+    if (rowCostId === cost.costId && rowProjectId === cost.projectId) {
       rowNumber = i + 1;
       break;
     }
