@@ -45,6 +45,7 @@ const CONFIG = {
       'Project ID',
       'Project Name',
       'Cost ID',
+      'Activity ID',
       'Activity',
       'Duration',
       'Planned Cost',
@@ -448,6 +449,7 @@ function normalizeIncomingCost(input) {
     costId: cleanText(source.costId || source.id),
     projectId: cleanText(source.projectId || source.project_id),
     project: cleanText(source.project || source.projectName || source.project_name),
+    activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId),
     activity: cleanText(source.activity || source.activityName),
     duration: parseNumber(source.duration || source.durationDays),
     category: cleanText(source.category || source.costCategory || source.cost_category) || 'General',
@@ -483,6 +485,7 @@ function upsertCostRow(cost) {
   if (columns.costId) rowValues[columns.costId - 1] = cost.costId;
   if (columns.projectId) rowValues[columns.projectId - 1] = cost.projectId;
   if (columns.project) rowValues[columns.project - 1] = cost.project;
+  if (columns.activityId) rowValues[columns.activityId - 1] = cost.activityId;
   if (columns.activity) rowValues[columns.activity - 1] = cost.activity;
   if (columns.duration) rowValues[columns.duration - 1] = cost.duration;
   if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
@@ -1027,6 +1030,7 @@ function getCostColumnMap(sheet) {
     costId: indexOfHeader(['Cost ID', 'ID']),
     projectId: indexOfHeader(['Project ID']),
     project: indexOfHeader(['Project Name', 'Project']),
+    activityId: indexOfHeader(['Activity ID', 'ActivityID', 'Source Activity ID']),
     activity: indexOfHeader(['Activity', 'Activity Name']),
     duration: indexOfHeader(['Duration']),
     category: indexOfHeader(['Cost Category', 'Category', 'Type']),
@@ -1213,7 +1217,7 @@ function normalizeCostRecord(row) {
     projectId: projectId,
     projectCode: projectId,
     project: cleanText(getCell(row, ['project', 'project name'])),
-    activityId: cleanText(getCell(row, ['activity id', 'activityid', 'activity_id', 'id activity'])),
+    activityId: cleanText(getCell(row, ['activity id', 'activityid', 'activity_id', 'id activity', 'source activity id'])),
     activity: cleanText(getCell(row, ['activity', 'activity name', 'name'])),
     duration: parseNumber(getCell(row, ['duration', 'duration days', 'duration_days'])),
     category: cleanText(getCell(row, ['cost category', 'category', 'type'])) || 'General',

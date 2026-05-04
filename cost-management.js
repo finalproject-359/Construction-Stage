@@ -960,6 +960,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
           costId: nextCostId,
           projectId,
           project: target.projectName || "",
+          activityId: activityRefId,
           activity: target.name || "",
           duration: durationDays,
           category: "Planned Cost",
