@@ -48,8 +48,12 @@ const CONFIG = {
       'Activity ID',
       'Activity',
       'Duration',
+      'Cost Category',
+      'Date',
       'Planned Cost',
       'Planned Cost/Day',
+      'Actual Cost',
+      'Notes',
       'Created At',
     ],
     dailyCosts: [
