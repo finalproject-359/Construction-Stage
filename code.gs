@@ -364,6 +364,7 @@ function handleCostMutation(action, payload) {
     }
 
     upsertCostRow(cost);
+    upsertDailyCostRow(buildDailyCostFromCost(cost));
     return jsonResponse({
       ok: true,
       message: action === 'create' ? 'Cost saved successfully.' : 'Cost updated successfully.',
@@ -464,6 +465,23 @@ function normalizeIncomingCost(input) {
     plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
     actualCost: parseNumber(source.actualCost || source.actual_cost),
     notes: cleanText(source.notes || source.note || source.remarks),
+  };
+}
+
+function buildDailyCostFromCost(cost) {
+  const plannedCost = parseNumber(cost.plannedCost);
+  const duration = parseNumber(cost.duration);
+  const explicitPerDay = parseNumber(cost.plannedCostPerDay);
+  const plannedCostPerDay = explicitPerDay || (duration > 0 ? plannedCost / duration : 0);
+
+  return {
+    projectId: cleanText(cost.projectId),
+    costId: cleanText(cost.costId),
+    activity: cleanText(cost.activity),
+    plannedCost: plannedCost,
+    plannedCostPerDay: plannedCostPerDay,
+    date: normalizeDate(cost.date) || normalizeDate(new Date()),
+    actualCost: parseNumber(cost.actualCost),
   };
 }
 
