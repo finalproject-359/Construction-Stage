@@ -811,7 +811,12 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     : `<option value="" selected disabled>No working days in this date range.</option>`;
 
   const entries = dailyCosts
-    .filter((item) => isDailyCostForProject(item, projectId, projectName) && String(item.activityId || "").trim() === activityId)
+    .filter((item) => {
+      if (!isDailyCostForProject(item, projectId, projectName)) return false;
+      const entryActivityId = String(item.activityId || "").trim();
+      const entryCostId = String(item.costId || "").trim();
+      return entryActivityId === activityId || (activityCostId && entryCostId === activityCostId);
+    })
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
   const rows = entries.length
     ? entries.map((entry) => `<tr><td>${formatHumanDate(entry.date)}</td><td>${formatBudget(entry.actualCost)}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`).join("")
@@ -826,9 +831,14 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", () => modal.classList.add("hidden"));
   modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", async () => {
     const date = String(button.dataset.deleteDate || "");
-    const nextDailyCosts = loadDailyCosts().filter((item) => !(isDailyCostForProject(item, projectId, projectName)
-      && String(item.activityId || "").trim() === activityId
-      && String(item.date || "") === date));
+    const nextDailyCosts = loadDailyCosts().filter((item) => {
+      if (!isDailyCostForProject(item, projectId, projectName)) return true;
+      const itemDate = String(item.date || "");
+      const entryActivityId = String(item.activityId || "").trim();
+      const entryCostId = String(item.costId || "").trim();
+      const sameActivity = entryActivityId === activityId || (activityCostId && entryCostId === activityCostId);
+      return !(sameActivity && itemDate === date);
+    });
     saveDailyCosts(nextDailyCosts);
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
     if (!resolvedProjectId) {
