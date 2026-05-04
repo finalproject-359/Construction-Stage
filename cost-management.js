@@ -428,7 +428,7 @@ const resolveProjectIdFromDailyCost = (dailyCost = {}, lookups = buildProjectIde
 
 const loadRemoteDailyCosts = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
-  if (!dataSourceUrl) return [];
+  if (!dataSourceUrl) return null;
   const lookups = buildProjectIdentityLookups(loadProjects());
   try {
     const url = new URL(dataSourceUrl);
@@ -436,7 +436,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     if (projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
     url.searchParams.set("_ts", String(Date.now()));
     const response = await fetch(url.toString(), { cache: "no-store" });
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const payload = await response.json();
     const rows = Array.isArray(payload?.dailyCosts) ? payload.dailyCosts : [];
     return rows.map((row) => ({
@@ -448,13 +448,16 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     })).filter((r) => r.projectId && r.activityId && r.date);
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
-    return [];
+    return null;
   }
 };
 
 
-const syncDailyCostsFromSheet = async (projectFilter = {}) => {
-  const remoteDailyCosts = await loadRemoteDailyCosts(projectFilter);
+const syncDailyCostsFromSheet = async (projectFilter = {}, preloadedRemoteDailyCosts = null) => {
+  const remoteDailyCosts = Array.isArray(preloadedRemoteDailyCosts)
+    ? preloadedRemoteDailyCosts
+    : await loadRemoteDailyCosts(projectFilter);
+  if (!Array.isArray(remoteDailyCosts)) return false;
   const dedupedDailyCosts = new Map();
   remoteDailyCosts.forEach((item) => {
     const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${normalizeDateKey(item.date)}`;
@@ -468,6 +471,7 @@ const syncDailyCostsFromSheet = async (projectFilter = {}) => {
     });
   });
   saveDailyCosts(Array.from(dedupedDailyCosts.values()));
+  return true;
 };
 
 const extractActivityRefIdFromCostRow = (row = {}) => {
@@ -1172,7 +1176,10 @@ const bootstrapCostManagement = async () => {
     loadRemoteDailyCosts(projectFilter),
     loadRemoteCostMetadata(projectFilter),
   ]);
-  const merged = [...remoteActivities];
+  const merged = [
+    ...loadCostActivities().map(normalizeCostActivity),
+    ...remoteActivities,
+  ];
   const deduped = new Map();
   merged.forEach((item) => {
     const key = `${String(item.projectId).trim()}::${String(getActivityRefId(item)).trim()}`;
@@ -1204,7 +1211,7 @@ const bootstrapCostManagement = async () => {
   const allActivities = Array.from(deduped.values());
   saveCostActivityOverrides(allActivities);
 
-  await syncDailyCostsFromSheet(projectFilter);
+  await syncDailyCostsFromSheet(projectFilter, remoteDailyCosts);
 
   if (remoteCostMetadataRows.length) {
     const metadataByActivityId = new Map();
