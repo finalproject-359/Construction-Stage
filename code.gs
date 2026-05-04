@@ -45,11 +45,11 @@ const CONFIG = {
       'Project ID',
       'Project Name',
       'Cost ID',
-      'Activity ID',
       'Activity',
       'Duration',
       'Planned Cost',
       'Planned Cost/Day',
+      'Actual Cost',
       'Created At',
     ],
     dailyCosts: [
