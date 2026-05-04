@@ -473,20 +473,15 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     const response = await fetch(url.toString(), { cache: "no-store" });
     if (!response.ok) return [];
     const payload = await response.json();
-    let rows = extractCostRowsFromPayload(payload);
-
-    // Some deployments expose costs only under dashboard/all responses.
-    if (!rows.length) {
-      const fallbackUrl = new URL(dataSourceUrl);
-      fallbackUrl.searchParams.set("resource", "dashboard");
-      if (projectFilter?.projectId) fallbackUrl.searchParams.set("projectId", String(projectFilter.projectId));
-      fallbackUrl.searchParams.set("_ts", String(Date.now()));
-      const fallbackResponse = await fetch(fallbackUrl.toString(), { cache: "no-store" });
-      if (fallbackResponse.ok) {
-        const fallbackPayload = await fallbackResponse.json();
-        rows = extractCostRowsFromPayload(fallbackPayload);
-      }
-    }
+    const rows = Array.isArray(payload?.costs)
+      ? payload.costs
+      : Array.isArray(payload?.rows)
+        ? payload.rows
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : [];
     return rows.map((row) => ({
       projectId: resolveProjectIdFromDailyCost({
         projectId: getValueByAliases(row, ["projectId", "project_id", "project id"]),
