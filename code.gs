@@ -548,12 +548,41 @@ function updateProjectRow(project) {
 }
 
 function deleteProjectRow(projectId) {
-  const lookup = findProjectSheetRow(projectId);
+  const normalizedProjectId = cleanText(projectId);
+  const lookup = findProjectSheetRow(normalizedProjectId);
   if (!lookup) {
     throw new Error('Project not found.');
   }
 
+  deleteRowsByProjectId(CONFIG.sheetNames.activities, getActivityColumnMap, 'projectId', normalizedProjectId);
+  deleteRowsByProjectId(CONFIG.sheetNames.costs, getCostColumnMap, 'projectId', normalizedProjectId);
+  deleteRowsByProjectId(CONFIG.sheetNames.dailyCosts, getDailyCostColumnMap, 'projectId', normalizedProjectId);
+
   lookup.sheet.deleteRow(lookup.rowNumber);
+}
+
+function deleteRowsByProjectId(sheetName, getColumnMap, projectColumnKey, projectId) {
+  const normalizedProjectId = cleanText(projectId);
+  if (!normalizedProjectId) return;
+
+  const sheet = getOrCreateSheet(sheetName);
+  const expectedHeadersBySheet = {
+    [CONFIG.sheetNames.activities]: CONFIG.headers.activities,
+    [CONFIG.sheetNames.costs]: CONFIG.headers.costs,
+    [CONFIG.sheetNames.dailyCosts]: CONFIG.headers.dailyCosts,
+  };
+
+  ensureSheetHeaders(sheet, expectedHeadersBySheet[sheetName] || []);
+  const columns = getColumnMap(sheet);
+  const projectColumn = columns && columns[projectColumnKey] ? columns[projectColumnKey] : 0;
+  if (!projectColumn) return;
+
+  const values = sheet.getDataRange().getValues();
+  for (var rowIdx = values.length - 1; rowIdx >= 1; rowIdx -= 1) {
+    if (cleanText(values[rowIdx][projectColumn - 1]) === normalizedProjectId) {
+      sheet.deleteRow(rowIdx + 1);
+    }
+  }
 }
 
 function normalizeIncomingActivity(input) {
