@@ -449,6 +449,24 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
   }
 };
 
+
+const syncDailyCostsFromSheet = async (projectFilter = {}) => {
+  const remoteDailyCosts = await loadRemoteDailyCosts(projectFilter);
+  const dedupedDailyCosts = new Map();
+  remoteDailyCosts.forEach((item) => {
+    const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${normalizeDateKey(item.date)}`;
+    if (!key || key === "::::") return;
+    dedupedDailyCosts.set(key, {
+      projectId: String(item.projectId || "").trim(),
+      activityId: String(item.activityId || "").trim(),
+      costId: String(item.costId || "").trim(),
+      date: normalizeDateKey(item.date),
+      actualCost: parseBudgetValue(item.actualCost),
+    });
+  });
+  saveDailyCosts(Array.from(dedupedDailyCosts.values()));
+};
+
 const extractActivityRefIdFromCostRow = (row = {}) => {
   const directActivityId = String(getValueByAliases(row, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id"]) || "").trim();
   if (directActivityId) return directActivityId;
@@ -793,7 +811,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
 
   modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", () => modal.classList.add("hidden"));
   modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", () => modal.classList.add("hidden"));
-  modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", () => {
+  modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", async () => {
     const date = String(button.dataset.deleteDate || "");
     const nextDailyCosts = loadDailyCosts().filter((item) => !(isDailyCostForProject(item, projectId, projectName)
       && String(item.activityId || "").trim() === activityId
@@ -804,7 +822,8 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert("Unable to delete daily cost because Project ID is missing.");
       return;
     }
-    postToDataSource("daily_costs", "delete", { dailyCost: { projectId: resolvedProjectId, costId: activityCostId, activityId, date } });
+    await postToDataSource("daily_costs", "delete", { dailyCost: { projectId: resolvedProjectId, costId: activityCostId, activityId, date } });
+    await syncDailyCostsFromSheet({ projectId, projectName });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
@@ -885,6 +904,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
           actualCost,
         },
       });
+      await syncDailyCostsFromSheet({ projectId, projectName });
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
       const resetDailyCosts = loadDailyCosts().filter((item) => !(
@@ -1117,20 +1137,7 @@ const bootstrapCostManagement = async () => {
   const allActivities = Array.from(deduped.values());
   costActivitiesState = allActivities.slice();
 
-  const mergedDailyCosts = [...remoteDailyCosts];
-  const dedupedDailyCosts = new Map();
-  mergedDailyCosts.forEach((item) => {
-    const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${normalizeDateKey(item.date)}`;
-    if (!key || key === "::::") return;
-    dedupedDailyCosts.set(key, {
-      projectId: String(item.projectId || "").trim(),
-      activityId: String(item.activityId || "").trim(),
-      costId: String(item.costId || "").trim(),
-      date: normalizeDateKey(item.date),
-      actualCost: parseBudgetValue(item.actualCost),
-    });
-  });
-  saveDailyCosts(Array.from(dedupedDailyCosts.values()));
+  await syncDailyCostsFromSheet(projectFilter);
 
   if (remoteCostMetadataRows.length) {
     const metadataByActivityId = new Map();
