@@ -563,6 +563,22 @@ const splitProjectIdentityLabel = (value = "") => {
   };
 };
 
+const isDailyCostForProject = (entry, projectId, projectName = "") => {
+  const entryProjectId = normalizeLookup(entry?.projectId);
+  const projectIdLookup = normalizeLookup(projectId);
+  const projectNameLookup = normalizeLookup(projectName);
+  const parsed = splitProjectIdentityLabel(entry?.projectId);
+
+  if (entryProjectId && projectIdLookup && entryProjectId === projectIdLookup) return true;
+  if (entryProjectId && projectNameLookup && entryProjectId === projectNameLookup) return true;
+  if (parsed.id && projectIdLookup && parsed.id === projectIdLookup) return true;
+  if (parsed.name && projectNameLookup && parsed.name === projectNameLookup) return true;
+  if (parsed.name && projectIdLookup && parsed.name === projectIdLookup) return true;
+  if (parsed.id && projectNameLookup && parsed.id === projectNameLookup) return true;
+
+  return false;
+};
+
 const isActivityForProject = (activity, projectId, projectName = "") => {
   const activityProjectId = normalizeLookup(activity?.projectId);
   const activityProjectName = normalizeLookup(activity?.projectName);
@@ -605,7 +621,7 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   const activities = allActivities
     .filter((item) => isActivityForProject(item, projectId, projectName))
     .sort(compareActivitiesByStartPriority);
-  const daily = loadDailyCosts().filter((item) => String(item.projectId || "").trim() === projectId);
+  const daily = loadDailyCosts().filter((item) => isDailyCostForProject(item, projectId, projectName));
   const rawRows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
     const rowCostId = String(activity.costId || "").trim();
@@ -735,7 +751,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     : `<option value="" selected disabled>No working days in this date range.</option>`;
 
   const entries = dailyCosts
-    .filter((item) => String(item.projectId || "").trim() === projectId && String(item.activityId || "").trim() === activityId)
+    .filter((item) => isDailyCostForProject(item, projectId, projectName) && String(item.activityId || "").trim() === activityId)
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
   const rows = entries.length
     ? entries.map((entry) => `<tr><td>${formatHumanDate(entry.date)}</td><td>${formatBudget(entry.actualCost)}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`).join("")
@@ -750,7 +766,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", () => modal.classList.add("hidden"));
   modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", () => {
     const date = String(button.dataset.deleteDate || "");
-    const nextDailyCosts = loadDailyCosts().filter((item) => !(String(item.projectId || "").trim() === projectId
+    const nextDailyCosts = loadDailyCosts().filter((item) => !(isDailyCostForProject(item, projectId, projectName)
       && String(item.activityId || "").trim() === activityId
       && String(item.date || "") === date));
     saveDailyCosts(nextDailyCosts);
@@ -799,7 +815,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       return;
     }
     const existingIndex = dailyCosts.findIndex((item) =>
-      String(item.projectId || "").trim() === projectId
+      isDailyCostForProject(item, projectId, projectName)
       && String(item.activityId || "").trim() === activityId
       && String(item.date || "") === date
     );
@@ -821,7 +837,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
       const resetDailyCosts = loadDailyCosts().filter((item) => !(
-        String(item.projectId || "").trim() === projectId
+        isDailyCostForProject(item, projectId, projectName)
         && String(item.activityId || "").trim() === activityId
         && String(item.date || "") === date
       ));
