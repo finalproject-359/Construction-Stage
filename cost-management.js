@@ -792,7 +792,12 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       && String(item.activityId || "").trim() === activityId
       && String(item.date || "") === date));
     saveDailyCosts(nextDailyCosts);
-    postToDataSource("daily_costs", "delete", { dailyCost: { projectId, costId: activityCostId, activityId, date } });
+    const resolvedProjectId = String(projectId || activity.projectId || "").trim();
+    if (!resolvedProjectId) {
+      alert("Unable to delete daily cost because Project ID is missing.");
+      return;
+    }
+    postToDataSource("daily_costs", "delete", { dailyCost: { projectId: resolvedProjectId, costId: activityCostId, activityId, date } });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
@@ -841,8 +846,13 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       && String(item.activityId || "").trim() === activityId
       && String(item.date || "") === date
     );
+    const resolvedProjectId = String(projectId || activity.projectId || "").trim();
+    if (!resolvedProjectId) {
+      alert("Unable to save daily cost because Project ID is missing.");
+      return;
+    }
     const payload = {
-      projectId,
+      projectId: resolvedProjectId,
       costId: activityCostId,
       activityId,
       activity: activityName,
@@ -858,7 +868,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       const dailyCostAction = existingIndex >= 0 ? "update" : "create";
       await postToDataSource("daily_costs", dailyCostAction, {
         dailyCost: {
-          projectId,
+          projectId: resolvedProjectId,
           costId: activityCostId,
           activityId,
           activity: activityName,
@@ -971,6 +981,11 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
   modal.querySelector("#costMetaForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const resolvedProjectId = String(projectId || target.projectId || "").trim();
+    if (!resolvedProjectId) {
+      alert("Unable to save cost because Project ID is missing.");
+      return;
+    }
     const nextCostId = String(formData.get("costId") || "").trim();
     const nextPlannedCost = parseBudgetValue(formData.get("plannedCost"));
     const existingOverrides = loadCostActivities().map(normalizeCostActivity);
@@ -988,7 +1003,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
       await postToDataSource("costs", "create", {
         cost: {
           costId: nextCostId,
-          projectId,
+          projectId: resolvedProjectId,
           project: target.projectName || "",
           activityId: activityRefId,
           activity: target.name || "",
