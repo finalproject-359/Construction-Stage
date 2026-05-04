@@ -1150,6 +1150,7 @@ const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
     await bootstrapCostManagement();
   } finally {
     isCostManagementSyncInFlight = false;
+    window.dispatchEvent(new CustomEvent("cost-management:data-loaded"));
   }
 };
 
