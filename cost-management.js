@@ -501,7 +501,22 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     if (filteredRows.length || !projectFilter?.projectId) return filteredRows;
 
     const allRows = await fetchRows(false);
-    return allRows.filter((row) => normalizeLookup(row.projectId) === normalizeLookup(projectFilter.projectId));
+    const selectedProjectId = normalizeLookup(projectFilter?.projectId || "");
+    const selectedProjectName = normalizeLookup(projectFilter?.projectName || "");
+    return allRows.filter((row) => {
+      const rowProjectIdentity = String(row.projectId || "").trim();
+      const rowProjectLookup = normalizeLookup(rowProjectIdentity);
+      if (!rowProjectLookup) return false;
+      if (selectedProjectId && rowProjectLookup === selectedProjectId) return true;
+      if (selectedProjectName && rowProjectLookup === selectedProjectName) return true;
+
+      const canonicalProjectId = normalizeLookup(
+        resolveProjectIdFromDailyCost({ projectId: rowProjectIdentity, projectName: rowProjectIdentity }, lookups)
+      );
+      if (selectedProjectId && canonicalProjectId === selectedProjectId) return true;
+      if (selectedProjectName && canonicalProjectId === selectedProjectName) return true;
+      return false;
+    });
   } catch (error) {
     console.warn("Unable to load cost metadata from resource endpoint:", error);
     return [];
