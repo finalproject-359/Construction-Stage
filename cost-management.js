@@ -1168,7 +1168,12 @@ const getSelectedProjectFilter = (project = null) => {
     projectName: project?.name || selectedProjectName,
   };
 };
-const bootstrapCostManagement = async () => {
+const getActiveDetailsTabFromUi = () => {
+  const activeTab = detailsView?.querySelector(".tab-btn.active")?.dataset.tab;
+  return activeTab === "costing" ? "costing" : "overview";
+};
+
+const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
   const remoteProjects = (await loadRemoteProjects()).map(normalizeProject).filter((project) => project.id);
   projectsState = remoteProjects.length
     ? remoteProjects
@@ -1176,6 +1181,7 @@ const bootstrapCostManagement = async () => {
   persistToLocalStorage(PROJECTS_LOCAL_STORAGE_KEY, projectsState);
 
   const { selectedProjectId, selectedProjectName, selectedTab } = getSelectedViewParams();
+  const resolvedSelectedTab = preferredTab === "costing" ? "costing" : selectedTab;
   const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).find((project) =>
     (selectedProjectId && project.id === selectedProjectId)
     || (selectedProjectName && project.name === selectedProjectName)
@@ -1270,7 +1276,7 @@ const bootstrapCostManagement = async () => {
 
   const activitiesForDisplay = loadCostActivities();
 
-  if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, selectedTab, activitiesForDisplay)) renderProjects();
+  if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, resolvedSelectedTab, activitiesForDisplay)) renderProjects();
 };
 
 let isCostManagementSyncInFlight = false;
@@ -1293,7 +1299,7 @@ const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
 
   isCostManagementSyncInFlight = true;
   try {
-    await bootstrapCostManagement();
+    await bootstrapCostManagement({ preferredTab: getActiveDetailsTabFromUi() });
   } finally {
     isCostManagementSyncInFlight = false;
     window.dispatchEvent(new CustomEvent("cost-management:data-loaded"));
