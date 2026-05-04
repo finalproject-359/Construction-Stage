@@ -1203,6 +1203,12 @@ const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
   if (isCostManagementSyncInFlight) return;
   if (!force && document.visibilityState === "hidden") return;
   if (hasOpenCostDialog()) return;
+  if (document.activeElement instanceof HTMLElement) {
+    const isTyping =
+      document.activeElement.matches("input, textarea, select")
+      || document.activeElement.isContentEditable;
+    if (isTyping) return;
+  }
 
   isCostManagementSyncInFlight = true;
   try {

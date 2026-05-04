@@ -1723,6 +1723,13 @@ const bootstrapActivitiesPage = async () => {
 const refreshActivitiesIfVisible = async ({ force = false } = {}) => {
   if (isActivitiesSyncInFlight) return;
   if (!force && document.visibilityState === "hidden") return;
+  if (activityModal && !activityModal.classList.contains("hidden")) return;
+  if (document.activeElement instanceof HTMLElement) {
+    const isTyping =
+      document.activeElement.matches("input, textarea, select")
+      || document.activeElement.isContentEditable;
+    if (isTyping) return;
+  }
 
   isActivitiesSyncInFlight = true;
   try {

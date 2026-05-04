@@ -760,6 +760,13 @@ const bootstrapProjectsPage = async () => {
 const refreshProjectsIfVisible = async ({ force = false } = {}) => {
   if (isProjectsSyncInFlight) return;
   if (!force && document.visibilityState === "hidden") return;
+  if (projectModal && !projectModal.classList.contains("hidden")) return;
+  if (document.activeElement instanceof HTMLElement) {
+    const isTyping =
+      document.activeElement.matches("input, textarea, select")
+      || document.activeElement.isContentEditable;
+    if (isTyping) return;
+  }
 
   isProjectsSyncInFlight = true;
   try {
