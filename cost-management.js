@@ -470,24 +470,9 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!dataSourceUrl) return [];
   const lookups = buildProjectIdentityLookups(loadProjects());
-  try {
-    const url = new URL(dataSourceUrl);
-    url.searchParams.set("resource", "costs");
-    if (projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
-    url.searchParams.set("_ts", String(Date.now()));
-    const response = await fetch(url.toString(), { cache: "no-store" });
-    if (!response.ok) return [];
-    const payload = await response.json();
-    const rows = Array.isArray(payload?.costs)
-      ? payload.costs
-      : Array.isArray(payload?.rows)
-        ? payload.rows
-        : Array.isArray(payload?.data)
-          ? payload.data
-          : Array.isArray(payload?.items)
-            ? payload.items
-            : [];
-    return rows.map((row) => ({
+
+  const parseCostRows = (payload = {}) => extractCostRowsFromPayload(payload)
+    .map((row) => ({
       projectId: resolveProjectIdFromDailyCost({
         projectId: getValueByAliases(row, ["projectId", "project_id", "project id"]),
         projectName: getValueByAliases(row, ["project", "projectName", "project_name", "project name"]),
@@ -497,7 +482,26 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
       plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
-    })).filter((row) => row.projectId && (row.activityRefId || row.activityName));
+    }))
+    .filter((row) => row.projectId && (row.activityRefId || row.activityName));
+
+  try {
+    const fetchRows = async (includeProjectId) => {
+      const url = new URL(dataSourceUrl);
+      url.searchParams.set("resource", "costs");
+      if (includeProjectId && projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
+      url.searchParams.set("_ts", String(Date.now()));
+      const response = await fetch(url.toString(), { cache: "no-store" });
+      if (!response.ok) return [];
+      const payload = await response.json();
+      return parseCostRows(payload);
+    };
+
+    const filteredRows = await fetchRows(true);
+    if (filteredRows.length || !projectFilter?.projectId) return filteredRows;
+
+    const allRows = await fetchRows(false);
+    return allRows.filter((row) => normalizeLookup(row.projectId) === normalizeLookup(projectFilter.projectId));
   } catch (error) {
     console.warn("Unable to load cost metadata from resource endpoint:", error);
     return [];
