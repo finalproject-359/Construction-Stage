@@ -453,24 +453,12 @@ const extractActivityRefIdFromCostRow = (row = {}) => {
   return notesMatch?.[1] ? String(notesMatch[1]).trim() : "";
 };
 
-const isLikelyCostRow = (row = {}) => {
-  const hasCostId = String(getValueByAliases(row, ["costId", "cost_id", "cost id"]) || "").trim();
-  const hasPlanned = parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "budget"]));
-  const hasActivity = String(getValueByAliases(row, ["activity", "activityName", "activity_name"]) || "").trim();
-  return Boolean(hasCostId || hasPlanned > 0) && Boolean(hasActivity);
-};
-
-const extractCostRowsFromPayload = (payload = {}, { allowGeneric = true } = {}) => {
+const extractCostRowsFromPayload = (payload = {}) => {
   if (Array.isArray(payload?.costs)) return payload.costs;
-  if (!allowGeneric) return [];
-  const genericRows = Array.isArray(payload?.rows)
-    ? payload.rows
-    : Array.isArray(payload?.data)
-      ? payload.data
-      : Array.isArray(payload?.items)
-        ? payload.items
-        : [];
-  return genericRows.filter((row) => isLikelyCostRow(row));
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
 };
 
 const loadRemoteCostMetadata = async (projectFilter = {}) => {
@@ -485,20 +473,15 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     const response = await fetch(url.toString(), { cache: "no-store" });
     if (!response.ok) return [];
     const payload = await response.json();
-    let rows = extractCostRowsFromPayload(payload);
-
-    // Some deployments expose costs only under dashboard/all responses.
-    if (!rows.length) {
-      const fallbackUrl = new URL(dataSourceUrl);
-      fallbackUrl.searchParams.set("resource", "dashboard");
-      if (projectFilter?.projectId) fallbackUrl.searchParams.set("projectId", String(projectFilter.projectId));
-      fallbackUrl.searchParams.set("_ts", String(Date.now()));
-      const fallbackResponse = await fetch(fallbackUrl.toString(), { cache: "no-store" });
-      if (fallbackResponse.ok) {
-        const fallbackPayload = await fallbackResponse.json();
-        rows = extractCostRowsFromPayload(fallbackPayload, { allowGeneric: false });
-      }
-    }
+    const rows = Array.isArray(payload?.costs)
+      ? payload.costs
+      : Array.isArray(payload?.rows)
+        ? payload.rows
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : [];
     return rows.map((row) => ({
       projectId: resolveProjectIdFromDailyCost({
         projectId: getValueByAliases(row, ["projectId", "project_id", "project id"]),
