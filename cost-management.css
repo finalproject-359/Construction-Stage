@@ -52,6 +52,13 @@ body.page-cost-management .main-content {
 }
 
 .toolbar-row { display: flex; gap: 12px; }
+.cost-selection-filters {
+  border: 1px solid #e1e8f5;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fff;
+  margin-bottom: 14px;
+}
 .search-box {
   border: 1px solid #d8deec;
   border-radius: 12px;
