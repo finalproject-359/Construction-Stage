@@ -194,6 +194,9 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 2 }).format(Number(value) || 0);
+
 const formatProjectIdentityLabel = (projectId, projectName) => {
   const safeName = String(projectName || "").trim();
   const safeId = String(projectId || "").trim();
@@ -269,6 +272,10 @@ const normalizeActivity = (activity = {}) => {
   const progress = progressRaw ?? (status === "Completed" ? 100 : 0);
   const plannedStartDate = parseDateValue(plannedStartRaw);
   const plannedFinishDate = parseDateValue(plannedFinishRaw);
+  const costId = String(getValueByAliases(activity, ["costId", "cost_id", "cost id", "costCode", "cost_code"]) || "").trim();
+  const plannedCost = Number(String(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "budget"]) || "0").replace(/[^\d.-]/g, "")) || 0;
+  const durationDays = Number(String(durationRaw || "").replace(/[^\d.-]/g, "")) || countPhilippineWorkingDaysInclusive(plannedStartDate, plannedFinishDate) || 0;
+  const plannedCostPerDay = durationDays > 0 ? plannedCost / durationDays : 0;
 
   return {
     id: id || "-",
@@ -283,6 +290,9 @@ const normalizeActivity = (activity = {}) => {
     duration: toDurationLabel(durationRaw, plannedStartDate, plannedFinishDate),
     progress: toPercent(progress),
     durationStatus,
+    costId,
+    plannedCost,
+    plannedCostPerDay,
   };
 };
 
@@ -438,6 +448,9 @@ const buildActivityRowHtml = (activity) => {
     <tr>
       <td>${escapeHtml(activity.id)}</td>
       <td>${escapeHtml(activity.name)}</td>
+      <td>${escapeHtml(activity.costId || "-")}</td>
+      <td>${activity.plannedCost > 0 ? escapeHtml(formatCurrency(activity.plannedCost)) : "-"}</td>
+      <td>${activity.plannedCostPerDay > 0 ? escapeHtml(formatCurrency(activity.plannedCostPerDay)) : "-"}</td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>${escapeHtml(activity.plannedFinish)}</td>
       <td>${escapeHtml(activity.duration)}</td>
