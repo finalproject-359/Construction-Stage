@@ -1,4 +1,55 @@
 /* Page-specific styles for projects.html. */
 body.page-projects {
-  /* Reserved for projects-only overrides. */
+  background: #f2f4f8;
+}
+
+body.page-projects .sidebar {
+  position: relative;
+  overflow: hidden;
+}
+
+body.page-projects .sidebar::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 44%;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(6, 27, 58, 0) 0%, rgba(4, 22, 47, 0.7) 36%, rgba(4, 20, 41, 0.92) 100%),
+    radial-gradient(ellipse at 0% 100%, rgba(10, 41, 82, 0.5) 0%, transparent 62%);
+}
+
+body.page-projects .main-content {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(180deg, #f7f8fb 0%, #f2f4f8 100%);
+}
+
+body.page-projects .main-content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.82;
+  background:
+    radial-gradient(150% 120% at 50% 45%, rgba(255, 255, 255, 0.95) 0%, rgba(239, 242, 247, 0.86) 54%, rgba(229, 233, 240, 0.78) 100%),
+    linear-gradient(138deg, rgba(176, 183, 194, 0.32) 0 1px, transparent 1px 100%),
+    linear-gradient(45deg, rgba(176, 183, 194, 0.2) 0 1px, transparent 1px 100%);
+  background-size: auto, 520px 520px, 500px 500px;
+  background-position: center, right -320px bottom -280px, left -280px top -340px;
+}
+
+body.page-projects .main-content::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 88% 11%, rgba(161, 168, 179, 0.22) 0 6%, transparent 34%),
+    radial-gradient(circle at 8% 84%, rgba(161, 168, 179, 0.2) 0 10%, transparent 38%),
+    linear-gradient(130deg, transparent 71%, rgba(161, 168, 179, 0.24) 71.4%, transparent 72.2%),
+    linear-gradient(42deg, transparent 83%, rgba(161, 168, 179, 0.18) 83.5%, transparent 84.4%);
 }
