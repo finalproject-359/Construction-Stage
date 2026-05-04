@@ -484,6 +484,31 @@ function syncCostActualFromDailyCost(projectId, costId) {
       return;
     }
   }
+
+  // If a matching cost row does not exist yet, create one from the latest daily-cost context
+  // so accumulation is still reflected in the Costs sheet.
+  var latestDailyRecord = null;
+  for (var dailyIndex = dailyValues.length - 1; dailyIndex >= 1; dailyIndex -= 1) {
+    if (cleanText(dailyValues[dailyIndex][dailyColumns.projectId - 1]) === normalizedProjectId
+      && cleanText(dailyValues[dailyIndex][dailyColumns.costId - 1]) === normalizedCostId) {
+      latestDailyRecord = dailyValues[dailyIndex];
+      break;
+    }
+  }
+
+  if (!latestDailyRecord) return;
+
+  var generatedCost = {
+    projectId: normalizedProjectId,
+    costId: normalizedCostId,
+    activity: costColumns.activity && dailyColumns.activity ? cleanText(latestDailyRecord[dailyColumns.activity - 1]) : '',
+    plannedCost: costColumns.plannedCost && dailyColumns.plannedCost ? parseNumber(latestDailyRecord[dailyColumns.plannedCost - 1]) : 0,
+    plannedCostPerDay: costColumns.plannedCostPerDay && dailyColumns.plannedCostPerDay ? parseNumber(latestDailyRecord[dailyColumns.plannedCostPerDay - 1]) : 0,
+    actualCost: totalActualCost,
+    date: costColumns.date && dailyColumns.date ? normalizeDate(latestDailyRecord[dailyColumns.date - 1]) : normalizeDate(new Date()),
+  };
+
+  upsertCostRow(generatedCost);
 }
 
 function normalizeIncomingCost(input) {
