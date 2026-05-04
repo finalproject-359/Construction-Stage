@@ -220,11 +220,15 @@ body.page-cost-management .main-content {
   background: repeating-linear-gradient(to top, #eef3ff 0 1px, transparent 1px 25%);
 }
 .bar-wrap { text-align: center; width: min(180px, 100%); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
-.bar { width: clamp(42px, 28%, 72px); border-radius: 6px 6px 0 0; min-height: 30px; box-shadow: 0 6px 18px rgba(47,85,255,.16); transition: transform .2s ease; }
+.bar { width: clamp(42px, 28%, 72px); border-radius: 6px 6px 0 0; min-height: 0; box-shadow: 0 6px 18px rgba(47,85,255,.16); transition: transform .2s ease, height .35s ease; }
 .bar:hover { transform: translateY(-2px); }
 .bar.planned { background: linear-gradient(180deg, #2f67ff, #1f52e8); }
 .bar.actual { background: linear-gradient(180deg, #38c26d, #2ca75a); }
-.bar-wrap strong { display: block; margin: 0 0 8px; color: #2f55ff; font-size: 1rem; }
+.bar.budget { background: linear-gradient(180deg, #f0c23f, #d6a624); }
+.bar-wrap strong { display: block; margin: 0 0 8px; font-size: 1rem; }
+.bar-amount.planned { color: #2f67ff; }
+.bar-amount.actual { color: #38c26d; }
+.bar-amount.budget { color: #d6a624; }
 .bar-wrap p { margin: 8px 0 0; color: #6a7da1; font-size: .95rem; }
 .chart-caption { margin: 12px 0 0; color: #5f7092; font-size: .95rem; text-align: center; }
 
@@ -234,6 +238,7 @@ body.page-cost-management .main-content {
 .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 .legend-dot.planned { background: #2f67ff; }
 .legend-dot.actual { background: #38c26d; }
+.legend-dot.budget { background: #f0c23f; }
 .summary-panel ul { list-style: none; padding: 0; margin: 0; }
 .summary-panel li { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #edf1f8; gap: 10px; }
 
