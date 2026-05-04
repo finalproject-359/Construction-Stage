@@ -780,11 +780,24 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const rowFallback = projectRows.find((row) => String(getActivityRefId(row) || "").trim() === activityId)
     || projectRows.find((row) => String(row.name || "").trim().toLowerCase() === normalizedActivityName)
     || projectRows.find((row) => String(row.costId || "").trim() && String(row.name || "").trim().toLowerCase() === normalizedActivityName);
+  const relatedRows = projectRows.filter((row) => {
+    const rowActivityId = String(getActivityRefId(row) || "").trim();
+    const rowName = String(row.name || "").trim().toLowerCase();
+    return rowActivityId === activityId || rowName === normalizedActivityName;
+  });
 
-  const activityCostId = String(activity.costId || rowFallback?.costId || "").trim();
-  const activityName = String(activity.name || rowFallback?.name || "").trim();
-  const activityPlannedCost = Math.max(parseBudgetValue(activity.plannedCost), parseBudgetValue(rowFallback?.plannedCost));
-  const activityDurationDays = Math.max(Number(activity.durationDays) || 0, Number(rowFallback?.durationDays) || 0);
+  const activityCostId = String(activity.costId || rowFallback?.costId || relatedRows.find((row) => String(row.costId || "").trim())?.costId || "").trim();
+  const activityName = String(activity.name || rowFallback?.name || relatedRows.find((row) => String(row.name || "").trim())?.name || "").trim();
+  const activityPlannedCost = Math.max(
+    parseBudgetValue(activity.plannedCost),
+    parseBudgetValue(rowFallback?.plannedCost),
+    ...relatedRows.map((row) => parseBudgetValue(row.plannedCost)),
+  );
+  const activityDurationDays = Math.max(
+    Number(activity.durationDays) || 0,
+    Number(rowFallback?.durationDays) || 0,
+    ...relatedRows.map((row) => Number(row.durationDays) || 0),
+  );
   const activityPlannedCostPerDay = activityDurationDays > 0 ? (activityPlannedCost / activityDurationDays) : 0;
   if (!activityCostId || activityPlannedCost <= 0) {
     alert("Please add Cost ID and Planned Cost first before adding daily costs for this activity.");
