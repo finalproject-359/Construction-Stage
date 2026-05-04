@@ -141,7 +141,7 @@ const getValueByAliases = (source, aliases = []) => {
   // Fallback for headers with suffix/prefix qualifiers like "Planned Cost (PHP)".
   for (const alias of aliases) {
     const normalizedAlias = String(alias).toLowerCase().replace(/[^a-z0-9]/g, "");
-    const matched = normalizedEntries.find((entry) => entry.normalized.includes(normalizedAlias) || normalizedAlias.includes(entry.normalized));
+    const matched = normalizedEntries.find((entry) => entry.normalized.includes(normalizedAlias));
     if (matched) return source[matched.key];
   }
   return undefined;
