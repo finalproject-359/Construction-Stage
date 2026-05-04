@@ -444,7 +444,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id"]) || "").trim(),
       date: normalizeDateKey(getValueByAliases(row, ["date"])),
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
-    })).filter((r) => r.projectId && r.activityId && r.date);
+    })).filter((r) => r.projectId && r.activityId && r.date && parseBudgetValue(r.actualCost) > 0);
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
     return [];
@@ -875,6 +875,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       const entryCostId = String(item.costId || "").trim();
       return entryActivityId === activityId || (activityCostId && entryCostId === activityCostId);
     })
+    .filter((item) => parseBudgetValue(item.actualCost) > 0)
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
   const rows = entries.length
     ? entries.map((entry) => `<tr><td>${formatHumanDate(entry.date)}</td><td>${formatBudget(entry.actualCost)}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`).join("")
