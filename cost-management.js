@@ -822,6 +822,12 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
 
   const projectRows = getProjectCostData(projectId, allActivities).rows;
   const normalizedActivityName = String(activity.name || "").trim().toLowerCase();
+  const matchingActivityRecords = allActivities.filter((item) => {
+    if (!isActivityForProject(item, projectId, projectName)) return false;
+    const itemActivityId = String(getActivityRefId(item) || "").trim();
+    const itemName = String(item.name || "").trim().toLowerCase();
+    return itemActivityId === activityId || itemName === normalizedActivityName;
+  });
   const rowFallback = projectRows.find((row) => String(getActivityRefId(row) || "").trim() === activityId)
     || projectRows.find((row) => String(row.name || "").trim().toLowerCase() === normalizedActivityName)
     || projectRows.find((row) => String(row.costId || "").trim() && String(row.name || "").trim().toLowerCase() === normalizedActivityName);
@@ -831,10 +837,17 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     return rowActivityId === activityId || rowName === normalizedActivityName;
   });
 
-  const activityCostId = String(activity.costId || rowFallback?.costId || relatedRows.find((row) => String(row.costId || "").trim())?.costId || "").trim();
+  const activityCostId = String(
+    activity.costId
+    || matchingActivityRecords.find((item) => String(item.costId || "").trim())?.costId
+    || rowFallback?.costId
+    || relatedRows.find((row) => String(row.costId || "").trim())?.costId
+    || "",
+  ).trim();
   const activityName = String(activity.name || rowFallback?.name || relatedRows.find((row) => String(row.name || "").trim())?.name || "").trim();
   const activityPlannedCost = Math.max(
     parseBudgetValue(activity.plannedCost),
+    ...matchingActivityRecords.map((item) => parseBudgetValue(item.plannedCost)),
     parseBudgetValue(rowFallback?.plannedCost),
     ...relatedRows.map((row) => parseBudgetValue(row.plannedCost)),
   );
