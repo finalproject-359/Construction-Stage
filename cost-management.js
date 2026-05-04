@@ -746,8 +746,8 @@ const buildDetailsMarkup = (project, rows) => {
   const maxCost = Math.max(...comparisonItems.map((item) => item.value), 1);
   const comparisonBarsMarkup = comparisonItems
     .map((item) => {
-      const height = item.value > 0 ? Math.max(6, Math.round((item.value / maxCost) * 100)) : 0;
-      return `<div class="bar-wrap"><strong class="bar-amount ${item.key}">${formatBudget(item.value)}</strong><div class="bar ${item.key}" style="height:${height}%" aria-label="${item.label}: ${formatBudget(item.value)}"></div><p>${item.label}</p></div>`;
+      const height = item.value > 0 ? Math.max(10, Math.round((item.value / maxCost) * 100)) : 0;
+      return `<div class="bar-wrap"><strong>${formatBudget(item.value)}</strong><div class="bar ${item.key}" style="height:${height}%"></div><p>${item.label}</p></div>`;
     })
     .join("");
   const comparisonLegendMarkup = comparisonItems
