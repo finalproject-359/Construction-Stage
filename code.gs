@@ -50,7 +50,6 @@ const CONFIG = {
       'Duration',
       'Planned Cost',
       'Planned Cost/Day',
-      'Actual Cost',
       'Created At',
     ],
     dailyCosts: [
