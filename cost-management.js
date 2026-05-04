@@ -756,10 +756,15 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const dailyCosts = loadDailyCosts();
   const activity = activities.find((item) => getActivityRefId(item) === activityId && isActivityForProject(item, projectId, projectName));
   if (!modal || !activity) return;
-  const activityCostId = String(activity.costId || "").trim();
-  const activityName = String(activity.name || "").trim();
-  const activityPlannedCost = parseBudgetValue(activity.plannedCost);
-  const activityDurationDays = Number(activity.durationDays) > 0 ? Number(activity.durationDays) : 0;
+
+  const projectRows = getProjectCostData(projectId, allActivities).rows;
+  const rowFallback = projectRows.find((row) => String(getActivityRefId(row) || "").trim() === activityId)
+    || projectRows.find((row) => String(row.costId || "").trim() && String(row.name || "").trim().toLowerCase() === String(activity.name || "").trim().toLowerCase());
+
+  const activityCostId = String(activity.costId || rowFallback?.costId || "").trim();
+  const activityName = String(activity.name || rowFallback?.name || "").trim();
+  const activityPlannedCost = Math.max(parseBudgetValue(activity.plannedCost), parseBudgetValue(rowFallback?.plannedCost));
+  const activityDurationDays = Math.max(Number(activity.durationDays) || 0, Number(rowFallback?.durationDays) || 0);
   const activityPlannedCostPerDay = activityDurationDays > 0 ? (activityPlannedCost / activityDurationDays) : 0;
   if (!activityCostId || activityPlannedCost <= 0) {
     alert("Please add Cost ID and Planned Cost first before adding daily costs for this activity.");
