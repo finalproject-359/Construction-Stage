@@ -1097,17 +1097,26 @@ const syncSearches = (value) => { topSearch.value = value; listSearch.value = va
 topSearch?.addEventListener("input", (event) => syncSearches(event.target.value));
 listSearch?.addEventListener("input", (event) => syncSearches(event.target.value));
 
-const params = new URLSearchParams(window.location.search);
-const selectedProjectId = params.get("projectId") || "";
-const selectedProjectName = params.get("project") || "";
-const selectedTab = params.get("tab") === "costing" ? "costing" : "overview";
-const getSelectedProjectFilter = (project = null) => ({
-  projectId: project?.id || selectedProjectId,
-  projectName: project?.name || selectedProjectName,
-});
+const getSelectedViewParams = () => {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    selectedProjectId: params.get("projectId") || "",
+    selectedProjectName: params.get("project") || "",
+    selectedTab: params.get("tab") === "costing" ? "costing" : "overview",
+  };
+};
+
+const getSelectedProjectFilter = (project = null) => {
+  const { selectedProjectId, selectedProjectName } = getSelectedViewParams();
+  return {
+    projectId: project?.id || selectedProjectId,
+    projectName: project?.name || selectedProjectName,
+  };
+};
 const bootstrapCostManagement = async () => {
   projectsState = (await loadRemoteProjects()).map(normalizeProject).filter((project) => project.id);
 
+  const { selectedProjectId, selectedProjectName, selectedTab } = getSelectedViewParams();
   const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).find((project) =>
     (selectedProjectId && project.id === selectedProjectId)
     || (selectedProjectName && project.name === selectedProjectName)
