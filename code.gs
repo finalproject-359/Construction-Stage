@@ -396,6 +396,8 @@ function handleDailyCostMutation(action, payload) {
     if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.date) {
       throw new Error('Project ID, Cost ID, and Date are required for delete.');
     }
+    assertProjectExists(dailyCost.projectId);
+    assertCostExists(dailyCost.projectId, dailyCost.costId);
     deleteDailyCostRow(dailyCost);
     syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
     return jsonResponse({ ok: true, message: 'Daily cost deleted successfully.', generatedAt: new Date().toISOString() });
@@ -413,6 +415,30 @@ function assertProjectExists(projectId) {
   }
 }
 
+
+function costExists(projectId, costId) {
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedCostId = cleanText(costId);
+  if (!normalizedProjectId || !normalizedCostId) return false;
+
+  var sheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(sheet, CONFIG.headers.costs);
+  var columns = getCostColumnMap(sheet);
+  if (!columns.projectId || !columns.costId) {
+    throw new Error('Costs sheet is missing Project ID or Cost ID columns.');
+  }
+
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    if (cleanText(values[i][columns.projectId - 1]) === normalizedProjectId
+      && cleanText(values[i][columns.costId - 1]) === normalizedCostId) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function assertCostExists(projectId, costId) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedCostId = cleanText(costId);
@@ -420,20 +446,9 @@ function assertCostExists(projectId, costId) {
     throw new Error('Project ID and Cost ID are required.');
   }
 
-  var sheet = getOrCreateSheet(CONFIG.sheetNames.costs);
-  ensureSheetHeaders(sheet, CONFIG.headers.costs);
-  var columns = getCostColumnMap(sheet);
-  if (!columns.projectId || !columns.costId) throw new Error('Costs sheet is missing Project ID or Cost ID columns.');
-
-  var values = sheet.getDataRange().getValues();
-  for (var i = 1; i < values.length; i += 1) {
-    if (cleanText(values[i][columns.projectId - 1]) === normalizedProjectId
-      && cleanText(values[i][columns.costId - 1]) === normalizedCostId) {
-      return;
-    }
+  if (!costExists(normalizedProjectId, normalizedCostId)) {
+    throw new Error('Cost record not found for the given Project ID and Cost ID. Create the cost first.');
   }
-
-  throw new Error('Cost record not found for the given Project ID and Cost ID. Create the cost first.');
 }
 
 function normalizeIncomingDailyCost(input) {
