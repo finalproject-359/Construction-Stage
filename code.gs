@@ -516,11 +516,16 @@ function upsertCostRow(cost) {
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
   if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
 
-  if (rowNumber > 0) {
-    sheet.getRange(rowNumber, 1, 1, lastColumn).setValues([rowValues]);
-    return;
-  }
-  sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
+  const targetRow = rowNumber > 0 ? rowNumber : sheet.getLastRow() + 1;
+  sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
+  applyCostRowFormats(sheet, targetRow, columns);
+}
+
+function applyCostRowFormats(sheet, rowNumber, columns) {
+  if (columns.plannedCost) sheet.getRange(rowNumber, columns.plannedCost).setNumberFormat('#,##0.00');
+  if (columns.plannedCostPerDay) sheet.getRange(rowNumber, columns.plannedCostPerDay).setNumberFormat('#,##0.00');
+  if (columns.actualCost) sheet.getRange(rowNumber, columns.actualCost).setNumberFormat('#,##0.00');
+  if (columns.date) sheet.getRange(rowNumber, columns.date).setNumberFormat('yyyy-mm-dd');
 }
 
 function updateProjectRow(project) {
