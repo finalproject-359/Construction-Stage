@@ -343,6 +343,8 @@ const loadRemoteCostActivities = async (projectFilter = {}) => {
   }
 };
 
+const isArchivedProject = (project = {}) => String(project.status || '').trim().toLowerCase() === 'archived';
+
 const normalizeRemoteProject = (row = {}) => normalizeProject({
   id: getValueByAliases(row, ["id", "projectId", "project_id", "project id"]),
   name: getValueByAliases(row, ["name", "project", "projectName", "project_name", "project name"]),
@@ -1021,7 +1023,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
 
 const showProjectDetails = (projectId, activeTab = "overview", allActivities = loadCostActivities()) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
-  if (!project || !selectionView || !detailsView || !selectedProjectBannerHost) return false;
+  if (!project || isArchivedProject(project) || !selectionView || !detailsView || !selectedProjectBannerHost) return false;
   selectionView.classList.add("hidden");
   selectedProjectBannerHost.classList.remove("hidden");
   selectedProjectBannerHost.innerHTML = buildSelectedProjectBannerMarkup(project);
@@ -1157,7 +1159,7 @@ const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActi
 
 const renderProjects = (query = "") => {
   const normalizedQuery = query.trim().toLowerCase();
-  const projects = loadProjects().map(normalizeProject).filter((project) => !normalizedQuery || [project.name, project.code, project.status].some((value) => value.toLowerCase().includes(normalizedQuery)));
+  const projects = loadProjects().map(normalizeProject).filter((project) => !isArchivedProject(project)).filter((project) => !normalizedQuery || [project.name, project.code, project.status].some((value) => value.toLowerCase().includes(normalizedQuery)));
   projectsList.innerHTML = "";
   if (!projects.length) return projectsEmpty.classList.remove("hidden");
   projectsEmpty.classList.add("hidden");
@@ -1211,7 +1213,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
 
   const { selectedProjectId, selectedProjectName, selectedTab } = getSelectedViewParams();
   const resolvedSelectedTab = preferredTab === "costing" ? "costing" : selectedTab;
-  const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).find((project) =>
+  const selectedProjectAfterBootstrap = loadProjects().map(normalizeProject).filter((project) => !isArchivedProject(project)).find((project) =>
     (selectedProjectId && project.id === selectedProjectId)
     || (selectedProjectName && project.name === selectedProjectName)
   );
