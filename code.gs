@@ -55,7 +55,7 @@ const CONFIG = {
     dailyCosts: [
       'Project ID',
       'Cost ID',
-      'Activity ID',
+      'Planned Cost/Day',
       'Date',
       'Actual Cost',
       'Created At',
@@ -377,8 +377,8 @@ function handleCostMutation(action, payload) {
 function handleDailyCostMutation(action, payload) {
   if (action === 'create' || action === 'update') {
     const dailyCost = normalizeIncomingDailyCost(payload.dailyCost || payload.daily_cost || payload);
-    if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.activityId || !dailyCost.date) {
-      throw new Error('Project ID, Cost ID, Activity ID, and Date are required.');
+    if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.date) {
+      throw new Error('Project ID, Cost ID, and Date are required.');
     }
     upsertDailyCostRow(dailyCost);
     return jsonResponse({ ok: true, message: 'Daily cost saved successfully.', dailyCost: dailyCost, generatedAt: new Date().toISOString() });
@@ -386,8 +386,8 @@ function handleDailyCostMutation(action, payload) {
 
   if (action === 'delete') {
     const dailyCost = normalizeIncomingDailyCost(payload.dailyCost || payload.daily_cost || payload);
-    if (!dailyCost.projectId || !dailyCost.activityId || !dailyCost.date) {
-      throw new Error('Project ID, Activity ID, and Date are required for delete.');
+    if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.date) {
+      throw new Error('Project ID, Cost ID, and Date are required for delete.');
     }
     deleteDailyCostRow(dailyCost);
     return jsonResponse({ ok: true, message: 'Daily cost deleted successfully.', generatedAt: new Date().toISOString() });
@@ -401,7 +401,7 @@ function normalizeIncomingDailyCost(input) {
   return {
     projectId: cleanText(source.projectId || source.project_id),
     costId: cleanText(source.costId || source.cost_id || source.id),
-    activityId: cleanText(source.activityId || source.activity_id),
+    plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
     date: normalizeDate(source.date),
     actualCost: parseNumber(source.actualCost || source.actual_cost || source.amount),
   };
@@ -415,7 +415,7 @@ function upsertDailyCostRow(dailyCost) {
   var idx = {
     projectId: headers.indexOf('Project ID'),
     costId: headers.indexOf('Cost ID'),
-    activityId: headers.indexOf('Activity ID'),
+    plannedCostPerDay: headers.indexOf('Planned Cost/Day'),
     date: headers.indexOf('Date'),
     actualCost: headers.indexOf('Actual Cost'),
     createdAt: headers.indexOf('Created At'),
@@ -423,11 +423,11 @@ function upsertDailyCostRow(dailyCost) {
   var rowNumber = -1;
   for (var i = 1; i < values.length; i += 1) {
     if (cleanText(values[i][idx.projectId]) === dailyCost.projectId
-      && cleanText(values[i][idx.activityId]) === dailyCost.activityId
+      && cleanText(values[i][idx.costId]) === dailyCost.costId
       && normalizeDate(values[i][idx.date]) === dailyCost.date) { rowNumber = i + 1; break; }
   }
   var row = new Array(Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length)).fill('');
-  row[idx.projectId] = dailyCost.projectId; row[idx.costId] = dailyCost.costId; row[idx.activityId] = dailyCost.activityId; row[idx.date] = dailyCost.date; row[idx.actualCost] = dailyCost.actualCost; row[idx.createdAt] = new Date();
+  row[idx.projectId] = dailyCost.projectId; row[idx.costId] = dailyCost.costId; row[idx.plannedCostPerDay] = dailyCost.plannedCostPerDay; row[idx.date] = dailyCost.date; row[idx.actualCost] = dailyCost.actualCost; row[idx.createdAt] = new Date();
   if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
   else sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
 }
@@ -437,9 +437,9 @@ function deleteDailyCostRow(dailyCost) {
   ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
   var values = sheet.getDataRange().getValues();
   var headers = values[0] || [];
-  var p = headers.indexOf('Project ID'); var a = headers.indexOf('Activity ID'); var d = headers.indexOf('Date');
+  var p = headers.indexOf('Project ID'); var c = headers.indexOf('Cost ID'); var d = headers.indexOf('Date');
   for (var i = values.length - 1; i >= 1; i -= 1) {
-    if (cleanText(values[i][p]) === dailyCost.projectId && cleanText(values[i][a]) === dailyCost.activityId && normalizeDate(values[i][d]) === dailyCost.date) sheet.deleteRow(i + 1);
+    if (cleanText(values[i][p]) === dailyCost.projectId && cleanText(values[i][c]) === dailyCost.costId && normalizeDate(values[i][d]) === dailyCost.date) sheet.deleteRow(i + 1);
   }
 }
 
@@ -1234,7 +1234,7 @@ function normalizeDailyCostRecord(row) {
   return {
     projectId: cleanText(row['Project ID'] || row['projectId'] || row['project_id']),
     costId: cleanText(row['Cost ID'] || row['costId'] || row['cost_id']),
-    activityId: cleanText(row['Activity ID'] || row['activityId'] || row['activity_id']),
+    plannedCostPerDay: parseNumber(row['Planned Cost/Day'] || row['plannedCostPerDay'] || row['planned_cost_per_day']),
     date: normalizeDate(row['Date'] || row['date']),
     actualCost: parseNumber(row['Actual Cost'] || row['actualCost'] || row['actual_cost']),
     createdAt: normalizeDate(row['Created At'] || row['createdAt'] || row['created_at']),
