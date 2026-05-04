@@ -362,6 +362,7 @@ function handleCostMutation(action, payload) {
     if (!cost.projectId || !cost.costId) {
       throw new Error('Project ID and Cost ID are required.');
     }
+    assertProjectExists(cost.projectId);
 
     upsertCostRow(cost);
     upsertDailyCostRow(buildDailyCostFromCost(cost));
@@ -383,6 +384,8 @@ function handleDailyCostMutation(action, payload) {
     if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.date) {
       throw new Error('Project ID, Cost ID, and Date are required.');
     }
+    assertProjectExists(dailyCost.projectId);
+    assertCostExists(dailyCost.projectId, dailyCost.costId);
     upsertDailyCostRow(dailyCost);
     syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
     return jsonResponse({ ok: true, message: 'Daily cost saved successfully.', dailyCost: dailyCost, generatedAt: new Date().toISOString() });
@@ -399,6 +402,38 @@ function handleDailyCostMutation(action, payload) {
   }
 
   throw new Error('Unsupported action for daily costs. Use action=create|update|delete.');
+}
+
+
+function assertProjectExists(projectId) {
+  var normalizedProjectId = cleanText(projectId);
+  if (!normalizedProjectId) throw new Error('Project ID is required.');
+  if (!findProjectSheetRow(normalizedProjectId)) {
+    throw new Error('Project not found. Create the project first before adding related records.');
+  }
+}
+
+function assertCostExists(projectId, costId) {
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedCostId = cleanText(costId);
+  if (!normalizedProjectId || !normalizedCostId) {
+    throw new Error('Project ID and Cost ID are required.');
+  }
+
+  var sheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(sheet, CONFIG.headers.costs);
+  var columns = getCostColumnMap(sheet);
+  if (!columns.projectId || !columns.costId) throw new Error('Costs sheet is missing Project ID or Cost ID columns.');
+
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    if (cleanText(values[i][columns.projectId - 1]) === normalizedProjectId
+      && cleanText(values[i][columns.costId - 1]) === normalizedCostId) {
+      return;
+    }
+  }
+
+  throw new Error('Cost record not found for the given Project ID and Cost ID. Create the cost first.');
 }
 
 function normalizeIncomingDailyCost(input) {
