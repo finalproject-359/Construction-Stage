@@ -384,6 +384,7 @@ function handleDailyCostMutation(action, payload) {
       throw new Error('Project ID, Cost ID, and Date are required.');
     }
     upsertDailyCostRow(dailyCost);
+    syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
     return jsonResponse({ ok: true, message: 'Daily cost saved successfully.', dailyCost: dailyCost, generatedAt: new Date().toISOString() });
   }
 
@@ -393,6 +394,7 @@ function handleDailyCostMutation(action, payload) {
       throw new Error('Project ID, Cost ID, and Date are required for delete.');
     }
     deleteDailyCostRow(dailyCost);
+    syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
     return jsonResponse({ ok: true, message: 'Daily cost deleted successfully.', generatedAt: new Date().toISOString() });
   }
 
@@ -445,6 +447,42 @@ function deleteDailyCostRow(dailyCost) {
     if (cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId
       && cleanText(values[i][columns.costId - 1]) === dailyCost.costId
       && normalizeDate(values[i][columns.date - 1]) === dailyCost.date) sheet.deleteRow(i + 1);
+  }
+}
+
+function syncCostActualFromDailyCost(projectId, costId) {
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedCostId = cleanText(costId);
+  if (!normalizedProjectId || !normalizedCostId) return;
+
+  var dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+  ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
+  var dailyColumns = getDailyCostColumnMap(dailySheet);
+  var dailyValues = dailySheet.getDataRange().getValues();
+  var totalActualCost = 0;
+
+  for (var i = 1; i < dailyValues.length; i += 1) {
+    if (cleanText(dailyValues[i][dailyColumns.projectId - 1]) === normalizedProjectId
+      && cleanText(dailyValues[i][dailyColumns.costId - 1]) === normalizedCostId) {
+      totalActualCost += parseNumber(dailyValues[i][dailyColumns.actualCost - 1]);
+    }
+  }
+
+  var costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+  var costColumns = getCostColumnMap(costsSheet);
+  var costValues = costsSheet.getDataRange().getValues();
+
+  for (var rowIndex = 1; rowIndex < costValues.length; rowIndex += 1) {
+    if (cleanText(costValues[rowIndex][costColumns.projectId - 1]) === normalizedProjectId
+      && cleanText(costValues[rowIndex][costColumns.costId - 1]) === normalizedCostId) {
+      if (costColumns.actualCost) {
+        var targetRow = rowIndex + 1;
+        costsSheet.getRange(targetRow, costColumns.actualCost).setValue(totalActualCost);
+        costsSheet.getRange(targetRow, costColumns.actualCost).setNumberFormat('#,##0.00');
+      }
+      return;
+    }
   }
 }
 
