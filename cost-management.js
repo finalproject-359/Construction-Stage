@@ -789,7 +789,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       && String(item.activityId || "").trim() === activityId
       && String(item.date || "") === date));
     saveDailyCosts(nextDailyCosts);
-    postToDataSource("daily_costs", "delete", { dailyCost: { projectId, activityId, date } });
+    postToDataSource("daily_costs", "delete", { dailyCost: { projectId, costId: activityCostId, activityId, date } });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);

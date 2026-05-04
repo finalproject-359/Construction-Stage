@@ -402,7 +402,7 @@ function normalizeIncomingDailyCost(input) {
   var source = input || {};
   return {
     projectId: cleanText(source.projectId || source.project_id),
-    costId: cleanText(source.costId || source.cost_id || source.id),
+    costId: cleanText(source.costId || source.cost_id || source.id || source.activityId || source.activity_id),
     activity: cleanText(source.activity || source.activityName),
     plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
     plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
