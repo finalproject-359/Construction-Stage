@@ -363,6 +363,17 @@ function handleCostMutation(action, payload) {
       throw new Error('Project ID and Cost ID are required.');
     }
     assertProjectExists(cost.projectId);
+    if (cost.activityId) {
+      assertActivityExists(cost.projectId, cost.activityId);
+    }
+
+    if (action === 'create' && costExists(cost.projectId, cost.costId)) {
+      throw new Error('Cost already exists for this project. Use update instead of create.');
+    }
+
+    if (action === 'update' && !costExists(cost.projectId, cost.costId)) {
+      throw new Error('Cost record not found for update. Create the cost first.');
+    }
 
     upsertCostRow(cost);
     upsertDailyCostRow(buildDailyCostFromCost(cost));
@@ -415,6 +426,20 @@ function assertProjectExists(projectId) {
   }
 }
 
+
+
+function assertActivityExists(projectId, activityId) {
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedActivityId = cleanText(activityId);
+  if (!normalizedProjectId || !normalizedActivityId) {
+    throw new Error('Project ID and Activity ID are required.');
+  }
+
+  var lookup = findActivitySheetRow(normalizedActivityId, normalizedProjectId, '');
+  if (!lookup) {
+    throw new Error('Activity not found for the given Project ID and Activity ID. Create the activity first.');
+  }
+}
 
 function costExists(projectId, costId) {
   var normalizedProjectId = cleanText(projectId);
