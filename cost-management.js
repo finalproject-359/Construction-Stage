@@ -683,15 +683,15 @@ const buildDetailsMarkup = (project, rows) => {
 
   const tableRows = rows.length
     ? rows.map((row) => {
-      const hasPlannedCost = parseBudgetValue(row.plannedCost) > 0;
-      const hasActualCost = parseBudgetValue(row.actualCost) > 0;
-      const plannedCostPerDay = hasPlannedCost && Number(row.durationDays) > 0
-        ? parseBudgetValue(row.plannedCost) / Number(row.durationDays)
+      const plannedCostValue = parseBudgetValue(row.plannedCost);
+      const actualCostValue = parseBudgetValue(row.actualCost);
+      const plannedCostPerDay = Number(row.durationDays) > 0
+        ? plannedCostValue / Number(row.durationDays)
         : 0;
-      const costIdCell = row.costId ? escapeHtml(row.costId) : "";
-      const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "";
-      const plannedCostPerDayCell = hasPlannedCost ? formatBudget(plannedCostPerDay) : "";
-      const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "";
+      const costIdCell = row.costId ? escapeHtml(row.costId) : "-";
+      const plannedCostCell = formatBudget(plannedCostValue);
+      const plannedCostPerDayCell = Number(row.durationDays) > 0 ? formatBudget(plannedCostPerDay) : "-";
+      const actualCostCell = formatBudget(actualCostValue);
 
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "";
 
