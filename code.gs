@@ -55,6 +55,8 @@ const CONFIG = {
     dailyCosts: [
       'Project ID',
       'Cost ID',
+      'Activity',
+      'Planned Cost',
       'Planned Cost/Day',
       'Date',
       'Actual Cost',
@@ -401,6 +403,8 @@ function normalizeIncomingDailyCost(input) {
   return {
     projectId: cleanText(source.projectId || source.project_id),
     costId: cleanText(source.costId || source.cost_id || source.id),
+    activity: cleanText(source.activity || source.activityName),
+    plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
     plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
     date: normalizeDate(source.date),
     actualCost: parseNumber(source.actualCost || source.actual_cost || source.amount),
@@ -415,6 +419,8 @@ function upsertDailyCostRow(dailyCost) {
   var idx = {
     projectId: headers.indexOf('Project ID'),
     costId: headers.indexOf('Cost ID'),
+    activity: headers.indexOf('Activity'),
+    plannedCost: headers.indexOf('Planned Cost'),
     plannedCostPerDay: headers.indexOf('Planned Cost/Day'),
     date: headers.indexOf('Date'),
     actualCost: headers.indexOf('Actual Cost'),
@@ -427,7 +433,7 @@ function upsertDailyCostRow(dailyCost) {
       && normalizeDate(values[i][idx.date]) === dailyCost.date) { rowNumber = i + 1; break; }
   }
   var row = new Array(Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length)).fill('');
-  row[idx.projectId] = dailyCost.projectId; row[idx.costId] = dailyCost.costId; row[idx.plannedCostPerDay] = dailyCost.plannedCostPerDay; row[idx.date] = dailyCost.date; row[idx.actualCost] = dailyCost.actualCost; row[idx.createdAt] = new Date();
+  row[idx.projectId] = dailyCost.projectId; row[idx.costId] = dailyCost.costId; row[idx.activity] = dailyCost.activity; row[idx.plannedCost] = dailyCost.plannedCost; row[idx.plannedCostPerDay] = dailyCost.plannedCostPerDay; row[idx.date] = dailyCost.date; row[idx.actualCost] = dailyCost.actualCost; row[idx.createdAt] = new Date();
   if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
   else sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
 }
@@ -1234,6 +1240,8 @@ function normalizeDailyCostRecord(row) {
   return {
     projectId: cleanText(row['Project ID'] || row['projectId'] || row['project_id']),
     costId: cleanText(row['Cost ID'] || row['costId'] || row['cost_id']),
+    activity: cleanText(row['Activity'] || row['activity'] || row['activityName']),
+    plannedCost: parseNumber(row['Planned Cost'] || row['plannedCost'] || row['planned_cost'] || row['plannedValue']),
     plannedCostPerDay: parseNumber(row['Planned Cost/Day'] || row['plannedCostPerDay'] || row['planned_cost_per_day']),
     date: normalizeDate(row['Date'] || row['date']),
     actualCost: parseNumber(row['Actual Cost'] || row['actualCost'] || row['actual_cost']),
