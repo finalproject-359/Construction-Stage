@@ -757,7 +757,10 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const activity = activities.find((item) => getActivityRefId(item) === activityId && isActivityForProject(item, projectId, projectName));
   if (!modal || !activity) return;
   const activityCostId = String(activity.costId || "").trim();
+  const activityName = String(activity.name || "").trim();
   const activityPlannedCost = parseBudgetValue(activity.plannedCost);
+  const activityDurationDays = Number(activity.durationDays) > 0 ? Number(activity.durationDays) : 0;
+  const activityPlannedCostPerDay = activityDurationDays > 0 ? (activityPlannedCost / activityDurationDays) : 0;
   if (!activityCostId || activityPlannedCost <= 0) {
     alert("Please add Cost ID and Planned Cost first before adding daily costs for this activity.");
     editCostMetadata(projectId, activityId, allActivities);
@@ -838,20 +841,32 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       && String(item.activityId || "").trim() === activityId
       && String(item.date || "") === date
     );
-    const payload = { projectId, costId: activityCostId, activityId, date, actualCost };
+    const payload = {
+      projectId,
+      costId: activityCostId,
+      activityId,
+      activity: activityName,
+      plannedCost: activityPlannedCost,
+      plannedCostPerDay: activityPlannedCostPerDay,
+      date,
+      actualCost,
+    };
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
     saveDailyCosts(dailyCosts);
     try {
       const dailyCostAction = existingIndex >= 0 ? "update" : "create";
       await postToDataSource("daily_costs", dailyCostAction, {
-      dailyCost: {
-        projectId,
-        costId: activityCostId,
-        activityId,
-        date,
-        actualCost,
-      },
+        dailyCost: {
+          projectId,
+          costId: activityCostId,
+          activityId,
+          activity: activityName,
+          plannedCost: activityPlannedCost,
+          plannedCostPerDay: activityPlannedCostPerDay,
+          date,
+          actualCost,
+        },
       });
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
