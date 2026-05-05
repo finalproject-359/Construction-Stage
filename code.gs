@@ -83,6 +83,125 @@ function doPost(e) {
   return handleRequest(parsePostPayload(e));
 }
 
+function onEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    var range = e.range;
+    var sheet = range.getSheet();
+    if (!sheet) return;
+    var sheetName = cleanText(sheet.getName());
+
+    if (sheetName === cleanText(CONFIG.sheetNames.dailyCosts)) {
+      handleDailyCostsSheetEdit(sheet, range);
+      return;
+    }
+
+    if (sheetName === cleanText(CONFIG.sheetNames.activities)) {
+      handleActivitiesSheetEdit(sheet, range);
+      return;
+    }
+
+    if (sheetName === cleanText(CONFIG.sheetNames.costs)) {
+      handleCostsSheetEdit(sheet, range);
+    }
+  } catch (error) {
+    Logger.log('onEdit error: ' + (error && error.message ? error.message : error));
+  }
+}
+
+function handleDailyCostsSheetEdit(sheet, range) {
+  var columns = getDailyCostColumnMap(sheet);
+  var editedColumn = range.getColumn();
+  var relevant = [columns.projectId, columns.costId, columns.actualCost, columns.date];
+  if (relevant.indexOf(editedColumn) < 0) return;
+
+  var row = range.getRow();
+  if (row <= 1) return;
+  var rowValues = sheet.getRange(row, 1, 1, Math.max(sheet.getLastColumn(), columns.maxColumn)).getValues()[0];
+  var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
+  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : '';
+  if (!projectId || !costId) return;
+  syncCostActualFromDailyCost(projectId, costId);
+}
+
+function handleActivitiesSheetEdit(sheet, range) {
+  var columns = getActivityColumnMap(sheet);
+  var editedColumn = range.getColumn();
+  var relevant = [columns.id, columns.name, columns.percentComplete, columns.projectId];
+  if (relevant.indexOf(editedColumn) < 0) return;
+
+  var row = range.getRow();
+  if (row <= 1) return;
+  var rowValues = sheet.getRange(row, 1, 1, Math.max(sheet.getLastColumn(), columns.maxColumn)).getValues()[0];
+  var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
+  var activityId = columns.id ? cleanText(rowValues[columns.id - 1]) : '';
+  var activityName = columns.name ? cleanText(rowValues[columns.name - 1]) : '';
+  if (!projectId || (!activityId && !activityName)) return;
+  syncEarnedValueForActivity(projectId, activityId, activityName);
+}
+
+function handleCostsSheetEdit(sheet, range) {
+  var columns = getCostColumnMap(sheet);
+  var editedColumn = range.getColumn();
+  var relevant = [columns.projectId, columns.costId, columns.activityId, columns.activity, columns.plannedCost, columns.actualCost];
+  if (relevant.indexOf(editedColumn) < 0) return;
+
+  var row = range.getRow();
+  if (row <= 1) return;
+  refreshCostRowMetrics(sheet, row, columns);
+}
+
+function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
+  var rowValues = costsSheet.getRange(rowNumber, 1, 1, Math.max(costsSheet.getLastColumn(), columns.maxColumn)).getValues()[0];
+  var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
+  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : '';
+  if (!projectId || !costId) return;
+
+  var cost = {
+    projectId: projectId,
+    costId: costId,
+    activityId: columns.activityId ? cleanText(rowValues[columns.activityId - 1]) : '',
+    activity: columns.activity ? cleanText(rowValues[columns.activity - 1]) : '',
+    plannedCost: columns.plannedCost ? parseNumber(rowValues[columns.plannedCost - 1]) : 0,
+    earnedValue: columns.earnedValue ? parseNumber(rowValues[columns.earnedValue - 1]) : 0,
+  };
+
+  if (columns.earnedValue) {
+    var computedEarnedValue = Number(computeEarnedValue(cost)) || 0;
+    costsSheet.getRange(rowNumber, columns.earnedValue).setValue(computedEarnedValue);
+    costsSheet.getRange(rowNumber, columns.earnedValue).setNumberFormat('#,##0.00');
+  }
+
+  syncCostActualFromDailyCost(projectId, costId);
+}
+
+function syncEarnedValueForActivity(projectId, activityId, activityName) {
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedActivityId = cleanText(activityId);
+  var normalizedActivityName = cleanText(activityName);
+  if (!normalizedProjectId || (!normalizedActivityId && !normalizedActivityName)) return;
+
+  var costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+  var columns = getCostColumnMap(costsSheet);
+  var values = costsSheet.getDataRange().getValues();
+
+  for (var i = 1; i < values.length; i += 1) {
+    var row = values[i];
+    var rowProjectId = columns.projectId ? cleanText(row[columns.projectId - 1]) : '';
+    if (rowProjectId !== normalizedProjectId) continue;
+
+    var rowActivityId = columns.activityId ? cleanText(row[columns.activityId - 1]) : '';
+    var rowActivityName = columns.activity ? cleanText(row[columns.activity - 1]) : '';
+    var matches = (normalizedActivityId && rowActivityId === normalizedActivityId)
+      || (!normalizedActivityId && normalizedActivityName && rowActivityName === normalizedActivityName)
+      || (normalizedActivityId && !rowActivityId && normalizedActivityName && rowActivityName === normalizedActivityName);
+    if (!matches) continue;
+
+    refreshCostRowMetrics(costsSheet, i + 1, columns);
+  }
+}
+
 function handleRequest(payload) {
   try {
     const source = payload || {};
