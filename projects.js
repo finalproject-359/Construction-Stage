@@ -544,6 +544,13 @@ const addProject = async (project) => {
   applyFilters();
 };
 
+const addProjectLocally = (project) => {
+  state.allProjects = [project, ...state.allProjects];
+  saveToLocalStorage(state.allProjects);
+  hydrateFilters();
+  applyFilters();
+};
+
 const updateProject = async (updatedProject) => {
   await syncProjectWithGoogleSheet({ action: "update", project: updatedProject });
   state.allProjects = state.allProjects.map((project) =>
@@ -783,6 +790,7 @@ projectForm.addEventListener("submit", async (event) => {
       return;
     }
 
+    addProjectLocally(project);
     syncError = error;
     window.alert(
       `Project was saved locally but could not sync to Google Sheets.\nReason: ${error?.message || "Unknown error"}`
