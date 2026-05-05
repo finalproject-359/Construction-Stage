@@ -347,6 +347,8 @@ const normalizeRemoteActivity = (row = {}) => {
     finishDate,
     durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
     plannedCost: getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]),
+    progressPercent: getValueByAliases(row, ["progress", "percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion"]),
+    earnedValue: getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "earned value (ev)", "ev"]),
   });
 };
 const loadRemoteCostActivities = async (projectFilter = {}) => {
