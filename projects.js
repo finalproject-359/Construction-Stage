@@ -229,7 +229,7 @@ const openEditProjectModal = (project) => {
   projectForm.elements.startDate.value = project.startDate;
   projectForm.elements.targetFinish.value = project.finishDate;
   projectForm.elements.status.value = project.status;
-  projectForm.elements.budget.value = formatBudgetAsPeso(project.budget);
+  if (projectForm.elements.budget) projectForm.elements.budget.value = formatBudgetAsPeso(project.budget);
 
   if (projectModalTitle) projectModalTitle.textContent = "Edit Project";
   if (projectModalSubtitle) projectModalSubtitle.textContent = "Update your project details";
@@ -702,11 +702,11 @@ projectForm.addEventListener("submit", async (event) => {
   const startDate = String(formData.get("startDate") || "").trim();
   const targetFinish = String(formData.get("targetFinish") || "").trim();
   const status = String(formData.get("status") || "Not Started").trim();
-  const budget = parseBudgetValue(formData.get("budget"));
+  const budget = 0;
   const editingProject = state.allProjects.find((project) => project.id === state.editingProjectId);
   const description = editingProject?.description || "";
 
-  if (!projectName || !projectCode || !projectType || !location || !startDate || !targetFinish || !budget) {
+  if (!projectName || !projectCode || !projectType || !location || !startDate || !targetFinish) {
     return;
   }
 
