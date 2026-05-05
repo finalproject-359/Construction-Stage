@@ -399,6 +399,14 @@ const readFromLocalStorage = () => {
   }
 };
 
+const resolveProjectBudgetForSync = (project = {}) => {
+  if (typeof getDerivedBudgetForProject === "function") {
+    return getDerivedBudgetForProject(project);
+  }
+
+  return parseBudgetValue(project.budget);
+};
+
 const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   if (!DATA_SOURCE_URL) return;
 
@@ -406,7 +414,7 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   if (project) {
     requestPayload.project = {
       ...project,
-      budget: getDerivedBudgetForProject(project),
+      budget: resolveProjectBudgetForSync(project),
     };
   }
   if (projectId) requestPayload.projectId = projectId;
