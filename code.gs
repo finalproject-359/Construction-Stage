@@ -50,6 +50,7 @@ const CONFIG = {
       'Planned Cost',
       'Planned Cost/Day',
       'Actual Cost',
+      'Earned Value',
       'Created At',
     ],
     dailyCosts: [
@@ -578,6 +579,18 @@ function syncCostActualFromDailyCost(projectId, costId) {
         var targetRow = rowIndex + 1;
         costsSheet.getRange(targetRow, costColumns.actualCost).setValue(totalActualCost);
         costsSheet.getRange(targetRow, costColumns.actualCost).setNumberFormat('#,##0.00');
+        if (costColumns.earnedValue) {
+          var currentCost = {
+            projectId: normalizedProjectId,
+            costId: normalizedCostId,
+            activityId: costColumns.activityId ? cleanText(costValues[rowIndex][costColumns.activityId - 1]) : '',
+            activity: costColumns.activity ? cleanText(costValues[rowIndex][costColumns.activity - 1]) : '',
+            plannedCost: costColumns.plannedCost ? parseNumber(costValues[rowIndex][costColumns.plannedCost - 1]) : 0,
+          };
+          var earnedValue = computeEarnedValue(currentCost);
+          costsSheet.getRange(targetRow, costColumns.earnedValue).setValue(earnedValue);
+          costsSheet.getRange(targetRow, costColumns.earnedValue).setNumberFormat('#,##0.00');
+        }
       }
       return;
     }
@@ -607,6 +620,45 @@ function syncCostActualFromDailyCost(projectId, costId) {
   };
 
   upsertCostRow(generatedCost);
+}
+
+function computeEarnedValue(cost) {
+  var plannedCost = parseNumber(cost && cost.plannedCost);
+  if (plannedCost <= 0) return 0;
+
+  var activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+  ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
+  var values = activitiesSheet.getDataRange().getValues();
+  if (values.length <= 1) return 0;
+
+  var headers = values[0].map(function(cell) { return normalizeHeader(cell); });
+  var idxProjectId = headers.indexOf(normalizeHeader('Project ID'));
+  var idxActivityId = headers.indexOf(normalizeHeader('Activity ID'));
+  var idxActivity = headers.indexOf(normalizeHeader('Activity'));
+  var idxPercent = headers.indexOf(normalizeHeader('% Complete'));
+  if (idxPercent < 0) return 0;
+
+  var targetProjectId = cleanText(cost && cost.projectId);
+  var targetActivityId = cleanText(cost && cost.activityId);
+  var targetActivity = cleanText(cost && cost.activity);
+
+  for (var i = 1; i < values.length; i += 1) {
+    var row = values[i];
+    var rowProjectId = idxProjectId >= 0 ? cleanText(row[idxProjectId]) : '';
+    if (targetProjectId && rowProjectId && rowProjectId !== targetProjectId) continue;
+
+    var rowActivityId = idxActivityId >= 0 ? cleanText(row[idxActivityId]) : '';
+    var rowActivity = idxActivity >= 0 ? cleanText(row[idxActivity]) : '';
+    var matches = (targetActivityId && rowActivityId === targetActivityId)
+      || (!targetActivityId && targetActivity && rowActivity === targetActivity)
+      || (targetActivityId && !rowActivityId && targetActivity && rowActivity === targetActivity);
+    if (!matches) continue;
+
+    var percent = parseNumber(row[idxPercent]);
+    return plannedCost * (percent / 100);
+  }
+
+  return 0;
 }
 
 function normalizeIncomingCost(input) {
@@ -672,6 +724,7 @@ function upsertCostRow(cost) {
   if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
   if (columns.plannedCostPerDay) rowValues[columns.plannedCostPerDay - 1] = cost.plannedCostPerDay;
   if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
+  if (columns.earnedValue) rowValues[columns.earnedValue - 1] = computeEarnedValue(cost);
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
@@ -686,6 +739,7 @@ function applyCostRowFormats(sheet, rowNumber, columns) {
   if (columns.plannedCost) sheet.getRange(rowNumber, columns.plannedCost).setNumberFormat('#,##0.00');
   if (columns.plannedCostPerDay) sheet.getRange(rowNumber, columns.plannedCostPerDay).setNumberFormat('#,##0.00');
   if (columns.actualCost) sheet.getRange(rowNumber, columns.actualCost).setNumberFormat('#,##0.00');
+  if (columns.earnedValue) sheet.getRange(rowNumber, columns.earnedValue).setNumberFormat('#,##0.00');
   if (columns.date) sheet.getRange(rowNumber, columns.date).setNumberFormat('yyyy-mm-dd');
 }
 
@@ -1251,6 +1305,7 @@ function getCostColumnMap(sheet) {
     plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
     plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost Per Day']),
     actualCost: indexOfHeader(['Actual Cost', 'Cost', 'Amount']),
+    earnedValue: indexOfHeader(['Earned Value', 'EV']),
     notes: indexOfHeader(['Notes', 'Remarks']),
     createdAt: indexOfHeader(['Created At']),
     maxColumn: headers.length,
@@ -1465,6 +1520,7 @@ function normalizeCostRecord(row) {
     plannedCost: parseNumber(getCell(row, ['planned cost', 'planned value', 'budget'])),
     plannedCostPerDay: parseNumber(getCell(row, ['planned cost/day', 'planned cost per day', 'planned_cost_per_day'])),
     actualCost: parseNumber(getCell(row, ['actual cost', 'cost', 'amount'])),
+    earnedValue: parseNumber(getCell(row, ['earned value', 'ev'])),
     notes: cleanText(getCell(row, ['note', 'notes', 'remarks'])),
     raw: row,
   };
