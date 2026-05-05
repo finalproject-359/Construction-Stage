@@ -36,6 +36,16 @@
         </button>
       </header>
 
+      <section class="table-panel cost-selection-filters cost-selection-filters-top" aria-label="Project filters">
+        <div class="toolbar-row" role="group" aria-label="Project selection filters">
+          <label class="search-box" for="costTopSearch">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="costTopSearch" type="search" placeholder="Search projects..." />
+          </label>
+          <button type="button" class="date-btn">May 1, 2024 - May 31, 2024</button>
+        </div>
+      </section>
+
       <section id="selectedProjectBannerHost" class="selected-project-banner-host hidden" aria-live="polite"></section>
 
       <section class="cost-card">
@@ -53,15 +63,6 @@
         <hr />
 
         <section>
-          <section class="table-panel cost-selection-filters" aria-label="Project filters">
-            <div class="toolbar-row" role="group" aria-label="Project selection filters">
-              <label class="search-box" for="costTopSearch">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-                <input id="costTopSearch" type="search" placeholder="Search projects..." />
-              </label>
-              <button type="button" class="date-btn">May 1, 2024 - May 31, 2024</button>
-            </div>
-          </section>
           <h3>All Projects</h3>
           <div class="projects-list" id="costProjectsList"></div>
           <div class="projects-empty" id="costProjectsEmpty">
