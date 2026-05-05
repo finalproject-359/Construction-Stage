@@ -764,9 +764,11 @@ const buildSelectedProjectBannerMarkup = (project) => `<section class="selected-
 const buildDetailsMarkup = (project, rows) => {
   const plannedCost = rows.reduce((sum, row) => sum + parseBudgetValue(row.plannedCost), 0);
   const actualCost = rows.reduce((sum, row) => sum + row.actualCost, 0);
+  const earnedValue = rows.reduce((sum, row) => sum + parseBudgetValue(row.earnedValue), 0);
   const comparisonItems = [
     { key: "planned", label: "Total Planned Cost", value: plannedCost },
     { key: "actual", label: "Total Actual Cost", value: actualCost },
+    { key: "earned", label: "Total Earned Value", value: earnedValue },
   ];
   const variance = plannedCost - actualCost;
   const variancePercent = plannedCost ? (variance / plannedCost) * 100 : 0;
@@ -812,7 +814,13 @@ const buildDetailsMarkup = (project, rows) => {
     const end = comparisonTotal > 0
       ? ((comparisonItems.slice(0, index + 1).reduce((sum, entry) => sum + entry.value, 0) / comparisonTotal) * 100)
       : (((index + 1) / comparisonItems.length) * 100);
-    const color = item.key === "budget" ? "#f0c23f" : item.key === "planned" ? "#2f67ff" : "#38c26d";
+    const color = item.key === "budget"
+      ? "#f0c23f"
+      : item.key === "planned"
+        ? "#2f67ff"
+        : item.key === "earned"
+          ? "#8a52ff"
+          : "#38c26d";
     return `${color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
   }).join(", ");
   const donutLegendMarkup = comparisonItems
@@ -832,10 +840,11 @@ const buildDetailsMarkup = (project, rows) => {
   <section class="details-tab-panel" data-panel="overview"><section class="details-kpis">
   <article class="kpi-card"><h4>Total Planned Cost</h4><p>${formatBudget(plannedCost)}</p></article>
   <article class="kpi-card"><h4>Total Actual Cost</h4><p>${formatBudget(actualCost)}</p></article>
+  <article class="kpi-card"><h4>Total Earned Value</h4><p>${formatBudget(earnedValue)}</p></article>
   <article class="kpi-card"><h4>Variance</h4><p class="${varianceClass}">${formatBudget(variance)}</p><small>${varianceLabel}</small></article>
   <article class="kpi-card"><h4>Total Duration</h4><p>${totalDuration} days</p></article></section>
   <section class="overview-grid"><article class="panel chart-panel"><h3>Budget vs Actual</h3><div class="bars"><div class="bars-grid"><span>${formatBudget(maxCost)}</span><span>${formatBudget(maxCost * 0.75)}</span><span>${formatBudget(maxCost * 0.5)}</span><span>${formatBudget(maxCost * 0.25)}</span><span>0</span></div><div class="bars-track">${comparisonBarsMarkup}</div><ul class="bars-legend">${comparisonLegendMarkup}</ul></div></article>
-  <article class="panel summary-panel"><h3>Cost Summary</h3><ul><li><span>Total Planned Cost</span><strong>${formatBudget(plannedCost)}</strong></li><li><span>Total Actual Cost</span><strong>${formatBudget(actualCost)}</strong></li><li><span>Variance</span><strong class="${varianceClass}">${formatBudget(variance)}</strong></li><li><span>Variance Percent</span><strong class="${varianceClass}">${variancePercent.toFixed(2)}%</strong></li><li><span>Total Duration</span><strong>${totalDuration} days</strong></li><li><span>Average Cost per Day (Actual)</span><strong>${formatBudget(avgActualPerDay)}</strong></li></ul></article>
+  <article class="panel summary-panel"><h3>Cost Summary</h3><ul><li><span>Total Planned Cost</span><strong>${formatBudget(plannedCost)}</strong></li><li><span>Total Actual Cost</span><strong>${formatBudget(actualCost)}</strong></li><li><span>Total Earned Value</span><strong>${formatBudget(earnedValue)}</strong></li><li><span>Variance</span><strong class="${varianceClass}">${formatBudget(variance)}</strong></li><li><span>Variance Percent</span><strong class="${varianceClass}">${variancePercent.toFixed(2)}%</strong></li><li><span>Total Duration</span><strong>${totalDuration} days</strong></li><li><span>Average Cost per Day (Actual)</span><strong>${formatBudget(avgActualPerDay)}</strong></li></ul></article>
   <article class="panel donut-panel"><h3>Cost Status</h3><div class="donut-wrap"><div class="donut" style="background: conic-gradient(${donutSegments});"></div><ul class="status-list">${donutLegendMarkup}</ul></div></article>
   <article class="panel table-panel"><h3>Top Over Budget Activities</h3><table class="top-over-budget-table"><colgroup><col class="col-cost-id"><col class="col-activity"><col class="col-planned"><col class="col-actual"><col class="col-variance"></colgroup><thead><tr><th>Cost ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead><tbody>${topRows}</tbody></table></article></section></section>
   <section class="details-tab-panel hidden" data-panel="costing">
