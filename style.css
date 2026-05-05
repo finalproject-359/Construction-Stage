@@ -39,6 +39,8 @@ body {
   background: radial-gradient(circle at 0% 0%, rgba(16, 52, 106, 0.75), transparent 35%), linear-gradient(180deg, #04152f 0%, #082548 52%, #031128 100%);
   border-right: 1px solid rgba(173, 188, 214, 0.18);
   padding: 26px 18px;
+  display: flex;
+  flex-direction: column;
 }
 
 .brand {
@@ -77,7 +79,6 @@ body {
   display: grid;
   gap: 8px;
 }
-
 .menu a {
   color: #dbe7f9;
   text-decoration: none;
