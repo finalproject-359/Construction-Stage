@@ -1116,7 +1116,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     try {
       const durationDays = Number(target.durationDays) || 0;
       const plannedCostPerDay = durationDays > 0 ? nextPlannedCost / durationDays : 0;
-      await postToDataSource("costs", "create", {
+      const payload = {
         cost: {
           costId: nextCostId,
           projectId: resolvedProjectId,
@@ -1131,7 +1131,14 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
           actualCost: 0,
           notes: `Activity ID: ${activityRefId}`,
         },
-      });
+      };
+      try {
+        await postToDataSource("costs", "create", payload);
+      } catch (error) {
+        const shouldUpdateExisting = /already exists|use update instead of create/i.test(String(error?.message || ""));
+        if (!shouldUpdateExisting) throw error;
+        await postToDataSource("costs", "update", payload);
+      }
     } catch (error) {
       console.warn("Unable to save cost record to Google Sheets:", error);
       saveCostActivityOverrides(existingOverrides);
