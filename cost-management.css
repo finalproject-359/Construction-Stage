@@ -758,3 +758,11 @@ body.page-cost-management .details-tab-panel .table-panel td.actions-col {
     padding: 14px;
   }
 }
+
+
+.cost-table .planned-cost-cell .planned-cost-text {
+  display: inline;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
