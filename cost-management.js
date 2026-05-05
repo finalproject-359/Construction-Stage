@@ -747,13 +747,16 @@ const buildDetailsMarkup = (project, rows) => {
       const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "";
       const plannedCostPerDayCell = hasPlannedCost ? formatBudget(plannedCostPerDay) : "";
       const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "";
+      const hasEarnedValue = parseBudgetValue(row.earnedValue) > 0;
+      const earnedValueCell = hasEarnedValue ? formatBudget(row.earnedValue) : "";
+      const createdAtCell = row.createdAt ? escapeHtml(formatHumanDate(row.createdAt)) : "";
 
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "";
 
       const activityId = escapeHtml(getActivityRefId(row));
-      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${durationCell}</td><td class="planned-cost-cell"><span class="planned-cost-text">${plannedCostCell}</span></td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td class="actions-col"><button type="button" class="action-menu-trigger" data-cost-actions="${activityId}" aria-label="Open cost actions" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${activityId}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Add / Edit Cost Details</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
+      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${durationCell}</td><td class="planned-cost-cell"><span class="planned-cost-text">${plannedCostCell}</span></td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td>${earnedValueCell}</td><td>${createdAtCell}</td><td class="actions-col"><button type="button" class="action-menu-trigger" data-cost-actions="${activityId}" aria-label="Open cost actions" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${activityId}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Add / Edit Cost Details</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
     }).join("")
-    : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
+    : '<tr><td colspan="9" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
   const maxCost = Math.max(...comparisonItems.map((item) => item.value), 1);
   const comparisonBarsMarkup = comparisonItems
@@ -800,7 +803,7 @@ const buildDetailsMarkup = (project, rows) => {
   <article class="panel donut-panel"><h3>Cost Status</h3><div class="donut-wrap"><div class="donut" style="background: conic-gradient(${donutSegments});"></div><ul class="status-list">${donutLegendMarkup}</ul></div></article>
   <article class="panel table-panel"><h3>Top Over Budget Activities</h3><table class="top-over-budget-table"><colgroup><col class="col-cost-id"><col class="col-activity"><col class="col-planned"><col class="col-actual"><col class="col-variance"></colgroup><thead><tr><th>Cost ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Variance</th></tr></thead><tbody>${topRows}</tbody></table></article></section></section>
   <section class="details-tab-panel hidden" data-panel="costing">
-  <section class="panel"><table class="cost-table"><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Planned Cost</th><th>Planned Cost/Day</th><th>Actual Cost</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section><div class="info-banner"><p>Tip: Planned Cost is view-only in this table and can be changed only via “Add / Edit Cost Details”.</p></div></section>
+  <section class="panel"><table class="cost-table"><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Planned Cost</th><th>Planned Cost/Day</th><th>Actual Cost</th><th>Earned Value</th><th>Created At</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section><div class="info-banner"><p>Tip: Planned Cost is view-only in this table and can be changed only via “Add / Edit Cost Details”.</p></div></section>
   <section class="daily-cost-modal hidden" id="dailyCostModal"></section>
   <section class="cost-meta-modal hidden" id="costMetaModal"></section>`;
 };
