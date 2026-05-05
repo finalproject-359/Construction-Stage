@@ -315,6 +315,20 @@ const getPlannedCostByProject = () => {
   return totals;
 };
 
+const getDerivedBudgetForProject = (project = {}) => {
+  const plannedCostByProject = getPlannedCostByProject();
+  const projectId = String(project.id || "").trim();
+  const projectCode = String(project.code || "").trim();
+  const projectName = String(project.name || "").trim().toLowerCase();
+
+  return (
+    plannedCostByProject.get(projectId) ||
+    plannedCostByProject.get(projectCode) ||
+    plannedCostByProject.get(projectName) ||
+    parseBudgetValue(project.budget)
+  );
+};
+
 const renderProjects = (projects) => {
   if (!projects.length) {
     projectsTableBody.innerHTML = "";
