@@ -45,6 +45,7 @@ const CONFIG = {
       'Project ID',
       'Project Name',
       'Cost ID',
+      'Activity ID',
       'Activity',
       'Duration',
       'Planned Cost',
@@ -56,6 +57,7 @@ const CONFIG = {
     dailyCosts: [
       'Project ID',
       'Cost ID',
+      'Activity ID',
       'Activity',
       'Planned Cost',
       'Planned Cost/Day',
@@ -601,6 +603,7 @@ function normalizeIncomingDailyCost(input) {
   return {
     projectId: cleanText(source.projectId || source.project_id),
     costId: cleanText(source.costId || source.cost_id || source.id || source.activityId || source.activity_id),
+    activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId),
     activity: cleanText(source.activity || source.activityName),
     plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
     plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
@@ -646,6 +649,7 @@ function upsertDailyCostRow(dailyCost) {
   var row = new Array(Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length, columns.maxColumn)).fill('');
   if (columns.projectId) row[columns.projectId - 1] = dailyCost.projectId;
   if (columns.costId) row[columns.costId - 1] = dailyCost.costId;
+  if (columns.activityId) row[columns.activityId - 1] = dailyCost.activityId;
   if (columns.activity) row[columns.activity - 1] = dailyCost.activity;
   if (columns.plannedCost) row[columns.plannedCost - 1] = dailyCost.plannedCost;
   if (columns.plannedCostPerDay) row[columns.plannedCostPerDay - 1] = dailyCost.plannedCostPerDay;
@@ -731,6 +735,7 @@ function syncCostActualFromDailyCost(projectId, costId) {
   var generatedCost = {
     projectId: normalizedProjectId,
     costId: normalizedCostId,
+    activityId: costColumns.activityId && dailyColumns.activityId ? cleanText(latestDailyRecord[dailyColumns.activityId - 1]) : '',
     activity: costColumns.activity && dailyColumns.activity ? cleanText(latestDailyRecord[dailyColumns.activity - 1]) : '',
     plannedCost: costColumns.plannedCost && dailyColumns.plannedCost ? parseNumber(latestDailyRecord[dailyColumns.plannedCost - 1]) : 0,
     plannedCostPerDay: costColumns.plannedCostPerDay && dailyColumns.plannedCostPerDay ? parseNumber(latestDailyRecord[dailyColumns.plannedCostPerDay - 1]) : 0,
@@ -810,6 +815,7 @@ function buildDailyCostFromCost(cost) {
   return {
     projectId: cleanText(cost.projectId),
     costId: cleanText(cost.costId),
+    activityId: cleanText(cost.activityId),
     activity: cleanText(cost.activity),
     plannedCost: plannedCost,
     plannedCostPerDay: plannedCostPerDay,
@@ -1454,6 +1460,7 @@ function getDailyCostColumnMap(sheet) {
   return {
     projectId: indexOfHeader(['Project ID', 'Project']),
     costId: indexOfHeader(['Cost ID', 'ID']),
+    activityId: indexOfHeader(['Activity ID', 'ActivityID', 'Source Activity ID']),
     activity: indexOfHeader(['Activity', 'Activity Name']),
     plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
     plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost per day', 'Planned Cost Per Day']),
@@ -1655,6 +1662,7 @@ function normalizeDailyCostRecord(row) {
   return {
     projectId: cleanText(row['Project ID'] || row['projectId'] || row['project_id']),
     costId: cleanText(row['Cost ID'] || row['costId'] || row['cost_id']),
+    activityId: cleanText(row['Activity ID'] || row['activityId'] || row['activity_id'] || row['Source Activity ID']),
     activity: cleanText(row['Activity'] || row['activity'] || row['activityName']),
     plannedCost: parseNumber(row['Planned Cost'] || row['plannedCost'] || row['planned_cost'] || row['plannedValue']),
     plannedCostPerDay: parseNumber(row['Planned Cost/Day'] || row['plannedCostPerDay'] || row['planned_cost_per_day']),
