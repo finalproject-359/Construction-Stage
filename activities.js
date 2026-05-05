@@ -721,6 +721,7 @@ const loadActivitiesAndProjectsFromSource = async () => {
     const remoteProjects = Array.isArray(projectsPayload?.projects)
       ? projectsPayload.projects.map(normalizeProject)
       : [];
+    const activeRemoteActivities = filterActivitiesForActiveProjects(remoteActivities, remoteProjects);
 
     const computedKpis = {
       completed: 0,
@@ -729,7 +730,7 @@ const loadActivitiesAndProjectsFromSource = async () => {
       delayed: 0,
     };
 
-    remoteActivities.forEach((activity) => {
+    activeRemoteActivities.forEach((activity) => {
       const key = statusTextToKey[activity.status];
       if (key && Object.prototype.hasOwnProperty.call(computedKpis, key)) {
         computedKpis[key] += 1;
@@ -737,13 +738,13 @@ const loadActivitiesAndProjectsFromSource = async () => {
     });
 
     return {
-      activities: remoteActivities,
+      activities: activeRemoteActivities,
       // Keep project selection aligned with Google Sheets in real time.
       // Activity-linked projects that are missing from this list are still surfaced
       // by buildProjectSummaries().
       projects: remoteProjects,
       meta: {
-        totalCount: remoteActivities.length,
+        totalCount: activeRemoteActivities.length,
         kpi: computedKpis,
       },
     };
@@ -755,17 +756,18 @@ const loadActivitiesAndProjectsFromSource = async () => {
       Array.isArray(window.activitiesProjectCatalog) ? window.activitiesProjectCatalog.map(normalizeProject) : [],
       localProjects
     );
+    const activeFallbackActivities = filterActivitiesForActiveProjects(fallbackActivities, fallbackProjects);
 
     return {
-      activities: fallbackActivities,
+      activities: activeFallbackActivities,
       projects: fallbackProjects,
       meta: {
-        totalCount: fallbackActivities.length,
+        totalCount: activeFallbackActivities.length,
         kpi: {
-          completed: fallbackActivities.filter((activity) => activity.status === "Completed").length,
-          inProgress: fallbackActivities.filter((activity) => activity.status === "In Progress").length,
-          notStarted: fallbackActivities.filter((activity) => activity.status === "Not Started").length,
-          delayed: fallbackActivities.filter((activity) => activity.status === "Delayed").length,
+          completed: activeFallbackActivities.filter((activity) => activity.status === "Completed").length,
+          inProgress: activeFallbackActivities.filter((activity) => activity.status === "In Progress").length,
+          notStarted: activeFallbackActivities.filter((activity) => activity.status === "Not Started").length,
+          delayed: activeFallbackActivities.filter((activity) => activity.status === "Delayed").length,
         },
       },
       loadError: error,
@@ -829,11 +831,31 @@ const deriveProjectType = (projectActivities = []) => {
   return firstType || "General";
 };
 
+const isArchivedProject = (project = {}) =>
+  String(project.status || "").trim().toLowerCase() === "archived";
+
+const normalizeProjectIdentity = (value) => String(value || "").trim().toLowerCase();
+
+const getProjectIdentityKeys = (project = {}) =>
+  [project.id, project.code, project.name].map(normalizeProjectIdentity).filter(Boolean);
+
+const filterActivitiesForActiveProjects = (activities = [], projects = []) => {
+  const archivedProjectKeys = new Set(projects.filter(isArchivedProject).flatMap(getProjectIdentityKeys));
+  if (!archivedProjectKeys.size) return activities;
+
+  return activities.filter((activity) => !archivedProjectKeys.has(normalizeProjectIdentity(activity.project)));
+};
+
 const buildProjectSummaries = () => {
-  const projectMap = new Map(initialProjectCatalog.map((project) => [project.name, { ...project }]));
+  const archivedProjectKeys = new Set(
+    initialProjectCatalog.filter(isArchivedProject).flatMap(getProjectIdentityKeys)
+  );
+  const activeCatalogProjects = initialProjectCatalog.filter((project) => !isArchivedProject(project));
+  const projectMap = new Map(activeCatalogProjects.map((project) => [project.name, { ...project }]));
 
   state.allActivities.forEach((activity) => {
     if (!activity.project || activity.project === "-") return;
+    if (archivedProjectKeys.has(normalizeProjectIdentity(activity.project))) return;
     if (!projectMap.has(activity.project)) {
       projectMap.set(activity.project, {
         id: "",
@@ -870,6 +892,7 @@ const buildProjectSummaries = () => {
         endDate: activityEndDate || summary.endDate,
       };
     })
+    .filter((project) => !isArchivedProject(project))
     .sort((a, b) => a.name.localeCompare(b.name));
 };
 
