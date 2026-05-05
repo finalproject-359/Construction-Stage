@@ -118,6 +118,12 @@ const normalize = (value, fallback = "N/A") => {
   return String(value).trim() || fallback;
 };
 
+const normalizeProgressPercent = (value) => {
+  const numericValue = parseNumber(value);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return 0;
+  return numericValue <= 1 ? numericValue * 100 : numericValue;
+};
+
 const formatPercent = (value) => `${parseNumber(value).toFixed(2)}%`;
 
 const formatSignedPercent = (value) => {
@@ -198,6 +204,9 @@ const extractDashboardRows = (rawRows) =>
 
       const plannedCost = parseNumber(getCell(row, ["planned value", "planned cost", "pv", "budget"]));
       const actualCost = parseNumber(getCell(row, ["actual cost", "ac", "actual"]));
+      const percentComplete = normalizeProgressPercent(
+        getCell(row, ["% complete", "percent complete", "progress %", "progress", "completion"] )
+      );
       const rawCv = getCell(row, ["cost variance", "cv"]);
       const hasProvidedCv =
         rawCv !== null && rawCv !== undefined && String(rawCv).trim() !== "";
@@ -209,8 +218,8 @@ const extractDashboardRows = (rawRows) =>
         activity: activity || "Unspecified",
         plannedCost,
         actualCost,
-        ev: parseNumber(getCell(row, ["earned value", "ev"])),
-        percentComplete: parseNumber(getCell(row, ["% complete", "percent complete", "progress %"])),
+        ev: plannedCost * (percentComplete / 100),
+        percentComplete,
         cv,
         costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
         budgetVariancePercent: plannedCost ? (cv / plannedCost) * 100 : 0,
