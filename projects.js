@@ -767,6 +767,8 @@ projectForm.addEventListener("submit", async (event) => {
     description,
   });
 
+  let syncError = null;
+
   try {
     if (state.editingProjectId) {
       await updateProject(project);
@@ -775,12 +777,24 @@ projectForm.addEventListener("submit", async (event) => {
     }
   } catch (error) {
     console.warn(error);
-    showProjectPersistenceError(state.editingProjectId ? "update" : "save", error);
-    return;
+
+    if (state.editingProjectId) {
+      showProjectPersistenceError("update", error);
+      return;
+    }
+
+    syncError = error;
+    window.alert(
+      `Project was saved locally but could not sync to Google Sheets.\nReason: ${error?.message || "Unknown error"}`
+    );
   }
 
   closeProjectModal();
   projectForm.reset();
+
+  if (syncError) {
+    refreshProjectsIfVisible({ force: true });
+  }
 });
 
 projectsSearchInput?.addEventListener("input", applyFilters);
