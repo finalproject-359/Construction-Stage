@@ -380,7 +380,12 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   if (!DATA_SOURCE_URL) return;
 
   const requestPayload = { resource: "projects", action };
-  if (project) requestPayload.project = project;
+  if (project) {
+    requestPayload.project = {
+      ...project,
+      budget: getDerivedBudgetForProject(project),
+    };
+  }
   if (projectId) requestPayload.projectId = projectId;
 
   const postWithFormat = async (format) =>
