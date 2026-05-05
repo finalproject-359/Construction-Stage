@@ -299,6 +299,22 @@ const computeEarnedValue = (plannedCost, progressPercent, explicitEarnedValue) =
   if (normalizedPlannedCost <= 0) return 0;
   return normalizedPlannedCost * (normalizedProgress / 100);
 };
+const computeEarnedValueFromDailyRecords = (plannedCost, durationDays, progressPercent, dailyItems = []) => {
+  const normalizedPlannedCost = parseBudgetValue(plannedCost);
+  const normalizedDuration = Number(durationDays) || 0;
+  const normalizedProgress = clampPercent(progressPercent);
+  const recordedDays = Array.isArray(dailyItems)
+    ? new Set(dailyItems
+      .map((entry) => normalizeDateKey(entry?.date))
+      .filter((date) => Boolean(date))).size
+    : 0;
+
+  if (normalizedPlannedCost <= 0 || normalizedDuration <= 0 || normalizedProgress <= 0 || recordedDays <= 0) return 0;
+
+  const plannedCostPerDay = normalizedPlannedCost / normalizedDuration;
+  return plannedCostPerDay * recordedDays * (normalizedProgress / 100);
+};
+
 const normalizeCostActivity = (activity = {}) => {
   const startDate = toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"]));
   const finishDate = toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"]));
@@ -702,7 +718,9 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       return entryActivityId === refId || (rowCostId && entryCostId === rowCostId);
     });
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
-    return { ...activity, actualCost, dailyItems };
+    const earnedValue = computeEarnedValueFromDailyRecords(activity.plannedCost, activity.durationDays, activity.progressPercent, dailyItems)
+      || parseBudgetValue(activity.earnedValue);
+    return { ...activity, actualCost, dailyItems, earnedValue };
   });
 
   // Consolidate duplicate activity rows (same costId/activity) so daily-cost updates
@@ -748,7 +766,12 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       costId: String(existing.costId || row.costId || "").trim(),
       activityRefId: String(getActivityRefId(existing) || getActivityRefId(row) || "").trim(),
       plannedCost: parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
-      earnedValue: parseBudgetValue(row.earnedValue) || parseBudgetValue(existing.earnedValue),
+      earnedValue: computeEarnedValueFromDailyRecords(
+        parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
+        Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
+        Number(row.progressPercent) || Number(existing.progressPercent) || 0,
+        uniqueDailyItems,
+      ) || parseBudgetValue(row.earnedValue) || parseBudgetValue(existing.earnedValue),
       actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
       durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
       dailyItems: uniqueDailyItems,
