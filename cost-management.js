@@ -288,11 +288,15 @@ const clampPercent = (value) => {
   return Math.max(0, Math.min(100, parsed));
 };
 const computeEarnedValue = (plannedCost, progressPercent, explicitEarnedValue) => {
+  const normalizedProgress = clampPercent(progressPercent);
+  const normalizedPlannedCost = parseBudgetValue(plannedCost);
+  if (normalizedPlannedCost > 0 && normalizedProgress > 0) {
+    return normalizedPlannedCost * (normalizedProgress / 100);
+  }
+
   const normalizedExplicitEv = parseBudgetValue(explicitEarnedValue);
   if (normalizedExplicitEv > 0) return normalizedExplicitEv;
-  const normalizedPlannedCost = parseBudgetValue(plannedCost);
   if (normalizedPlannedCost <= 0) return 0;
-  const normalizedProgress = clampPercent(progressPercent);
   return normalizedPlannedCost * (normalizedProgress / 100);
 };
 const normalizeCostActivity = (activity = {}) => {
