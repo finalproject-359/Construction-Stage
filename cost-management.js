@@ -712,6 +712,7 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       costId: String(existing.costId || row.costId || "").trim(),
       activityRefId: String(getActivityRefId(existing) || getActivityRefId(row) || "").trim(),
       plannedCost: parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
+      earnedValue: parseBudgetValue(row.earnedValue) || parseBudgetValue(existing.earnedValue),
       actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
       durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
       dailyItems: uniqueDailyItems,
