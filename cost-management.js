@@ -299,12 +299,12 @@ const normalizeCostActivity = (activity = {}) => {
   const startDate = toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"]));
   const finishDate = toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"]));
   const explicitDuration = Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0;
-  const progressPercent = clampPercent(getValueByAliases(activity, ["progress", "percentComplete", "percent_complete", "progressPercent", "progress_percent"]));
+  const progressPercent = clampPercent(getValueByAliases(activity, ["progress", "percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion"]));
   const plannedCost = parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]));
   const earnedValue = computeEarnedValue(
     plannedCost,
     progressPercent,
-    getValueByAliases(activity, ["earnedValue", "earned_value", "earned value", "ev"]),
+    getValueByAliases(activity, ["earnedValue", "earned_value", "earned value", "earned value (ev)", "ev"]),
   );
 
   return {
