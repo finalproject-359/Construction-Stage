@@ -302,11 +302,14 @@ const getPlannedCostByProject = () => {
   parsed.forEach((activity) => {
     const projectId = String(getValueByAliases(activity, ["projectId", "project_id", "project code", "projectCode"]) || "").trim();
     const projectName = String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim().toLowerCase();
+    const projectCode = String(getValueByAliases(activity, ["code", "projectCode", "project_code", "project code"]) || "").trim();
     const plannedCost = parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]));
 
     if (!projectId && !projectName) return;
-    const key = projectId || projectName;
-    totals.set(key, (totals.get(key) || 0) + plannedCost);
+    const keys = [projectId, projectCode, projectName].filter(Boolean);
+    keys.forEach((key) => {
+      totals.set(key, (totals.get(key) || 0) + plannedCost);
+    });
   });
 
   return totals;
@@ -342,7 +345,13 @@ const renderProjects = (projects) => {
             <span>${Math.round(project.progress)}%</span>
           </div>
         </td>
-        <td class="project-budget-cell">${escapeHtml(pesoBudgetFormatter.format(plannedCostByProject.get(String(project.id || "").trim()) || plannedCostByProject.get(String(project.name || "").trim().toLowerCase()) || project.budget || 0))}</td>
+        <td class="project-budget-cell">${escapeHtml(pesoBudgetFormatter.format(
+          plannedCostByProject.get(String(project.id || "").trim()) ||
+          plannedCostByProject.get(String(project.code || "").trim()) ||
+          plannedCostByProject.get(String(project.name || "").trim().toLowerCase()) ||
+          project.budget ||
+          0
+        ))}</td>
         <td class="actions-col">
           <button type="button" class="action-menu-trigger" data-project-actions="${escapeHtml(project.id)}" aria-label="Open project actions" aria-expanded="false">⋮</button>
           <div class="project-actions-menu hidden" data-project-menu="${escapeHtml(project.id)}" role="menu" aria-label="Project actions">
@@ -735,7 +744,7 @@ projectForm.addEventListener("submit", async (event) => {
   const startDate = String(formData.get("startDate") || "").trim();
   const targetFinish = String(formData.get("targetFinish") || "").trim();
   const status = String(formData.get("status") || "Not Started").trim();
-  const budget = 0;
+  const budget = parseBudgetValue(formData.get("budget"));
   const editingProject = state.allProjects.find((project) => project.id === state.editingProjectId);
   const description = editingProject?.description || "";
 
