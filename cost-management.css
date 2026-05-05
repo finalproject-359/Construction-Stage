@@ -64,14 +64,6 @@ body.page-cost-management .main-content {
   margin-top: 0;
   margin-bottom: 0;
   border: 0;
-  box-shadow: none;
-  background: transparent;
-  padding: 0;
-}
-
-body.page-cost-management section.cost-selection-filters-top.table-panel {
-  border: 0;
-  box-shadow: none;
   background: transparent;
   padding: 0;
 }

@@ -6,6 +6,10 @@ const statusCardEl = document.getElementById("statusCard");
 const physicalProgressEl = document.getElementById("physicalProgress");
 const costSpentEl = document.getElementById("costSpent");
 const efficiencyGapEl = document.getElementById("efficiencyGap");
+const miniCompleteEl = document.getElementById("miniComplete");
+const miniCostEl = document.getElementById("miniCost");
+const miniCompleteBarEl = document.querySelector(".mini-fill.blue");
+const miniCostBarEl = document.querySelector(".mini-fill.green");
 const efficiencyCardEl = document.getElementById("efficiencyCard");
 const messageEl = document.getElementById("message");
 const loadingStateEl = document.getElementById("loadingState");
@@ -276,6 +280,10 @@ const renderProgressKpis = (metrics, totals) => {
   physicalProgressEl.textContent = formatCurrency(earnedValue);
   costSpentEl.textContent = cpi.toFixed(2);
   efficiencyGapEl.textContent = `${formatPercent(metrics.physicalProgressPercent)} / ${formatPercent(metrics.costSpentPercent)}`;
+  if (miniCompleteEl) miniCompleteEl.textContent = formatPercent(metrics.physicalProgressPercent);
+  if (miniCostEl) miniCostEl.textContent = formatPercent(metrics.costSpentPercent);
+  if (miniCompleteBarEl) miniCompleteBarEl.style.width = `${Math.max(0, Math.min(100, metrics.physicalProgressPercent))}%`;
+  if (miniCostBarEl) miniCostBarEl.style.width = `${Math.max(0, Math.min(100, metrics.costSpentPercent))}%`;
 
   efficiencyCardEl.classList.remove("status-under", "status-over");
   if (metrics.efficiencyGapPercent < 0) {
