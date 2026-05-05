@@ -285,6 +285,33 @@ const getProgressFillClass = (status) => {
   return "";
 };
 
+const getPlannedCostByProject = () => {
+  const raw = localStorage.getItem(RELATED_LOCAL_STORAGE_KEYS.costActivities);
+  if (!raw) return new Map();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return new Map();
+  }
+
+  if (!Array.isArray(parsed)) return new Map();
+
+  const totals = new Map();
+  parsed.forEach((activity) => {
+    const projectId = String(getValueByAliases(activity, ["projectId", "project_id", "project code", "projectCode"]) || "").trim();
+    const projectName = String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim().toLowerCase();
+    const plannedCost = parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]));
+
+    if (!projectId && !projectName) return;
+    const key = projectId || projectName;
+    totals.set(key, (totals.get(key) || 0) + plannedCost);
+  });
+
+  return totals;
+};
+
 const renderProjects = (projects) => {
   if (!projects.length) {
     projectsTableBody.innerHTML = "";
@@ -296,6 +323,7 @@ const renderProjects = (projects) => {
   }
 
   projectsEmptyState?.classList.add("hidden");
+  const plannedCostByProject = getPlannedCostByProject();
 
   projectsTableBody.innerHTML = projects
     .map(
@@ -314,7 +342,7 @@ const renderProjects = (projects) => {
             <span>${Math.round(project.progress)}%</span>
           </div>
         </td>
-        <td class="project-budget-cell">${escapeHtml(pesoBudgetFormatter.format(project.budget || 0))}</td>
+        <td class="project-budget-cell">${escapeHtml(pesoBudgetFormatter.format(plannedCostByProject.get(String(project.id || "").trim()) || plannedCostByProject.get(String(project.name || "").trim().toLowerCase()) || project.budget || 0))}</td>
         <td class="actions-col">
           <button type="button" class="action-menu-trigger" data-project-actions="${escapeHtml(project.id)}" aria-label="Open project actions" aria-expanded="false">⋮</button>
           <div class="project-actions-menu hidden" data-project-menu="${escapeHtml(project.id)}" role="menu" aria-label="Project actions">
