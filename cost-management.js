@@ -711,7 +711,15 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   rawRows.forEach((row) => {
     const refId = String(getActivityRefId(row) || "").trim();
     const costId = String(row.costId || "").trim();
-    const key = costId || refId || `${String(row.name || "").trim().toLowerCase()}::${String(row.startDate || "")}::${String(row.finishDate || "")}`;
+    const projectKey = String(getCostActivityProjectKey(row) || "").trim();
+    const key = [
+      projectKey,
+      costId || "-",
+      refId || "-",
+      String(row.name || "").trim().toLowerCase(),
+      String(row.startDate || ""),
+      String(row.finishDate || ""),
+    ].join("::");
     if (!key) return;
 
     if (!consolidated.has(key)) {
