@@ -725,20 +725,12 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
 const buildSelectedProjectBannerMarkup = (project) => `<section class="selected-project-banner"><div><p class="selected-project-label">Selected Project</p><h3>${escapeHtml(formatProjectIdentityLabel(project))}</h3></div><a href="cost-management.html" class="ghost-btn">← Back to Projects</a></section>`;
 
 const buildDetailsMarkup = (project, rows) => {
-  const budget = parseBudgetValue(project?.budget);
   const plannedCost = rows.reduce((sum, row) => sum + parseBudgetValue(row.plannedCost), 0);
   const actualCost = rows.reduce((sum, row) => sum + row.actualCost, 0);
-  const isBudgetEqualToPlanned = Math.abs(budget - plannedCost) < 0.01;
-  const comparisonItems = isBudgetEqualToPlanned
-    ? [
-      { key: "planned", label: "Total Planned Cost", value: plannedCost },
-      { key: "actual", label: "Total Actual Cost", value: actualCost },
-    ]
-    : [
-      { key: "budget", label: "Budget", value: budget },
-      { key: "planned", label: "Total Planned Cost", value: plannedCost },
-      { key: "actual", label: "Total Actual Cost", value: actualCost },
-    ];
+  const comparisonItems = [
+    { key: "planned", label: "Total Planned Cost", value: plannedCost },
+    { key: "actual", label: "Total Actual Cost", value: actualCost },
+  ];
   const variance = plannedCost - actualCost;
   const variancePercent = plannedCost ? (variance / plannedCost) * 100 : 0;
   const totalDuration = rows.reduce((sum, row) => sum + (Number(row.durationDays) || 0), 0);
