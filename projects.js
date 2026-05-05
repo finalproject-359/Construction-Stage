@@ -537,23 +537,11 @@ const hydrateFilters = () => {
 };
 
 const addProject = async (project) => {
-  const existingIndex = state.allProjects.findIndex(
-    (existingProject) =>
-      existingProject.id === project.id
-      || existingProject.code.toLowerCase() === project.code.toLowerCase()
-  );
-
-  if (existingIndex >= 0) {
-    state.allProjects[existingIndex] = project;
-  } else {
-    state.allProjects = [project, ...state.allProjects];
-  }
-
+  await syncProjectWithGoogleSheet({ action: "create", project });
+  state.allProjects = [project, ...state.allProjects];
   saveToLocalStorage(state.allProjects);
   hydrateFilters();
   applyFilters();
-
-  await syncProjectWithGoogleSheet({ action: "create", project });
 };
 
 const updateProject = async (updatedProject) => {
