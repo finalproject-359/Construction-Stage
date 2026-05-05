@@ -749,8 +749,9 @@ function syncCostActualFromDailyCost(projectId, costId) {
 function computeEarnedValue(cost) {
   var explicitEarnedValue = parseNumber(cost && cost.earnedValue);
   if (explicitEarnedValue > 0) return explicitEarnedValue;
-  var plannedCost = parseNumber(cost && cost.plannedCost);
-  if (plannedCost <= 0) return 0;
+
+  var plannedCostPerDay = parseNumber(cost && cost.plannedCostPerDay);
+  if (plannedCostPerDay <= 0) return 0;
 
   var activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
   ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
@@ -765,13 +766,14 @@ function computeEarnedValue(cost) {
   if (idxPercent < 0) return 0;
 
   var targetProjectId = cleanText(cost && cost.projectId);
+  var targetCostId = cleanText(cost && cost.costId);
   var targetActivityId = cleanText(cost && cost.activityId);
   var targetActivity = cleanText(cost && cost.activity);
 
   for (var i = 1; i < values.length; i += 1) {
     var row = values[i];
     var rowProjectId = idxProjectId >= 0 ? cleanText(row[idxProjectId]) : '';
-    if (targetProjectId && rowProjectId && rowProjectId !== targetProjectId) continue;
+    if (targetProjectId && rowProjectId !== targetProjectId) continue;
 
     var rowActivityId = idxActivityId >= 0 ? cleanText(row[idxActivityId]) : '';
     var rowActivity = idxActivity >= 0 ? cleanText(row[idxActivity]) : '';
@@ -781,10 +783,51 @@ function computeEarnedValue(cost) {
     if (!matches) continue;
 
     var percent = parseNumber(row[idxPercent]);
-    return plannedCost * (percent / 100);
+    var progressFactor = Math.max(0, Math.min(100, percent)) / 100;
+
+    var recordedDays = countDailyCostRecords(targetProjectId, targetCostId, targetActivityId, targetActivity);
+    if (recordedDays <= 0 || progressFactor <= 0) return 0;
+
+    return plannedCostPerDay * recordedDays * progressFactor;
   }
 
   return 0;
+}
+
+function countDailyCostRecords(projectId, costId, activityId, activityName) {
+  var dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+  ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
+  var values = dailySheet.getDataRange().getValues();
+  if (values.length <= 1) return 0;
+
+  var headers = values[0].map(function(cell) { return normalizeHeader(cell); });
+  var idxProjectId = headers.indexOf(normalizeHeader('Project ID'));
+  var idxCostId = headers.indexOf(normalizeHeader('Cost ID'));
+  var idxActivityId = headers.indexOf(normalizeHeader('Activity ID'));
+  var idxActivity = headers.indexOf(normalizeHeader('Activity'));
+
+  var normalizedActivityId = cleanText(activityId);
+  var normalizedActivityName = cleanText(activityName);
+  if (!normalizedActivityId && !normalizedActivityName) return 0;
+
+  var count = 0;
+  for (var i = 1; i < values.length; i += 1) {
+    var row = values[i];
+    var rowProjectId = idxProjectId >= 0 ? cleanText(row[idxProjectId]) : '';
+    if (projectId && rowProjectId !== projectId) continue;
+
+    var rowCostId = idxCostId >= 0 ? cleanText(row[idxCostId]) : '';
+    if (costId && rowCostId !== costId) continue;
+
+    var rowActivityId = idxActivityId >= 0 ? cleanText(row[idxActivityId]) : '';
+    var rowActivity = idxActivity >= 0 ? cleanText(row[idxActivity]) : '';
+    var matchesActivity = (normalizedActivityId && rowActivityId === normalizedActivityId)
+      || (!normalizedActivityId && normalizedActivityName && rowActivity === normalizedActivityName);
+
+    if (matchesActivity) count += 1;
+  }
+
+  return count;
 }
 
 function normalizeIncomingCost(input) {
