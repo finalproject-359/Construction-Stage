@@ -59,6 +59,10 @@ body.page-cost-management .main-content {
   background: #fff;
   margin-bottom: 14px;
 }
+
+.cost-selection-filters-top {
+  margin-bottom: 0;
+}
 .search-box {
   border: 1px solid #d8deec;
   border-radius: 12px;
