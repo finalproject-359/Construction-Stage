@@ -199,37 +199,7 @@
         </section>
       </section>
 
-      <section class="table-panel">
-        <div class="panel-header">
-          <h3>Activities Overview</h3>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Activity ID</th>
-                <th>Activity</th>
-                <th>Planned Value (PV)</th>
-                <th>Actual Cost (AC)</th>
-                <th>Earned Value (EV)</th>
-                <th>% Complete</th>
-                <th>Cost Variance</th>
-                <th>% Cost Used</th>
-                <th>Budget Variance %</th>
-                <th>Budget Status</th>
-              </tr>
-            </thead>
-            <tbody id="activityTableBody">
-              <tr>
-                <td colspan="10" class="placeholder">No data loaded yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-
-      <section class="table-panel">
+      <section class="table-panel gap-panel">
         <div class="panel-header">
           <h3>Progress vs Cost Gap Analysis</h3>
         </div>
@@ -241,39 +211,71 @@
                 <th>% Complete</th>
                 <th>% Cost Used</th>
                 <th>Gap (% Complete - % Cost Used)</th>
-                <th>Status</th>
+                <th>Gap Status</th>
+                <th>Interpretation</th>
               </tr>
             </thead>
             <tbody id="gapTableBody">
-              <tr><td colspan="5" class="placeholder">No data loaded yet.</td></tr>
+              <tr><td colspan="6" class="placeholder">No data loaded yet.</td></tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <section class="table-panel">
-        <div class="panel-header">
-          <h3>Top Problem Activities (Needs Attention)</h3>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Activity</th>
-                <th>Cost Variance</th>
-                <th>Variance %</th>
-                <th>% Complete</th>
-                <th>% Cost Used</th>
-              </tr>
-            </thead>
-            <tbody id="overrunTableBody">
-              <tr>
-                <td colspan="5" class="placeholder">No data loaded yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <section class="table-split-grid">
+        <section class="table-panel">
+          <div class="panel-header">
+            <h3>Activities Performance Summary</h3>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Activity / WBS</th>
+                  <th>Planned Value (PV)</th>
+                  <th>Actual Cost (AC)</th>
+                  <th>Earned Value (EV)</th>
+                  <th>% Complete</th>
+                  <th>% Cost Used</th>
+                  <th>Cost Variance (AC - EV)</th>
+                  <th>CPI (EV/AC)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="activityTableBody">
+                <tr>
+                  <td colspan="9" class="placeholder">No data loaded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="table-panel">
+          <div class="panel-header">
+            <h3>Top Problem Activities (Needs Attention)</h3>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Activity / WBS</th>
+                  <th>Cost Variance (AC - EV)</th>
+                  <th>Gap (% C - % Cost)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="overrunTableBody">
+                <tr>
+                  <td colspan="4" class="placeholder">No data loaded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </section>
+
+      <section class="dashboard-note">Positive variance and CPI above 1.00 indicate good cost performance. Negative variance and CPI below 1.00 indicate cost overruns.</section>
 
       <p id="message" class="message"></p>
     </main>

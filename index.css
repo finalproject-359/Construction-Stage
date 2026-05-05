@@ -175,4 +175,5 @@ body.page-dashboard {
 @media (max-width: 1200px) {
   .page-dashboard .kpi-grid { grid-template-columns: repeat(3, minmax(210px, 1fr)); }
   .page-dashboard .chart-grid { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+  .table-split-grid { grid-template-columns: 1fr; }
 }

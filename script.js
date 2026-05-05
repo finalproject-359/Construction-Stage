@@ -298,7 +298,7 @@ const renderProgressKpis = (metrics, totals) => {
 const renderGapTable = (rows) => {
   if (!gapTableBodyEl) return;
   if (!rows.length) {
-    gapTableBodyEl.innerHTML = `<tr><td colspan="5" class="placeholder">No data loaded yet.</td></tr>`;
+    gapTableBodyEl.innerHTML = `<tr><td colspan="6" class="placeholder">No data loaded yet.</td></tr>`;
     return;
   }
 
@@ -307,15 +307,25 @@ const renderGapTable = (rows) => {
     .sort((a,b) => (b.percentComplete - b.costUsedPercent) - (a.percentComplete - a.costUsedPercent))
     .map((row) => {
       const gap = row.percentComplete - row.costUsedPercent;
-      const status = gap >= 0 ? "On Track" : "Over Budget";
-      return `<tr><td>${row.activity}</td><td>${formatPercent(row.percentComplete)}</td><td>${formatPercent(row.costUsedPercent)}</td><td>${formatSignedPercent(gap)}</td><td>${status}</td></tr>`;
+      const status = gap >= 0 ? "On Track" : gap > -5 ? "Slightly Over Budget" : "Over Budget";
+      const interpretation = gap >= 0 ? "Progress is ahead of cost." : gap > -5 ? "Cost is slightly ahead of progress." : "Cost is ahead of progress.";
+      const gapClass = gap >= 0 ? "positive" : "negative";
+      const statusClass = gap >= 0 ? "ok" : gap > -5 ? "warn" : "bad";
+      return `<tr>
+        <td>${row.activity}</td>
+        <td>${formatPercent(row.percentComplete)}</td>
+        <td>${formatPercent(row.costUsedPercent)}</td>
+        <td><div class="gap-cell"><strong>${formatSignedPercent(gap)}</strong><span class="gap-track"><span class="gap-fill ${gapClass}" style="width:${Math.min(100, Math.abs(gap) * 4)}%"></span></span></div></td>
+        <td><span class="status-pill ${statusClass}">${status}</span></td>
+        <td>${interpretation}</td>
+      </tr>`;
     }).join("");
 };
 
 const renderTable = (rows) => {
   if (!rows.length) {
     tableBodyEl.innerHTML =
-      '<tr><td colspan="10" class="placeholder">No valid rows found in data source.</td></tr>';
+      '<tr><td colspan="9" class="placeholder">No valid rows found in data source.</td></tr>';
     return;
   }
 
@@ -323,20 +333,30 @@ const renderTable = (rows) => {
     .map(
       (row) => `
       <tr class="variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}">
-        <td>${row.activityId}</td>
         <td>${row.activity}</td>
         <td>${formatCurrency(row.plannedCost)}</td>
         <td>${formatCurrency(row.actualCost)}</td>
         <td>${formatCurrency(row.ev)}</td>
         <td>${formatPercent(row.percentComplete)}</td>
-        <td>${formatCurrency(row.cv)}</td>
         <td>${formatPercent(row.costUsedPercent)}</td>
-        <td>${formatPercent(row.budgetVariancePercent)}</td>
-        <td>${row.budgetStatus}</td>
+        <td>${formatCurrency(row.actualCost - row.ev)}</td>
+        <td>${(row.actualCost ? row.ev / row.actualCost : 0).toFixed(2)}</td>
+        <td><span class="status-pill ${row.cv >= 0 ? "ok" : "bad"}">${row.cv >= 0 ? "On Track" : "Over Budget"}</span></td>
       </tr>
     `
     )
-    .join("");
+    .join("") + `
+      <tr>
+        <td><strong>TOTAL</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.plannedCost, 0))}</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.actualCost, 0))}</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.ev, 0))}</strong></td>
+        <td><strong>${formatPercent(rows.reduce((a, r) => a + r.percentComplete, 0) / rows.length)}</strong></td>
+        <td><strong>${formatPercent(rows.reduce((a, r) => a + r.costUsedPercent, 0) / rows.length)}</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + (r.actualCost - r.ev), 0))}</strong></td>
+        <td><strong>${(rows.reduce((a, r) => a + r.ev, 0) / Math.max(rows.reduce((a, r) => a + r.actualCost, 0), 1)).toFixed(2)}</strong></td>
+        <td><span class="status-pill bad">Over Budget</span></td>
+      </tr>`;
 };
 
 const renderOverrunTable = (rows) => {
@@ -347,7 +367,7 @@ const renderOverrunTable = (rows) => {
 
   if (!overrunRows.length) {
     overrunTableBodyEl.innerHTML =
-      '<tr><td colspan="5" class="placeholder">No overrun activities found.</td></tr>';
+      '<tr><td colspan="4" class="placeholder">No overrun activities found.</td></tr>';
     return;
   }
 
@@ -356,10 +376,9 @@ const renderOverrunTable = (rows) => {
       (row) => `
       <tr>
         <td>${row.activity}</td>
-        <td>${formatCurrency(row.cv)}</td>
-        <td>${formatPercent(row.budgetVariancePercent)}</td>
-        <td>${formatPercent(row.percentComplete)}</td>
-        <td>${formatPercent(row.costUsedPercent)}</td>
+        <td>${formatCurrency(row.actualCost - row.ev)}</td>
+        <td>${formatSignedPercent(row.percentComplete - row.costUsedPercent)}</td>
+        <td><span class="status-pill bad">Over Budget</span></td>
       </tr>
     `
     )
