@@ -341,8 +341,8 @@ body.page-cost-management .main-content {
   vertical-align: middle;
 }
 
-.details-tab-panel th:nth-child(7),
-.details-tab-panel td:nth-child(7) {
+.details-tab-panel th:nth-child(8),
+.details-tab-panel td:nth-child(8) {
   width: 1%;
   text-align: center;
 }
@@ -435,9 +435,24 @@ body.page-cost-management .details-tab-panel .table-panel td:nth-child(4),
 body.page-cost-management .details-tab-panel .table-panel th:nth-child(5),
 body.page-cost-management .details-tab-panel .table-panel td:nth-child(5),
 body.page-cost-management .details-tab-panel .table-panel th:nth-child(6),
-body.page-cost-management .details-tab-panel .table-panel td:nth-child(6) { width: 16%; }
+body.page-cost-management .details-tab-panel .table-panel td:nth-child(6) { width: 15%; }
 body.page-cost-management .details-tab-panel .table-panel th:nth-child(7),
-body.page-cost-management .details-tab-panel .table-panel td:nth-child(7) { width: 8%; }
+body.page-cost-management .details-tab-panel .table-panel td:nth-child(7) { width: 7%; }
+body.page-cost-management .details-tab-panel .table-panel th:nth-child(8),
+body.page-cost-management .details-tab-panel .table-panel td:nth-child(8) { width: 4%; }
+
+body.page-cost-management .details-tab-panel .table-panel th:nth-child(3),
+body.page-cost-management .details-tab-panel .table-panel td:nth-child(3),
+body.page-cost-management .details-tab-panel .table-panel th:nth-child(4),
+body.page-cost-management .details-tab-panel .table-panel td:nth-child(4),
+body.page-cost-management .details-tab-panel .table-panel th:nth-child(5),
+body.page-cost-management .details-tab-panel .table-panel td:nth-child(5),
+body.page-cost-management .details-tab-panel .table-panel th:nth-child(6),
+body.page-cost-management .details-tab-panel .table-panel td:nth-child(6),
+body.page-cost-management .details-tab-panel .table-panel th:nth-child(7),
+body.page-cost-management .details-tab-panel .table-panel td:nth-child(7) {
+  white-space: nowrap;
+}
 
 .details-tab-panel td.actions-col .project-actions-menu {
   width: clamp(170px, 20vw, 220px);
