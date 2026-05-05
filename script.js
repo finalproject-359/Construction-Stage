@@ -6,6 +6,10 @@ const statusCardEl = document.getElementById("statusCard");
 const physicalProgressEl = document.getElementById("physicalProgress");
 const costSpentEl = document.getElementById("costSpent");
 const efficiencyGapEl = document.getElementById("efficiencyGap");
+const miniCompleteEl = document.getElementById("miniComplete");
+const miniCostEl = document.getElementById("miniCost");
+const miniCompleteBarEl = document.querySelector(".mini-fill.blue");
+const miniCostBarEl = document.querySelector(".mini-fill.green");
 const efficiencyCardEl = document.getElementById("efficiencyCard");
 const messageEl = document.getElementById("message");
 const loadingStateEl = document.getElementById("loadingState");
@@ -25,8 +29,6 @@ const chartDependencyWarning =
 let dashboardRows = [];
 let varianceChart = null;
 let costChart = null;
-let evmTrendChart = null;
-let efficiencyScatterChart = null;
 let dashboardRefreshTimer = null;
 let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
@@ -276,6 +278,10 @@ const renderProgressKpis = (metrics, totals) => {
   physicalProgressEl.textContent = formatCurrency(earnedValue);
   costSpentEl.textContent = cpi.toFixed(2);
   efficiencyGapEl.textContent = `${formatPercent(metrics.physicalProgressPercent)} / ${formatPercent(metrics.costSpentPercent)}`;
+  if (miniCompleteEl) miniCompleteEl.textContent = formatPercent(metrics.physicalProgressPercent);
+  if (miniCostEl) miniCostEl.textContent = formatPercent(metrics.costSpentPercent);
+  if (miniCompleteBarEl) miniCompleteBarEl.style.width = `${Math.max(0, Math.min(100, metrics.physicalProgressPercent))}%`;
+  if (miniCostBarEl) miniCostBarEl.style.width = `${Math.max(0, Math.min(100, metrics.costSpentPercent))}%`;
 
   efficiencyCardEl.classList.remove("status-under", "status-over");
   if (metrics.efficiencyGapPercent < 0) {
@@ -381,15 +387,6 @@ const destroyCharts = () => {
     costChart = null;
   }
 
-  if (evmTrendChart) {
-    evmTrendChart.destroy();
-    evmTrendChart = null;
-  }
-
-  if (efficiencyScatterChart) {
-    efficiencyScatterChart.destroy();
-    efficiencyScatterChart = null;
-  }
 };
 
 const generateCharts = (rows) => {
@@ -405,29 +402,32 @@ const generateCharts = (rows) => {
   }
 
   const labels = rows.map((row) => row.activity);
-  const varianceValues = rows.map((row) => row.cv);
+  const completeSeries = rows.map((row) => row.percentComplete);
+  const costUsedSeries = rows.map((row) => row.costUsedPercent);
+  const varianceValues = rows.map((row) => row.actualCost - row.plannedCost);
   const varianceAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
-
-  const plannedSeries = rows.map((row) => row.plannedCost);
-  const actualSeries = rows.map((row) => row.actualCost);
-
-  const costAxis = buildLinearAxisRange([...plannedSeries, ...actualSeries], {
-    includeZero: true,
-    targetTickCount: 7,
-  });
+  const costAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
 
   destroyCharts();
 
   varianceChart = new Chart(document.getElementById("varianceChart"), {
-    type: "bar",
+    type: "line",
     data: {
       labels,
       datasets: [
         {
-          label: "Cost Variance",
-          data: varianceValues,
-          backgroundColor: rows.map((row) => (row.cv >= 0 ? "#22c55e" : "#ef4444")),
-          borderRadius: 6,
+          label: "% Complete",
+          data: completeSeries,
+          borderColor: "#2f55ff",
+          backgroundColor: "#2f55ff",
+          tension: 0.25,
+        },
+        {
+          label: "% Cost Used",
+          data: costUsedSeries,
+          borderColor: "#16a34a",
+          backgroundColor: "#16a34a",
+          tension: 0.25,
         },
       ],
     },
@@ -437,11 +437,10 @@ const generateCharts = (rows) => {
       plugins: { legend: { display: false } },
       scales: {
         y: {
-          min: varianceAxis.min,
-          max: varianceAxis.max,
+          min: 0,
+          max: 100,
           ticks: {
-            stepSize: varianceAxis.stepSize,
-            callback: (value) => formatCurrency(value),
+            callback: (value) => `${value}%`,
           },
         },
       },
@@ -449,23 +448,15 @@ const generateCharts = (rows) => {
   });
 
   costChart = new Chart(document.getElementById("costChart"), {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [
         {
-          label: "Planned Cost (PV)",
-          data: plannedSeries,
-          borderColor: "#2f55ff",
-          backgroundColor: "#2f55ff",
-          tension: 0.3,
-        },
-        {
-          label: "Actual Cost (AC)",
-          data: actualSeries,
-          borderColor: "#10b981",
-          backgroundColor: "#10b981",
-          tension: 0.3,
+          label: "Cost Variance (AC - PV)",
+          data: varianceValues,
+          backgroundColor: rows.map((row) => (row.actualCost - row.plannedCost <= 0 ? "#22c55e" : "#ef4444")),
+          borderRadius: 6,
         },
       ],
     },
@@ -485,131 +476,6 @@ const generateCharts = (rows) => {
     },
   });
 
-  const cumulativeSeries = rows.reduce(
-    (acc, row, index) => {
-      const previousPv = index ? acc.pv[index - 1] : 0;
-      const previousEv = index ? acc.ev[index - 1] : 0;
-      const previousAc = index ? acc.ac[index - 1] : 0;
-
-      acc.labels.push(`${index + 1}. ${row.activity}`);
-      acc.pv.push(previousPv + row.plannedCost);
-      acc.ev.push(previousEv + row.ev);
-      acc.ac.push(previousAc + row.actualCost);
-      return acc;
-    },
-    { labels: [], pv: [], ev: [], ac: [] }
-  );
-
-  const evmAxis = buildLinearAxisRange(
-    [...cumulativeSeries.pv, ...cumulativeSeries.ev, ...cumulativeSeries.ac],
-    { includeZero: true, targetTickCount: 7 }
-  );
-
-  evmTrendChart = new Chart(document.getElementById("evmTrendChart"), {
-    type: "line",
-    data: {
-      labels: cumulativeSeries.labels,
-      datasets: [
-        {
-          label: "Cumulative PV",
-          data: cumulativeSeries.pv,
-          borderColor: "#2f55ff",
-          backgroundColor: "#2f55ff",
-          tension: 0.25,
-        },
-        {
-          label: "Cumulative EV",
-          data: cumulativeSeries.ev,
-          borderColor: "#7c3aed",
-          backgroundColor: "#7c3aed",
-          tension: 0.25,
-        },
-        {
-          label: "Cumulative AC",
-          data: cumulativeSeries.ac,
-          borderColor: "#10b981",
-          backgroundColor: "#10b981",
-          tension: 0.25,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          min: evmAxis.min,
-          max: evmAxis.max,
-          ticks: {
-            stepSize: evmAxis.stepSize,
-            callback: (value) => formatCurrency(value),
-          },
-        },
-      },
-    },
-  });
-
-  const scatterPoints = rows.map((row) => ({
-    x: row.percentComplete,
-    y: row.costUsedPercent,
-    activity: row.activity,
-  }));
-
-  efficiencyScatterChart = new Chart(document.getElementById("efficiencyScatterChart"), {
-    type: "scatter",
-    data: {
-      datasets: [
-        {
-          label: "Activities",
-          data: scatterPoints,
-          backgroundColor: rows.map((row) => (row.costUsedPercent > row.percentComplete ? "#ef4444" : "#22c55e")),
-          pointRadius: 5,
-          pointHoverRadius: 7,
-        },
-        {
-          label: "Balanced Spend (y = x)",
-          type: "line",
-          data: [
-            { x: 0, y: 0 },
-            { x: 100, y: 100 },
-          ],
-          borderColor: "#64748b",
-          borderDash: [6, 6],
-          pointRadius: 0,
-          fill: false,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              if (context.dataset.label !== "Activities") return context.dataset.label;
-              const point = context.raw;
-              return `${point.activity}: ${point.x.toFixed(2)}% complete, ${point.y.toFixed(2)}% cost used`;
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          min: 0,
-          max: 100,
-          title: { display: true, text: "% Complete" },
-          ticks: { callback: (value) => `${value}%` },
-        },
-        y: {
-          min: 0,
-          max: 100,
-          title: { display: true, text: "% Cost Used" },
-          ticks: { callback: (value) => `${value}%` },
-        },
-      },
-    },
-  });
 };
 
 const processRows = (rawRows, sourceName = "web app") => {

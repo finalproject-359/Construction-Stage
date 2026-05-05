@@ -82,6 +82,7 @@
             <span>Date Range</span>
             <input type="text" value="May 1, 2024 - May 31, 2024" readonly />
           </label>
+          <div class="as-of-text">Data as of: May 31, 2024 11:59 PM</div>
         </div>
       </header>
 
@@ -100,6 +101,7 @@
             Total Budget (PV)
           </h2>
           <p id="totalPlanned">₱0.00</p>
+          <small>Planned Value</small>
         </article>
         <article class="kpi-card">
           <h2>
@@ -109,58 +111,57 @@
             Total Spent (AC)
           </h2>
           <p id="totalActual">₱0.00</p>
+          <small>Actual Cost</small>
         </article>
         <article class="kpi-card">
           <h2>
-            <span class="kpi-icon variance-icon" aria-hidden="true">
+            <span class="kpi-icon earned-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3 4 7v10l8 4 8-4V7l-8-4Zm0 0v18m-8-14 8 4 8-4"/></svg>
+            </span>
+            Earned Value (EV)
+          </h2>
+          <p id="physicalProgress">₱0.00</p>
+          <small>Earned Value</small>
+        </article>
+        <article class="kpi-card">
+          <h2>
+            <span class="kpi-icon overrun-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="m6 15 4-4 3 3 5-7M6 20h12"/></svg>
             </span>
             Cost Variance (CV)
           </h2>
           <p id="totalCv">₱0.00</p>
+          <small>EV - AC</small>
         </article>
         <article class="kpi-card status-card" id="statusCard">
           <h2>
-            <span class="kpi-icon status-icon" aria-hidden="true">
+            <span class="kpi-icon cpi-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5"/></svg>
-            </span>
-            Project Status
-          </h2>
-          <p id="projectStatus">Awaiting data source</p>
-        </article>
-        <article class="kpi-card">
-          <h2>
-            <span class="kpi-icon planned-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4v16"/></svg>
-            </span>
-            Earned Value (EV)
-          </h2>
-          <p id="physicalProgress">₱0.00</p>
-        </article>
-        <article class="kpi-card">
-          <h2>
-            <span class="kpi-icon actual-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 20h16M6 16l3-4 3 2 6-8"/></svg>
             </span>
             Cost Perf. Index (CPI)
           </h2>
           <p id="costSpent">0.00</p>
+          <small>EV / AC</small>
         </article>
-        <article class="kpi-card" id="efficiencyCard">
+        <article class="kpi-card progress-bar-card" id="efficiencyCard">
           <h2>
-            <span class="kpi-icon variance-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5v14"/></svg>
-            </span>
             % Complete vs % Cost Used
           </h2>
           <p id="efficiencyGap">0.00% / 0.00%</p>
+          <span id="projectStatus" class="screen-reader-only">Awaiting data source</span>
+          <div class="mini-progress-wrap">
+            <div class="mini-row"><span>% Complete</span><strong id="miniComplete">0.00%</strong></div>
+            <div class="mini-track"><span class="mini-fill blue" style="width:0%"></span></div>
+            <div class="mini-row"><span>% Cost Used</span><strong id="miniCost">0.00%</strong></div>
+            <div class="mini-track"><span class="mini-fill green" style="width:0%"></span></div>
+          </div>
         </article>
       </section>
 
       <section class="chart-grid">
         <section class="chart-panel">
           <div class="panel-header">
-            <h3>Cost Variance per Activity</h3>
+            <h3>Percentage Accomplishment vs. Cost</h3>
           </div>
           <article class="chart-card">
             <div class="chart-canvas-wrap">
@@ -171,33 +172,11 @@
 
         <section class="chart-panel">
           <div class="panel-header">
-            <h3>Planned Cost vs Actual Cost per Activity</h3>
+            <h3>Cost Variance Trend (AC - PV)</h3>
           </div>
           <article class="chart-card">
             <div class="chart-canvas-wrap">
               <canvas id="costChart"></canvas>
-            </div>
-          </article>
-        </section>
-
-        <section class="chart-panel">
-          <div class="panel-header">
-            <h3>EVM Trend (Cumulative PV vs EV vs AC)</h3>
-          </div>
-          <article class="chart-card">
-            <div class="chart-canvas-wrap">
-              <canvas id="evmTrendChart"></canvas>
-            </div>
-          </article>
-        </section>
-
-        <section class="chart-panel">
-          <div class="panel-header">
-            <h3>% Complete vs % Cost Used</h3>
-          </div>
-          <article class="chart-card">
-            <div class="chart-canvas-wrap">
-              <canvas id="efficiencyScatterChart"></canvas>
             </div>
           </article>
         </section>
