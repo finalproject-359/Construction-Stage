@@ -587,7 +587,7 @@ function syncCostActualFromDailyCost(projectId, costId) {
             activity: costColumns.activity ? cleanText(costValues[rowIndex][costColumns.activity - 1]) : '',
             plannedCost: costColumns.plannedCost ? parseNumber(costValues[rowIndex][costColumns.plannedCost - 1]) : 0,
           };
-          var earnedValue = computeEarnedValue(currentCost);
+          var earnedValue = Number(computeEarnedValue(currentCost)) || 0;
           costsSheet.getRange(targetRow, costColumns.earnedValue).setValue(earnedValue);
           costsSheet.getRange(targetRow, costColumns.earnedValue).setNumberFormat('#,##0.00');
         }
@@ -724,7 +724,7 @@ function upsertCostRow(cost) {
   if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
   if (columns.plannedCostPerDay) rowValues[columns.plannedCostPerDay - 1] = cost.plannedCostPerDay;
   if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
-  if (columns.earnedValue) rowValues[columns.earnedValue - 1] = computeEarnedValue(cost);
+  if (columns.earnedValue) rowValues[columns.earnedValue - 1] = Number(computeEarnedValue(cost)) || 0;
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
