@@ -282,10 +282,30 @@ const computeDurationDays = (startDate, finishDate, fallback = 0) => {
   }
   return 0;
 };
+const clampPercent = (value) => {
+  const parsed = Number(String(value ?? "").replace(/[^\d.-]/g, ""));
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(100, parsed));
+};
+const computeEarnedValue = (plannedCost, progressPercent, explicitEarnedValue) => {
+  const normalizedExplicitEv = parseBudgetValue(explicitEarnedValue);
+  if (normalizedExplicitEv > 0) return normalizedExplicitEv;
+  const normalizedPlannedCost = parseBudgetValue(plannedCost);
+  if (normalizedPlannedCost <= 0) return 0;
+  const normalizedProgress = clampPercent(progressPercent);
+  return normalizedPlannedCost * (normalizedProgress / 100);
+};
 const normalizeCostActivity = (activity = {}) => {
   const startDate = toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"]));
   const finishDate = toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"]));
   const explicitDuration = Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0;
+  const progressPercent = clampPercent(getValueByAliases(activity, ["progress", "percentComplete", "percent_complete", "progressPercent", "progress_percent"]));
+  const plannedCost = parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]));
+  const earnedValue = computeEarnedValue(
+    plannedCost,
+    progressPercent,
+    getValueByAliases(activity, ["earnedValue", "earned_value", "earned value", "ev"]),
+  );
 
   return {
     id: String(getValueByAliases(activity, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id", "source activity id", "code", "id"]) || "").trim(),
@@ -297,7 +317,9 @@ const normalizeCostActivity = (activity = {}) => {
     startDate,
     finishDate,
     durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
-    plannedCost: parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
+    progressPercent,
+    plannedCost,
+    earnedValue,
   };
 };
 

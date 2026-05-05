@@ -623,6 +623,8 @@ function syncCostActualFromDailyCost(projectId, costId) {
 }
 
 function computeEarnedValue(cost) {
+  var explicitEarnedValue = parseNumber(cost && cost.earnedValue);
+  if (explicitEarnedValue > 0) return explicitEarnedValue;
   var plannedCost = parseNumber(cost && cost.plannedCost);
   if (plannedCost <= 0) return 0;
 
@@ -675,6 +677,7 @@ function normalizeIncomingCost(input) {
     plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
     plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
     actualCost: parseNumber(source.actualCost || source.actual_cost),
+    earnedValue: parseNumber(source.earnedValue || source.earned_value || source.ev),
     notes: cleanText(source.notes || source.note || source.remarks),
   };
 }
@@ -724,7 +727,10 @@ function upsertCostRow(cost) {
   if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
   if (columns.plannedCostPerDay) rowValues[columns.plannedCostPerDay - 1] = cost.plannedCostPerDay;
   if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
-  if (columns.earnedValue) rowValues[columns.earnedValue - 1] = Number(computeEarnedValue(cost)) || 0;
+  const explicitEarnedValue = parseNumber(cost && cost.earnedValue);
+  const computedEarnedValue = Number(computeEarnedValue(cost)) || 0;
+  const normalizedEarnedValue = explicitEarnedValue > 0 ? explicitEarnedValue : computedEarnedValue;
+  if (columns.earnedValue) rowValues[columns.earnedValue - 1] = Number(normalizedEarnedValue) || 0;
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
@@ -1737,6 +1743,10 @@ function parseNumber(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
 
   const stringValue = String(value).trim();
+  // Guard against date-like strings (e.g., 5/5/2026) being misread as numbers (552026).
+  if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(stringValue) || /^\d{4}-\d{1,2}-\d{1,2}$/.test(stringValue)) {
+    return 0;
+  }
   const isAccountingNegative = /^\(.*\)$/.test(stringValue);
   const cleaned = stringValue.replace(/[^0-9.-]/g, '');
   const parsed = Number(cleaned);
