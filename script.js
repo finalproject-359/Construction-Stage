@@ -6,6 +6,10 @@ const statusCardEl = document.getElementById("statusCard");
 const physicalProgressEl = document.getElementById("physicalProgress");
 const costSpentEl = document.getElementById("costSpent");
 const efficiencyGapEl = document.getElementById("efficiencyGap");
+const miniCompleteEl = document.getElementById("miniComplete");
+const miniCostEl = document.getElementById("miniCost");
+const miniCompleteBarEl = document.querySelector(".mini-fill.blue");
+const miniCostBarEl = document.querySelector(".mini-fill.green");
 const efficiencyCardEl = document.getElementById("efficiencyCard");
 const messageEl = document.getElementById("message");
 const loadingStateEl = document.getElementById("loadingState");
@@ -25,8 +29,6 @@ const chartDependencyWarning =
 let dashboardRows = [];
 let varianceChart = null;
 let costChart = null;
-let evmTrendChart = null;
-let efficiencyScatterChart = null;
 let dashboardRefreshTimer = null;
 let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
@@ -276,6 +278,10 @@ const renderProgressKpis = (metrics, totals) => {
   physicalProgressEl.textContent = formatCurrency(earnedValue);
   costSpentEl.textContent = cpi.toFixed(2);
   efficiencyGapEl.textContent = `${formatPercent(metrics.physicalProgressPercent)} / ${formatPercent(metrics.costSpentPercent)}`;
+  if (miniCompleteEl) miniCompleteEl.textContent = formatPercent(metrics.physicalProgressPercent);
+  if (miniCostEl) miniCostEl.textContent = formatPercent(metrics.costSpentPercent);
+  if (miniCompleteBarEl) miniCompleteBarEl.style.width = `${Math.max(0, Math.min(100, metrics.physicalProgressPercent))}%`;
+  if (miniCostBarEl) miniCostBarEl.style.width = `${Math.max(0, Math.min(100, metrics.costSpentPercent))}%`;
 
   efficiencyCardEl.classList.remove("status-under", "status-over");
   if (metrics.efficiencyGapPercent < 0) {
@@ -292,7 +298,7 @@ const renderProgressKpis = (metrics, totals) => {
 const renderGapTable = (rows) => {
   if (!gapTableBodyEl) return;
   if (!rows.length) {
-    gapTableBodyEl.innerHTML = `<tr><td colspan="5" class="placeholder">No data loaded yet.</td></tr>`;
+    gapTableBodyEl.innerHTML = `<tr><td colspan="6" class="placeholder">No data loaded yet.</td></tr>`;
     return;
   }
 
@@ -301,15 +307,25 @@ const renderGapTable = (rows) => {
     .sort((a,b) => (b.percentComplete - b.costUsedPercent) - (a.percentComplete - a.costUsedPercent))
     .map((row) => {
       const gap = row.percentComplete - row.costUsedPercent;
-      const status = gap >= 0 ? "On Track" : "Over Budget";
-      return `<tr><td>${row.activity}</td><td>${formatPercent(row.percentComplete)}</td><td>${formatPercent(row.costUsedPercent)}</td><td>${formatSignedPercent(gap)}</td><td>${status}</td></tr>`;
+      const status = gap >= 0 ? "On Track" : gap > -5 ? "Slightly Over Budget" : "Over Budget";
+      const interpretation = gap >= 0 ? "Progress is ahead of cost." : gap > -5 ? "Cost is slightly ahead of progress." : "Cost is ahead of progress.";
+      const gapClass = gap >= 0 ? "positive" : "negative";
+      const statusClass = gap >= 0 ? "ok" : gap > -5 ? "warn" : "bad";
+      return `<tr>
+        <td>${row.activity}</td>
+        <td>${formatPercent(row.percentComplete)}</td>
+        <td>${formatPercent(row.costUsedPercent)}</td>
+        <td><div class="gap-cell"><strong>${formatSignedPercent(gap)}</strong><span class="gap-track"><span class="gap-fill ${gapClass}" style="width:${Math.min(100, Math.abs(gap) * 4)}%"></span></span></div></td>
+        <td><span class="status-pill ${statusClass}">${status}</span></td>
+        <td>${interpretation}</td>
+      </tr>`;
     }).join("");
 };
 
 const renderTable = (rows) => {
   if (!rows.length) {
     tableBodyEl.innerHTML =
-      '<tr><td colspan="10" class="placeholder">No valid rows found in data source.</td></tr>';
+      '<tr><td colspan="9" class="placeholder">No valid rows found in data source.</td></tr>';
     return;
   }
 
@@ -317,20 +333,30 @@ const renderTable = (rows) => {
     .map(
       (row) => `
       <tr class="variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}">
-        <td>${row.activityId}</td>
         <td>${row.activity}</td>
         <td>${formatCurrency(row.plannedCost)}</td>
         <td>${formatCurrency(row.actualCost)}</td>
         <td>${formatCurrency(row.ev)}</td>
         <td>${formatPercent(row.percentComplete)}</td>
-        <td>${formatCurrency(row.cv)}</td>
         <td>${formatPercent(row.costUsedPercent)}</td>
-        <td>${formatPercent(row.budgetVariancePercent)}</td>
-        <td>${row.budgetStatus}</td>
+        <td>${formatCurrency(row.actualCost - row.ev)}</td>
+        <td>${(row.actualCost ? row.ev / row.actualCost : 0).toFixed(2)}</td>
+        <td><span class="status-pill ${row.cv >= 0 ? "ok" : "bad"}">${row.cv >= 0 ? "On Track" : "Over Budget"}</span></td>
       </tr>
     `
     )
-    .join("");
+    .join("") + `
+      <tr>
+        <td><strong>TOTAL</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.plannedCost, 0))}</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.actualCost, 0))}</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.ev, 0))}</strong></td>
+        <td><strong>${formatPercent(rows.reduce((a, r) => a + r.percentComplete, 0) / rows.length)}</strong></td>
+        <td><strong>${formatPercent(rows.reduce((a, r) => a + r.costUsedPercent, 0) / rows.length)}</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + (r.actualCost - r.ev), 0))}</strong></td>
+        <td><strong>${(rows.reduce((a, r) => a + r.ev, 0) / Math.max(rows.reduce((a, r) => a + r.actualCost, 0), 1)).toFixed(2)}</strong></td>
+        <td><span class="status-pill bad">Over Budget</span></td>
+      </tr>`;
 };
 
 const renderOverrunTable = (rows) => {
@@ -341,7 +367,7 @@ const renderOverrunTable = (rows) => {
 
   if (!overrunRows.length) {
     overrunTableBodyEl.innerHTML =
-      '<tr><td colspan="5" class="placeholder">No overrun activities found.</td></tr>';
+      '<tr><td colspan="4" class="placeholder">No overrun activities found.</td></tr>';
     return;
   }
 
@@ -350,10 +376,9 @@ const renderOverrunTable = (rows) => {
       (row) => `
       <tr>
         <td>${row.activity}</td>
-        <td>${formatCurrency(row.cv)}</td>
-        <td>${formatPercent(row.budgetVariancePercent)}</td>
-        <td>${formatPercent(row.percentComplete)}</td>
-        <td>${formatPercent(row.costUsedPercent)}</td>
+        <td>${formatCurrency(row.actualCost - row.ev)}</td>
+        <td>${formatSignedPercent(row.percentComplete - row.costUsedPercent)}</td>
+        <td><span class="status-pill bad">Over Budget</span></td>
       </tr>
     `
     )
@@ -381,15 +406,6 @@ const destroyCharts = () => {
     costChart = null;
   }
 
-  if (evmTrendChart) {
-    evmTrendChart.destroy();
-    evmTrendChart = null;
-  }
-
-  if (efficiencyScatterChart) {
-    efficiencyScatterChart.destroy();
-    efficiencyScatterChart = null;
-  }
 };
 
 const generateCharts = (rows) => {
@@ -405,29 +421,32 @@ const generateCharts = (rows) => {
   }
 
   const labels = rows.map((row) => row.activity);
-  const varianceValues = rows.map((row) => row.cv);
+  const completeSeries = rows.map((row) => row.percentComplete);
+  const costUsedSeries = rows.map((row) => row.costUsedPercent);
+  const varianceValues = rows.map((row) => row.actualCost - row.plannedCost);
   const varianceAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
-
-  const plannedSeries = rows.map((row) => row.plannedCost);
-  const actualSeries = rows.map((row) => row.actualCost);
-
-  const costAxis = buildLinearAxisRange([...plannedSeries, ...actualSeries], {
-    includeZero: true,
-    targetTickCount: 7,
-  });
+  const costAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
 
   destroyCharts();
 
   varianceChart = new Chart(document.getElementById("varianceChart"), {
-    type: "bar",
+    type: "line",
     data: {
       labels,
       datasets: [
         {
-          label: "Cost Variance",
-          data: varianceValues,
-          backgroundColor: rows.map((row) => (row.cv >= 0 ? "#22c55e" : "#ef4444")),
-          borderRadius: 6,
+          label: "% Complete",
+          data: completeSeries,
+          borderColor: "#2f55ff",
+          backgroundColor: "#2f55ff",
+          tension: 0.25,
+        },
+        {
+          label: "% Cost Used",
+          data: costUsedSeries,
+          borderColor: "#16a34a",
+          backgroundColor: "#16a34a",
+          tension: 0.25,
         },
       ],
     },
@@ -437,11 +456,10 @@ const generateCharts = (rows) => {
       plugins: { legend: { display: false } },
       scales: {
         y: {
-          min: varianceAxis.min,
-          max: varianceAxis.max,
+          min: 0,
+          max: 100,
           ticks: {
-            stepSize: varianceAxis.stepSize,
-            callback: (value) => formatCurrency(value),
+            callback: (value) => `${value}%`,
           },
         },
       },
@@ -449,23 +467,15 @@ const generateCharts = (rows) => {
   });
 
   costChart = new Chart(document.getElementById("costChart"), {
-    type: "line",
+    type: "bar",
     data: {
       labels,
       datasets: [
         {
-          label: "Planned Cost (PV)",
-          data: plannedSeries,
-          borderColor: "#2f55ff",
-          backgroundColor: "#2f55ff",
-          tension: 0.3,
-        },
-        {
-          label: "Actual Cost (AC)",
-          data: actualSeries,
-          borderColor: "#10b981",
-          backgroundColor: "#10b981",
-          tension: 0.3,
+          label: "Cost Variance (AC - PV)",
+          data: varianceValues,
+          backgroundColor: rows.map((row) => (row.actualCost - row.plannedCost <= 0 ? "#22c55e" : "#ef4444")),
+          borderRadius: 6,
         },
       ],
     },
@@ -485,131 +495,6 @@ const generateCharts = (rows) => {
     },
   });
 
-  const cumulativeSeries = rows.reduce(
-    (acc, row, index) => {
-      const previousPv = index ? acc.pv[index - 1] : 0;
-      const previousEv = index ? acc.ev[index - 1] : 0;
-      const previousAc = index ? acc.ac[index - 1] : 0;
-
-      acc.labels.push(`${index + 1}. ${row.activity}`);
-      acc.pv.push(previousPv + row.plannedCost);
-      acc.ev.push(previousEv + row.ev);
-      acc.ac.push(previousAc + row.actualCost);
-      return acc;
-    },
-    { labels: [], pv: [], ev: [], ac: [] }
-  );
-
-  const evmAxis = buildLinearAxisRange(
-    [...cumulativeSeries.pv, ...cumulativeSeries.ev, ...cumulativeSeries.ac],
-    { includeZero: true, targetTickCount: 7 }
-  );
-
-  evmTrendChart = new Chart(document.getElementById("evmTrendChart"), {
-    type: "line",
-    data: {
-      labels: cumulativeSeries.labels,
-      datasets: [
-        {
-          label: "Cumulative PV",
-          data: cumulativeSeries.pv,
-          borderColor: "#2f55ff",
-          backgroundColor: "#2f55ff",
-          tension: 0.25,
-        },
-        {
-          label: "Cumulative EV",
-          data: cumulativeSeries.ev,
-          borderColor: "#7c3aed",
-          backgroundColor: "#7c3aed",
-          tension: 0.25,
-        },
-        {
-          label: "Cumulative AC",
-          data: cumulativeSeries.ac,
-          borderColor: "#10b981",
-          backgroundColor: "#10b981",
-          tension: 0.25,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          min: evmAxis.min,
-          max: evmAxis.max,
-          ticks: {
-            stepSize: evmAxis.stepSize,
-            callback: (value) => formatCurrency(value),
-          },
-        },
-      },
-    },
-  });
-
-  const scatterPoints = rows.map((row) => ({
-    x: row.percentComplete,
-    y: row.costUsedPercent,
-    activity: row.activity,
-  }));
-
-  efficiencyScatterChart = new Chart(document.getElementById("efficiencyScatterChart"), {
-    type: "scatter",
-    data: {
-      datasets: [
-        {
-          label: "Activities",
-          data: scatterPoints,
-          backgroundColor: rows.map((row) => (row.costUsedPercent > row.percentComplete ? "#ef4444" : "#22c55e")),
-          pointRadius: 5,
-          pointHoverRadius: 7,
-        },
-        {
-          label: "Balanced Spend (y = x)",
-          type: "line",
-          data: [
-            { x: 0, y: 0 },
-            { x: 100, y: 100 },
-          ],
-          borderColor: "#64748b",
-          borderDash: [6, 6],
-          pointRadius: 0,
-          fill: false,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: (context) => {
-              if (context.dataset.label !== "Activities") return context.dataset.label;
-              const point = context.raw;
-              return `${point.activity}: ${point.x.toFixed(2)}% complete, ${point.y.toFixed(2)}% cost used`;
-            },
-          },
-        },
-      },
-      scales: {
-        x: {
-          min: 0,
-          max: 100,
-          title: { display: true, text: "% Complete" },
-          ticks: { callback: (value) => `${value}%` },
-        },
-        y: {
-          min: 0,
-          max: 100,
-          title: { display: true, text: "% Cost Used" },
-          ticks: { callback: (value) => `${value}%` },
-        },
-      },
-    },
-  });
 };
 
 const processRows = (rawRows, sourceName = "web app") => {
