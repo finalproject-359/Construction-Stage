@@ -11,6 +11,9 @@ const messageEl = document.getElementById("message");
 const loadingStateEl = document.getElementById("loadingState");
 const tableBodyEl = document.getElementById("activityTableBody");
 const overrunTableBodyEl = document.getElementById("overrunTableBody");
+const gapTableBodyEl = document.getElementById("gapTableBody");
+const varianceDisplayEl = document.getElementById("varianceDisplay");
+const varianceStatusEl = document.getElementById("varianceStatus");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 
@@ -266,10 +269,13 @@ const renderKpis = (totals) => {
   }
 };
 
-const renderProgressKpis = (metrics) => {
-  physicalProgressEl.textContent = formatPercent(metrics.physicalProgressPercent);
-  costSpentEl.textContent = formatPercent(metrics.costSpentPercent);
-  efficiencyGapEl.textContent = formatSignedPercent(metrics.efficiencyGapPercent);
+const renderProgressKpis = (metrics, totals) => {
+  const earnedValue = (parseNumber(totals?.planned) * parseNumber(metrics.physicalProgressPercent)) / 100;
+  const cpi = parseNumber(totals?.actual) ? earnedValue / parseNumber(totals?.actual) : 0;
+
+  physicalProgressEl.textContent = formatCurrency(earnedValue);
+  costSpentEl.textContent = cpi.toFixed(2);
+  efficiencyGapEl.textContent = `${formatPercent(metrics.physicalProgressPercent)} / ${formatPercent(metrics.costSpentPercent)}`;
 
   efficiencyCardEl.classList.remove("status-under", "status-over");
   if (metrics.efficiencyGapPercent < 0) {
@@ -277,6 +283,27 @@ const renderProgressKpis = (metrics) => {
   } else if (metrics.efficiencyGapPercent > 0) {
     efficiencyCardEl.classList.add("status-under");
   }
+
+
+  if (varianceDisplayEl) varianceDisplayEl.textContent = formatCurrency(parseNumber(totals?.cv));
+  if (varianceStatusEl) varianceStatusEl.textContent = parseNumber(totals?.cv) < 0 ? "Over Budget" : "Under Budget";
+};
+
+const renderGapTable = (rows) => {
+  if (!gapTableBodyEl) return;
+  if (!rows.length) {
+    gapTableBodyEl.innerHTML = `<tr><td colspan="5" class="placeholder">No data loaded yet.</td></tr>`;
+    return;
+  }
+
+  gapTableBodyEl.innerHTML = rows
+    .slice()
+    .sort((a,b) => (b.percentComplete - b.costUsedPercent) - (a.percentComplete - a.costUsedPercent))
+    .map((row) => {
+      const gap = row.percentComplete - row.costUsedPercent;
+      const status = gap >= 0 ? "On Track" : "Over Budget";
+      return `<tr><td>${row.activity}</td><td>${formatPercent(row.percentComplete)}</td><td>${formatPercent(row.costUsedPercent)}</td><td>${formatSignedPercent(gap)}</td><td>${status}</td></tr>`;
+    }).join("");
 };
 
 const renderTable = (rows) => {
