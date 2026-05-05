@@ -68,8 +68,21 @@
     </aside>
 
     <main class="main-content">
-      <header class="topbar">
-        <h1>Financial Dashboard</h1>
+      <header class="topbar dashboard-topbar">
+        <div>
+          <h1>Financial Dashboard</h1>
+          <p class="topbar-subtitle">Track project financial performance and progress in real-time.</p>
+        </div>
+        <div class="dashboard-filters">
+          <label class="filter-item">
+            <span>Project</span>
+            <select><option>All Projects</option></select>
+          </label>
+          <label class="filter-item">
+            <span>Date Range</span>
+            <input type="text" value="May 1, 2024 - May 31, 2024" readonly />
+          </label>
+        </div>
       </header>
 
 
@@ -84,7 +97,7 @@
             <span class="kpi-icon planned-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="M3 8h18M7 3v5m10-5v5M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
             </span>
-            Total Planned Cost
+            Total Budget (PV)
           </h2>
           <p id="totalPlanned">₱0.00</p>
         </article>
@@ -93,7 +106,7 @@
             <span class="kpi-icon actual-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16M8 15l3-4 3 2 4-6"/></svg>
             </span>
-            Total Actual Cost
+            Total Spent (AC)
           </h2>
           <p id="totalActual">₱0.00</p>
         </article>
@@ -102,7 +115,7 @@
             <span class="kpi-icon variance-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="m6 15 4-4 3 3 5-7M6 20h12"/></svg>
             </span>
-            Total Cost Variance
+            Cost Variance (CV)
           </h2>
           <p id="totalCv">₱0.00</p>
         </article>
@@ -120,27 +133,27 @@
             <span class="kpi-icon planned-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4v16"/></svg>
             </span>
-            Physical Progress %
+            Earned Value (EV)
           </h2>
-          <p id="physicalProgress">0.00%</p>
+          <p id="physicalProgress">₱0.00</p>
         </article>
         <article class="kpi-card">
           <h2>
             <span class="kpi-icon actual-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="M4 20h16M6 16l3-4 3 2 6-8"/></svg>
             </span>
-            Cost Spent %
+            Cost Perf. Index (CPI)
           </h2>
-          <p id="costSpent">0.00%</p>
+          <p id="costSpent">0.00</p>
         </article>
         <article class="kpi-card" id="efficiencyCard">
           <h2>
             <span class="kpi-icon variance-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5v14"/></svg>
             </span>
-            Efficiency Gap %
+            % Complete vs % Cost Used
           </h2>
-          <p id="efficiencyGap">0.00%</p>
+          <p id="efficiencyGap">0.00% / 0.00%</p>
         </article>
       </section>
 
@@ -188,6 +201,23 @@
             </div>
           </article>
         </section>
+        <section class="chart-panel">
+          <div class="panel-header">
+            <h3>Cost Variance Breakdown</h3>
+          </div>
+          <article class="chart-card breakdown-card">
+            <div class="breakdown-donut" aria-hidden="true">
+              <div class="breakdown-center">
+                <strong id="varianceDisplay">₱0.00</strong>
+                <span id="varianceStatus">Balanced</span>
+              </div>
+            </div>
+            <div class="breakdown-legend">
+              <p><span class="dot under"></span> Under Budget</p>
+              <p><span class="dot over"></span> Over Budget</p>
+            </div>
+          </article>
+        </section>
       </section>
 
       <section class="table-panel">
@@ -219,9 +249,32 @@
         </div>
       </section>
 
+
       <section class="table-panel">
         <div class="panel-header">
-          <h3>Top 5 Overrun Activities</h3>
+          <h3>Progress vs Cost Gap Analysis</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Activity / WBS</th>
+                <th>% Complete</th>
+                <th>% Cost Used</th>
+                <th>Gap (% Complete - % Cost Used)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="gapTableBody">
+              <tr><td colspan="5" class="placeholder">No data loaded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="table-panel">
+        <div class="panel-header">
+          <h3>Top Problem Activities (Needs Attention)</h3>
         </div>
         <div class="table-wrap">
           <table>
