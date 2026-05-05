@@ -303,7 +303,7 @@ const normalizeCostActivity = (activity = {}) => {
   const startDate = toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"]));
   const finishDate = toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"]));
   const explicitDuration = Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0;
-  const progressPercent = clampPercent(getValueByAliases(activity, ["progress", "percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion"]));
+  const progressPercent = clampPercent(getValueByAliases(activity, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]));
   const plannedCost = parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]));
   const earnedValue = computeEarnedValue(
     plannedCost,
@@ -351,7 +351,7 @@ const normalizeRemoteActivity = (row = {}) => {
     finishDate,
     durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
     plannedCost: getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]),
-    progressPercent: getValueByAliases(row, ["progress", "percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion"]),
+    progressPercent: getValueByAliases(row, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]),
     earnedValue: getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "earned value (ev)", "ev"]),
   });
 };
