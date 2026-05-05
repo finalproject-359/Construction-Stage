@@ -79,6 +79,18 @@ body {
   display: grid;
   gap: 8px;
 }
+.settings-link {
+  margin-top: auto;
+  color: #dbe7f9;
+  text-decoration: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-link:hover { background: rgba(255,255,255,0.08); }
+
 .menu a {
   color: #dbe7f9;
   text-decoration: none;

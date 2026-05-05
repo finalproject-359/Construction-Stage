@@ -61,8 +61,13 @@ body.page-cost-management .main-content {
 }
 
 .cost-selection-filters-top {
+  margin-top: 0;
   margin-bottom: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
+
 .search-box {
   border: 1px solid #d8deec;
   border-radius: 12px;
@@ -75,7 +80,7 @@ body.page-cost-management .main-content {
 }
 .search-box svg { width: 18px; height: 18px; stroke: #6f7e9a; stroke-width: 1.8; }
 .search-box input { border: 0; outline: none; width: 100%; font: inherit; }
-.date-btn { border: 1px solid #d8deec; background: #fff; border-radius: 10px; padding: 10px 14px; }
+.date-btn { border: 1px solid #d8deec; background: #fff; border-radius: 10px; padding: 10px 14px; min-height: 44px; font: inherit; color: #2a3f66; font-weight: 600; }
 .selection-empty { text-align: center; padding: 26px 0; }
 .state-icon { width: 72px; height: 72px; border-radius: 50%; background: #eff4ff; display: grid; place-items: center; margin: 0 auto 14px; }
 .state-icon svg { width: 34px; height: 34px; stroke: #2f55ff; stroke-width: 1.8; }

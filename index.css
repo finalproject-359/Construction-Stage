@@ -72,13 +72,6 @@ body.page-dashboard {
   font-size: 0.84rem;
   font-weight: 500;
 }
-.refresh-btn {
-  border: 0;
-  background: transparent;
-  color: #667085;
-  font-size: 1.1rem;
-  cursor: pointer;
-}
 
 .page-dashboard .kpi-grid {
   grid-template-columns: repeat(6, minmax(190px, 1fr));
@@ -118,58 +111,6 @@ body.page-dashboard {
 .mini-fill.blue { background: #2f55ff; }
 .mini-fill.green { background: #16a34a; }
 .screen-reader-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
-.table-split-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 14px;
-  align-items: start;
-}
-.table-split-grid .table-panel {
-  margin-top: 0;
-}
-.table-split-grid table {
-  min-width: 0;
-}
-.table-split-grid th,
-.table-split-grid td {
-  font-size: 0.84rem;
-  white-space: nowrap;
-}
-.gap-panel table {
-  min-width: 0;
-}
-.gap-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.gap-track {
-  width: 90px;
-  height: 6px;
-  background: #e5e7eb;
-  border-radius: 999px;
-  overflow: hidden;
-}
-.gap-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-}
-.gap-fill.positive { background: #16a34a; }
-.gap-fill.negative { background: #ef4444; }
-.status-pill { padding: 4px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
-.status-pill.ok { background: #e8f9ef; color: #15803d; }
-.status-pill.warn { background: #fff1e6; color: #ea580c; }
-.status-pill.bad { background: #feecec; color: #dc2626; }
-.dashboard-note {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid #dbe4ff;
-  border-radius: 10px;
-  color: #2f55ff;
-  background: #f5f8ff;
-  font-weight: 500;
-}
 
 .filter-item span {
   color: #667085;
