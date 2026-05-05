@@ -711,7 +711,7 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       ...row,
       costId: String(existing.costId || row.costId || "").trim(),
       activityRefId: String(getActivityRefId(existing) || getActivityRefId(row) || "").trim(),
-      plannedCost: Math.max(parseBudgetValue(existing.plannedCost), parseBudgetValue(row.plannedCost)),
+      plannedCost: parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
       actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
       durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
       dailyItems: uniqueDailyItems,
@@ -744,14 +744,15 @@ const buildDetailsMarkup = (project, rows) => {
         ? parseBudgetValue(row.plannedCost) / Number(row.durationDays)
         : 0;
       const costIdCell = row.costId ? escapeHtml(row.costId) : "";
-      const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "";
+      const plannedCostValue = parseBudgetValue(row.plannedCost);
+      const plannedCostInputValue = Number.isFinite(plannedCostValue) ? plannedCostValue : 0;
       const plannedCostPerDayCell = hasPlannedCost ? formatBudget(plannedCostPerDay) : "";
       const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "";
 
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "";
 
       const activityId = escapeHtml(getActivityRefId(row));
-      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${durationCell}</td><td>${plannedCostCell}</td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td class="actions-col"><button type="button" class="action-menu-trigger" data-cost-actions="${activityId}" aria-label="Open cost actions" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${activityId}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Add / Edit Cost Details</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
+      return `<tr><td>${costIdCell}</td><td>${escapeHtml(row.name)}</td><td>${durationCell}</td><td><input type="number" min="0" step="0.01" class="planned-cost-input" data-planned-cost-activity-id="${activityId}" data-planned-cost-value="${plannedCostInputValue}" value="${plannedCostInputValue}"></td><td>${plannedCostPerDayCell}</td><td>${actualCostCell}</td><td class="actions-col"><button type="button" class="action-menu-trigger" data-cost-actions="${activityId}" aria-label="Open cost actions" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${activityId}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Edit Cost ID</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
     }).join("")
     : '<tr><td colspan="7" class="empty-cell">No costing records yet. Add activities to start tracking costs.</td></tr>';
 
@@ -1058,6 +1059,30 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
     });
   });
 
+
+  detailsView.querySelectorAll(".planned-cost-input").forEach((input) => input.addEventListener("change", async (event) => {
+    const activityId = String(input.dataset.plannedCostActivityId || "").trim();
+    const previousValue = parseBudgetValue(input.dataset.plannedCostValue);
+    const nextPlannedCost = parseBudgetValue(event.target.value);
+    if (!activityId) return;
+    if (nextPlannedCost < 0) {
+      alert("Planned cost cannot be negative.");
+      input.value = String(previousValue);
+      return;
+    }
+
+    const result = await savePlannedCostChange(projectId, activityId, nextPlannedCost, allActivities);
+    if (!result.ok) {
+      alert(result.message || "Unable to save planned cost.");
+      input.value = String(previousValue);
+      return;
+    }
+
+    input.dataset.plannedCostValue = String(nextPlannedCost);
+    const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
+    showProjectDetails(projectId, activeTab, loadCostActivities());
+  }));
+
   detailsView.addEventListener("click", (event) => {
     const actionBtn = event.target.closest(".view-daily-cost-btn, .edit-cost-meta-btn");
     if (actionBtn) {
@@ -1080,6 +1105,20 @@ const saveCostActivityOverrides = (items = []) => {
   costActivitiesState = Array.isArray(items) ? items.slice() : [];
   persistToLocalStorage(COST_ACTIVITIES_LOCAL_STORAGE_KEY, costActivitiesState);
 };
+
+const upsertCostRecord = async (costPayload) => {
+  try {
+    await postToDataSource("costs", "create", { cost: costPayload });
+    return;
+  } catch (error) {
+    const message = String(error?.message || "").toLowerCase();
+    const shouldRetryUpdate = message.includes("already exists") || message.includes("use update") || message.includes("duplicate");
+    if (!shouldRetryUpdate) throw error;
+  }
+
+  await postToDataSource("costs", "update", { cost: costPayload });
+};
+
 const renderCostMetadataModal = (projectId, activityRefId, target) => {
   const modal = detailsView.querySelector("#costMetaModal");
   if (!modal) return;
@@ -1116,21 +1155,19 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     try {
       const durationDays = Number(target.durationDays) || 0;
       const plannedCostPerDay = durationDays > 0 ? nextPlannedCost / durationDays : 0;
-      await postToDataSource("costs", "create", {
-        cost: {
-          costId: nextCostId,
-          projectId: resolvedProjectId,
-          project: target.projectName || "",
-          activityId: activityRefId,
-          activity: target.name || "",
-          duration: durationDays,
-          category: "Planned Cost",
-          date: new Date().toISOString().slice(0, 10),
-          plannedCost: nextPlannedCost,
-          plannedCostPerDay,
-          actualCost: 0,
-          notes: `Activity ID: ${activityRefId}`,
-        },
+      await upsertCostRecord({
+        costId: nextCostId,
+        projectId: resolvedProjectId,
+        project: target.projectName || "",
+        activityId: activityRefId,
+        activity: target.name || "",
+        duration: durationDays,
+        category: "Planned Cost",
+        date: new Date().toISOString().slice(0, 10),
+        plannedCost: nextPlannedCost,
+        plannedCostPerDay,
+        actualCost: 0,
+        notes: `Activity ID: ${activityRefId}`,
       });
     } catch (error) {
       console.warn("Unable to save cost record to Google Sheets:", error);
@@ -1141,6 +1178,45 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     closeModal();
     showProjectDetails(projectId, "costing", loadCostActivities());
   });
+};
+
+
+const savePlannedCostChange = async (projectId, activityRefId, nextPlannedCost, allActivities = loadCostActivities()) => {
+  const target = allActivities.find((item) => String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId);
+  if (!target) return { ok: false, message: "Unable to locate the selected costing record." };
+
+  const resolvedProjectId = String(projectId || target.projectId || "").trim();
+  if (!resolvedProjectId) return { ok: false, message: "Unable to save cost because Project ID is missing." };
+
+  const existingOverrides = loadCostActivities().map(normalizeCostActivity);
+  const nextOverrides = existingOverrides.filter((item) => !(String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId));
+  nextOverrides.push(normalizeCostActivity({ ...target, plannedCost: nextPlannedCost, activityRefId }));
+  saveCostActivityOverrides(nextOverrides);
+
+  try {
+    const durationDays = Number(target.durationDays) || 0;
+    const plannedCostPerDay = durationDays > 0 ? nextPlannedCost / durationDays : 0;
+    await upsertCostRecord({
+      costId: String(target.costId || "").trim(),
+      projectId: resolvedProjectId,
+      project: target.projectName || "",
+      activityId: activityRefId,
+      activity: target.name || "",
+      duration: durationDays,
+      category: "Planned Cost",
+      date: new Date().toISOString().slice(0, 10),
+      plannedCost: nextPlannedCost,
+      plannedCostPerDay,
+      actualCost: 0,
+      notes: `Activity ID: ${activityRefId}`,
+    });
+  } catch (error) {
+    console.warn("Unable to save planned cost to Google Sheets:", error);
+    saveCostActivityOverrides(existingOverrides);
+    return { ok: false, message: `Unable to save planned cost. ${error?.message || "Please verify your Apps Script deployment settings and try again."}` };
+  }
+
+  return { ok: true };
 };
 
 const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActivities()) => {
