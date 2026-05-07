@@ -81,6 +81,24 @@ body.page-cost-management .main-content {
 .search-box svg { width: 18px; height: 18px; stroke: #6f7e9a; stroke-width: 1.8; }
 .search-box input { border: 0; outline: none; width: 100%; font: inherit; }
 .date-btn { border: 1px solid #d8deec; background: #fff; border-radius: 10px; padding: 10px 14px; min-height: 44px; font: inherit; color: #2a3f66; font-weight: 600; }
+.date-range-box {
+  min-width: 0;
+  gap: 8px;
+}
+
+.date-range-box input[type="date"] {
+  border: 0;
+  font: inherit;
+  color: #2a3f66;
+  min-width: 130px;
+  outline: none;
+}
+
+.date-range-box span {
+  color: #6f7e9a;
+  font-weight: 600;
+}
+
 .selection-empty { text-align: center; padding: 26px 0; }
 .state-icon { width: 72px; height: 72px; border-radius: 50%; background: #eff4ff; display: grid; place-items: center; margin: 0 auto 14px; }
 .state-icon svg { width: 34px; height: 34px; stroke: #2f55ff; stroke-width: 1.8; }
