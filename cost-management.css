@@ -269,13 +269,14 @@ body.page-cost-management .main-content {
 .legend { color: #5f7092; text-align: center; }
 
 .table-panel table { width: 100%; border-collapse: collapse; min-width: 0; }
-.table-panel th, .table-panel td { text-align: left; padding: 10px; border-bottom: 1px solid #edf1f8; }
+.table-panel th, .table-panel td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #edf1f8; }
 .top-over-budget-table { table-layout: fixed; }
-.top-over-budget-table .col-cost-id { width: 16%; }
-.top-over-budget-table .col-activity { width: 36%; }
+.top-over-budget-table .col-cost-id { width: 12%; }
+.top-over-budget-table .col-activity { width: 28%; }
 .top-over-budget-table .col-planned,
 .top-over-budget-table .col-actual,
-.top-over-budget-table .col-variance { width: 16%; }
+.top-over-budget-table .col-earned,
+.top-over-budget-table .col-variance { width: 15%; }
 .top-over-budget-table th:nth-child(n+3),
 .top-over-budget-table td:nth-child(n+3) {
   text-align: right;
