@@ -864,10 +864,11 @@ const buildDetailsMarkup = (project, rows) => {
   const varianceClass = variance >= 0 ? "good" : "bad";
   const topRows = rows
     .slice()
-    .sort((a, b) => (b.actualCost - b.plannedCost) - (a.actualCost - a.plannedCost))
-    .filter((row) => row.actualCost > row.plannedCost)
+    .map((row) => ({ ...row, costVariance: parseBudgetValue(row.earnedValue) - parseBudgetValue(row.actualCost) }))
+    .filter((row) => row.costVariance < 0)
+    .sort((a, b) => a.costVariance - b.costVariance)
     .slice(0, 5)
-    .map((row) => `<tr><td>${escapeHtml(row.costId || "-")}</td><td>${escapeHtml(row.name)}</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget(row.actualCost)}</td><td>${formatBudget(row.earnedValue)}</td><td class="bad">-${formatBudget(row.actualCost - row.plannedCost)}</td></tr>`)
+    .map((row) => `<tr><td>${escapeHtml(row.costId || "-")}</td><td>${escapeHtml(row.name)}</td><td>${formatBudget(row.plannedCost)}</td><td>${formatBudget(row.actualCost)}</td><td>${formatBudget(row.earnedValue)}</td><td class="bad">${formatBudget(row.costVariance)}</td></tr>`)
     .join("") || '<tr><td colspan="6" class="empty-cell">No over budget activities.</td></tr>';
 
   return `<nav class="details-tabs"><button class="tab-btn active" data-tab="overview" type="button">Overview</button><button class="tab-btn" data-tab="costing" type="button">Costing Record</button></nav>
