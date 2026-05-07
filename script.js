@@ -233,8 +233,12 @@ const extractDashboardRows = (rawRows) =>
         : projectId || projectName || "Unspecified";
       const startDate = normalizeDateOnly(getCell(row, ["planned start", "start date", "start"]));
       const finishDate = normalizeDateOnly(getCell(row, ["planned finish", "finish date", "end date", "finish"]));
-      const plannedCost = parseNumber(getCell(row, ["planned value", "planned cost", "pv", "budget"]));
-      const actualCost = parseNumber(getCell(row, ["actual cost", "ac", "actual"]));
+      const plannedCost = parseNumber(
+        getCell(row, ["planned value", "planned cost", "total budget", "pv", "budget"])
+      );
+      const actualCost = parseNumber(
+        getCell(row, ["actual cost", "total spent", "ac", "actual"])
+      );
       const percentComplete = normalizeProgressPercent(
         getCell(row, ["% complete", "percent complete", "progress %", "progress", "completion"] )
       );
