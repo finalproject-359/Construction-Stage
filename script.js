@@ -41,7 +41,7 @@ const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
 const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 5 * 1000;
-const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
+const DASHBOARD_REFRESH_INTERVAL_MS = 3 * 1000;
 const EXTENSION_BRIDGE_DISCONNECT_MESSAGE =
   "Could not establish connection. Receiving end does not exist.";
 
@@ -698,7 +698,6 @@ const hydrateDashboardFromCache = () => {
 
 const refreshDashboardData = async ({ force = false } = {}) => {
   if (isDashboardFetchInFlight) return;
-  if (!force && document.visibilityState === "hidden") return;
 
   isDashboardFetchInFlight = true;
   setLoadingState(true);
@@ -735,6 +734,18 @@ const refreshDashboardData = async ({ force = false } = {}) => {
   }
 };
 
+
+const handleRealtimeStorageSync = (event) => {
+  const trackedKeys = new Set([
+    COST_ACTIVITIES_LOCAL_STORAGE_KEY,
+    DAILY_COSTS_LOCAL_STORAGE_KEY,
+    DASHBOARD_CACHE_KEY,
+  ]);
+
+  if (event?.key && !trackedKeys.has(event.key)) return;
+  refreshDashboardData({ force: true });
+};
+
 const setupRealtimeDashboardSync = () => {
   if (dashboardRefreshTimer) {
     clearInterval(dashboardRefreshTimer);
@@ -751,6 +762,7 @@ const setupRealtimeDashboardSync = () => {
       refreshDashboardData({ force: true });
     }
   });
+  window.addEventListener("storage", handleRealtimeStorageSync);
 };
 
 const setupServiceWorkerUpdates = async () => {
