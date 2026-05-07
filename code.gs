@@ -656,8 +656,8 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
   if (columns.createdAt) row[columns.createdAt - 1] = new Date();
-  if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
-  else sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+  var targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
+  sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
 }
 
 function deleteDailyCostRow(dailyCost) {
@@ -904,7 +904,7 @@ function upsertCostRow(cost) {
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
   if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
 
-  const targetRow = rowNumber > 0 ? rowNumber : sheet.getLastRow() + 1;
+  const targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
   applyCostRowFormats(sheet, targetRow, columns);
 }
