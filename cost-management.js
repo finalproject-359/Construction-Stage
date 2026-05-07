@@ -787,9 +787,9 @@ const buildDetailsMarkup = (project, rows) => {
   const actualCost = rows.reduce((sum, row) => sum + row.actualCost, 0);
   const earnedValue = rows.reduce((sum, row) => sum + parseBudgetValue(row.earnedValue), 0);
   const comparisonItems = [
-    { key: "planned", label: "Total Planned Cost", value: plannedCost },
-    { key: "actual", label: "Total Actual Cost", value: actualCost },
-    { key: "earned", label: "Total Earned Value", value: earnedValue },
+    { key: "planned", label: "PC", value: plannedCost, fullLabel: "Total Planned Cost" },
+    { key: "actual", label: "AC", value: actualCost, fullLabel: "Total Actual Cost" },
+    { key: "earned", label: "EV", value: earnedValue, fullLabel: "Total Earned Value" },
   ];
   const variance = earnedValue - actualCost;
   const variancePercent = earnedValue ? (variance / earnedValue) * 100 : 0;
@@ -821,11 +821,11 @@ const buildDetailsMarkup = (project, rows) => {
   const comparisonBarsMarkup = comparisonItems
     .map((item) => {
       const height = item.value > 0 ? Math.max(10, Math.round((item.value / maxCost) * 100)) : 0;
-      return `<div class="bar-wrap"><strong>${formatBudget(item.value)}</strong><div class="bar ${item.key}" style="height:${height}%"></div><p>${item.label}</p></div>`;
+      return `<div class="bar-wrap"><strong>${formatBudget(item.value)}</strong><div class="bar ${item.key}" style="height:${height}%"></div><p title="${item.fullLabel}">${item.label}</p></div>`;
     })
     .join("");
   const comparisonLegendMarkup = comparisonItems
-    .map((item) => `<li><span class="legend-dot ${item.key}"></span> ${item.label}</li>`)
+    .map((item) => `<li><span class="legend-dot ${item.key}"></span> ${item.label} <small>(${item.fullLabel})</small></li>`)
     .join("");
   const comparisonTotal = comparisonItems.reduce((sum, item) => sum + item.value, 0);
   const donutSegments = comparisonItems.map((item, index) => {
@@ -845,7 +845,7 @@ const buildDetailsMarkup = (project, rows) => {
     return `${color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
   }).join(", ");
   const donutLegendMarkup = comparisonItems
-    .map((item) => `<li><span class="legend-dot ${item.key}"></span>${item.label} <strong>${formatBudget(item.value)}</strong></li>`)
+    .map((item) => `<li><span class="legend-dot ${item.key}"></span>${item.label} <small>(${item.fullLabel})</small> <strong>${formatBudget(item.value)}</strong></li>`)
     .join("");
   const varianceLabel = variance >= 0 ? "Under budget" : "Over budget";
   const varianceClass = variance >= 0 ? "good" : "bad";
