@@ -23,6 +23,7 @@ const dateStartFilterEl = document.getElementById("dateStartFilter");
 const dateEndFilterEl = document.getElementById("dateEndFilter");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
+const USE_COST_MANAGEMENT_ONLY = true;
 
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
@@ -698,11 +699,23 @@ const hydrateDashboardFromCache = () => {
 const refreshDashboardData = async ({ force = false } = {}) => {
   if (isDashboardFetchInFlight) return;
   if (!force && document.visibilityState === "hidden") return;
-  if (!DATA_SOURCE_URL.trim()) return;
 
   isDashboardFetchInFlight = true;
   setLoadingState(true);
   try {
+    const localRows = loadRowsFromCostManagementLocalData();
+
+    if (USE_COST_MANAGEMENT_ONLY) {
+      if (localRows.length) {
+        processRows(localRows, "Cost Management local storage");
+        showMessage("Connected to Cost Management local data only.");
+      } else {
+        showMessage("No Cost Management local data found yet.", true);
+      }
+      return;
+    }
+
+    if (!DATA_SOURCE_URL.trim()) return;
     if (force) {
       showMessage("Loading data source...");
     }
@@ -795,10 +808,6 @@ if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", applyFilters
 if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", applyFiltersAndRender);
 
 setupServiceWorkerUpdates();
-if (DATA_SOURCE_URL.trim()) {
-  hydrateDashboardFromCache();
-  refreshDashboardData({ force: true });
-  setupRealtimeDashboardSync();
-} else {
-  showMessage("No data source configured. Add your new Google Apps Script or Google Sheet URL to DATA_SOURCE_URL.");
-}
+hydrateDashboardFromCache();
+refreshDashboardData({ force: true });
+setupRealtimeDashboardSync();
