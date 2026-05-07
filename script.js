@@ -23,7 +23,7 @@ const dateStartFilterEl = document.getElementById("dateStartFilter");
 const dateEndFilterEl = document.getElementById("dateEndFilter");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
-const USE_COST_MANAGEMENT_ONLY = true;
+const USE_COST_MANAGEMENT_ONLY = false;
 
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
@@ -714,12 +714,30 @@ const refreshDashboardData = async ({ force = false } = {}) => {
       return;
     }
 
-    if (!DATA_SOURCE_URL.trim()) return;
+    if (!DATA_SOURCE_URL.trim()) {
+      if (localRows.length) {
+        processRows(localRows, "Cost Management local storage");
+      }
+      return;
+    }
+
     if (force) {
       showMessage("Loading data source...");
     }
+
     const { rows, sourceName } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
-    processRows(rows, sourceName);
+
+    if (Array.isArray(rows) && rows.length) {
+      processRows(rows, sourceName);
+      return;
+    }
+
+    if (localRows.length) {
+      processRows(localRows, "Cost Management local storage");
+      showMessage("Live source returned no rows. Showing Cost Management local data.");
+    } else {
+      processRows([], sourceName);
+    }
   } catch (error) {
     const localRows = loadRowsFromCostManagementLocalData();
     if (localRows.length) {
