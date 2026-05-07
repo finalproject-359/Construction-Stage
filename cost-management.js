@@ -287,17 +287,18 @@ const clampPercent = (value) => {
   if (!Number.isFinite(parsed)) return 0;
   return Math.max(0, Math.min(100, parsed));
 };
-const computeEarnedValue = (plannedCost, progressPercent, explicitEarnedValue) => {
+const computeEarnedValue = (plannedCostPerDay, dailyRecordCount, progressPercent, explicitEarnedValue) => {
   const normalizedProgress = clampPercent(progressPercent);
-  const normalizedPlannedCost = parseBudgetValue(plannedCost);
-  if (normalizedPlannedCost > 0 && normalizedProgress > 0) {
-    return normalizedPlannedCost * (normalizedProgress / 100);
+  const normalizedPlannedCostPerDay = parseBudgetValue(plannedCostPerDay);
+  const normalizedDailyRecordCount = Math.max(0, Number(dailyRecordCount) || 0);
+  if (normalizedPlannedCostPerDay > 0 && normalizedDailyRecordCount > 0 && normalizedProgress > 0) {
+    return normalizedPlannedCostPerDay * normalizedDailyRecordCount * (normalizedProgress / 100);
   }
 
   const normalizedExplicitEv = parseBudgetValue(explicitEarnedValue);
   if (normalizedExplicitEv > 0) return normalizedExplicitEv;
-  if (normalizedPlannedCost <= 0) return 0;
-  return normalizedPlannedCost * (normalizedProgress / 100);
+  if (normalizedPlannedCostPerDay <= 0 || normalizedDailyRecordCount <= 0) return 0;
+  return normalizedPlannedCostPerDay * normalizedDailyRecordCount * (normalizedProgress / 100);
 };
 const normalizeCostActivity = (activity = {}) => {
   const startDate = toDateInputValue(getValueByAliases(activity, ["startDate", "plannedStart", "planned_start"]));
@@ -305,8 +306,12 @@ const normalizeCostActivity = (activity = {}) => {
   const explicitDuration = Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0;
   const progressPercent = clampPercent(getValueByAliases(activity, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]));
   const plannedCost = parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]));
+  const plannedCostPerDay = plannedCost > 0 && Number(computeDurationDays(startDate, finishDate, explicitDuration)) > 0
+    ? plannedCost / Number(computeDurationDays(startDate, finishDate, explicitDuration))
+    : 0;
   const earnedValue = computeEarnedValue(
-    plannedCost,
+    plannedCostPerDay,
+    0,
     progressPercent,
     getValueByAliases(activity, ["earnedValue", "earned_value", "earned value", "earned value (ev)", "ev"]),
   );
@@ -702,7 +707,10 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       return entryActivityId === refId || (rowCostId && entryCostId === rowCostId);
     });
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
-    const earnedValue = computeEarnedValue(activity.plannedCost, activity.progressPercent, activity.earnedValue);
+    const plannedCostPerDay = Number(activity.durationDays) > 0
+      ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
+      : 0;
+    const earnedValue = computeEarnedValue(plannedCostPerDay, dailyItems.length, activity.progressPercent, activity.earnedValue);
     return { ...activity, actualCost, dailyItems, earnedValue };
   });
 
@@ -749,11 +757,19 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       costId: String(existing.costId || row.costId || "").trim(),
       activityRefId: String(getActivityRefId(existing) || getActivityRefId(row) || "").trim(),
       plannedCost: parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
-      earnedValue: computeEarnedValue(
-        parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
-        Number(row.progressPercent) || Number(existing.progressPercent) || 0,
-        parseBudgetValue(row.earnedValue) || parseBudgetValue(existing.earnedValue),
-      ),
+      earnedValue: (() => {
+        const mergedPlannedCost = parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost);
+        const mergedDurationDays = Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0);
+        const mergedPlannedCostPerDay = mergedPlannedCost > 0 && mergedDurationDays > 0
+          ? mergedPlannedCost / mergedDurationDays
+          : 0;
+        return computeEarnedValue(
+          mergedPlannedCostPerDay,
+          uniqueDailyItems.length,
+          Number(row.progressPercent) || Number(existing.progressPercent) || 0,
+          parseBudgetValue(row.earnedValue) || parseBudgetValue(existing.earnedValue),
+        );
+      })(),
       actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
       durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
       dailyItems: uniqueDailyItems,
