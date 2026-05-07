@@ -1,6 +1,9 @@
 
 const topSearch = document.getElementById("costTopSearch");
 const projectsList = document.getElementById("costProjectsList");
+const dateStartInput = document.getElementById("costDateStart");
+const dateEndInput = document.getElementById("costDateEnd");
+const topFiltersSection = document.querySelector(".cost-selection-filters-top");
 const projectsEmpty = document.getElementById("costProjectsEmpty");
 const selectionView = document.getElementById("costSelectionView");
 const detailsView = document.getElementById("costDetailsView");
@@ -14,6 +17,9 @@ const hasProjectSelectionInUrl = (() => {
 if (hasProjectSelectionInUrl) {
   selectionView?.classList.add("hidden");
   detailsView?.classList.remove("hidden");
+  topFiltersSection?.classList.add("hidden");
+} else {
+  topFiltersSection?.classList.remove("hidden");
 }
 
 const safeJsonParse = (raw, fallback = []) => {
@@ -154,11 +160,18 @@ const getValueByAliases = (source, aliases = []) => {
   return undefined;
 };
 const parseBudgetValue = (value) => Number(String(value ?? "0").replace(/[^\d.-]/g, "")) || 0;
+const normalizeProjectDateValue = (value) => {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+};
 const normalizeProject = (project = {}) => ({
   id: String(getValueByAliases(project, ["id", "projectId", "project_id"]) || "").trim(),
   name: String(getValueByAliases(project, ["name", "project", "projectName", "project_name"]) || "Untitled Project").trim(),
   code: String(getValueByAliases(project, ["code", "projectCode", "project_code"]) || "-").trim(),
   status: String(getValueByAliases(project, ["status", "projectStatus", "project_status"]) || "Not Started").trim(),
+  startDate: normalizeProjectDateValue(getValueByAliases(project, ["startDate", "start_date", "plannedStart", "planned_start"])),
+  finishDate: normalizeProjectDateValue(getValueByAliases(project, ["finishDate", "targetFinish", "target_finish", "endDate", "end_date", "plannedFinish", "planned_finish"])),
   budget: parseBudgetValue(getValueByAliases(project, ["budget", "plannedCost", "planned_value"])),
 });
 const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -1225,9 +1238,27 @@ const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActi
   renderCostMetadataModal(projectId, activityRefId, target);
 };
 
+const projectMatchesDateRange = (project, startDateFilter, endDateFilter) => {
+  if (!startDateFilter && !endDateFilter) return true;
+  const projectStart = project.startDate ? new Date(project.startDate) : null;
+  const projectEnd = project.finishDate ? new Date(project.finishDate) : null;
+  const filterStart = startDateFilter ? new Date(startDateFilter) : null;
+  const filterEnd = endDateFilter ? new Date(endDateFilter) : null;
+  if (filterStart && filterEnd && filterStart > filterEnd) return false;
+  if (!projectStart && !projectEnd) return false;
+  const effectiveProjectStart = projectStart && !Number.isNaN(projectStart.getTime()) ? projectStart : projectEnd;
+  const effectiveProjectEnd = projectEnd && !Number.isNaN(projectEnd.getTime()) ? projectEnd : projectStart;
+  if (!effectiveProjectStart || !effectiveProjectEnd) return false;
+  if (filterEnd && effectiveProjectStart > filterEnd) return false;
+  if (filterStart && effectiveProjectEnd < filterStart) return false;
+  return true;
+};
+
 const renderProjects = (query = "") => {
   const normalizedQuery = query.trim().toLowerCase();
-  const projects = loadProjects().map(normalizeProject).filter((project) => !isArchivedProject(project)).filter((project) => !normalizedQuery || [project.name, project.code, project.status].some((value) => value.toLowerCase().includes(normalizedQuery)));
+  const startDateFilter = String(dateStartInput?.value || "").trim();
+  const endDateFilter = String(dateEndInput?.value || "").trim();
+  const projects = loadProjects().map(normalizeProject).filter((project) => !isArchivedProject(project)).filter((project) => !normalizedQuery || [project.name, project.code, project.status].some((value) => value.toLowerCase().includes(normalizedQuery))).filter((project) => projectMatchesDateRange(project, startDateFilter, endDateFilter));
   projectsList.innerHTML = "";
   if (!projects.length) return projectsEmpty.classList.remove("hidden");
   projectsEmpty.classList.add("hidden");
@@ -1250,6 +1281,8 @@ const syncSearches = (value) => {
   renderProjects(value);
 };
 topSearch?.addEventListener("input", (event) => syncSearches(event.target.value));
+dateStartInput?.addEventListener("change", () => renderProjects(topSearch?.value || ""));
+dateEndInput?.addEventListener("change", () => renderProjects(topSearch?.value || ""));
 
 const getSelectedViewParams = () => {
   const params = new URLSearchParams(window.location.search);
