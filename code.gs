@@ -984,7 +984,7 @@ function normalizeIncomingActivity(input) {
   const duration = cleanText(source.duration || source.durationDays || source.duration_days) || calculateDurationDays(plannedStart, plannedFinish);
   const percentComplete = clampPercent(source.percentComplete || source.percent_complete || source.progress);
 
-  const rawId = cleanText(source.id || source.activityId || source.activity_id || source.code || source.activityCode || source.activity_code);
+  const rawId = cleanText(source.id || source.activityId || source.activity_id || source.sourceActivityId || source.source_activity_id || source.code || source.activityCode || source.activity_code);
   const normalizedId = ['-', '--', 'n/a', 'na', 'none', 'null', 'undefined'].indexOf(rawId.toLowerCase()) >= 0 ? '' : rawId;
 
   return {
@@ -1051,7 +1051,7 @@ function getActivityColumnMap(sheet) {
   };
 
   return {
-    id: indexOfHeader(['Activity ID', 'ID']),
+    id: indexOfHeader(['Activity ID', 'ActivityID', 'Source Activity ID', 'ID']),
     projectId: indexOfHeader(['Project ID']),
     project: indexOfHeader(['Project Name', 'Project']),
     name: indexOfHeader(['Activity', 'Activity Name', 'Name']),
