@@ -417,7 +417,7 @@ const renderGapTable = (rows) => {
 const renderTable = (rows) => {
   if (!rows.length) {
     tableBodyEl.innerHTML =
-      '<tr><td colspan="9" class="placeholder">No valid rows found in data source.</td></tr>';
+      '<tr><td colspan="7" class="placeholder">No valid rows found in data source.</td></tr>';
     return;
   }
 
@@ -426,8 +426,6 @@ const renderTable = (rows) => {
       (row) => `
       <tr class="variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}">
         <td>${row.activity}</td>
-        <td>${formatCurrency(row.plannedCost)}</td>
-        <td>${formatCurrency(row.actualCost)}</td>
         <td>${formatCurrency(row.ev)}</td>
         <td>${formatPercent(row.percentComplete)}</td>
         <td>${formatPercent(row.costUsedPercent)}</td>
@@ -440,8 +438,6 @@ const renderTable = (rows) => {
     .join("") + `
       <tr>
         <td><strong>TOTAL</strong></td>
-        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.plannedCost, 0))}</strong></td>
-        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.actualCost, 0))}</strong></td>
         <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.ev, 0))}</strong></td>
         <td><strong>${formatPercent(rows.reduce((a, r) => a + r.percentComplete, 0) / rows.length)}</strong></td>
         <td><strong>${formatPercent(rows.reduce((a, r) => a + r.costUsedPercent, 0) / rows.length)}</strong></td>
