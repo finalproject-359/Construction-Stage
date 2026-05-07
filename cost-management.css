@@ -162,9 +162,10 @@ body.page-cost-management .main-content {
 
 .details-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(180px, 1fr));
   gap: 12px;
   margin: 18px 0;
+  overflow-x: auto;
 }
 
 .kpi-card {
@@ -208,7 +209,7 @@ body.page-cost-management .main-content {
   align-items: stretch;
 }
 .panel { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: #fff; }
-.chart-panel, .summary-panel { min-height: 320px; }
+.chart-panel, .summary-panel, .table-panel { min-height: 320px; }
 .panel h3 { margin: 0 0 14px; }
 
 .table-panel {
@@ -235,7 +236,7 @@ body.page-cost-management .main-content {
   padding: 8px 12px 0;
   background: repeating-linear-gradient(to top, #eef3ff 0 1px, transparent 1px 25%);
 }
-.bar-wrap { text-align: center; width: min(180px, 100%); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.bar-wrap { text-align: center; width: min(180px, 100%); height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
 .bar { width: clamp(42px, 28%, 72px); border-radius: 6px 6px 0 0; min-height: 0; box-shadow: 0 6px 18px rgba(47,85,255,.16); transition: transform .2s ease, height .35s ease; }
 .bar:hover { transform: translateY(-2px); }
 .bar.planned { background: linear-gradient(180deg, #2f67ff, #1f52e8); }
@@ -313,7 +314,7 @@ body.page-cost-management .main-content {
 }
 
 @media (max-width: 980px) {
-  .details-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .details-kpis { grid-template-columns: repeat(5, minmax(180px, 1fr)); }
 }
 
 
