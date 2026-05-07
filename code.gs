@@ -656,8 +656,8 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
   if (columns.createdAt) row[columns.createdAt - 1] = new Date();
-  if (rowNumber > 0) sheet.getRange(rowNumber, 1, 1, row.length).setValues([row]);
-  else sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+  var targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
+  sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
 }
 
 function deleteDailyCostRow(dailyCost) {
@@ -904,7 +904,7 @@ function upsertCostRow(cost) {
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
   if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
 
-  const targetRow = rowNumber > 0 ? rowNumber : sheet.getLastRow() + 1;
+  const targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
   applyCostRowFormats(sheet, targetRow, columns);
 }
@@ -1270,10 +1270,12 @@ function ensureWorkbookStructure() {
   const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
   const activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
   const costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  const dailyCostsSheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
 
   ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
   ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
   ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+  ensureSheetHeaders(dailyCostsSheet, CONFIG.headers.dailyCosts);
 }
 
 function ensureSheetHeaders(sheet, expectedHeaders) {
@@ -1321,7 +1323,6 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   const normalizedExisting = normalizedExistingFirstRow;
   const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
   const expectsProjectCode = normalizedExpected.indexOf('project code') >= 0;
-  const legacyDescriptionIndex = normalizedExisting.indexOf('description');
   const expectsDescription = normalizedExpected.indexOf('description') >= 0;
 
   if (legacyProjectCodeIndex >= 0 && !expectsProjectCode) {
@@ -1333,6 +1334,9 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     }
     firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   }
+
+  var normalizedAfterProjectCodeCleanup = normalizeHeaders(firstRow);
+  const legacyDescriptionIndex = normalizedAfterProjectCodeCleanup.indexOf('description');
 
   if (legacyDescriptionIndex >= 0 && !expectsDescription) {
     sheet.deleteColumn(legacyDescriptionIndex + 1);
@@ -1369,7 +1373,15 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     return normalizedAfter[idx] !== normalizeHeader(header);
   });
 
-  if (needsHeaderSync) {
+  var hasGapsInsideExpectedRange = false;
+  for (var expectedIndex = 0; expectedIndex < expectedHeaders.length; expectedIndex += 1) {
+    if (cleanText(firstRow[expectedIndex]) === '') {
+      hasGapsInsideExpectedRange = true;
+      break;
+    }
+  }
+
+  if (needsHeaderSync || hasGapsInsideExpectedRange) {
     sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
   }
 }
