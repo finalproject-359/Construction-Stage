@@ -457,6 +457,8 @@ const renderGapTable = (rows) => {
 };
 
 const renderTable = (rows) => {
+  if (!tableBodyEl) return;
+
   if (!rows.length) {
     tableBodyEl.innerHTML =
       '<tr><td colspan="9" class="placeholder">No valid rows found in data source.</td></tr>';
@@ -643,6 +645,9 @@ const processRows = (rawRows, sourceName = "web app") => {
     renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
     renderTable([]);
     renderOverrunTable([]);
+    renderGapTable([]);
+    if (varianceDisplayEl) varianceDisplayEl.textContent = formatCurrency(0);
+    if (varianceStatusEl) varianceStatusEl.textContent = "Balanced";
     destroyCharts();
     showMessage(`No rows detected from ${sourceName}.`, true);
     return;
