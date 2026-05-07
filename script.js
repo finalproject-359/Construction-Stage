@@ -229,7 +229,7 @@ const extractDashboardRows = (rawRows) =>
       const hasProvidedCv =
         rawCv !== null && rawCv !== undefined && String(rawCv).trim() !== "";
       const providedCv = parseNumber(rawCv);
-      const cv = hasProvidedCv ? providedCv : plannedCost - actualCost;
+      const cv = hasProvidedCv ? providedCv : (plannedCost * (percentComplete / 100)) - actualCost;
 
       return {
         activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,
@@ -439,7 +439,7 @@ const renderTable = (rows) => {
         <td><strong>${formatPercent(rows.reduce((a, r) => a + r.costUsedPercent, 0) / rows.length)}</strong></td>
         <td><strong>${formatCurrency(rows.reduce((a, r) => a + (r.actualCost - r.ev), 0))}</strong></td>
         <td><strong>${(rows.reduce((a, r) => a + r.ev, 0) / Math.max(rows.reduce((a, r) => a + r.actualCost, 0), 1)).toFixed(2)}</strong></td>
-        <td><span class="status-pill bad">Over Budget</span></td>
+        <td><span class="status-pill ${rows.reduce((a, r) => a + r.cv, 0) >= 0 ? "ok" : "bad"}">${rows.reduce((a, r) => a + r.cv, 0) >= 0 ? "On Track" : "Over Budget"}</span></td>
       </tr>`;
 };
 
