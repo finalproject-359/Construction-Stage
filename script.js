@@ -123,6 +123,14 @@ const normalize = (value, fallback = "N/A") => {
   return String(value).trim() || fallback;
 };
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const normalizeProgressPercent = (value) => {
   const numericValue = parseNumber(value);
   if (!Number.isFinite(numericValue) || numericValue <= 0) return 0;
@@ -287,7 +295,7 @@ const syncFilterOptionsFromRows = (rows) => {
   if (!projectFilterEl) return;
   const projects = Array.from(new Set(rows.map((row) => normalize(row.project, "Unspecified")).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
   const selected = projectFilterEl.value || "all";
-  projectFilterEl.innerHTML = `<option value="all">All Projects</option>${projects.map((project) => `<option value="${project}">${project}</option>`).join("")}`;
+  projectFilterEl.innerHTML = `<option value="all">All Projects</option>${projects.map((project) => `<option value="${escapeHtml(project)}">${escapeHtml(project)}</option>`).join("")}`;
   projectFilterEl.value = projects.includes(selected) || selected === "all" ? selected : "all";
 };
 
@@ -337,21 +345,21 @@ const renderKpis = (totals) => {
     cv: parseNumber(totals?.cv),
   };
 
-  totalPlannedEl.textContent = formatCurrency(safeTotals.planned);
-  totalActualEl.textContent = formatCurrency(safeTotals.actual);
-  totalCvEl.textContent = formatCurrency(safeTotals.cv);
+  if (totalPlannedEl) totalPlannedEl.textContent = formatCurrency(safeTotals.planned);
+  if (totalActualEl) totalActualEl.textContent = formatCurrency(safeTotals.actual);
+  if (totalCvEl) totalCvEl.textContent = formatCurrency(safeTotals.cv);
 
-  statusCardEl.classList.remove("status-under", "status-over");
-  efficiencyCardEl.classList.remove("status-under", "status-over");
+  if (statusCardEl) statusCardEl.classList.remove("status-under", "status-over");
+  if (efficiencyCardEl) efficiencyCardEl.classList.remove("status-under", "status-over");
 
   if (safeTotals.actual < safeTotals.planned) {
-    projectStatusEl.textContent = "Under Budget";
-    statusCardEl.classList.add("status-under");
+    if (projectStatusEl) projectStatusEl.textContent = "Under Budget";
+    if (statusCardEl) statusCardEl.classList.add("status-under");
   } else if (safeTotals.actual > safeTotals.planned) {
-    projectStatusEl.textContent = "Over Budget";
-    statusCardEl.classList.add("status-over");
+    if (projectStatusEl) projectStatusEl.textContent = "Over Budget";
+    if (statusCardEl) statusCardEl.classList.add("status-over");
   } else {
-    projectStatusEl.textContent = "On Budget";
+    if (projectStatusEl) projectStatusEl.textContent = "On Budget";
   }
 };
 
@@ -359,19 +367,19 @@ const renderProgressKpis = (metrics, totals) => {
   const earnedValue = (parseNumber(totals?.planned) * parseNumber(metrics.physicalProgressPercent)) / 100;
   const cpi = parseNumber(totals?.actual) ? earnedValue / parseNumber(totals?.actual) : 0;
 
-  physicalProgressEl.textContent = formatCurrency(earnedValue);
-  costSpentEl.textContent = cpi.toFixed(2);
-  efficiencyGapEl.textContent = `${formatPercent(metrics.physicalProgressPercent)} / ${formatPercent(metrics.costSpentPercent)}`;
+  if (physicalProgressEl) physicalProgressEl.textContent = formatCurrency(earnedValue);
+  if (costSpentEl) costSpentEl.textContent = cpi.toFixed(2);
+  if (efficiencyGapEl) efficiencyGapEl.textContent = `${formatPercent(metrics.physicalProgressPercent)} / ${formatPercent(metrics.costSpentPercent)}`;
   if (miniCompleteEl) miniCompleteEl.textContent = formatPercent(metrics.physicalProgressPercent);
   if (miniCostEl) miniCostEl.textContent = formatPercent(metrics.costSpentPercent);
   if (miniCompleteBarEl) miniCompleteBarEl.style.width = `${Math.max(0, Math.min(100, metrics.physicalProgressPercent))}%`;
   if (miniCostBarEl) miniCostBarEl.style.width = `${Math.max(0, Math.min(100, metrics.costSpentPercent))}%`;
 
-  efficiencyCardEl.classList.remove("status-under", "status-over");
+  if (efficiencyCardEl) efficiencyCardEl.classList.remove("status-under", "status-over");
   if (metrics.efficiencyGapPercent < 0) {
-    efficiencyCardEl.classList.add("status-over");
+    if (efficiencyCardEl) efficiencyCardEl.classList.add("status-over");
   } else if (metrics.efficiencyGapPercent > 0) {
-    efficiencyCardEl.classList.add("status-under");
+    if (efficiencyCardEl) efficiencyCardEl.classList.add("status-under");
   }
 
 
@@ -444,6 +452,7 @@ const renderTable = (rows) => {
 };
 
 const renderOverrunTable = (rows) => {
+  if (!overrunTableBodyEl) return;
   const overrunRows = rows
     .filter((row) => row.cv < 0)
     .sort((a, b) => a.cv - b.cv)
@@ -470,6 +479,7 @@ const renderOverrunTable = (rows) => {
 };
 
 const showMessage = (text, isError = false) => {
+  if (!messageEl) return;
   messageEl.textContent = text;
   messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
@@ -513,7 +523,14 @@ const generateCharts = (rows) => {
 
   destroyCharts();
 
-  varianceChart = new Chart(document.getElementById("varianceChart"), {
+  const varianceCanvas = document.getElementById("varianceChart");
+  const costCanvas = document.getElementById("costChart");
+  if (!varianceCanvas || !costCanvas) {
+    showMessage("Dashboard chart containers are missing. Refresh or restore dashboard markup.", true);
+    return;
+  }
+
+  varianceChart = new Chart(varianceCanvas, {
     type: "line",
     data: {
       labels,
@@ -550,7 +567,7 @@ const generateCharts = (rows) => {
     },
   });
 
-  costChart = new Chart(document.getElementById("costChart"), {
+  costChart = new Chart(costCanvas, {
     type: "bar",
     data: {
       labels,
@@ -605,6 +622,11 @@ const processRows = (rawRows, sourceName = "web app") => {
   dashboardRows = rows;
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
+
+  const asOfEl = document.querySelector(".as-of-text");
+  if (asOfEl) {
+    asOfEl.textContent = `Data as of: ${new Date().toLocaleString()}`;
+  }
 
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
