@@ -54,6 +54,7 @@ const state = {
 let projectsRefreshTimer = null;
 let isProjectsSyncInFlight = false;
 let lastProjectsSignature = "";
+let isProjectFormSubmitting = false;
 
 const getValueByAliases = (source, aliases = []) => {
   if (!source || typeof source !== "object") return undefined;
@@ -764,6 +765,7 @@ document.addEventListener("keydown", (event) => {
 
 projectForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (isProjectFormSubmitting) return;
 
   const formData = new FormData(projectForm);
   const projectName = String(formData.get("projectName") || "").trim();
@@ -798,6 +800,13 @@ projectForm.addEventListener("submit", async (event) => {
 
   let syncError = null;
 
+  isProjectFormSubmitting = true;
+  if (projectSubmitButton) {
+    projectSubmitButton.disabled = true;
+    projectSubmitButton.dataset.originalLabel = projectSubmitButton.textContent || "Save";
+    projectSubmitButton.textContent = "Saving...";
+  }
+
   try {
     if (state.editingProjectId) {
       await updateProject(project);
@@ -809,6 +818,11 @@ projectForm.addEventListener("submit", async (event) => {
 
     if (state.editingProjectId) {
       showProjectPersistenceError("update", error);
+      isProjectFormSubmitting = false;
+      if (projectSubmitButton) {
+        projectSubmitButton.disabled = false;
+        projectSubmitButton.textContent = projectSubmitButton.dataset.originalLabel || "Save Project";
+      }
       return;
     }
 
@@ -824,6 +838,12 @@ projectForm.addEventListener("submit", async (event) => {
 
   if (syncError) {
     refreshProjectsIfVisible({ force: true });
+  }
+
+  isProjectFormSubmitting = false;
+  if (projectSubmitButton) {
+    projectSubmitButton.disabled = false;
+    projectSubmitButton.textContent = projectSubmitButton.dataset.originalLabel || "Save Project";
   }
 });
 

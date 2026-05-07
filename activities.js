@@ -86,6 +86,7 @@ const ACTIVITIES_REFRESH_INTERVAL_MS = 10 * 1000;
 let activitiesRefreshTimer = null;
 let isActivitiesSyncInFlight = false;
 let lastActivitiesSignature = "";
+let isActivityModalSubmitting = false;
 
 const getValueByAliases = (source, aliases = []) => {
   if (!source || typeof source !== "object") return undefined;
@@ -1602,6 +1603,7 @@ if (activityModalBackdrop) {
 if (activityModalForm) {
   activityModalForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (isActivityModalSubmitting) return;
     if (!hasSelectedProject()) {
       window.alert("Please select a project first.");
       closeAddActivityModal();
@@ -1642,10 +1644,22 @@ if (activityModalForm) {
       notes: "",
     };
 
+    isActivityModalSubmitting = true;
+    if (activityModalSubmitBtn) {
+      activityModalSubmitBtn.disabled = true;
+      activityModalSubmitBtn.dataset.originalLabel = activityModalSubmitBtn.textContent || "Save Activity";
+      activityModalSubmitBtn.textContent = "Saving...";
+    }
+
     if (isEditing) {
       const index = findActivityIndexByKey(state.editingActivityKey);
       if (index < 0) {
         window.alert("Unable to update. Activity no longer exists.");
+        isActivityModalSubmitting = false;
+        if (activityModalSubmitBtn) {
+          activityModalSubmitBtn.disabled = false;
+          activityModalSubmitBtn.textContent = activityModalSubmitBtn.dataset.originalLabel || "Save Activity";
+        }
         closeAddActivityModal();
         return;
       }
@@ -1656,6 +1670,11 @@ if (activityModalForm) {
         });
       } catch (error) {
         showActivityPersistenceError("update", error);
+        isActivityModalSubmitting = false;
+        if (activityModalSubmitBtn) {
+          activityModalSubmitBtn.disabled = false;
+          activityModalSubmitBtn.textContent = activityModalSubmitBtn.dataset.originalLabel || "Save Activity";
+        }
         return;
       }
       state.allActivities[index] = nextActivity;
@@ -1667,6 +1686,11 @@ if (activityModalForm) {
         });
       } catch (error) {
         showActivityPersistenceError("save", error);
+        isActivityModalSubmitting = false;
+        if (activityModalSubmitBtn) {
+          activityModalSubmitBtn.disabled = false;
+          activityModalSubmitBtn.textContent = activityModalSubmitBtn.dataset.originalLabel || "Save Activity";
+        }
         return;
       }
       state.allActivities.unshift(nextActivity);
@@ -1674,6 +1698,11 @@ if (activityModalForm) {
     refreshFilterOptions();
     applyFilters();
     closeAddActivityModal();
+    isActivityModalSubmitting = false;
+    if (activityModalSubmitBtn) {
+      activityModalSubmitBtn.disabled = false;
+      activityModalSubmitBtn.textContent = activityModalSubmitBtn.dataset.originalLabel || "Save Activity";
+    }
     window.alert(isEditing ? "Activity updated successfully." : "Activity saved successfully.");
   });
 }

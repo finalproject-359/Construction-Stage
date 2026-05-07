@@ -1944,3 +1944,54 @@ th { color: var(--muted); }
 @keyframes page-loader-spin {
   to { transform: rotate(360deg); }
 }
+
+
+/* Laptop-first interaction polish */
+@media (min-width: 1024px) {
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    background: linear-gradient(180deg, rgba(247, 249, 252, 0.98) 0%, rgba(247, 249, 252, 0.94) 100%);
+    backdrop-filter: blur(6px);
+    padding: 4px 0 10px;
+  }
+
+  .main-content {
+    scroll-behavior: smooth;
+  }
+}
+
+.menu a,
+.settings-link,
+.kpi-card,
+.table-panel,
+.chart-panel,
+.primary-btn,
+button,
+input,
+select {
+  transition: all 0.2s ease;
+}
+
+.kpi-card:hover,
+.chart-panel:hover,
+.table-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.09);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid #2f55ff;
+  outline-offset: 2px;
+}
+
+button[disabled],
+input[disabled],
+select[disabled] {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
