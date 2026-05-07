@@ -423,7 +423,7 @@ const renderTable = (rows) => {
         <td>${formatCurrency(row.ev)}</td>
         <td>${formatPercent(row.percentComplete)}</td>
         <td>${formatPercent(row.costUsedPercent)}</td>
-        <td>${formatCurrency(row.actualCost - row.ev)}</td>
+        <td>${formatCurrency(row.cv)}</td>
         <td>${(row.actualCost ? row.ev / row.actualCost : 0).toFixed(2)}</td>
         <td><span class="status-pill ${row.cv >= 0 ? "ok" : "bad"}">${row.cv >= 0 ? "On Track" : "Over Budget"}</span></td>
       </tr>
@@ -437,7 +437,7 @@ const renderTable = (rows) => {
         <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.ev, 0))}</strong></td>
         <td><strong>${formatPercent(rows.reduce((a, r) => a + r.percentComplete, 0) / rows.length)}</strong></td>
         <td><strong>${formatPercent(rows.reduce((a, r) => a + r.costUsedPercent, 0) / rows.length)}</strong></td>
-        <td><strong>${formatCurrency(rows.reduce((a, r) => a + (r.actualCost - r.ev), 0))}</strong></td>
+        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.cv, 0))}</strong></td>
         <td><strong>${(rows.reduce((a, r) => a + r.ev, 0) / Math.max(rows.reduce((a, r) => a + r.actualCost, 0), 1)).toFixed(2)}</strong></td>
         <td><span class="status-pill ${rows.reduce((a, r) => a + r.cv, 0) >= 0 ? "ok" : "bad"}">${rows.reduce((a, r) => a + r.cv, 0) >= 0 ? "On Track" : "Over Budget"}</span></td>
       </tr>`;
@@ -460,7 +460,7 @@ const renderOverrunTable = (rows) => {
       (row) => `
       <tr>
         <td>${row.activity}</td>
-        <td>${formatCurrency(row.actualCost - row.ev)}</td>
+        <td>${formatCurrency(row.cv)}</td>
         <td>${formatSignedPercent(row.percentComplete - row.costUsedPercent)}</td>
         <td><span class="status-pill bad">Over Budget</span></td>
       </tr>
