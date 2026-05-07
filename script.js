@@ -201,7 +201,17 @@ const extractDashboardRows = (rawRows) =>
         getCell(row, ["activity id", "id", "activity code", "wbs", "task id"]),
         ""
       );
-      const activity = normalize(getCell(row, ["activity", "activity name"]), "");
+      const activity = normalize(
+        getCell(row, [
+          "activity",
+          "activity name",
+          "activity title",
+          "task",
+          "task name",
+          "description",
+        ]),
+        ""
+      );
       const hasValidActivityId = isValidActivityId(detectedActivityId);
       const hasValidActivityName = activity !== "" && !isSummaryLabel(activity);
 
