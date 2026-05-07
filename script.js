@@ -12,7 +12,6 @@ const miniCompleteBarEl = document.querySelector(".mini-fill.blue");
 const miniCostBarEl = document.querySelector(".mini-fill.green");
 const efficiencyCardEl = document.getElementById("efficiencyCard");
 const messageEl = document.getElementById("message");
-const loadingStateEl = document.getElementById("loadingState");
 const tableBodyEl = document.getElementById("activityTableBody");
 const overrunTableBodyEl = document.getElementById("overrunTableBody");
 const gapTableBodyEl = document.getElementById("gapTableBody");
@@ -499,10 +498,6 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
 
-const setLoadingState = (isLoading) => {
-  if (!loadingStateEl) return;
-  loadingStateEl.classList.toggle("hidden", !isLoading);
-};
 
 const destroyCharts = () => {
   if (varianceChart) {
@@ -736,7 +731,6 @@ const refreshDashboardData = async ({ force = false } = {}) => {
   if (isDashboardFetchInFlight) return;
 
   isDashboardFetchInFlight = true;
-  setLoadingState(true);
   try {
     const localRows = loadRowsFromCostManagementLocalData();
 
@@ -785,7 +779,6 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     }
   } finally {
     isDashboardFetchInFlight = false;
-    setLoadingState(false);
   }
 };
 
