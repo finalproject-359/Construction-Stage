@@ -30,6 +30,7 @@ const chartDependencyWarning =
     : "";
 
 let dashboardRows = [];
+let activitySummaryRows = [];
 let varianceChart = null;
 let costChart = null;
 let dashboardRefreshTimer = null;
@@ -340,12 +341,12 @@ const syncFilterOptionsFromRows = (rows) => {
   hasAppliedProjectFilterPrefill = true;
 };
 
-const renderDashboardFromRows = (rows) => {
+const renderDashboardFromRows = (rows, summaryRows = rows) => {
   const totals = calculateTotalsFromRows(rows);
   const progressMetrics = calculateProgressMetrics(rows, totals);
   renderKpis(totals);
   renderProgressKpis(progressMetrics, totals);
-  renderTable(rows);
+  renderTable(summaryRows);
   renderOverrunTable(rows);
   renderGapTable(rows);
   generateCharts(rows);
@@ -353,7 +354,7 @@ const renderDashboardFromRows = (rows) => {
 
 const applyFiltersAndRender = () => {
   const filteredRows = getFilteredRows(dashboardRows);
-  renderDashboardFromRows(filteredRows);
+  renderDashboardFromRows(filteredRows, filteredRows);
 };
 
 const calculateTotalsFromRows = (rows) =>
@@ -657,6 +658,7 @@ const processRows = (rawRows, sourceName = "web app") => {
   latestDashboardSignature = nextSignature;
   localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
   dashboardRows = rows;
+  activitySummaryRows = rows;
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
 
@@ -666,6 +668,19 @@ const processRows = (rawRows, sourceName = "web app") => {
   }
 
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
+};
+
+const processActivitySummaryRows = (rawRows) => {
+  if (!Array.isArray(rawRows) || !rawRows.length) {
+    activitySummaryRows = [];
+    dashboardRows = [];
+    applyFiltersAndRender();
+    return;
+  }
+
+  activitySummaryRows = extractDashboardRows(rawRows);
+  dashboardRows = activitySummaryRows;
+  applyFiltersAndRender();
 };
 
 const loadRowsFromCostManagementLocalData = () => {
@@ -830,7 +845,8 @@ const refreshDashboardData = async ({ force = false } = {}) => {
         );
         const bundleRows = buildRowsFromActivitiesAndCosts(activities, costs);
         if (bundleRows.length) {
-          processRows(bundleRows, sourceName);
+          const enrichedBundleRows = mergeRemoteRowsWithCostManagementActuals(bundleRows, localRows);
+          processRows(enrichedBundleRows, sourceName);
           return;
         }
       } catch (bundleError) {
