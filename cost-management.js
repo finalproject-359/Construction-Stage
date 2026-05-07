@@ -791,8 +791,8 @@ const buildDetailsMarkup = (project, rows) => {
     { key: "actual", label: "Total Actual Cost", value: actualCost },
     { key: "earned", label: "Total Earned Value", value: earnedValue },
   ];
-  const variance = plannedCost - actualCost;
-  const variancePercent = plannedCost ? (variance / plannedCost) * 100 : 0;
+  const variance = earnedValue - actualCost;
+  const variancePercent = earnedValue ? (variance / earnedValue) * 100 : 0;
   const totalDuration = rows.reduce((sum, row) => sum + (Number(row.durationDays) || 0), 0);
   const avgActualPerDay = totalDuration > 0 ? actualCost / totalDuration : 0;
 
