@@ -42,6 +42,21 @@ const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivitie
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 5 * 1000;
 const DASHBOARD_REFRESH_INTERVAL_MS = 3 * 1000;
+
+const getProjectFilterPrefill = () => {
+  try {
+    const url = new URL(window.location.href);
+    const projectId = String(url.searchParams.get("projectId") || "").trim();
+    const projectName = String(url.searchParams.get("project") || "").trim();
+    if (projectId && projectName) return `${projectId} - ${projectName}`;
+    return projectId || projectName || "";
+  } catch {
+    return "";
+  }
+};
+
+const projectFilterPrefill = String(getProjectFilterPrefill() || "").trim().toLowerCase();
+let hasAppliedProjectFilterPrefill = false;
 const EXTENSION_BRIDGE_DISCONNECT_MESSAGE =
   "Could not establish connection. Receiving end does not exist.";
 
@@ -305,12 +320,24 @@ const syncFilterOptionsFromRows = (rows) => {
   const projects = Array.from(
     new Set(rows.map((row) => normalize(row.project, "Unspecified")).filter(Boolean))
   ).sort((a, b) => a.localeCompare(b));
-  const selected = normalize(projectFilterEl.value, "all").trim().toLowerCase();
+
+  const currentSelection = normalize(projectFilterEl.value, "").trim().toLowerCase();
+  const prefilledSelection = !hasAppliedProjectFilterPrefill ? projectFilterPrefill : "";
+
   projectFilterEl.innerHTML = `<option value="all">All Projects</option>${projects
     .map((project) => `<option value="${escapeHtml(project.toLowerCase())}">${escapeHtml(project)}</option>`)
     .join("")}`;
-  const selectedExists = selected === "all" || projects.some((project) => project.toLowerCase() === selected);
-  projectFilterEl.value = selectedExists ? selected : "all";
+
+  const selected = prefilledSelection || currentSelection;
+  const selectedExists = selected && projects.some((project) => project.toLowerCase() === selected);
+
+  if (selectedExists) {
+    projectFilterEl.value = selected;
+  } else if (projects.length === 1 || !projectFilterEl.value || projectFilterEl.value === "all") {
+    projectFilterEl.value = projects[0]?.toLowerCase() || "all";
+  }
+
+  hasAppliedProjectFilterPrefill = true;
 };
 
 const renderDashboardFromRows = (rows) => {
