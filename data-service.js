@@ -159,5 +159,36 @@
   global.DataBridge = {
     DEFAULT_DATA_SOURCE_URL,
     fetchRowsFromSource,
+    fetchDashboardBundleFromSource: async (providedUrl = "") => {
+      const rawUrl = providedUrl || DEFAULT_DATA_SOURCE_URL;
+      const trimmedUrl = rawUrl.trim();
+      if (!isAppsScriptWebAppUrl(trimmedUrl)) {
+        throw new Error("Dashboard bundle fetch requires an Apps Script Web App URL.");
+      }
+
+      const withParams = (() => {
+        const url = new URL(trimmedUrl);
+        url.searchParams.set("resource", "all");
+        url.searchParams.set("_ts", Date.now().toString());
+        return url.toString();
+      })();
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(withParams, { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
+        const payload = await response.json();
+        if (payload?.error) throw new Error(payload.error);
+
+        return {
+          activities: Array.isArray(payload?.activities) ? payload.activities : [],
+          costs: Array.isArray(payload?.costs) ? payload.costs : [],
+          sourceName: "Apps Script Web App (activities + costs)",
+        };
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
   };
 })(window);

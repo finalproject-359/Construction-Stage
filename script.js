@@ -705,6 +705,43 @@ const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
   });
 };
 
+const buildRowsFromActivitiesAndCosts = (activities, costs) => {
+  const normalizeKey = (value) => String(value || "").trim().toLowerCase();
+  const activityByProjectAndActivityId = new Map();
+
+  (Array.isArray(activities) ? activities : []).forEach((item) => {
+    const projectId = normalizeKey(item?.projectId || item?.project_id);
+    const activityId = normalizeKey(item?.activityId || item?.activity_id || item?.id);
+    if (!projectId || !activityId) return;
+    activityByProjectAndActivityId.set(`${projectId}::${activityId}`, item);
+  });
+
+  return (Array.isArray(costs) ? costs : []).map((cost) => {
+    const projectIdRaw = String(cost?.projectId || cost?.project_id || "").trim();
+    const activityIdRaw = String(cost?.activityId || cost?.activity_id || cost?.costId || cost?.cost_id || "").trim();
+    const joinedActivity = activityByProjectAndActivityId.get(
+      `${normalizeKey(projectIdRaw)}::${normalizeKey(activityIdRaw)}`
+    );
+
+    return {
+      "Project ID": projectIdRaw,
+      "Project Name": String(cost?.project || cost?.projectName || "").trim(),
+      "Activity ID": activityIdRaw,
+      Activity: String(cost?.activity || joinedActivity?.activity || "Unspecified").trim(),
+      "Planned Cost": parseNumber(cost?.plannedCost ?? cost?.planned_cost),
+      "Actual Cost": parseNumber(cost?.actualCost ?? cost?.actual_cost),
+      "% Complete": parseNumber(
+        joinedActivity?.progressPercent
+          ?? joinedActivity?.progress
+          ?? joinedActivity?.completion
+          ?? 0
+      ),
+      "Planned Start": joinedActivity?.plannedStart || joinedActivity?.startDate || "",
+      "Planned Finish": joinedActivity?.plannedFinish || joinedActivity?.finishDate || "",
+    };
+  });
+};
+
 const hydrateDashboardFromCache = () => {
   const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
   if (!cached) return;
@@ -753,6 +790,21 @@ const refreshDashboardData = async ({ force = false } = {}) => {
 
     if (force) {
       showMessage("Loading data source...");
+    }
+
+    if (typeof window.DataBridge.fetchDashboardBundleFromSource === "function") {
+      try {
+        const { activities, costs, sourceName } = await window.DataBridge.fetchDashboardBundleFromSource(
+          DATA_SOURCE_URL
+        );
+        const bundleRows = buildRowsFromActivitiesAndCosts(activities, costs);
+        if (bundleRows.length) {
+          processRows(bundleRows, sourceName);
+          return;
+        }
+      } catch (bundleError) {
+        console.warn("Bundle fetch failed. Falling back to row-based fetch.", bundleError);
+      }
     }
 
     const { rows, sourceName } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
