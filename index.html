@@ -82,11 +82,11 @@
         <div class="dashboard-filters">
           <label class="filter-item">
             <span>Project</span>
-            <select><option>All Projects</option></select>
+            <select id="projectFilter"><option value="all">All Projects</option></select>
           </label>
           <label class="filter-item">
             <span>Date Range</span>
-            <input type="text" value="May 1, 2024 - May 31, 2024" readonly />
+            <div class="date-range-inputs"><input id="dateStartFilter" type="date" aria-label="Start date" /><input id="dateEndFilter" type="date" aria-label="End date" /></div>
           </label>
           <div class="as-of-text">Data as of: May 31, 2024 11:59 PM</div>
         </div>
@@ -213,7 +213,7 @@
           <table>
             <thead>
               <tr>
-                <th>Activity / WBS</th>
+                <th>Activity</th>
                 <th>% Complete</th>
                 <th>% Cost Used</th>
                 <th>Gap (% Complete - % Cost Used)</th>
@@ -237,7 +237,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>Activity / WBS</th>
+                  <th>Activity</th>
                   <th>Planned Cost (PC)</th>
                   <th>Actual Cost (AC)</th>
                   <th>Earned Value (EV)</th>
@@ -265,7 +265,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>Activity / WBS</th>
+                  <th>Activity</th>
                   <th>Cost Variance (AC - EV)</th>
                   <th>Gap (% C - % Cost)</th>
                   <th>Status</th>

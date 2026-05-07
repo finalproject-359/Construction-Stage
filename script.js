@@ -18,6 +18,9 @@ const overrunTableBodyEl = document.getElementById("overrunTableBody");
 const gapTableBodyEl = document.getElementById("gapTableBody");
 const varianceDisplayEl = document.getElementById("varianceDisplay");
 const varianceStatusEl = document.getElementById("varianceStatus");
+const projectFilterEl = document.getElementById("projectFilter");
+const dateStartFilterEl = document.getElementById("dateStartFilter");
+const dateEndFilterEl = document.getElementById("dateEndFilter");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 
@@ -204,6 +207,9 @@ const extractDashboardRows = (rawRows) =>
 
       if (!hasValidActivityId && !hasValidActivityName) return null;
 
+      const project = normalize(getCell(row, ["project", "project name", "project id"]), "Unspecified");
+      const startDate = normalizeDateOnly(getCell(row, ["planned start", "start date", "start"]));
+      const finishDate = normalizeDateOnly(getCell(row, ["planned finish", "finish date", "end date", "finish"]));
       const plannedCost = parseNumber(getCell(row, ["planned value", "planned cost", "pv", "budget"]));
       const actualCost = parseNumber(getCell(row, ["actual cost", "ac", "actual"]));
       const percentComplete = normalizeProgressPercent(
@@ -218,6 +224,9 @@ const extractDashboardRows = (rawRows) =>
       return {
         activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,
         activity: activity || "Unspecified",
+        project,
+        startDate,
+        finishDate,
         plannedCost,
         actualCost,
         ev: plannedCost * (percentComplete / 100),
@@ -233,6 +242,60 @@ const extractDashboardRows = (rawRows) =>
         row &&
         (row.plannedCost !== 0 || row.actualCost !== 0 || row.ev !== 0 || row.percentComplete !== 0)
     );
+
+const normalizeDateOnly = (value) => {
+  const raw = normalize(value, "");
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().split("T")[0];
+};
+
+const rowMatchesDateFilter = (row, startDate, endDate) => {
+  if (!startDate && !endDate) return true;
+  const rowStart = normalizeDateOnly(row.startDate) || normalizeDateOnly(row.date);
+  const rowEnd = normalizeDateOnly(row.finishDate) || rowStart;
+  if (!rowStart && !rowEnd) return false;
+  if (startDate && rowEnd && rowEnd < startDate) return false;
+  if (endDate && rowStart && rowStart > endDate) return false;
+  return true;
+};
+
+const getFilteredRows = (rows) => {
+  const selectedProject = String(projectFilterEl?.value || "all").trim().toLowerCase();
+  const startDate = String(dateStartFilterEl?.value || "").trim();
+  const endDate = String(dateEndFilterEl?.value || "").trim();
+
+  return rows.filter((row) => {
+    const projectMatches = selectedProject === "all"
+      || normalize(row.project, "").toLowerCase() === selectedProject;
+    return projectMatches && rowMatchesDateFilter(row, startDate, endDate);
+  });
+};
+
+const syncFilterOptionsFromRows = (rows) => {
+  if (!projectFilterEl) return;
+  const projects = Array.from(new Set(rows.map((row) => normalize(row.project, "Unspecified")).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  const selected = projectFilterEl.value || "all";
+  projectFilterEl.innerHTML = `<option value="all">All Projects</option>${projects.map((project) => `<option value="${project}">${project}</option>`).join("")}`;
+  projectFilterEl.value = projects.includes(selected) || selected === "all" ? selected : "all";
+};
+
+const renderDashboardFromRows = (rows) => {
+  const totals = calculateTotalsFromRows(rows);
+  const progressMetrics = calculateProgressMetrics(rows, totals);
+  renderKpis(totals);
+  renderProgressKpis(progressMetrics, totals);
+  renderTable(rows);
+  renderOverrunTable(rows);
+  renderGapTable(rows);
+  generateCharts(rows);
+};
+
+const applyFiltersAndRender = () => {
+  const filteredRows = getFilteredRows(dashboardRows);
+  renderDashboardFromRows(filteredRows);
+};
 
 const calculateTotalsFromRows = (rows) =>
   rows.reduce(
@@ -530,14 +593,8 @@ const processRows = (rawRows, sourceName = "web app") => {
   latestDashboardSignature = nextSignature;
   localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
   dashboardRows = rows;
-  const totals = calculateTotalsFromRows(rows);
-  const progressMetrics = calculateProgressMetrics(rows, totals);
-
-  renderKpis(totals);
-  renderProgressKpis(progressMetrics);
-  renderTable(rows);
-  renderOverrunTable(rows);
-  generateCharts(rows);
+  syncFilterOptionsFromRows(rows);
+  applyFiltersAndRender();
 
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
@@ -587,13 +644,8 @@ const hydrateDashboardFromCache = () => {
     if (savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS) return;
     latestDashboardSignature = JSON.stringify(rows);
     dashboardRows = rows;
-    const totals = calculateTotalsFromRows(rows);
-    const progressMetrics = calculateProgressMetrics(rows, totals);
-    renderKpis(totals);
-    renderProgressKpis(progressMetrics);
-    renderTable(rows);
-    renderOverrunTable(rows);
-    generateCharts(rows);
+    syncFilterOptionsFromRows(rows);
+    applyFiltersAndRender();
     showMessage(
       `Loaded ${rows.length} cached activity row(s). Verifying against live source now...`
     );
@@ -696,6 +748,10 @@ const setupServiceWorkerUpdates = async () => {
     console.warn("Service worker setup failed:", error);
   }
 };
+
+if (projectFilterEl) projectFilterEl.addEventListener("change", applyFiltersAndRender);
+if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", applyFiltersAndRender);
+if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", applyFiltersAndRender);
 
 setupServiceWorkerUpdates();
 if (DATA_SOURCE_URL.trim()) {
