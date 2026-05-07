@@ -8,6 +8,8 @@ const activityStartDateInput = document.getElementById("activityStartDateInput")
 const activityFinishDateInput = document.getElementById("activityFinishDateInput");
 const addActivityBackLink = document.getElementById("addActivityBackLink");
 const activityFormCancelLink = document.getElementById("activityFormCancelLink");
+const activitySubmitButton = activityPageForm?.querySelector('button[type="submit"]');
+let isActivityPageSubmitting = false;
 
 const query = new URLSearchParams(window.location.search);
 const selectedProject = query.get("project") || "";
@@ -117,6 +119,7 @@ const createActivityInSource = async (activity) => {
 if (activityPageForm) {
   activityPageForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (isActivityPageSubmitting) return;
 
     if (!selectedProject) {
       window.alert("Please select a project in Activities before adding an activity.");
@@ -143,11 +146,23 @@ if (activityPageForm) {
       notes: "",
     };
 
+    isActivityPageSubmitting = true;
+    if (activitySubmitButton) {
+      activitySubmitButton.disabled = true;
+      activitySubmitButton.dataset.originalLabel = activitySubmitButton.textContent || "Add Activity";
+      activitySubmitButton.textContent = "Saving...";
+    }
+
     try {
       await createActivityInSource(activityPayload);
     } catch (error) {
       const reason = error?.message ? `\nReason: ${error.message}` : "";
       window.alert(`Unable to save activity to Google Sheets. No local copy was saved.${reason}`);
+      isActivityPageSubmitting = false;
+      if (activitySubmitButton) {
+        activitySubmitButton.disabled = false;
+        activitySubmitButton.textContent = activitySubmitButton.dataset.originalLabel || "Add Activity";
+      }
       return;
     }
 
