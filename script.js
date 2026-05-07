@@ -225,7 +225,11 @@ const extractDashboardRows = (rawRows) =>
 
       if (!hasValidActivityId && !hasValidActivityName) return null;
 
-      const project = normalize(getCell(row, ["project", "project name", "project id"]), "Unspecified");
+      const projectId = normalize(getCell(row, ["project id", "project code", "projectid", "code"]), "");
+      const projectName = normalize(getCell(row, ["project name", "project", "project title"]), "");
+      const project = projectId && projectName
+        ? `${projectId} - ${projectName}`
+        : projectId || projectName || "Unspecified";
       const startDate = normalizeDateOnly(getCell(row, ["planned start", "start date", "start"]));
       const finishDate = normalizeDateOnly(getCell(row, ["planned finish", "finish date", "end date", "finish"]));
       const plannedCost = parseNumber(getCell(row, ["planned value", "planned cost", "pv", "budget"]));
@@ -286,17 +290,22 @@ const getFilteredRows = (rows) => {
 
   return rows.filter((row) => {
     const projectMatches = selectedProject === "all"
-      || normalize(row.project, "").toLowerCase() === selectedProject;
+      || normalize(row.project, "").trim().toLowerCase() === selectedProject;
     return projectMatches && rowMatchesDateFilter(row, startDate, endDate);
   });
 };
 
 const syncFilterOptionsFromRows = (rows) => {
   if (!projectFilterEl) return;
-  const projects = Array.from(new Set(rows.map((row) => normalize(row.project, "Unspecified")).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-  const selected = projectFilterEl.value || "all";
-  projectFilterEl.innerHTML = `<option value="all">All Projects</option>${projects.map((project) => `<option value="${escapeHtml(project)}">${escapeHtml(project)}</option>`).join("")}`;
-  projectFilterEl.value = projects.includes(selected) || selected === "all" ? selected : "all";
+  const projects = Array.from(
+    new Set(rows.map((row) => normalize(row.project, "Unspecified")).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+  const selected = normalize(projectFilterEl.value, "all").trim().toLowerCase();
+  projectFilterEl.innerHTML = `<option value="all">All Projects</option>${projects
+    .map((project) => `<option value="${escapeHtml(project.toLowerCase())}">${escapeHtml(project)}</option>`)
+    .join("")}`;
+  const selectedExists = selected === "all" || projects.some((project) => project.toLowerCase() === selected);
+  projectFilterEl.value = selectedExists ? selected : "all";
 };
 
 const renderDashboardFromRows = (rows) => {
