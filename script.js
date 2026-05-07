@@ -664,7 +664,11 @@ const loadRowsFromCostManagementLocalData = () => {
 
   return activities.map((activity) => {
     const activityId = String(activity?.activityRefId || activity?.id || "").trim();
+    const projectId = String(activity?.projectId || "").trim();
+    const projectName = String(activity?.projectName || activity?.project || "").trim();
     return {
+      "Project ID": projectId,
+      "Project Name": projectName,
       "Activity ID": activityId,
       Activity: String(activity?.name || activity?.activity || "Unspecified").trim(),
       "Planned Cost": parseNumber(activity?.plannedCost),
