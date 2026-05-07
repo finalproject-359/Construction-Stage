@@ -39,6 +39,7 @@ let latestDashboardSignature = "";
 
 const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
 const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
+const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 5 * 1000;
 const DASHBOARD_REFRESH_INTERVAL_MS = 3 * 1000;
@@ -656,7 +657,9 @@ const loadRowsFromCostManagementLocalData = () => {
   };
 
   const activities = safeParseArray(localStorage.getItem(COST_ACTIVITIES_LOCAL_STORAGE_KEY));
-  if (!activities.length) return [];
+  const legacyActivities = safeParseArray(localStorage.getItem(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY));
+  const mergedActivities = activities.length ? activities : legacyActivities;
+  if (!mergedActivities.length) return [];
   const dailyCosts = safeParseArray(localStorage.getItem(DAILY_COSTS_LOCAL_STORAGE_KEY));
 
   const actualCostByActivityId = dailyCosts.reduce((map, item) => {
@@ -666,7 +669,7 @@ const loadRowsFromCostManagementLocalData = () => {
     return map;
   }, new Map());
 
-  return activities.map((activity) => {
+  return mergedActivities.map((activity) => {
     const activityId = String(activity?.activityRefId || activity?.id || "").trim();
     const projectId = String(activity?.projectId || "").trim();
     const projectName = String(activity?.projectName || activity?.project || "").trim();
@@ -678,6 +681,31 @@ const loadRowsFromCostManagementLocalData = () => {
       "Planned Cost": parseNumber(activity?.plannedCost),
       "Actual Cost": actualCostByActivityId.get(activityId) || 0,
       "% Complete": parseNumber(activity?.progressPercent),
+    };
+  });
+};
+
+const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
+  if (!Array.isArray(remoteRows) || !remoteRows.length) return [];
+  if (!Array.isArray(localRows) || !localRows.length) return remoteRows;
+
+  const localByActivityId = new Map(
+    localRows.map((row) => [String(row?.["Activity ID"] || "").trim(), row]).filter(([key]) => key)
+  );
+
+  return remoteRows.map((row) => {
+    const activityId = String(
+      getCell(row, ["activity id", "id", "activity code", "wbs", "task id"]) || ""
+    ).trim();
+    if (!activityId || !localByActivityId.has(activityId)) return row;
+
+    const local = localByActivityId.get(activityId);
+    return {
+      ...row,
+      "Actual Cost":
+        parseNumber(local?.["Actual Cost"]) || parseNumber(getCell(row, ["actual cost", "total spent", "ac", "actual"])),
+      "Project ID": local?.["Project ID"] || getCell(row, ["project id", "project code", "projectid", "code"]) || "",
+      "Project Name": local?.["Project Name"] || getCell(row, ["project name", "project", "project title"]) || "",
     };
   });
 };
@@ -736,7 +764,8 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     const { rows, sourceName } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
 
     if (Array.isArray(rows) && rows.length) {
-      processRows(rows, sourceName);
+      const enrichedRows = mergeRemoteRowsWithCostManagementActuals(rows, localRows);
+      processRows(enrichedRows, sourceName);
       return;
     }
 
