@@ -185,7 +185,40 @@ body.page-cost-management .main-content {
   gap: 8px;
 }
 .kpi-icon,
-.panel-icon { display: inline-flex; align-items: center; justify-content: center; }
+.panel-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.05rem;
+  height: 2.05rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(140deg, #eef3ff, #f8fbff);
+  border: 1px solid #dce5fb;
+  color: #2f55ff;
+  box-shadow: 0 6px 16px rgba(47, 85, 255, 0.14);
+  flex: 0 0 auto;
+}
+
+.kpi-icon svg,
+.panel-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.details-kpis .kpi-card h4 .kpi-icon {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.85rem;
+}
+
+.details-kpis .kpi-card h4 .kpi-icon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
 
 .kpi-card p {
   margin: 0;
