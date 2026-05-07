@@ -34,6 +34,8 @@ let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
 
 const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
+const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
+const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 5 * 1000;
 const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
 const EXTENSION_BRIDGE_DISCONNECT_MESSAGE =
@@ -481,7 +483,7 @@ const generateCharts = (rows) => {
       labels,
       datasets: [
         {
-          label: "Cost Variance (AC - PV)",
+          label: "Cost Variance (AC - PC)",
           data: varianceValues,
           backgroundColor: rows.map((row) => (row.actualCost - row.plannedCost <= 0 ? "#22c55e" : "#ef4444")),
           borderRadius: 6,
@@ -540,6 +542,39 @@ const processRows = (rawRows, sourceName = "web app") => {
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
+const loadRowsFromCostManagementLocalData = () => {
+  const safeParseArray = (raw) => {
+    try {
+      const parsed = JSON.parse(raw || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const activities = safeParseArray(localStorage.getItem(COST_ACTIVITIES_LOCAL_STORAGE_KEY));
+  if (!activities.length) return [];
+  const dailyCosts = safeParseArray(localStorage.getItem(DAILY_COSTS_LOCAL_STORAGE_KEY));
+
+  const actualCostByActivityId = dailyCosts.reduce((map, item) => {
+    const key = String(item?.activityId || "").trim();
+    if (!key) return map;
+    map.set(key, (map.get(key) || 0) + parseNumber(item?.actualCost));
+    return map;
+  }, new Map());
+
+  return activities.map((activity) => {
+    const activityId = String(activity?.activityRefId || activity?.id || "").trim();
+    return {
+      "Activity ID": activityId,
+      Activity: String(activity?.name || activity?.activity || "Unspecified").trim(),
+      "Planned Cost": parseNumber(activity?.plannedCost),
+      "Actual Cost": actualCostByActivityId.get(activityId) || 0,
+      "% Complete": parseNumber(activity?.progressPercent),
+    };
+  });
+};
+
 const hydrateDashboardFromCache = () => {
   const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
   if (!cached) return;
@@ -581,7 +616,13 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     const { rows, sourceName } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
     processRows(rows, sourceName);
   } catch (error) {
-    showMessage(`Error loading data source: ${error.message}`, true);
+    const localRows = loadRowsFromCostManagementLocalData();
+    if (localRows.length) {
+      processRows(localRows, "Cost Management local storage");
+      showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
+    } else {
+      showMessage(`Error loading data source: ${error.message}`, true);
+    }
   } finally {
     isDashboardFetchInFlight = false;
     setLoadingState(false);
@@ -658,7 +699,6 @@ const setupServiceWorkerUpdates = async () => {
 
 setupServiceWorkerUpdates();
 if (DATA_SOURCE_URL.trim()) {
-  localStorage.removeItem(DASHBOARD_CACHE_KEY);
   hydrateDashboardFromCache();
   refreshDashboardData({ force: true });
   setupRealtimeDashboardSync();
