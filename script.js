@@ -731,7 +731,8 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
       "Planned Cost": parseNumber(cost?.plannedCost ?? cost?.planned_cost),
       "Actual Cost": parseNumber(cost?.actualCost ?? cost?.actual_cost),
       "% Complete": parseNumber(
-        joinedActivity?.progressPercent
+        joinedActivity?.percentComplete
+          ?? joinedActivity?.progressPercent
           ?? joinedActivity?.progress
           ?? joinedActivity?.completion
           ?? 0
@@ -799,7 +800,8 @@ const refreshDashboardData = async ({ force = false } = {}) => {
         );
         const bundleRows = buildRowsFromActivitiesAndCosts(activities, costs);
         if (bundleRows.length) {
-          processRows(bundleRows, sourceName);
+          const enrichedRows = mergeRemoteRowsWithCostManagementActuals(bundleRows, localRows);
+          processRows(enrichedRows, sourceName);
           return;
         }
       } catch (bundleError) {
