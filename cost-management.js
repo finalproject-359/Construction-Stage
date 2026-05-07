@@ -787,9 +787,9 @@ const buildDetailsMarkup = (project, rows) => {
   const actualCost = rows.reduce((sum, row) => sum + row.actualCost, 0);
   const earnedValue = rows.reduce((sum, row) => sum + parseBudgetValue(row.earnedValue), 0);
   const comparisonItems = [
-    { key: "planned", label: "Total Planned Cost", value: plannedCost },
-    { key: "actual", label: "Total Actual Cost", value: actualCost },
-    { key: "earned", label: "Total Earned Value", value: earnedValue },
+    { key: "planned", label: "PC", value: plannedCost, fullLabel: "Total Planned Cost" },
+    { key: "actual", label: "AC", value: actualCost, fullLabel: "Total Actual Cost" },
+    { key: "earned", label: "EV", value: earnedValue, fullLabel: "Total Earned Value" },
   ];
   const variance = earnedValue - actualCost;
   const variancePercent = earnedValue ? (variance / earnedValue) * 100 : 0;
@@ -821,11 +821,11 @@ const buildDetailsMarkup = (project, rows) => {
   const comparisonBarsMarkup = comparisonItems
     .map((item) => {
       const height = item.value > 0 ? Math.max(10, Math.round((item.value / maxCost) * 100)) : 0;
-      return `<div class="bar-wrap"><strong>${formatBudget(item.value)}</strong><div class="bar ${item.key}" style="height:${height}%"></div><p>${item.label}</p></div>`;
+      return `<div class="bar-wrap"><strong>${formatBudget(item.value)}</strong><div class="bar ${item.key}" style="height:${height}%"></div><p title="${item.fullLabel}">${item.label}</p></div>`;
     })
     .join("");
   const comparisonLegendMarkup = comparisonItems
-    .map((item) => `<li><span class="legend-dot ${item.key}"></span> ${item.label}</li>`)
+    .map((item) => `<li><span class="legend-dot ${item.key}"></span> ${item.label} <small>(${item.fullLabel})</small></li>`)
     .join("");
   const comparisonTotal = comparisonItems.reduce((sum, item) => sum + item.value, 0);
   const donutSegments = comparisonItems.map((item, index) => {
@@ -845,7 +845,7 @@ const buildDetailsMarkup = (project, rows) => {
     return `${color} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
   }).join(", ");
   const donutLegendMarkup = comparisonItems
-    .map((item) => `<li><span class="legend-dot ${item.key}"></span>${item.label} <strong>${formatBudget(item.value)}</strong></li>`)
+    .map((item) => `<li><span class="legend-dot ${item.key}"></span>${item.label} <small>(${item.fullLabel})</small> <strong>${formatBudget(item.value)}</strong></li>`)
     .join("");
   const varianceLabel = variance >= 0 ? "Under budget" : "Over budget";
   const varianceClass = variance >= 0 ? "good" : "bad";
@@ -864,9 +864,9 @@ const buildDetailsMarkup = (project, rows) => {
   <article class="kpi-card"><h4><span class="kpi-icon">📈</span>Total Earned Value</h4><p>${formatBudget(earnedValue)}</p></article>
   <article class="kpi-card"><h4><span class="kpi-icon">⚖️</span>Variance</h4><p class="${varianceClass}">${formatBudget(variance)}</p><small>${varianceLabel}</small></article>
   <article class="kpi-card"><h4><span class="kpi-icon">⏱️</span>Total Duration</h4><p>${totalDuration} days</p></article></section>
-  <section class="overview-grid"><article class="panel chart-panel"><h3><span class="panel-icon">📊</span>Budget vs Actual</h3><div class="bars"><div class="bars-grid"><span>${formatBudget(maxCost)}</span><span>${formatBudget(maxCost * 0.75)}</span><span>${formatBudget(maxCost * 0.5)}</span><span>${formatBudget(maxCost * 0.25)}</span><span>0</span></div><div class="bars-track">${comparisonBarsMarkup}</div><ul class="bars-legend">${comparisonLegendMarkup}</ul></div></article>
+  <section class="overview-grid"><article class="panel chart-panel"><h3><span class="panel-icon">📊</span>PC vs AC vs EV</h3><div class="bars"><div class="bars-grid"><span>${formatBudget(maxCost)}</span><span>${formatBudget(maxCost * 0.75)}</span><span>${formatBudget(maxCost * 0.5)}</span><span>${formatBudget(maxCost * 0.25)}</span><span>0</span></div><div class="bars-track">${comparisonBarsMarkup}</div><ul class="bars-legend">${comparisonLegendMarkup}</ul></div></article>
   <article class="panel summary-panel"><h3><span class="panel-icon">📋</span>Cost Summary</h3><ul><li><span>Total Planned Cost</span><strong>${formatBudget(plannedCost)}</strong></li><li><span>Total Actual Cost</span><strong>${formatBudget(actualCost)}</strong></li><li><span>Total Earned Value</span><strong>${formatBudget(earnedValue)}</strong></li><li><span>Variance</span><strong class="${varianceClass}">${formatBudget(variance)}</strong></li><li><span>Variance Percent</span><strong class="${varianceClass}">${variancePercent.toFixed(2)}%</strong></li><li><span>Total Duration</span><strong>${totalDuration} days</strong></li><li><span>Average Cost per Day (Actual)</span><strong>${formatBudget(avgActualPerDay)}</strong></li></ul></article>
-  <article class="panel donut-panel"><h3><span class="panel-icon">🟢</span>Cost Status</h3><div class="donut-wrap"><div class="donut" style="background: conic-gradient(${donutSegments});"></div><ul class="status-list">${donutLegendMarkup}</ul></div></article>
+  <article class="panel donut-panel"><h3><span class="panel-icon">🟢</span>Cost Status (PC/AC/EV)</h3><div class="donut-wrap"><div class="donut" style="background: conic-gradient(${donutSegments});"></div><ul class="status-list">${donutLegendMarkup}</ul></div></article>
   <article class="panel table-panel"><h3><span class="panel-icon">📌</span>Top Over Budget Activities</h3><table class="top-over-budget-table"><colgroup><col class="col-cost-id"><col class="col-activity"><col class="col-planned"><col class="col-actual"><col class="col-earned"><col class="col-variance"></colgroup><thead><tr><th>Cost ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Earned Value</th><th>Variance</th></tr></thead><tbody>${topRows}</tbody></table></article></section></section>
   <section class="details-tab-panel hidden" data-panel="costing">
   <section class="panel"><table class="cost-table"><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Planned Cost</th><th>Planned Cost/Day</th><th>Actual Cost</th><th>Earned Value</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section><div class="info-banner"><p>Tip: Planned Cost is view-only in this table and can be changed only via “Add / Edit Cost Details”.</p></div></section>
