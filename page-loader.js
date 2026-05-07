@@ -1,5 +1,5 @@
 (() => {
-  const MIN_VISIBLE_MS = 450;
+  const MIN_VISIBLE_MS = 220;
   const pageStart = performance.now();
   const isCostManagementPage = document.body.classList.contains("page-cost-management");
 
@@ -85,8 +85,8 @@
 
   const waitForReadySignal = () => {
     if (!isCostManagementPage) {
-      if (document.readyState === "complete") removeLoader();
-      else window.addEventListener("load", removeLoader, { once: true });
+      if (document.readyState !== "loading") removeLoader();
+      else document.addEventListener("DOMContentLoaded", removeLoader, { once: true });
       return;
     }
 
