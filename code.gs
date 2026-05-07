@@ -1369,7 +1369,15 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     return normalizedAfter[idx] !== normalizeHeader(header);
   });
 
-  if (needsHeaderSync) {
+  var hasGapsInsideExpectedRange = false;
+  for (var expectedIndex = 0; expectedIndex < expectedHeaders.length; expectedIndex += 1) {
+    if (cleanText(firstRow[expectedIndex]) === '') {
+      hasGapsInsideExpectedRange = true;
+      break;
+    }
+  }
+
+  if (needsHeaderSync || hasGapsInsideExpectedRange) {
     sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
   }
 }
