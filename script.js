@@ -811,6 +811,10 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     if (!DATA_SOURCE_URL.trim()) {
       if (localRows.length) {
         processRows(localRows, "Cost Management local storage");
+        showMessage("Using Cost Management local data because no live data source URL is configured.");
+      } else {
+        processRows([], "local storage");
+        showMessage("No dashboard data source URL configured and no local Cost Management data found.", true);
       }
       return;
     }
