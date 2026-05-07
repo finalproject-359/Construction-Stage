@@ -1270,10 +1270,12 @@ function ensureWorkbookStructure() {
   const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
   const activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
   const costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  const dailyCostsSheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
 
   ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
   ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
   ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+  ensureSheetHeaders(dailyCostsSheet, CONFIG.headers.dailyCosts);
 }
 
 function ensureSheetHeaders(sheet, expectedHeaders) {
@@ -1321,7 +1323,6 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   const normalizedExisting = normalizedExistingFirstRow;
   const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
   const expectsProjectCode = normalizedExpected.indexOf('project code') >= 0;
-  const legacyDescriptionIndex = normalizedExisting.indexOf('description');
   const expectsDescription = normalizedExpected.indexOf('description') >= 0;
 
   if (legacyProjectCodeIndex >= 0 && !expectsProjectCode) {
@@ -1333,6 +1334,9 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     }
     firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   }
+
+  var normalizedAfterProjectCodeCleanup = normalizeHeaders(firstRow);
+  const legacyDescriptionIndex = normalizedAfterProjectCodeCleanup.indexOf('description');
 
   if (legacyDescriptionIndex >= 0 && !expectsDescription) {
     sheet.deleteColumn(legacyDescriptionIndex + 1);
