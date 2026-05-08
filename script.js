@@ -245,7 +245,7 @@ const extractDashboardRows = (rawRows) =>
       const projectName = normalize(getCell(row, ["project name", "project", "project title"]), "");
       const project = projectId && projectName
         ? `${projectId} - ${projectName}`
-        : projectId || projectName || "Unspecified";
+        : projectId || projectName || "No Project ID";
       const startDate = normalizeDateOnly(getCell(row, ["planned start", "start date", "start"]));
       const finishDate = normalizeDateOnly(getCell(row, ["planned finish", "finish date", "end date", "finish"]));
       const plannedCost = parseNumber(
@@ -265,7 +265,7 @@ const extractDashboardRows = (rawRows) =>
 
       return {
         activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,
-        activity: activity || "Unspecified",
+        activity: activity || (hasValidActivityId ? `Activity ${detectedActivityId}` : "Unnamed Activity"),
         project,
         startDate,
         finishDate,
@@ -723,7 +723,7 @@ const loadRowsFromCostManagementLocalData = () => {
       "Project ID": projectId,
       "Project Name": projectName,
       "Activity ID": activityId,
-      Activity: String(activity?.name || activity?.activity || "Unspecified").trim(),
+      Activity: String(activity?.name || activity?.activity || (activityId ? `Activity ${activityId}` : "Unnamed Activity")).trim(),
       "Planned Cost": parseNumber(activity?.plannedCost),
       "Actual Cost": actualCostByActivityId.get(activityId) || 0,
       "% Complete": parseNumber(activity?.progressPercent),
@@ -799,7 +799,7 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
           || cost?.activityName
           || joinedActivity?.activity
           || joinedActivity?.name
-          || "Unspecified"
+          || (activityIdRaw ? `Activity ${activityIdRaw}` : "Unnamed Activity")
       ).trim(),
       "Planned Cost": parseNumber(cost?.plannedCost ?? cost?.planned_cost),
       "Actual Cost": parseNumber(cost?.actualCost ?? cost?.actual_cost),
