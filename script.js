@@ -29,7 +29,6 @@ const chartDependencyWarning =
     ? "Chart.js is not available. Graphs are disabled."
     : "";
 
-let dashboardRows = [];
 let activitySummaryRows = [];
 let varianceChart = null;
 let costChart = null;
@@ -353,7 +352,7 @@ const renderDashboardFromRows = (rows, summaryRows = rows) => {
 };
 
 const applyFiltersAndRender = () => {
-  const filteredRows = getFilteredRows(dashboardRows);
+  const filteredRows = getFilteredRows(activitySummaryRows);
   renderDashboardFromRows(filteredRows, filteredRows);
 };
 
@@ -640,15 +639,15 @@ const generateCharts = (rows) => {
 
 const processRows = (rawRows, sourceName = "web app") => {
   if (!Array.isArray(rawRows) || !rawRows.length) {
-    if (dashboardRows.length) {
+    if (activitySummaryRows.length) {
       showMessage(
-        `Live source temporarily returned no rows from ${sourceName}. Retaining the last ${dashboardRows.length} activity row(s).`,
+        `Live source temporarily returned no rows from ${sourceName}. Retaining the last ${activitySummaryRows.length} activity row(s).`,
         true
       );
       return;
     }
 
-    dashboardRows = [];
+    activitySummaryRows = [];
     renderKpis({ planned: 0, actual: 0, cv: 0 });
     renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
     renderTable([]);
@@ -670,7 +669,6 @@ const processRows = (rawRows, sourceName = "web app") => {
 
   latestDashboardSignature = nextSignature;
   localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
-  dashboardRows = rows;
   activitySummaryRows = rows;
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
@@ -686,13 +684,11 @@ const processRows = (rawRows, sourceName = "web app") => {
 const processActivitySummaryRows = (rawRows) => {
   if (!Array.isArray(rawRows) || !rawRows.length) {
     activitySummaryRows = [];
-    dashboardRows = [];
     applyFiltersAndRender();
     return;
   }
 
   activitySummaryRows = extractDashboardRows(rawRows);
-  dashboardRows = activitySummaryRows;
   applyFiltersAndRender();
 };
 
@@ -830,7 +826,7 @@ const hydrateDashboardFromCache = () => {
     if (!Array.isArray(rows) || !rows.length) return;
     if (savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS) return;
     latestDashboardSignature = JSON.stringify(rows);
-    dashboardRows = rows;
+    activitySummaryRows = rows;
     syncFilterOptionsFromRows(rows);
     applyFiltersAndRender();
     showMessage(
