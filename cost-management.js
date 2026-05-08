@@ -820,8 +820,7 @@ const buildDetailsMarkup = (project, rows) => {
       const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "";
       const plannedCostPerDayCell = hasPlannedCost ? formatBudget(plannedCostPerDay) : "";
       const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "";
-      const hasEarnedValue = parseBudgetValue(row.earnedValue) > 0;
-      const earnedValueCell = hasEarnedValue ? formatBudget(row.earnedValue) : "";
+      const earnedValueCell = formatBudget(parseBudgetValue(row.earnedValue));
 
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "";
 
