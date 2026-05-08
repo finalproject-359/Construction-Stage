@@ -774,7 +774,13 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
       "Project ID": projectIdRaw,
       "Project Name": String(cost?.project || cost?.projectName || "").trim(),
       "Activity ID": activityIdRaw,
-      Activity: String(cost?.activity || joinedActivity?.activity || "Unspecified").trim(),
+      Activity: String(
+        cost?.activity
+          || cost?.activityName
+          || joinedActivity?.activity
+          || joinedActivity?.name
+          || "Unspecified"
+      ).trim(),
       "Planned Cost": parseNumber(cost?.plannedCost ?? cost?.planned_cost),
       "Actual Cost": parseNumber(cost?.actualCost ?? cost?.actual_cost),
       "% Complete": parseNumber(
