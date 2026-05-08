@@ -1285,6 +1285,9 @@ function getOrCreateSheet(sheetName) {
   for (var i = 0; i < sheets.length; i += 1) {
     var currentSheet = sheets[i];
     if (aliasLookup[normalizeSheetKey(currentSheet.getName())]) {
+      if (currentSheet.getName() !== sheetName) {
+        currentSheet.setName(sheetName);
+      }
       return currentSheet;
     }
   }
