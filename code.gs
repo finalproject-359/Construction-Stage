@@ -603,7 +603,7 @@ function normalizeIncomingDailyCost(input) {
   return {
     projectId: cleanText(source.projectId || source.project_id),
     costId: cleanText(source.costId || source.cost_id || source.id || source.activityId || source.activity_id),
-    activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId),
+    activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId || source.activityRefId || source.activity_ref_id),
     activity: cleanText(source.activity || source.activityName),
     plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
     plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
@@ -709,6 +709,7 @@ function syncCostActualFromDailyCost(projectId, costId) {
             activityId: costColumns.activityId ? cleanText(costValues[rowIndex][costColumns.activityId - 1]) : '',
             activity: costColumns.activity ? cleanText(costValues[rowIndex][costColumns.activity - 1]) : '',
             plannedCost: costColumns.plannedCost ? parseNumber(costValues[rowIndex][costColumns.plannedCost - 1]) : 0,
+            plannedCostPerDay: costColumns.plannedCostPerDay ? parseNumber(costValues[rowIndex][costColumns.plannedCostPerDay - 1]) : 0,
           };
           var earnedValue = Number(computeEarnedValue(currentCost)) || 0;
           costsSheet.getRange(targetRow, costColumns.earnedValue).setValue(earnedValue);
@@ -836,7 +837,7 @@ function normalizeIncomingCost(input) {
     costId: cleanText(source.costId || source.id),
     projectId: cleanText(source.projectId || source.project_id),
     project: cleanText(source.project || source.projectName || source.project_name),
-    activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId),
+    activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId || source.activityRefId || source.activity_ref_id),
     activity: cleanText(source.activity || source.activityName),
     duration: parseNumber(source.duration || source.durationDays),
     category: cleanText(source.category || source.costCategory || source.cost_category) || 'General',
