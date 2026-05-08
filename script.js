@@ -758,17 +758,33 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
 
   (Array.isArray(activities) ? activities : []).forEach((item) => {
     const projectId = normalizeKey(item?.projectId || item?.project_id);
-    const activityId = normalizeKey(item?.activityId || item?.activity_id || item?.id);
-    if (!projectId || !activityId) return;
-    activityByProjectAndActivityId.set(`${projectId}::${activityId}`, item);
+    const activityIds = [
+      item?.activityRefId,
+      item?.activityId,
+      item?.activity_id,
+      item?.id,
+      item?.sourceActivityId,
+      item?.source_activity_id,
+    ]
+      .map((value) => normalizeKey(value))
+      .filter(Boolean);
+
+    if (!projectId || !activityIds.length) return;
+    activityIds.forEach((activityId) => {
+      activityByProjectAndActivityId.set(`${projectId}::${activityId}`, item);
+    });
   });
 
   return (Array.isArray(costs) ? costs : []).map((cost) => {
     const projectIdRaw = String(cost?.projectId || cost?.project_id || "").trim();
-    const activityIdRaw = String(cost?.activityId || cost?.activity_id || cost?.costId || cost?.cost_id || "").trim();
-    const joinedActivity = activityByProjectAndActivityId.get(
-      `${normalizeKey(projectIdRaw)}::${normalizeKey(activityIdRaw)}`
-    );
+    const costActivityIdRaw = String(cost?.activityId || cost?.activity_id || "").trim();
+    const costRefIdRaw = String(cost?.activityRefId || cost?.activity_ref_id || "").trim();
+    const fallbackCostIdRaw = String(cost?.costId || cost?.cost_id || "").trim();
+    const activityIdRaw = costActivityIdRaw || costRefIdRaw || fallbackCostIdRaw;
+    const joinedActivity =
+      activityByProjectAndActivityId.get(`${normalizeKey(projectIdRaw)}::${normalizeKey(costActivityIdRaw)}`)
+      || activityByProjectAndActivityId.get(`${normalizeKey(projectIdRaw)}::${normalizeKey(costRefIdRaw)}`)
+      || activityByProjectAndActivityId.get(`${normalizeKey(projectIdRaw)}::${normalizeKey(activityIdRaw)}`);
 
     return {
       "Project ID": projectIdRaw,
