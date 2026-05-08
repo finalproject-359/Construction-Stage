@@ -640,6 +640,14 @@ const generateCharts = (rows) => {
 
 const processRows = (rawRows, sourceName = "web app") => {
   if (!Array.isArray(rawRows) || !rawRows.length) {
+    if (dashboardRows.length) {
+      showMessage(
+        `Live source temporarily returned no rows from ${sourceName}. Retaining the last ${dashboardRows.length} activity row(s).`,
+        true
+      );
+      return;
+    }
+
     dashboardRows = [];
     renderKpis({ planned: 0, actual: 0, cv: 0 });
     renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
