@@ -28,41 +28,37 @@
       <header class="topbar"><h1>Reports</h1></header>
 
       <section class="table-panel report-filters" aria-label="Report filters">
-        <div class="filters-grid">
-          <div class="field">
-            <label for="reportProjectSearch">Project</label>
-            <input id="reportProjectSearch" type="search" placeholder="Search projects..." aria-label="Search projects" />
-          </div>
-          <div class="field field-inline">
-            <label for="reportDateFrom">Period</label>
-            <div class="date-range">
-              <input id="reportDateFrom" type="date" aria-label="Start date" />
-              <span>to</span>
-              <input id="reportDateTo" type="date" aria-label="End date" />
-            </div>
-          </div>
+        <div class="filter-row">
+          <label class="search-box" for="reportProjectSearch">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="reportProjectSearch" type="search" placeholder="Search projects..." />
+          </label>
+          <label class="search-box date-range-box">
+            <input id="reportDateStart" type="date" aria-label="Report start date" />
+            <span>to</span>
+            <input id="reportDateEnd" type="date" aria-label="Report end date" />
+          </label>
         </div>
       </section>
 
-      <section class="table-panel report-workspace">
-        <div class="panel-header report-headline">
-          <div>
-            <span class="chip">Formal Report Workspace</span>
-            <h2>Two-Storey House</h2>
-            <p>Period: <span id="periodLabel">— to —</span></p>
-          </div>
-          <a href="projects.html" class="ghost-btn">← Back to Projects</a>
+      <section id="reportSelectionView" class="table-panel">
+        <div class="selection-empty">
+          <h2>Select a project to build a formal report</h2>
+          <p>Reports are period-based documentation with export, print, and sign-off support.</p>
         </div>
-
-        <div class="toolbar-row">
-          <button type="button" class="secondary-btn">Print Report</button>
-          <button type="button" class="secondary-btn">Export PDF</button>
-          <button type="button" class="secondary-btn">Export CSV</button>
+        <h3>All Projects</h3>
+        <div id="reportProjectsList" class="projects-list"></div>
+        <div id="reportProjectsEmpty" class="projects-empty hidden">
+          <h3>No matching projects</h3>
+          <p>Try changing filters or create a project first.</p>
         </div>
       </section>
+
+      <section id="reportWorkspace" class="table-panel hidden" aria-live="polite"></section>
     </main>
   </div>
   <script src="ui-feedback.js"></script>
+  <script src="reports.js"></script>
   <script src="page-loader.js"></script>
   <script src="reports.js"></script>
 </body>
