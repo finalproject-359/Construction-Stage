@@ -1247,10 +1247,48 @@ function safeParseJson(value) {
   }
 }
 
+function normalizeSheetKey(value) {
+  return cleanText(value).toLowerCase().replace(/[\s_\-]+/g, '');
+}
+
+function getSheetAliases(sheetName) {
+  var normalizedName = normalizeSheetKey(sheetName);
+  if (normalizedName === normalizeSheetKey(CONFIG.sheetNames.dailyCosts)) {
+    return [
+      CONFIG.sheetNames.dailyCosts,
+      'Daily Cost',
+      'Daily Costs',
+      'daily_costs',
+      'daily-costs',
+      'dailycost',
+      'dailycosts',
+    ];
+  }
+  if (normalizedName === normalizeSheetKey(CONFIG.sheetNames.costs)) {
+    return [CONFIG.sheetNames.costs, 'Cost', 'costs'];
+  }
+  return [sheetName];
+}
+
 function getOrCreateSheet(sheetName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const existing = ss.getSheetByName(sheetName);
   if (existing) return existing;
+
+  const aliases = getSheetAliases(sheetName);
+  const aliasLookup = {};
+  aliases.forEach(function(alias) {
+    aliasLookup[normalizeSheetKey(alias)] = true;
+  });
+
+  const sheets = ss.getSheets();
+  for (var i = 0; i < sheets.length; i += 1) {
+    var currentSheet = sheets[i];
+    if (aliasLookup[normalizeSheetKey(currentSheet.getName())]) {
+      return currentSheet;
+    }
+  }
+
   return ss.insertSheet(sheetName);
 }
 
