@@ -23,9 +23,42 @@
         <a class="active" href="reports.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 0v6h6"/></svg></span>Reports</a>
       </nav>
     </aside>
-    <main class="main-content"><header class="topbar"><h1>Reports</h1></header><section class="table-panel"><div class="panel-header"><h3>Reports Workspace</h3></div><p>This page is now wired in navigation and ready for reporting tools.</p></section></main>
+
+    <main class="main-content">
+      <header class="topbar"><h1>Reports</h1></header>
+
+      <section class="table-panel report-filters" aria-label="Report filters">
+        <div class="filter-row">
+          <label class="search-box" for="reportProjectSearch">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="reportProjectSearch" type="search" placeholder="Search projects..." />
+          </label>
+          <label class="search-box date-range-box">
+            <input id="reportDateStart" type="date" aria-label="Report start date" />
+            <span>to</span>
+            <input id="reportDateEnd" type="date" aria-label="Report end date" />
+          </label>
+        </div>
+      </section>
+
+      <section id="reportSelectionView" class="table-panel">
+        <div class="selection-empty">
+          <h2>Select a project to build a formal report</h2>
+          <p>Reports are period-based documentation with export, print, and sign-off support.</p>
+        </div>
+        <h3>All Projects</h3>
+        <div id="reportProjectsList" class="projects-list"></div>
+        <div id="reportProjectsEmpty" class="projects-empty hidden">
+          <h3>No matching projects</h3>
+          <p>Try changing filters or create a project first.</p>
+        </div>
+      </section>
+
+      <section id="reportWorkspace" class="table-panel hidden" aria-live="polite"></section>
+    </main>
   </div>
   <script src="ui-feedback.js"></script>
+  <script src="reports.js"></script>
   <script src="page-loader.js"></script>
 </body>
 </html>
