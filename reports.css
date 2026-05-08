@@ -1,4 +1,73 @@
-/* Page-specific styles for reports.html. */
-body.page-reports {
-  /* Reserved for reports-only overrides. */
+body.page-reports .report-filters,
+body.page-reports .report-workspace {
+  padding: 12px;
+}
+
+body.page-reports .filters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+body.page-reports .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body.page-reports label {
+  font-size: .75rem;
+  font-weight: 600;
+  color: #5b6780;
+}
+
+body.page-reports input[type="search"],
+body.page-reports input[type="date"] {
+  height: 40px;
+  border: 1px solid #d6ddeb;
+  border-radius: 10px;
+  padding: 0 12px;
+  font: inherit;
+  background: #fff;
+}
+
+body.page-reports .date-range {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+body.page-reports .report-headline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+body.page-reports .report-headline h2 {
+  margin: 8px 0 6px;
+  font-size: 1.8rem;
+}
+
+body.page-reports .report-headline p { margin: 0; }
+
+body.page-reports .chip {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: .7rem;
+  background: #eef2ff;
+  color: #3654cc;
+}
+
+body.page-reports .toolbar-row {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  body.page-reports .filters-grid { grid-template-columns: 1fr; }
+  body.page-reports .report-headline { flex-direction: column; }
 }
