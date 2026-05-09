@@ -497,7 +497,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     })).filter((r) => r.projectId && r.costId && r.date);
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
-    return [];
+    return null;
   }
 };
 
@@ -506,6 +506,9 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
   const remoteDailyCosts = Array.isArray(prefetchedDailyCosts)
     ? prefetchedDailyCosts
     : await loadRemoteDailyCosts(projectFilter);
+
+  if (!Array.isArray(remoteDailyCosts)) return;
+
   const dedupedDailyCosts = new Map();
   remoteDailyCosts.forEach((item) => {
     const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${String(item.costId || "").trim()}::${normalizeDateKey(item.date)}`;
