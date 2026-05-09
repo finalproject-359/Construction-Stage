@@ -992,14 +992,20 @@ function buildDailyCostFromCost(cost) {
   const duration = parseNumber(cost.duration);
   const explicitPerDay = parseNumber(cost.plannedCostPerDay);
   const plannedCostPerDay = explicitPerDay || (duration > 0 ? plannedCost / duration : 0);
+  const projectId = cleanText(cost.projectId);
+  const activityId = cleanText(cost.activityId);
+  const activityName = cleanText(cost.activity);
+  const progress = roundTo(findActivityProgress(projectId, activityId, activityName), 2);
 
   return {
-    projectId: cleanText(cost.projectId),
+    projectId: projectId,
+    project: cleanText(cost.project),
     costId: cleanText(cost.costId),
-    activityId: cleanText(cost.activityId),
-    activity: cleanText(cost.activity),
+    activityId: activityId,
+    activity: activityName,
     plannedCost: plannedCost,
     plannedCostPerDay: plannedCostPerDay,
+    progress: progress >= 0 ? progress : 0,
     date: normalizeDate(cost.date) || normalizeDate(new Date()),
     actualCost: parseNumber(cost.actualCost),
   };
