@@ -445,7 +445,7 @@ const renderGapTable = (rows) => {
       const gapClass = gap >= 0 ? "positive" : "negative";
       const statusClass = gap >= 0 ? "ok" : gap > -5 ? "warn" : "bad";
       return `<tr>
-        <td>${row.activity}</td>
+        <td>${escapeHtml(row.activity)}</td>
         <td>${formatPercent(row.percentComplete)}</td>
         <td>${formatPercent(row.costUsedPercent)}</td>
         <td><div class="gap-cell"><strong>${formatSignedPercent(gap)}</strong><span class="gap-track"><span class="gap-fill ${gapClass}" style="width:${Math.min(100, Math.abs(gap) * 4)}%"></span></span></div></td>
@@ -469,7 +469,7 @@ const renderTable = (rows) => {
       (row) => `
       <tr class="variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}">
         <td>${escapeHtml(row.activityId || "-")}</td>
-        <td>${row.activity}</td>
+        <td>${escapeHtml(row.activity)}</td>
         <td>${formatCurrency(row.plannedCost)}</td>
         <td>${formatCurrency(row.actualCost)}</td>
         <td>${formatCurrency(row.ev)}</td>
@@ -482,18 +482,34 @@ const renderTable = (rows) => {
     `
     )
     .join("") + `
-      <tr>
-        <td></td>
-        <td><strong>TOTAL</strong></td>
-        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.plannedCost, 0))}</strong></td>
-        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.actualCost, 0))}</strong></td>
-        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.ev, 0))}</strong></td>
-        <td><strong>${formatPercent(rows.reduce((a, r) => a + r.percentComplete, 0) / rows.length)}</strong></td>
-        <td><strong>${formatPercent(rows.reduce((a, r) => a + r.costUsedPercent, 0) / rows.length)}</strong></td>
-        <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.cv, 0))}</strong></td>
-        <td><strong>${(rows.reduce((a, r) => a + r.ev, 0) / Math.max(rows.reduce((a, r) => a + r.actualCost, 0), 1)).toFixed(2)}</strong></td>
-        <td><span class="status-pill ${rows.reduce((a, r) => a + r.cv, 0) >= 0 ? "ok" : "bad"}">${rows.reduce((a, r) => a + r.cv, 0) >= 0 ? "On Track" : "Over Budget"}</span></td>
-      </tr>`;
+      ${(() => {
+        const totals = rows.reduce(
+          (acc, row) => {
+            acc.planned += row.plannedCost;
+            acc.actual += row.actualCost;
+            acc.ev += row.ev;
+            acc.cv += row.cv;
+            return acc;
+          },
+          { planned: 0, actual: 0, ev: 0, cv: 0 }
+        );
+        const aggregateCompletePercent = totals.planned ? (totals.ev / totals.planned) * 100 : 0;
+        const aggregateCostUsedPercent = totals.planned ? (totals.actual / totals.planned) * 100 : 0;
+        const aggregateCpi = totals.actual ? totals.ev / totals.actual : 0;
+
+        return `<tr>
+          <td></td>
+          <td><strong>TOTAL</strong></td>
+          <td><strong>${formatCurrency(totals.planned)}</strong></td>
+          <td><strong>${formatCurrency(totals.actual)}</strong></td>
+          <td><strong>${formatCurrency(totals.ev)}</strong></td>
+          <td><strong>${formatPercent(aggregateCompletePercent)}</strong></td>
+          <td><strong>${formatPercent(aggregateCostUsedPercent)}</strong></td>
+          <td><strong>${formatCurrency(totals.cv)}</strong></td>
+          <td><strong>${aggregateCpi.toFixed(2)}</strong></td>
+          <td><span class="status-pill ${totals.cv >= 0 ? "ok" : "bad"}">${totals.cv >= 0 ? "On Track" : "Over Budget"}</span></td>
+        </tr>`;
+      })()}`;
 };
 
 const renderOverrunTable = (rows) => {
@@ -513,7 +529,7 @@ const renderOverrunTable = (rows) => {
     .map(
       (row) => `
       <tr>
-        <td>${row.activity}</td>
+        <td>${escapeHtml(row.activity)}</td>
         <td>${formatCurrency(row.cv)}</td>
         <td>${formatSignedPercent(row.percentComplete - row.costUsedPercent)}</td>
         <td><span class="status-pill bad">Over Budget</span></td>
