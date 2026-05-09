@@ -1498,8 +1498,14 @@ function upsertCostRow(cost) {
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
-  if (columns.createdAt && rowNumber <= 1)
-    rowValues[columns.createdAt - 1] = new Date();
+  if (columns.createdAt) {
+    const createdAtIndex = columns.createdAt - 1;
+    const currentCreatedAt = rowValues[createdAtIndex];
+    const normalizedCreatedAt = normalizeDate(currentCreatedAt);
+    if (!normalizedCreatedAt) {
+      rowValues[createdAtIndex] = new Date();
+    }
+  }
 
   const targetRow =
     rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
