@@ -761,7 +761,14 @@ function upsertDailyCostRow(dailyCost) {
       && cleanText(values[i][columns.costId - 1]) === dailyCost.costId
       && normalizeDate(values[i][columns.date - 1]) === dailyCost.date) { rowNumber = i + 1; break; }
   }
-  var row = new Array(Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length, columns.maxColumn)).fill('');
+  var rowLength = Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length, columns.maxColumn);
+  var existingRow = rowNumber > 1
+    ? sheet.getRange(rowNumber, 1, 1, rowLength).getValues()[0]
+    : [];
+  var row = new Array(rowLength).fill('');
+  for (var existingIndex = 0; existingIndex < existingRow.length; existingIndex += 1) {
+    row[existingIndex] = existingRow[existingIndex];
+  }
   if (columns.projectId) row[columns.projectId - 1] = dailyCost.projectId;
   if (columns.project) row[columns.project - 1] = dailyCost.project;
   if (columns.costId) row[columns.costId - 1] = dailyCost.costId;
@@ -773,7 +780,7 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
   if (columns.earnedValue) row[columns.earnedValue - 1] = dailyCost.earnedValue;
-  if (columns.createdAt) row[columns.createdAt - 1] = new Date();
+  if (columns.createdAt && rowNumber <= 1) row[columns.createdAt - 1] = new Date();
   var targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
   applyDailyCostRowFormats(sheet, targetRow, columns);
@@ -1029,7 +1036,13 @@ function upsertCostRow(cost) {
     }
   }
 
+  const existingRowValues = rowNumber > 1
+    ? sheet.getRange(rowNumber, 1, 1, lastColumn).getValues()[0]
+    : [];
   const rowValues = new Array(lastColumn).fill('');
+  for (let existingIndex = 0; existingIndex < existingRowValues.length; existingIndex += 1) {
+    rowValues[existingIndex] = existingRowValues[existingIndex];
+  }
   if (columns.costId) rowValues[columns.costId - 1] = cost.costId;
   if (columns.projectId) rowValues[columns.projectId - 1] = cost.projectId;
   if (columns.project) rowValues[columns.project - 1] = cost.project;
@@ -1046,7 +1059,7 @@ function upsertCostRow(cost) {
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
-  if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
+  if (columns.createdAt && rowNumber <= 1) rowValues[columns.createdAt - 1] = new Date();
 
   const targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
