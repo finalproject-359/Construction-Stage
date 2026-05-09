@@ -1404,6 +1404,7 @@ function normalizeIncomingCost(input) {
     ),
     activity: cleanText(source.activity || source.activityName),
     duration: parseNumber(source.duration || source.durationDays),
+    progress: parseNumber(source.progress || source.percentComplete || source.percent_complete),
     category:
       cleanText(
         source.category || source.costCategory || source.cost_category,
@@ -1491,6 +1492,7 @@ function upsertCostRow(cost) {
   if (columns.activityId) rowValues[columns.activityId - 1] = cost.activityId;
   if (columns.activity) rowValues[columns.activity - 1] = cost.activity;
   if (columns.duration) rowValues[columns.duration - 1] = cost.duration;
+  if (columns.progress) rowValues[columns.progress - 1] = cost.progress;
   if (columns.plannedCost)
     rowValues[columns.plannedCost - 1] = cost.plannedCost;
   if (columns.plannedCostPerDay)
@@ -1527,6 +1529,8 @@ function applyCostRowFormats(sheet, rowNumber, columns) {
     sheet
       .getRange(rowNumber, columns.plannedCostPerDay)
       .setNumberFormat("#,##0.00");
+  if (columns.progress)
+    sheet.getRange(rowNumber, columns.progress).setNumberFormat("0.00");
   if (columns.actualCost)
     sheet.getRange(rowNumber, columns.actualCost).setNumberFormat("#,##0.00");
   if (columns.earnedValue)
