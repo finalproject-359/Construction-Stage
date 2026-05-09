@@ -988,6 +988,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     });
     saveDailyCosts(nextDailyCosts);
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
+    const resolvedProjectName = String(activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
       alert("Unable to delete daily cost because Project ID is missing.");
       return;
@@ -1055,6 +1056,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       && String(item.date || "") === date
     );
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
+    const resolvedProjectName = String(activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
       alert("Unable to save daily cost because Project ID is missing.");
       return;
@@ -1066,6 +1068,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const earnedValue = Number((activityPlannedCostPerDay * (progress / 100)).toFixed(2));
     const payload = {
       projectId: resolvedProjectId,
+      project: resolvedProjectName,
       costId: activityCostId,
       activityId,
       activity: activityName,
@@ -1084,6 +1087,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       await postToDataSource("daily_costs", dailyCostAction, {
         dailyCost: {
           projectId: resolvedProjectId,
+          project: resolvedProjectName,
           costId: activityCostId,
           activityId,
           activity: activityName,

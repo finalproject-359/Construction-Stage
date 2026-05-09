@@ -56,6 +56,7 @@ const CONFIG = {
     ],
     dailyCosts: [
       'Project ID',
+      'Project Name',
       'Cost ID',
       'Activity ID',
       'Activity',
@@ -602,16 +603,24 @@ function assertCostExists(projectId, costId) {
 
 function normalizeIncomingDailyCost(input) {
   var source = input || {};
-  var plannedCost = parseNumber(source.plannedCost || source.planned_cost || source.plannedValue);
-  var plannedCostPerDay = parseNumber(source.plannedCostPerDay || source.planned_cost_per_day);
-  var progress = parseNumber(source.progress || source.percentComplete || source.percent_complete || source['% Complete']);
-  var explicitEarnedValue = parseNumber(source.earnedValue || source.earned_value || source.ev);
+  var pickFirstDefined = function(candidates) {
+    for (var i = 0; i < candidates.length; i += 1) {
+      if (candidates[i] !== undefined && candidates[i] !== null && candidates[i] !== '') return candidates[i];
+    }
+    return '';
+  };
+
+  var plannedCost = parseNumber(pickFirstDefined([source.plannedCost, source.planned_cost, source.plannedValue]));
+  var plannedCostPerDay = parseNumber(pickFirstDefined([source.plannedCostPerDay, source.planned_cost_per_day]));
+  var progress = roundTo(parseNumber(pickFirstDefined([source.progress, source.percentComplete, source.percent_complete, source['% Complete']])), 2);
+  var explicitEarnedValue = roundTo(parseNumber(pickFirstDefined([source.earnedValue, source.earned_value, source.ev])), 2);
   var computedEarnedValue = plannedCostPerDay > 0 && progress >= 0
-    ? (plannedCostPerDay * (progress / 100))
+    ? roundTo(plannedCostPerDay * (progress / 100), 2)
     : 0;
 
   return {
     projectId: cleanText(source.projectId || source.project_id),
+    project: cleanText(source.project || source.projectName || source.project_name),
     costId: cleanText(source.costId || source.cost_id || source.id || source.activityId || source.activity_id),
     activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId || source.activityRefId || source.activity_ref_id),
     activity: cleanText(source.activity || source.activityName),
@@ -620,7 +629,7 @@ function normalizeIncomingDailyCost(input) {
     progress: progress,
     date: normalizeDate(source.date),
     actualCost: parseNumber(source.actualCost || source.actual_cost || source.amount),
-    earnedValue: explicitEarnedValue > 0 ? explicitEarnedValue : computedEarnedValue,
+    earnedValue: explicitEarnedValue >= 0 ? explicitEarnedValue : computedEarnedValue,
   };
 }
 
@@ -660,6 +669,7 @@ function upsertDailyCostRow(dailyCost) {
   }
   var row = new Array(Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length, columns.maxColumn)).fill('');
   if (columns.projectId) row[columns.projectId - 1] = dailyCost.projectId;
+  if (columns.project) row[columns.project - 1] = dailyCost.project;
   if (columns.costId) row[columns.costId - 1] = dailyCost.costId;
   if (columns.activityId) row[columns.activityId - 1] = dailyCost.activityId;
   if (columns.activity) row[columns.activity - 1] = dailyCost.activity;
@@ -1649,6 +1659,7 @@ function getDailyCostColumnMap(sheet) {
 
   return {
     projectId: indexOfHeader(['Project ID', 'Project']),
+    project: indexOfHeader(['Project Name', 'Project']),
     costId: indexOfHeader(['Cost ID', 'ID']),
     activityId: indexOfHeader(['Activity ID', 'ActivityID', 'Source Activity ID', 'Activity Ref ID', 'Activity Reference ID']),
     activity: indexOfHeader(['Activity', 'Activity Name']),
@@ -1853,6 +1864,7 @@ function normalizeCostRecord(row) {
 function normalizeDailyCostRecord(row) {
   return {
     projectId: cleanText(row['Project ID'] || row['projectId'] || row['project_id']),
+    project: cleanText(row['Project Name'] || row['Project'] || row['project'] || row['projectName']),
     costId: cleanText(row['Cost ID'] || row['costId'] || row['cost_id']),
     activityId: cleanText(row['Activity ID'] || row['activityId'] || row['activity_id'] || row['Source Activity ID'] || row['Activity Ref ID'] || row['Activity Reference ID']),
     activity: cleanText(row['Activity'] || row['activity'] || row['activityName']),
