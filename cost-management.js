@@ -956,13 +956,12 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
   const rows = entries.length
     ? entries.map((entry) => {
-      const actualCostValue = parseBudgetValue(entry.actualCost);
       const progressValue = Number(entry.progress);
-      const normalizedProgress = Number.isFinite(progressValue)
-        ? progressValue
-        : (activityPlannedCost > 0 ? ((actualCostValue / activityPlannedCost) * 100) : 0);
-      const earnedValue = activityPlannedCost * (normalizedProgress / 100);
-      return `<tr><td>${formatHumanDate(entry.date)}</td><td>${normalizedProgress.toFixed(2)}%</td><td>${formatBudget(activityPlannedCostPerDay)}</td><td>${formatBudget(entry.actualCost)}</td><td>${formatBudget(earnedValue)}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`;
+      const hasManualProgress = Number.isFinite(progressValue);
+      const earnedValue = hasManualProgress ? activityPlannedCost * (progressValue / 100) : Number.NaN;
+      const progressLabel = hasManualProgress ? `${progressValue.toFixed(2)}%` : "—";
+      const earnedValueLabel = Number.isFinite(earnedValue) ? formatBudget(earnedValue) : "—";
+      return `<tr><td>${formatHumanDate(entry.date)}</td><td>${progressLabel}</td><td>${formatBudget(activityPlannedCostPerDay)}</td><td>${formatBudget(entry.actualCost)}</td><td>${earnedValueLabel}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`;
     }).join("")
     : '<tr><td colspan="6" class="empty-cell">No daily costs recorded yet.</td></tr>';
   modal.classList.remove("hidden");
