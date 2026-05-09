@@ -750,8 +750,9 @@ function syncCostActualFromDailyCost(projectId, costId) {
 function computeEarnedValue(cost) {
   var explicitEarnedValue = parseNumber(cost && cost.earnedValue);
 
+  var plannedCost = parseNumber(cost && cost.plannedCost);
   var plannedCostPerDay = parseNumber(cost && cost.plannedCostPerDay);
-  if (plannedCostPerDay <= 0) return explicitEarnedValue > 0 ? explicitEarnedValue : 0;
+  if (plannedCost <= 0 && plannedCostPerDay <= 0) return explicitEarnedValue > 0 ? explicitEarnedValue : 0;
 
   var activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
   ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
@@ -785,9 +786,15 @@ function computeEarnedValue(cost) {
     var percent = parseNumber(row[idxPercent]);
     var progressFactor = Math.max(0, Math.min(100, percent)) / 100;
 
-    var recordedDays = countDailyCostRecords(targetProjectId, targetCostId, targetActivityId, targetActivity);
-    if (recordedDays > 0 && progressFactor > 0) {
-      return plannedCostPerDay * recordedDays * progressFactor;
+    if (progressFactor > 0) {
+      if (plannedCost > 0) {
+        return plannedCost * progressFactor;
+      }
+
+      var recordedDays = countDailyCostRecords(targetProjectId, targetCostId, targetActivityId, targetActivity);
+      if (plannedCostPerDay > 0 && recordedDays > 0) {
+        return plannedCostPerDay * recordedDays * progressFactor;
+      }
     }
 
     return explicitEarnedValue > 0 ? explicitEarnedValue : 0;
