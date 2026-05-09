@@ -511,8 +511,12 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
 
   const dedupedDailyCosts = new Map();
   remoteDailyCosts.forEach((item) => {
-    const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${String(item.costId || "").trim()}::${normalizeDateKey(item.date)}`;
-    if (!key || key === "::::") return;
+    const projectId = String(item.projectId || "").trim();
+    const activityId = String(item.activityId || "").trim();
+    const costId = String(item.costId || "").trim();
+    const date = normalizeDateKey(item.date);
+    const key = `${projectId}::${activityId}::${costId}::${date}`;
+    if (!projectId || !date || (!activityId && !costId)) return;
       dedupedDailyCosts.set(key, {
         projectId: String(item.projectId || "").trim(),
         activityId: String(item.activityId || "").trim(),
@@ -987,7 +991,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", async () => {
     const date = String(button.dataset.deleteDate || "");
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
-    const resolvedProjectName = String(activity.project || projectName || "").trim();
+    const resolvedProjectName = String(activity.projectName || activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
       alert("Unable to delete daily cost because Project ID is missing.");
       return;
@@ -1060,7 +1064,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     });
     const existingDailyCost = existingIndex >= 0 ? currentDailyCosts[existingIndex] : null;
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
-    const resolvedProjectName = String(activity.project || projectName || "").trim();
+    const resolvedProjectName = String(activity.projectName || activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
       alert("Unable to save daily cost because Project ID is missing.");
       return;
