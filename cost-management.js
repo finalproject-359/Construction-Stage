@@ -56,13 +56,12 @@ const persistToLocalStorage = (key, value) => {
 let projectsState = loadFromLocalStorageArray(PROJECTS_LOCAL_STORAGE_KEY);
 let costActivitiesState = loadFromLocalStorageArray(COST_ACTIVITIES_LOCAL_STORAGE_KEY)
   .concat(loadFromLocalStorageArray(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY));
-let dailyCostsState = loadFromLocalStorageArray(DAILY_COSTS_LOCAL_STORAGE_KEY);
+let dailyCostsState = [];
 
 const loadProjects = () => projectsState.slice();
 const loadDailyCosts = () => dailyCostsState.slice();
 const saveDailyCosts = (items) => {
   dailyCostsState = Array.isArray(items) ? items.slice() : [];
-  persistToLocalStorage(DAILY_COSTS_LOCAL_STORAGE_KEY, dailyCostsState);
 };
 const postToDataSource = async (resource, action, payload) => {
   const endpoint = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
@@ -497,7 +496,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     })).filter((r) => r.projectId && r.costId && r.date);
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
-    return [];
+    return null;
   }
 };
 
@@ -506,6 +505,9 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
   const remoteDailyCosts = Array.isArray(prefetchedDailyCosts)
     ? prefetchedDailyCosts
     : await loadRemoteDailyCosts(projectFilter);
+
+  if (!Array.isArray(remoteDailyCosts)) return;
+
   const dedupedDailyCosts = new Map();
   remoteDailyCosts.forEach((item) => {
     const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${String(item.costId || "").trim()}::${normalizeDateKey(item.date)}`;
@@ -978,15 +980,6 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", () => modal.classList.add("hidden"));
   modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", async () => {
     const date = String(button.dataset.deleteDate || "");
-    const nextDailyCosts = loadDailyCosts().filter((item) => {
-      if (!isDailyCostForProject(item, projectId, projectName)) return true;
-      const itemDate = String(item.date || "");
-      const entryActivityId = String(item.activityId || "").trim();
-      const entryCostId = String(item.costId || "").trim();
-      const sameActivity = entryActivityId === activityId || (activityCostId && entryCostId === activityCostId);
-      return !(sameActivity && itemDate === date);
-    });
-    saveDailyCosts(nextDailyCosts);
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
     const resolvedProjectName = String(activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
@@ -1082,9 +1075,6 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       actualCost,
       earnedValue,
     };
-    if (existingIndex >= 0) currentDailyCosts[existingIndex] = payload;
-    else currentDailyCosts.push(payload);
-    saveDailyCosts(currentDailyCosts);
     try {
       const dailyCostAction = existingIndex >= 0 ? "update" : "create";
       await postToDataSource("daily_costs", dailyCostAction, {
@@ -1105,14 +1095,6 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       await syncDailyCostsFromSheet({ projectId, projectName });
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
-      const resetDailyCosts = loadDailyCosts().filter((item) => !(
-        isDailyCostForProject(item, projectId, projectName)
-        && String(item.activityId || "").trim() === activityId
-        && String(item.costId || "").trim() === activityCostId
-        && String(item.date || "") === date
-      ));
-      if (existingIndex >= 0) resetDailyCosts.push(payload);
-      saveDailyCosts(resetDailyCosts);
       alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
       return;
     }
