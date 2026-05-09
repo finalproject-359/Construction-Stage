@@ -65,7 +65,7 @@ const CONFIG = {
       'Planned Cost/Day',
       'Date',
       'Actual Cost/Day',
-      'Earned Value',
+      'Earned Value/Day',
       'Created At',
     ],
   },
@@ -1804,7 +1804,7 @@ function getCostColumnMap(sheet) {
     plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
     plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost Per Day']),
     actualCost: indexOfHeader(['Actual Cost/Day', 'Actual Cost', 'Cost', 'Amount']),
-    earnedValue: indexOfHeader(['Earned Value', 'EV']),
+    earnedValue: indexOfHeader(['Earned Value/Day', 'Earned Value', 'EV']),
     notes: indexOfHeader(['Notes', 'Remarks']),
     createdAt: indexOfHeader(['Created At']),
     maxColumn: headers.length,
@@ -1836,7 +1836,7 @@ function getDailyCostColumnMap(sheet) {
     plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost per day', 'Planned Cost Per Day']),
     date: indexOfHeader(['Date']),
     actualCost: indexOfHeader(['Actual Cost/Day', 'Actual Cost', 'Cost', 'Amount']),
-    earnedValue: indexOfHeader(['Earned Value', 'EV']),
+    earnedValue: indexOfHeader(['Earned Value/Day', 'Earned Value', 'EV']),
     createdAt: indexOfHeader(['Created At']),
     maxColumn: headers.length,
   };
@@ -2041,7 +2041,7 @@ function normalizeDailyCostRecord(row) {
     plannedCostPerDay: parseNumber(row['Planned Cost/Day'] || row['plannedCostPerDay'] || row['planned_cost_per_day']),
     date: normalizeDate(row['Date'] || row['date']),
     actualCost: parseNumber(row['Actual Cost/Day'] || row['Actual Cost'] || row['actualCost'] || row['actual_cost']),
-    earnedValue: parseNumber(row['Earned Value'] || row['earnedValue'] || row['earned_value'] || row['EV']),
+    earnedValue: parseNumber(row['Earned Value/Day'] || row['Earned Value'] || row['earnedValue'] || row['earned_value'] || row['EV']),
     createdAt: normalizeDate(row['Created At'] || row['createdAt'] || row['created_at']),
   };
 }
