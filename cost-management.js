@@ -488,12 +488,13 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     return rows.map((row) => ({
       projectId: resolveProjectIdFromDailyCost(row, lookups),
       activityId: String(getValueByAliases(row, ["activityId", "activity_id", "activity id"]) || "").trim(),
+      activity: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id"]) || "").trim(),
       date: normalizeDateKey(getValueByAliases(row, ["date"])),
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
       progress: clampPercent(getValueByAliases(row, ["progress", "percentComplete", "percent_complete", "% complete", "percent complete"])),
       earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
-    })).filter((r) => r.projectId && r.costId && r.date);
+    })).filter((r) => r.projectId && r.date);
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
     return null;
@@ -512,14 +513,15 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
   remoteDailyCosts.forEach((item) => {
     const key = `${String(item.projectId || "").trim()}::${String(item.activityId || "").trim()}::${String(item.costId || "").trim()}::${normalizeDateKey(item.date)}`;
     if (!key || key === "::::") return;
-    dedupedDailyCosts.set(key, {
-      projectId: String(item.projectId || "").trim(),
-      activityId: String(item.activityId || "").trim(),
-      costId: String(item.costId || "").trim(),
-      date: normalizeDateKey(item.date),
-      actualCost: parseBudgetValue(item.actualCost),
-      progress: clampPercent(item.progress),
-      earnedValue: parseBudgetValue(item.earnedValue),
+      dedupedDailyCosts.set(key, {
+        projectId: String(item.projectId || "").trim(),
+        activityId: String(item.activityId || "").trim(),
+        activity: String(item.activity || "").trim(),
+        costId: String(item.costId || "").trim(),
+        date: normalizeDateKey(item.date),
+        actualCost: parseBudgetValue(item.actualCost),
+        progress: clampPercent(item.progress),
+        earnedValue: parseBudgetValue(item.earnedValue),
     });
   });
   saveDailyCosts(Array.from(dedupedDailyCosts.values()));
@@ -958,7 +960,9 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       if (!isDailyCostForProject(item, projectId, normalizedProjectName)) return false;
       const entryActivityId = String(item.activityId || "").trim();
       const entryCostId = String(item.costId || "").trim();
-      return entryActivityId === activityId || (activityCostId && entryCostId === activityCostId);
+      const entryActivityName = String(item.activity || "").trim().toLowerCase();
+      const nameMatches = entryActivityName && entryActivityName === normalizedActivityName;
+      return entryActivityId === activityId || (activityCostId && entryCostId === activityCostId) || nameMatches;
     })
     .filter((item) => parseBudgetValue(item.actualCost) > 0)
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
