@@ -115,6 +115,7 @@ function onEdit(e) {
 }
 
 function handleDailyCostsSheetEdit(sheet, range) {
+  ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
   var columns = getDailyCostColumnMap(sheet);
   var editedColumn = range.getColumn();
   var relevant = [
