@@ -781,7 +781,16 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
   if (columns.earnedValue) row[columns.earnedValue - 1] = dailyCost.earnedValue;
-  if (columns.createdAt && rowNumber <= 1) row[columns.createdAt - 1] = new Date();
+  if (columns.createdAt) {
+    var createdAtIndex = columns.createdAt - 1;
+    var currentCreatedAt = row[createdAtIndex];
+    var normalizedCreatedAt = normalizeDate(currentCreatedAt);
+    // Guard against legacy column drift where non-date values (for example,
+    // Cost IDs like "C1") land in Created At and appear to mutate on refresh.
+    if (!normalizedCreatedAt) {
+      row[createdAtIndex] = new Date();
+    }
+  }
   var targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
   applyDailyCostRowFormats(sheet, targetRow, columns);
