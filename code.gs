@@ -117,7 +117,17 @@ function onEdit(e) {
 function handleDailyCostsSheetEdit(sheet, range) {
   var columns = getDailyCostColumnMap(sheet);
   var editedColumn = range.getColumn();
-  var relevant = [columns.projectId, columns.costId, columns.actualCost, columns.date];
+  var relevant = [
+    columns.projectId,
+    columns.costId,
+    columns.activityId,
+    columns.activity,
+    columns.plannedCost,
+    columns.plannedCostPerDay,
+    columns.progress,
+    columns.actualCost,
+    columns.date,
+  ];
   if (relevant.indexOf(editedColumn) < 0) return;
 
   var row = range.getRow();
@@ -126,7 +136,91 @@ function handleDailyCostsSheetEdit(sheet, range) {
   var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
   var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : '';
   if (!projectId || !costId) return;
+
+  refreshDailyCostRowMetrics(sheet, row, columns);
   syncCostActualFromDailyCost(projectId, costId);
+}
+
+function refreshDailyCostRowMetrics(dailySheet, rowNumber, columns) {
+  var rowValues = dailySheet.getRange(rowNumber, 1, 1, Math.max(dailySheet.getLastColumn(), columns.maxColumn)).getValues()[0];
+  var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
+  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : '';
+  if (!projectId || !costId) return;
+
+  var progress = columns.progress ? parseNumber(rowValues[columns.progress - 1]) : -1;
+  if (progress < 0) {
+    var linkedCost = findCostRecord(projectId, costId);
+    if (linkedCost) {
+      progress = findActivityProgress(projectId, linkedCost.activityId, linkedCost.activity);
+    }
+  }
+
+  var plannedCost = columns.plannedCost ? parseNumber(rowValues[columns.plannedCost - 1]) : 0;
+  var plannedCostPerDay = columns.plannedCostPerDay ? parseNumber(rowValues[columns.plannedCostPerDay - 1]) : 0;
+  var earnedValue = 0;
+
+  if (plannedCost > 0 && progress >= 0) {
+    earnedValue = roundTo(plannedCost * (Math.max(0, Math.min(100, progress)) / 100), 2);
+  } else if (plannedCostPerDay > 0 && progress >= 0) {
+    earnedValue = roundTo(plannedCostPerDay * (Math.max(0, Math.min(100, progress)) / 100), 2);
+  }
+
+  if (columns.progress && progress >= 0) {
+    dailySheet.getRange(rowNumber, columns.progress).setValue(roundTo(progress, 2));
+    dailySheet.getRange(rowNumber, columns.progress).setNumberFormat('0.00');
+  }
+
+  if (columns.earnedValue) {
+    dailySheet.getRange(rowNumber, columns.earnedValue).setValue(earnedValue);
+    dailySheet.getRange(rowNumber, columns.earnedValue).setNumberFormat('#,##0.00');
+  }
+}
+
+function findCostRecord(projectId, costId) {
+  var costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+  var columns = getCostColumnMap(costsSheet);
+  var values = costsSheet.getDataRange().getValues();
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedCostId = cleanText(costId);
+
+  for (var i = 1; i < values.length; i += 1) {
+    if (cleanText(values[i][columns.projectId - 1]) === normalizedProjectId
+      && cleanText(values[i][columns.costId - 1]) === normalizedCostId) {
+      return {
+        activityId: columns.activityId ? cleanText(values[i][columns.activityId - 1]) : '',
+        activity: columns.activity ? cleanText(values[i][columns.activity - 1]) : '',
+      };
+    }
+  }
+
+  return null;
+}
+
+function findActivityProgress(projectId, activityId, activityName) {
+  var activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+  ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
+  var columns = getActivityColumnMap(activitiesSheet);
+  var values = activitiesSheet.getDataRange().getValues();
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedActivityId = cleanText(activityId);
+  var normalizedActivityName = cleanText(activityName);
+
+  for (var i = 1; i < values.length; i += 1) {
+    var rowProjectId = columns.projectId ? cleanText(values[i][columns.projectId - 1]) : '';
+    if (rowProjectId !== normalizedProjectId) continue;
+
+    var rowActivityId = columns.id ? cleanText(values[i][columns.id - 1]) : '';
+    var rowActivityName = columns.name ? cleanText(values[i][columns.name - 1]) : '';
+    var matches = (normalizedActivityId && rowActivityId === normalizedActivityId)
+      || (!normalizedActivityId && normalizedActivityName && rowActivityName === normalizedActivityName)
+      || (normalizedActivityId && !rowActivityId && normalizedActivityName && rowActivityName === normalizedActivityName);
+    if (!matches) continue;
+
+    return parseNumber(columns.percentComplete ? values[i][columns.percentComplete - 1] : 0);
+  }
+
+  return -1;
 }
 
 function handleActivitiesSheetEdit(sheet, range) {
