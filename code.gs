@@ -1546,7 +1546,9 @@ function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
   }
   sheet.getRange(1, 1, 1, targetWidth).setValues([CONFIG.headers.dailyCosts]);
   sheet.getRange(2, 1, Math.max(lastRow - 1, 1), targetWidth).clearContent();
-  sheet.getRange(2, 1, migrated.length, targetWidth).setValues(migrated);
+  if (migrated.length > 0) {
+    sheet.getRange(2, 1, migrated.length, targetWidth).setValues(migrated);
+  }
 }
 
 function normalizeDailyCostsColumnsIfNeeded(sheet) {
@@ -1593,7 +1595,9 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
   }
   sheet.getRange(1, 1, 1, targetWidth).setValues([targetHeaders]);
   sheet.getRange(2, 1, Math.max(lastRow - 1, 1), sourceWidth).clearContent();
-  sheet.getRange(2, 1, rebuiltRows.length, targetWidth).setValues(rebuiltRows);
+  if (rebuiltRows.length > 0) {
+    sheet.getRange(2, 1, rebuiltRows.length, targetWidth).setValues(rebuiltRows);
+  }
 }
 
 function ensureSheetHeaders(sheet, expectedHeaders) {
