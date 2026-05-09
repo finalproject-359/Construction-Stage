@@ -1059,6 +1059,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert("Strict mode: please add a valid Cost ID first before saving daily costs.");
       return;
     }
+    const earnedValue = Number((activityPlannedCostPerDay * (progress / 100)).toFixed(2));
     const payload = {
       projectId: resolvedProjectId,
       costId: activityCostId,
@@ -1069,6 +1070,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       progress,
       date,
       actualCost,
+      earnedValue,
     };
     if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
     else dailyCosts.push(payload);
@@ -1086,6 +1088,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
           progress,
           date,
           actualCost,
+          earnedValue,
         },
       });
       await syncDailyCostsFromSheet({ projectId, projectName });
