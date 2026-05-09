@@ -60,7 +60,7 @@ const CONFIG = {
       "Cost ID",
       "Activity ID",
       "Activity",
-      "Progress",
+      "Progress/Day",
       "Planned Cost",
       "Planned Cost/Day",
       "Date",
@@ -2608,7 +2608,7 @@ function getDailyCostColumnMap(sheet) {
     ]),
     activity: indexOfHeader(["Activity", "Activity Name"]),
     plannedCost: indexOfHeader(["Planned Cost", "Planned Value", "Budget"]),
-    progress: indexOfHeader(["Progress", "% Complete", "Percent Complete"]),
+    progress: indexOfHeader(["Progress/Day", "Progress", "% Complete", "Percent Complete"]),
     plannedCostPerDay: indexOfHeader([
       "Planned Cost/Day",
       "Planned Cost per day",
