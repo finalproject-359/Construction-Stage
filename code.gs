@@ -1533,6 +1533,48 @@ function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
   sheet.getRange(2, 1, migrated.length, targetWidth).setValues(migrated);
 }
 
+function normalizeDailyCostsColumnsIfNeeded(sheet) {
+  const targetHeaders = CONFIG.headers.dailyCosts;
+  const targetWidth = targetHeaders.length;
+  const sourceWidth = Math.max(sheet.getLastColumn(), targetWidth);
+  const headers = sheet.getRange(1, 1, 1, sourceWidth).getValues()[0]
+    .map(function(header) { return normalizeHeader(header); });
+
+  const expectedNormalized = targetHeaders.map(function(header) { return normalizeHeader(header); });
+  const duplicateExpectedHeaderExists = expectedNormalized.some(function(expectedHeader) {
+    return headers.indexOf(expectedHeader) !== headers.lastIndexOf(expectedHeader);
+  });
+
+  if (!duplicateExpectedHeaderExists) return;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    sheet.getRange(1, 1, 1, targetWidth).setValues([targetHeaders]);
+    return;
+  }
+
+  const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
+  const resolvedHeaderIndex = {};
+  expectedNormalized.forEach(function(header) {
+    resolvedHeaderIndex[header] = headers.lastIndexOf(header);
+  });
+
+  const rebuiltRows = values.map(function(row) {
+    return expectedNormalized.map(function(header) {
+      const idx = resolvedHeaderIndex[header];
+      if (idx < 0) return '';
+      return row[idx];
+    });
+  });
+
+  if (sheet.getMaxColumns() < targetWidth) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), targetWidth - sheet.getMaxColumns());
+  }
+  sheet.getRange(1, 1, 1, targetWidth).setValues([targetHeaders]);
+  sheet.getRange(2, 1, Math.max(lastRow - 1, 1), sourceWidth).clearContent();
+  sheet.getRange(2, 1, rebuiltRows.length, targetWidth).setValues(rebuiltRows);
+}
+
 function ensureSheetHeaders(sheet, expectedHeaders) {
   if (!expectedHeaders || !expectedHeaders.length) return;
 
@@ -1541,6 +1583,7 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     && normalizeHeader(expectedHeaders[0]) === normalizeHeader(CONFIG.headers.dailyCosts[0]);
   if (isDailyCostsSheet && isDailyCostsHeaderSet) {
     migrateLegacyDailyCostsLayoutIfNeeded(sheet);
+    normalizeDailyCostsColumnsIfNeeded(sheet);
   }
 
   const normalizeHeaders = function(headers) {
