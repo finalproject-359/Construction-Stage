@@ -1545,8 +1545,11 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
   const duplicateExpectedHeaderExists = expectedNormalized.some(function(expectedHeader) {
     return headers.indexOf(expectedHeader) !== headers.lastIndexOf(expectedHeader);
   });
+  const headerOrderMismatch = expectedNormalized.some(function(expectedHeader, index) {
+    return headers[index] !== expectedHeader;
+  });
 
-  if (!duplicateExpectedHeaderExists) return;
+  if (!duplicateExpectedHeaderExists && !headerOrderMismatch) return;
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
