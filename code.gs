@@ -1354,11 +1354,27 @@ function ensureWorkbookStructure() {
 function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
   const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 11)).getValues()[0];
   const normalized = headers.map(function(header) { return normalizeHeader(header); });
-  const legacySignature = ['project id', 'cost id', 'activity', 'planned cost', 'planned cost/day', 'date', 'actual cost', 'created at', 'actual cost', 'earned value'];
-  const matchesLegacy = legacySignature.every(function(label, index) {
-    return normalized[index] === label;
+  const legacySignatures = [
+    ['project id', 'cost id', 'activity', 'planned cost', 'planned cost/day', 'date', 'actual cost', 'created at', 'actual cost', 'earned value'],
+    ['projectid', 'cost id', 'activity', 'planned cost', 'planned cost/day', 'date', 'actual cost', 'created at', 'actual cost', 'earned value'],
+  ];
+  const signatureMatch = legacySignatures.some(function(signature) {
+    return signature.every(function(label, index) {
+      return normalized[index] === label;
+    });
   });
-  if (!matchesLegacy) return;
+
+  const hasLegacyFieldSet =
+    normalized.indexOf('project id') >= 0 &&
+    normalized.indexOf('cost id') >= 0 &&
+    normalized.indexOf('planned cost/day') >= 0 &&
+    normalized.indexOf('date') >= 0 &&
+    normalized.indexOf('actual cost') >= 0 &&
+    normalized.indexOf('earned value') >= 0 &&
+    normalized.indexOf('progress') < 0 &&
+    normalized.indexOf('activity id') < 0;
+
+  if (!signatureMatch && !hasLegacyFieldSet) return;
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
@@ -1366,7 +1382,7 @@ function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
     return;
   }
 
-  const sourceWidth = Math.max(sheet.getLastColumn(), legacySignature.length);
+  const sourceWidth = Math.max(sheet.getLastColumn(), 11);
   const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
   const migrated = values.map(function(row) {
     const projectId = row[0];
