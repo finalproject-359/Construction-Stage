@@ -1421,6 +1421,28 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   }
 
+  var alignedHeaders = normalizeHeaders(firstRow);
+  for (var alignIndex = 0; alignIndex < expectedHeaders.length; alignIndex += 1) {
+    var expectedNormalizedHeader = normalizedExpected[alignIndex];
+    if (!expectedNormalizedHeader) continue;
+    if (alignedHeaders[alignIndex] === expectedNormalizedHeader) continue;
+
+    var existingIndex = alignedHeaders.indexOf(expectedNormalizedHeader);
+    if (existingIndex >= 0) {
+      sheet.moveColumns(sheet.getRange(1, existingIndex + 1, sheet.getMaxRows(), 1), alignIndex + 1);
+    } else {
+      sheet.insertColumnBefore(alignIndex + 1);
+      maxColumns = expectedHeaders.length;
+      if (sheet.getMaxColumns() < maxColumns) {
+        sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+      }
+    }
+
+    lastColumn = Math.max(sheet.getLastColumn(), expectedHeaders.length);
+    firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+    alignedHeaders = normalizeHeaders(firstRow);
+  }
+
   const normalizedAfter = normalizeHeaders(firstRow);
   const needsHeaderSync = expectedHeaders.some(function(header, idx) {
     return normalizedAfter[idx] !== normalizeHeader(header);
