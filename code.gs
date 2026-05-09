@@ -48,7 +48,7 @@ const CONFIG = {
       "Activity ID",
       "Activity",
       "Duration",
-      "Duration",
+      "Progress",
       "Planned Cost",
       "Actual Cost",
       "Earned Value",
