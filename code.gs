@@ -2260,8 +2260,21 @@ function normalizeDate(value) {
     return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
 
+  var textValue = cleanText(value);
+  var exactIsoDate = textValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (exactIsoDate) {
+    return exactIsoDate[1] + '-' + exactIsoDate[2] + '-' + exactIsoDate[3];
+  }
+
+  var slashDate = textValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slashDate) {
+    var month = ('0' + slashDate[1]).slice(-2);
+    var day = ('0' + slashDate[2]).slice(-2);
+    return slashDate[3] + '-' + month + '-' + day;
+  }
+
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return cleanText(value);
+  if (Number.isNaN(parsed.getTime())) return textValue;
   return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
