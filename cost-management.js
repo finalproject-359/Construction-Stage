@@ -958,7 +958,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     ? entries.map((entry) => {
       const progressValue = Number(entry.progress);
       const hasManualProgress = Number.isFinite(progressValue);
-      const earnedValue = hasManualProgress ? activityPlannedCost * (progressValue / 100) : Number.NaN;
+      const earnedValue = hasManualProgress ? activityPlannedCostPerDay * (progressValue / 100) : Number.NaN;
       const progressLabel = hasManualProgress ? `${progressValue.toFixed(2)}%` : "—";
       const earnedValueLabel = Number.isFinite(earnedValue) ? formatBudget(earnedValue) : "—";
       return `<tr><td>${formatHumanDate(entry.date)}</td><td>${progressLabel}</td><td>${formatBudget(activityPlannedCostPerDay)}</td><td>${formatBudget(entry.actualCost)}</td><td>${earnedValueLabel}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`;
