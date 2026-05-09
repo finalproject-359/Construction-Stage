@@ -1687,9 +1687,16 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     }
   }
 
-  if (needsHeaderSync || hasGapsInsideExpectedRange) {
-    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
-  }
+  if (!needsHeaderSync && !hasGapsInsideExpectedRange) return;
+
+  // Preserve intentional manual header labels while filling blanks.
+  // This prevents automated flows from reverting custom/new header text
+  // back to older static labels in CONFIG.
+  const patchedHeaders = expectedHeaders.map(function(header, idx) {
+    const existingHeader = cleanText(firstRow[idx]);
+    return existingHeader !== '' ? existingHeader : header;
+  });
+  sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([patchedHeaders]);
 }
 
 function normalizeIncomingProject(input) {
