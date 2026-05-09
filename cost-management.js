@@ -1018,6 +1018,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const date = String(formData.get("date") || "");
     const actualCost = parseBudgetValue(formData.get("actualCost"));
     const progress = Number(formData.get("progress"));
+    const currentDailyCosts = loadDailyCosts();
     if (!hasAvailableDates) {
       alert("No valid working dates are available for this activity range.");
       return;
@@ -1049,12 +1050,14 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert("Selected date must be a working day (Monday to Friday and not a holiday).");
       return;
     }
-    const existingIndex = dailyCosts.findIndex((item) =>
-      isDailyCostForProject(item, projectId, projectName)
-      && String(item.activityId || "").trim() === activityId
-      && String(item.costId || "").trim() === activityCostId
-      && String(item.date || "") === date
-    );
+    const existingIndex = currentDailyCosts.findIndex((item) => {
+      if (!isDailyCostForProject(item, projectId, projectName)) return false;
+      const itemDate = String(item.date || "");
+      const itemActivityId = String(item.activityId || "").trim();
+      const itemCostId = String(item.costId || "").trim();
+      const sameActivity = itemActivityId === activityId || (activityCostId && itemCostId === activityCostId);
+      return sameActivity && itemDate === date;
+    });
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
     const resolvedProjectName = String(activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
@@ -1079,9 +1082,9 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       actualCost,
       earnedValue,
     };
-    if (existingIndex >= 0) dailyCosts[existingIndex] = payload;
-    else dailyCosts.push(payload);
-    saveDailyCosts(dailyCosts);
+    if (existingIndex >= 0) currentDailyCosts[existingIndex] = payload;
+    else currentDailyCosts.push(payload);
+    saveDailyCosts(currentDailyCosts);
     try {
       const dailyCostAction = existingIndex >= 0 ? "update" : "create";
       await postToDataSource("daily_costs", dailyCostAction, {
@@ -1108,7 +1111,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         && String(item.costId || "").trim() === activityCostId
         && String(item.date || "") === date
       ));
-      if (existingIndex >= 0) resetDailyCosts.push(dailyCosts[existingIndex]);
+      if (existingIndex >= 0) resetDailyCosts.push(payload);
       saveDailyCosts(resetDailyCosts);
       alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
       return;
