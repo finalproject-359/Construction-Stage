@@ -222,7 +222,7 @@ const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row, index) => {
       const detectedActivityId = normalize(
-        getCell(row, ["activity id", "id", "activity code", "wbs", "task id"]),
+        getCell(row, ["activity id", "activity id/cost id", "cost id", "id", "activity code", "wbs", "task id"]),
         ""
       );
       const activity = normalize(
@@ -776,59 +776,59 @@ const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
 
 const buildRowsFromActivitiesAndCosts = (activities, costs) => {
   const normalizeKey = (value) => String(value || "").trim().toLowerCase();
-  const activityByProjectAndActivityId = new Map();
+  const activitiesList = Array.isArray(activities) ? activities : [];
+  const costsList = Array.isArray(costs) ? costs : [];
+  const aggregatedCostsByProjectAndActivityId = new Map();
 
-  (Array.isArray(activities) ? activities : []).forEach((item) => {
-    const projectId = normalizeKey(item?.projectId || item?.project_id);
-    const activityIds = [
-      item?.activityRefId,
-      item?.activityId,
-      item?.activity_id,
-      item?.id,
-      item?.sourceActivityId,
-      item?.source_activity_id,
-    ]
-      .map((value) => normalizeKey(value))
-      .filter(Boolean);
-
-    if (!projectId || !activityIds.length) return;
-    activityIds.forEach((activityId) => {
-      activityByProjectAndActivityId.set(`${projectId}::${activityId}`, item);
-    });
-  });
-
-  return (Array.isArray(costs) ? costs : []).map((cost) => {
+  costsList.forEach((cost) => {
     const projectIdRaw = String(cost?.projectId || cost?.project_id || "").trim();
     const costActivityIdRaw = String(cost?.activityId || cost?.activity_id || "").trim();
     const costRefIdRaw = String(cost?.activityRefId || cost?.activity_ref_id || "").trim();
     const fallbackCostIdRaw = String(cost?.costId || cost?.cost_id || "").trim();
+    const explicitCostIdRaw = String(cost?.costId || cost?.cost_id || "").trim();
     const activityIdRaw = costActivityIdRaw || costRefIdRaw || fallbackCostIdRaw;
-    const joinedActivity =
-      activityByProjectAndActivityId.get(`${normalizeKey(projectIdRaw)}::${normalizeKey(costActivityIdRaw)}`)
-      || activityByProjectAndActivityId.get(`${normalizeKey(projectIdRaw)}::${normalizeKey(costRefIdRaw)}`)
-      || activityByProjectAndActivityId.get(`${normalizeKey(projectIdRaw)}::${normalizeKey(activityIdRaw)}`);
+    const key = `${normalizeKey(projectIdRaw)}::${normalizeKey(activityIdRaw)}`;
+    if (!normalizeKey(projectIdRaw) || !normalizeKey(activityIdRaw)) return;
+
+    const current = aggregatedCostsByProjectAndActivityId.get(key) || {
+      plannedCost: 0,
+      actualCost: 0,
+      projectName: "",
+      activityName: "",
+      activityIdRaw,
+      costIdRaw: explicitCostIdRaw,
+      projectIdRaw,
+    };
+
+    current.plannedCost += parseNumber(cost?.plannedCost ?? cost?.planned_cost);
+    current.actualCost += parseNumber(cost?.actualCost ?? cost?.actual_cost);
+    current.projectName = current.projectName || String(cost?.project || cost?.projectName || "").trim();
+    current.activityName = current.activityName || String(cost?.activity || cost?.activityName || "").trim();
+    current.costIdRaw = current.costIdRaw || explicitCostIdRaw;
+    aggregatedCostsByProjectAndActivityId.set(key, current);
+  });
+
+  return activitiesList.map((activity) => {
+    const projectIdRaw = String(activity?.projectId || activity?.project_id || "").trim();
+    const activityIdRaw = String(
+      activity?.activityRefId || activity?.activityId || activity?.activity_id || activity?.id || ""
+    ).trim();
+    const key = `${normalizeKey(projectIdRaw)}::${normalizeKey(activityIdRaw)}`;
+    const matchedCost = aggregatedCostsByProjectAndActivityId.get(key);
 
     return {
       "Project ID": projectIdRaw,
-      "Project Name": String(cost?.project || cost?.projectName || "").trim(),
+      "Project Name": String(activity?.project || activity?.projectName || matchedCost?.projectName || "").trim(),
       "Activity ID": activityIdRaw,
+      "Cost ID": matchedCost?.costIdRaw || "",
       Activity: String(
-        cost?.activity
-          || cost?.activityName
-          || joinedActivity?.activity
-          || joinedActivity?.name
-          || (activityIdRaw ? `Activity ${activityIdRaw}` : "Unnamed Activity")
+        activity?.activity || activity?.name || matchedCost?.activityName || (activityIdRaw ? `Activity ${activityIdRaw}` : "Unnamed Activity")
       ).trim(),
-      "Planned Cost": parseNumber(cost?.plannedCost ?? cost?.planned_cost),
-      "Actual Cost": parseNumber(cost?.actualCost ?? cost?.actual_cost),
-      "% Complete": parseNumber(
-        joinedActivity?.progressPercent
-          ?? joinedActivity?.progress
-          ?? joinedActivity?.completion
-          ?? 0
-      ),
-      "Planned Start": joinedActivity?.plannedStart || joinedActivity?.startDate || "",
-      "Planned Finish": joinedActivity?.plannedFinish || joinedActivity?.finishDate || "",
+      "Planned Cost": parseNumber(matchedCost?.plannedCost),
+      "Actual Cost": parseNumber(matchedCost?.actualCost),
+      "% Complete": parseNumber(activity?.progressPercent ?? activity?.progress ?? activity?.completion ?? 0),
+      "Planned Start": activity?.plannedStart || activity?.startDate || "",
+      "Planned Finish": activity?.plannedFinish || activity?.finishDate || "",
     };
   });
 };
