@@ -460,7 +460,7 @@ const renderTable = (rows) => {
 
   if (!rows.length) {
     tableBodyEl.innerHTML =
-      '<tr><td colspan="9" class="placeholder">No valid rows found in data source.</td></tr>';
+      '<tr><td colspan="10" class="placeholder">No valid rows found in data source.</td></tr>';
     return;
   }
 
@@ -468,6 +468,7 @@ const renderTable = (rows) => {
     .map(
       (row) => `
       <tr class="variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}">
+        <td>${escapeHtml(row.activityId || "-")}</td>
         <td>${row.activity}</td>
         <td>${formatCurrency(row.plannedCost)}</td>
         <td>${formatCurrency(row.actualCost)}</td>
@@ -482,6 +483,7 @@ const renderTable = (rows) => {
     )
     .join("") + `
       <tr>
+        <td></td>
         <td><strong>TOTAL</strong></td>
         <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.plannedCost, 0))}</strong></td>
         <td><strong>${formatCurrency(rows.reduce((a, r) => a + r.actualCost, 0))}</strong></td>
