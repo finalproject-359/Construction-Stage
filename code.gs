@@ -1768,7 +1768,7 @@ function getDailyCostColumnMap(sheet) {
   const indexOfHeader = function(candidates) {
     for (var i = 0; i < candidates.length; i += 1) {
       var candidate = normalizeHeader(candidates[i]);
-      var found = headers.indexOf(candidate);
+      var found = headers.lastIndexOf(candidate);
       if (found >= 0) return found + 1;
     }
     return 0;
