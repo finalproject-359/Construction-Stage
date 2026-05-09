@@ -696,7 +696,8 @@ const isActivityForProject = (activity, projectId, projectName = "") => {
 
 const getProjectCostData = (projectId, allActivities = loadCostActivities()) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
-  const projectName = String(project?.name || "").trim().toLowerCase();
+  const projectName = String(project?.name || "").trim();
+  const normalizedProjectName = projectName.toLowerCase();
   const compareActivitiesByStartPriority = (a, b) => {
     const aStart = new Date(a?.startDate || "").getTime();
     const bStart = new Date(b?.startDate || "").getTime();
@@ -714,9 +715,9 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   };
 
   const activities = allActivities
-    .filter((item) => isActivityForProject(item, projectId, projectName))
+    .filter((item) => isActivityForProject(item, projectId, normalizedProjectName))
     .sort(compareActivitiesByStartPriority);
-  const daily = loadDailyCosts().filter((item) => isDailyCostForProject(item, projectId, projectName));
+  const daily = loadDailyCosts().filter((item) => isDailyCostForProject(item, projectId, normalizedProjectName));
   const rawRows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
     const rowCostId = String(activity.costId || "").trim();
@@ -897,16 +898,17 @@ const buildDetailsMarkup = (project, rows) => {
 const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities()) => {
   const modal = detailsView.querySelector("#dailyCostModal");
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
-  const projectName = String(project?.name || "").trim().toLowerCase();
+  const projectName = String(project?.name || "").trim();
+  const normalizedProjectName = projectName.toLowerCase();
   const activities = allActivities;
   const dailyCosts = loadDailyCosts();
-  const activity = activities.find((item) => getActivityRefId(item) === activityId && isActivityForProject(item, projectId, projectName));
+  const activity = activities.find((item) => getActivityRefId(item) === activityId && isActivityForProject(item, projectId, normalizedProjectName));
   if (!modal || !activity) return;
 
   const projectRows = getProjectCostData(projectId, allActivities).rows;
   const normalizedActivityName = String(activity.name || "").trim().toLowerCase();
   const matchingActivityRecords = allActivities.filter((item) => {
-    if (!isActivityForProject(item, projectId, projectName)) return false;
+    if (!isActivityForProject(item, projectId, normalizedProjectName)) return false;
     const itemActivityId = String(getActivityRefId(item) || "").trim();
     const itemName = String(item.name || "").trim().toLowerCase();
     return itemActivityId === activityId || itemName === normalizedActivityName;
@@ -953,7 +955,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
 
   const entries = dailyCosts
     .filter((item) => {
-      if (!isDailyCostForProject(item, projectId, projectName)) return false;
+      if (!isDailyCostForProject(item, projectId, normalizedProjectName)) return false;
       const entryActivityId = String(item.activityId || "").trim();
       const entryCostId = String(item.costId || "").trim();
       return entryActivityId === activityId || (activityCostId && entryCostId === activityCostId);
@@ -993,7 +995,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert(`Unable to delete in strict mode. ${error?.message || "Missing project/cost parent record."}`);
       return;
     }
-    await syncDailyCostsFromSheet({ projectId, projectName });
+    await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
@@ -1044,7 +1046,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       return;
     }
     const existingIndex = currentDailyCosts.findIndex((item) => {
-      if (!isDailyCostForProject(item, projectId, projectName)) return false;
+      if (!isDailyCostForProject(item, projectId, normalizedProjectName)) return false;
       const itemDate = String(item.date || "");
       const itemActivityId = String(item.activityId || "").trim();
       const itemCostId = String(item.costId || "").trim();
@@ -1092,7 +1094,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
           earnedValue,
         },
       });
-      await syncDailyCostsFromSheet({ projectId, projectName });
+      await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
       alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
