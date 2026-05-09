@@ -2382,16 +2382,9 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
 
   if (!needsHeaderSync && !hasGapsInsideExpectedRange) return;
 
-  // Always enforce canonical DailyCosts headers to prevent legacy/custom
-  // labels from reappearing in generated exports.
-  const mustUseExpectedHeaders = isDailyCostsSheet && isDailyCostsHeaderSet;
-  const patchedHeaders = mustUseExpectedHeaders
-    ? expectedHeaders
-    : expectedHeaders.map(function (header, idx) {
-        const existingHeader = cleanText(firstRow[idx]);
-        return existingHeader !== "" ? existingHeader : header;
-      });
-  sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([patchedHeaders]);
+  // Enforce canonical headers whenever a mismatch is detected so column
+  // mapping remains stable for reads/writes from the web app.
+  sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
 }
 
 function normalizeIncomingProject(input) {
