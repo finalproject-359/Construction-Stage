@@ -1010,12 +1010,17 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const formData = new FormData(event.currentTarget);
     const date = String(formData.get("date") || "");
     const actualCost = parseBudgetValue(formData.get("actualCost"));
+    const progress = Number(formData.get("progress"));
     if (!hasAvailableDates) {
       alert("No valid working dates are available for this activity range.");
       return;
     }
     if (!date) {
       alert("Please select a date.");
+      return;
+    }
+    if (Number.isNaN(progress) || progress < 0 || progress > 100) {
+      alert("Progress must be between 0 and 100.");
       return;
     }
     if (actualCost <= 0) {
@@ -1059,6 +1064,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       activity: activityName,
       plannedCost: activityPlannedCost,
       plannedCostPerDay: activityPlannedCostPerDay,
+      progress,
       date,
       actualCost,
     };
@@ -1075,6 +1081,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
           activity: activityName,
           plannedCost: activityPlannedCost,
           plannedCostPerDay: activityPlannedCostPerDay,
+          progress,
           date,
           actualCost,
         },
