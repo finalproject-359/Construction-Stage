@@ -1475,6 +1475,19 @@ function ensureWorkbookStructure() {
 }
 
 
+
+function isHeaderLikeDailyCostsDataRow(row) {
+  if (!row || !row.length) return false;
+  const expected = CONFIG.headers.dailyCosts.map(function(header) { return normalizeHeader(header); });
+  const normalizedRow = row.map(function(value) { return normalizeHeader(value); });
+  let matched = 0;
+  for (var i = 0; i < expected.length; i += 1) {
+    if (!expected[i]) continue;
+    if (normalizedRow[i] === expected[i]) matched += 1;
+  }
+  return matched >= Math.min(expected.length, 6);
+}
+
 function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
   const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 11)).getValues()[0];
   const normalized = headers.map(function(header) { return normalizeHeader(header); });
@@ -1523,6 +1536,8 @@ function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
     // [Project ID, Project Name, Cost ID, Activity ID, Activity, Progress,
     //  Planned Cost, Planned Cost/Day, Date, Actual Cost, Earned Value, Created At]
     return [projectId, '', costId, '', activity, '', plannedCost, plannedCostPerDay, date, actualCost, earnedValue, createdAt];
+  }).filter(function(row) {
+    return !isHeaderLikeDailyCostsDataRow(row);
   });
 
   const targetWidth = CONFIG.headers.dailyCosts.length;
@@ -1569,6 +1584,8 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
       if (idx < 0) return '';
       return row[idx];
     });
+  }).filter(function(row) {
+    return !isHeaderLikeDailyCostsDataRow(row);
   });
 
   if (sheet.getMaxColumns() < targetWidth) {
@@ -1692,13 +1709,15 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
 
   if (!needsHeaderSync && !hasGapsInsideExpectedRange) return;
 
-  // Preserve intentional manual header labels while filling blanks.
-  // This prevents automated flows from reverting custom/new header text
-  // back to older static labels in CONFIG.
-  const patchedHeaders = expectedHeaders.map(function(header, idx) {
-    const existingHeader = cleanText(firstRow[idx]);
-    return existingHeader !== '' ? existingHeader : header;
-  });
+  // Always enforce canonical DailyCosts headers to prevent legacy/custom
+  // labels from reappearing in generated exports.
+  const mustUseExpectedHeaders = isDailyCostsSheet && isDailyCostsHeaderSet;
+  const patchedHeaders = mustUseExpectedHeaders
+    ? expectedHeaders
+    : expectedHeaders.map(function(header, idx) {
+        const existingHeader = cleanText(firstRow[idx]);
+        return existingHeader !== '' ? existingHeader : header;
+      });
   sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([patchedHeaders]);
 }
 
