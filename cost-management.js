@@ -1053,6 +1053,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       const sameActivity = itemActivityId === activityId || (activityCostId && itemCostId === activityCostId);
       return sameActivity && itemDate === date;
     });
+    const existingDailyCost = existingIndex >= 0 ? currentDailyCosts[existingIndex] : null;
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
     const resolvedProjectName = String(activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
@@ -1064,6 +1065,18 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       return;
     }
     const earnedValue = Number((activityPlannedCostPerDay * (progress / 100)).toFixed(2));
+    if (existingDailyCost) {
+      const existingProgress = Number(existingDailyCost.progress);
+      const existingActualCost = Number(existingDailyCost.actualCost);
+      const existingEarnedValue = Number(existingDailyCost.earnedValue);
+      const isSameProgress = Number.isFinite(existingProgress) && Math.abs(existingProgress - progress) < 0.0001;
+      const isSameActualCost = Number.isFinite(existingActualCost) && Math.abs(existingActualCost - actualCost) < 0.0001;
+      const isSameEarnedValue = Number.isFinite(existingEarnedValue) && Math.abs(existingEarnedValue - earnedValue) < 0.0001;
+      if (isSameProgress && isSameActualCost && isSameEarnedValue) {
+        alert("No changes detected for this date. Existing daily cost record is already up to date.");
+        return;
+      }
+    }
     const payload = {
       projectId: resolvedProjectId,
       project: resolvedProjectName,
