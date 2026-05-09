@@ -492,7 +492,9 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id"]) || "").trim(),
       date: normalizeDateKey(getValueByAliases(row, ["date"])),
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
-    })).filter((r) => r.projectId && r.activityId && r.date && parseBudgetValue(r.actualCost) > 0);
+      progress: clampPercent(getValueByAliases(row, ["progress", "percentComplete", "percent_complete", "% complete", "percent complete"])),
+      earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
+    })).filter((r) => r.projectId && r.costId && r.date);
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
     return [];
@@ -514,6 +516,8 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
       costId: String(item.costId || "").trim(),
       date: normalizeDateKey(item.date),
       actualCost: parseBudgetValue(item.actualCost),
+      progress: clampPercent(item.progress),
+      earnedValue: parseBudgetValue(item.earnedValue),
     });
   });
   saveDailyCosts(Array.from(dedupedDailyCosts.values()));
