@@ -59,10 +59,12 @@ const CONFIG = {
       'Cost ID',
       'Activity ID',
       'Activity',
+      'Progress',
       'Planned Cost',
       'Planned Cost/Day',
       'Date',
       'Actual Cost',
+      'Earned Value',
       'Created At',
     ],
   },
@@ -607,8 +609,10 @@ function normalizeIncomingDailyCost(input) {
     activity: cleanText(source.activity || source.activityName),
     plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
     plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
+    progress: parseNumber(source.progress || source.percentComplete || source.percent_complete || source['% Complete']),
     date: normalizeDate(source.date),
     actualCost: parseNumber(source.actualCost || source.actual_cost || source.amount),
+    earnedValue: parseNumber(source.earnedValue || source.earned_value || source.ev),
   };
 }
 
@@ -653,8 +657,10 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.activity) row[columns.activity - 1] = dailyCost.activity;
   if (columns.plannedCost) row[columns.plannedCost - 1] = dailyCost.plannedCost;
   if (columns.plannedCostPerDay) row[columns.plannedCostPerDay - 1] = dailyCost.plannedCostPerDay;
+  if (columns.progress) row[columns.progress - 1] = dailyCost.progress;
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
+  if (columns.earnedValue) row[columns.earnedValue - 1] = dailyCost.earnedValue;
   if (columns.createdAt) row[columns.createdAt - 1] = new Date();
   var targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
@@ -1565,9 +1571,11 @@ function getDailyCostColumnMap(sheet) {
     activityId: indexOfHeader(['Activity ID', 'ActivityID', 'Source Activity ID', 'Activity Ref ID', 'Activity Reference ID']),
     activity: indexOfHeader(['Activity', 'Activity Name']),
     plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
+    progress: indexOfHeader(['Progress', '% Complete', 'Percent Complete']),
     plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost per day', 'Planned Cost Per Day']),
     date: indexOfHeader(['Date']),
     actualCost: indexOfHeader(['Actual Cost', 'Cost', 'Amount']),
+    earnedValue: indexOfHeader(['Earned Value', 'EV']),
     createdAt: indexOfHeader(['Created At']),
     maxColumn: headers.length,
   };
@@ -1767,9 +1775,11 @@ function normalizeDailyCostRecord(row) {
     activityId: cleanText(row['Activity ID'] || row['activityId'] || row['activity_id'] || row['Source Activity ID'] || row['Activity Ref ID'] || row['Activity Reference ID']),
     activity: cleanText(row['Activity'] || row['activity'] || row['activityName']),
     plannedCost: parseNumber(row['Planned Cost'] || row['plannedCost'] || row['planned_cost'] || row['plannedValue']),
+    progress: parseNumber(row['Progress'] || row['progress'] || row['percentComplete'] || row['% Complete']),
     plannedCostPerDay: parseNumber(row['Planned Cost/Day'] || row['plannedCostPerDay'] || row['planned_cost_per_day']),
     date: normalizeDate(row['Date'] || row['date']),
     actualCost: parseNumber(row['Actual Cost'] || row['actualCost'] || row['actual_cost']),
+    earnedValue: parseNumber(row['Earned Value'] || row['earnedValue'] || row['earned_value'] || row['EV']),
     createdAt: normalizeDate(row['Created At'] || row['createdAt'] || row['created_at']),
   };
 }
