@@ -1350,8 +1350,55 @@ function ensureWorkbookStructure() {
   ensureSheetHeaders(dailyCostsSheet, CONFIG.headers.dailyCosts);
 }
 
+
+function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 11)).getValues()[0];
+  const normalized = headers.map(function(header) { return normalizeHeader(header); });
+  const legacySignature = ['project id', 'cost id', 'activity', 'planned cost', 'planned cost/day', 'date', 'actual cost', 'created at', 'actual cost', 'earned value'];
+  const matchesLegacy = legacySignature.every(function(label, index) {
+    return normalized[index] === label;
+  });
+  if (!matchesLegacy) return;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    sheet.getRange(1, 1, 1, CONFIG.headers.dailyCosts.length).setValues([CONFIG.headers.dailyCosts]);
+    return;
+  }
+
+  const sourceWidth = Math.max(sheet.getLastColumn(), legacySignature.length);
+  const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
+  const migrated = values.map(function(row) {
+    const projectId = row[0];
+    const costId = row[1];
+    const activity = row[2];
+    const plannedCost = row[3];
+    const plannedCostPerDay = row[4];
+    const date = row[5];
+    const actualCost = row[6] !== '' ? row[6] : row[8];
+    const createdAt = row[7];
+    const earnedValue = row[9];
+    return [projectId, costId, '', activity, '', plannedCost, plannedCostPerDay, date, actualCost, earnedValue, createdAt];
+  });
+
+  const targetWidth = CONFIG.headers.dailyCosts.length;
+  if (sheet.getMaxColumns() < targetWidth) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), targetWidth - sheet.getMaxColumns());
+  }
+  sheet.getRange(1, 1, 1, targetWidth).setValues([CONFIG.headers.dailyCosts]);
+  sheet.getRange(2, 1, Math.max(lastRow - 1, 1), targetWidth).clearContent();
+  sheet.getRange(2, 1, migrated.length, targetWidth).setValues(migrated);
+}
+
 function ensureSheetHeaders(sheet, expectedHeaders) {
   if (!expectedHeaders || !expectedHeaders.length) return;
+
+  const isDailyCostsSheet = cleanText(sheet.getName()) === cleanText(CONFIG.sheetNames.dailyCosts);
+  const isDailyCostsHeaderSet = expectedHeaders.length === CONFIG.headers.dailyCosts.length
+    && normalizeHeader(expectedHeaders[0]) === normalizeHeader(CONFIG.headers.dailyCosts[0]);
+  if (isDailyCostsSheet && isDailyCostsHeaderSet) {
+    migrateLegacyDailyCostsLayoutIfNeeded(sheet);
+  }
 
   const normalizeHeaders = function(headers) {
     return headers.map(function(header) {
