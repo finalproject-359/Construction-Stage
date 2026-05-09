@@ -9,13 +9,14 @@
  * - Projects
  * - Activities
  * - Costs
+ * - Daily Cost
  */
 const CONFIG = {
   sheetNames: {
     projects: 'Projects',
     activities: 'Activities',
     costs: 'Costs',
-    dailyCosts: 'DailyCosts',
+    dailyCosts: 'Daily Cost',
   },
   headers: {
     projects: [
