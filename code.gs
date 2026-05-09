@@ -1156,6 +1156,8 @@ function syncCostActualFromDailyCost(projectId, costId) {
   var dailyColumns = getDailyCostColumnMap(dailySheet);
   var dailyValues = dailySheet.getDataRange().getValues();
   var totalActualCost = 0;
+  var totalProgress = 0;
+  var totalEarnedValue = 0;
 
   for (var i = 1; i < dailyValues.length; i += 1) {
     if (
@@ -1166,6 +1168,14 @@ function syncCostActualFromDailyCost(projectId, costId) {
       totalActualCost += parseNumber(
         dailyValues[i][dailyColumns.actualCost - 1],
       );
+      if (dailyColumns.progress) {
+        totalProgress += parseNumber(dailyValues[i][dailyColumns.progress - 1]);
+      }
+      if (dailyColumns.earnedValue) {
+        totalEarnedValue += parseNumber(
+          dailyValues[i][dailyColumns.earnedValue - 1],
+        );
+      }
     }
   }
 
@@ -1173,6 +1183,12 @@ function syncCostActualFromDailyCost(projectId, costId) {
   ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
   var costColumns = getCostColumnMap(costsSheet);
   var costValues = costsSheet.getDataRange().getValues();
+  var costHeaders = costValues.length
+    ? costValues[0].map(function (cell) {
+        return normalizeHeader(cell);
+      })
+    : [];
+  var costProgressColumn = costHeaders.indexOf(normalizeHeader("Progress")) + 1;
 
   for (var rowIndex = 1; rowIndex < costValues.length; rowIndex += 1) {
     if (
@@ -1189,29 +1205,18 @@ function syncCostActualFromDailyCost(projectId, costId) {
         costsSheet
           .getRange(targetRow, costColumns.actualCost)
           .setNumberFormat("#,##0.00");
+        if (costProgressColumn > 0) {
+          costsSheet.getRange(targetRow, costProgressColumn).setValue(
+            roundTo(totalProgress, 2),
+          );
+          costsSheet
+            .getRange(targetRow, costProgressColumn)
+            .setNumberFormat("0.00");
+        }
         if (costColumns.earnedValue) {
-          var currentCost = {
-            projectId: normalizedProjectId,
-            costId: normalizedCostId,
-            activityId: costColumns.activityId
-              ? cleanText(costValues[rowIndex][costColumns.activityId - 1])
-              : "",
-            activity: costColumns.activity
-              ? cleanText(costValues[rowIndex][costColumns.activity - 1])
-              : "",
-            plannedCost: costColumns.plannedCost
-              ? parseNumber(costValues[rowIndex][costColumns.plannedCost - 1])
-              : 0,
-            plannedCostPerDay: costColumns.plannedCostPerDay
-              ? parseNumber(
-                  costValues[rowIndex][costColumns.plannedCostPerDay - 1],
-                )
-              : 0,
-          };
-          var earnedValue = Number(computeEarnedValue(currentCost)) || 0;
           costsSheet
             .getRange(targetRow, costColumns.earnedValue)
-            .setValue(earnedValue);
+            .setValue(roundTo(totalEarnedValue, 2));
           costsSheet
             .getRange(targetRow, costColumns.earnedValue)
             .setNumberFormat("#,##0.00");
@@ -1262,6 +1267,8 @@ function syncCostActualFromDailyCost(projectId, costId) {
         ? parseNumber(latestDailyRecord[dailyColumns.plannedCostPerDay - 1])
         : 0,
     actualCost: totalActualCost,
+    progress: roundTo(totalProgress, 2),
+    earnedValue: roundTo(totalEarnedValue, 2),
     date:
       costColumns.date && dailyColumns.date
         ? normalizeDate(latestDailyRecord[dailyColumns.date - 1])
