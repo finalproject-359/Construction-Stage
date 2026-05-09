@@ -1010,9 +1010,10 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   modal.querySelector("#dailyCostForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const date = String(formData.get("date") || "");
+    const date = normalizeDateKey(formData.get("date"));
+    const rawProgress = String(formData.get("progress") || "").trim();
     const actualCost = parseBudgetValue(formData.get("actualCost"));
-    const progress = Number(formData.get("progress"));
+    const progress = rawProgress === "" ? Number.NaN : Number(rawProgress);
     const currentDailyCosts = loadDailyCosts();
     if (!hasAvailableDates) {
       alert("No valid working dates are available for this activity range.");
@@ -1077,19 +1078,6 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         return;
       }
     }
-    const payload = {
-      projectId: resolvedProjectId,
-      project: resolvedProjectName,
-      costId: activityCostId,
-      activityId,
-      activity: activityName,
-      plannedCost: activityPlannedCost,
-      plannedCostPerDay: activityPlannedCostPerDay,
-      progress,
-      date,
-      actualCost,
-      earnedValue,
-    };
     try {
       const dailyCostAction = existingIndex >= 0 ? "update" : "create";
       await postToDataSource("daily_costs", dailyCostAction, {
