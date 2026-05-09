@@ -12,61 +12,61 @@
  */
 const CONFIG = {
   sheetNames: {
-    projects: 'Projects',
-    activities: 'Activities',
-    costs: 'Costs',
-    dailyCosts: 'DailyCosts',
+    projects: "Projects",
+    activities: "Activities",
+    costs: "Costs",
+    dailyCosts: "DailyCosts",
   },
   headers: {
     projects: [
-      'Project ID',
-      'Project Name',
-      'Project Type',
-      'Status',
-      'Location',
-      'Start Date',
-      'Finish Date',
-      'Budget',
-      'Created At',
+      "Project ID",
+      "Project Name",
+      "Project Type",
+      "Status",
+      "Location",
+      "Start Date",
+      "Finish Date",
+      "Budget",
+      "Created At",
     ],
     activities: [
-      'Project ID',
-      'Project Name',
-      'Activity ID',
-      'Activity',
-      'Planned Start',
-      'Planned Finish',
-      'Duration',
-      'Status',
-      '% Complete',
-      'Notes',
+      "Project ID",
+      "Project Name",
+      "Activity ID",
+      "Activity",
+      "Planned Start",
+      "Planned Finish",
+      "Duration",
+      "Status",
+      "% Complete",
+      "Notes",
     ],
     costs: [
-      'Project ID',
-      'Project Name',
-      'Cost ID',
-      'Activity ID',
-      'Activity',
-      'Duration',
-      'Planned Cost',
-      'Planned Cost/Day',
-      'Actual Cost/Day',
-      'Earned Value',
-      'Created At',
+      "Project ID",
+      "Project Name",
+      "Cost ID",
+      "Activity ID",
+      "Activity",
+      "Duration",
+      "Planned Cost",
+      "Planned Cost/Day",
+      "Actual Cost/Day",
+      "Earned Value",
+      "Created At",
     ],
     dailyCosts: [
-      'Project ID',
-      'Project Name',
-      'Cost ID',
-      'Activity ID',
-      'Activity',
-      'Progress',
-      'Planned Cost',
-      'Planned Cost/Day',
-      'Date',
-      'Actual Cost/Day',
-      'Earned Value/Day',
-      'Created At',
+      "Project ID",
+      "Project Name",
+      "Cost ID",
+      "Activity ID",
+      "Activity",
+      "Progress",
+      "Planned Cost",
+      "Planned Cost/Day",
+      "Date",
+      "Actual Cost/Day",
+      "Earned Value/Day",
+      "Created At",
     ],
   },
 };
@@ -76,10 +76,12 @@ function doGet(e) {
   const payloadParam = params.payload;
   let payload = payloadParam ? safeParseJson(payloadParam) : {};
 
-  if (!payload || typeof payload !== 'object') payload = {};
-  payload.resource = payload.resource || params.resource || params.view || params.type;
+  if (!payload || typeof payload !== "object") payload = {};
+  payload.resource =
+    payload.resource || params.resource || params.view || params.type;
   payload.action = payload.action || params.action;
-  payload.projectId = payload.projectId || params.projectId || params.project_id;
+  payload.projectId =
+    payload.projectId || params.projectId || params.project_id;
 
   return handleRequest(payload);
 }
@@ -110,7 +112,9 @@ function onEdit(e) {
       handleCostsSheetEdit(sheet, range);
     }
   } catch (error) {
-    Logger.log('onEdit error: ' + (error && error.message ? error.message : error));
+    Logger.log(
+      "onEdit error: " + (error && error.message ? error.message : error),
+    );
   }
 }
 
@@ -133,9 +137,13 @@ function handleDailyCostsSheetEdit(sheet, range) {
 
   var row = range.getRow();
   if (row <= 1) return;
-  var rowValues = sheet.getRange(row, 1, 1, Math.max(sheet.getLastColumn(), columns.maxColumn)).getValues()[0];
-  var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
-  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : '';
+  var rowValues = sheet
+    .getRange(row, 1, 1, Math.max(sheet.getLastColumn(), columns.maxColumn))
+    .getValues()[0];
+  var projectId = columns.projectId
+    ? cleanText(rowValues[columns.projectId - 1])
+    : "";
+  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : "";
   if (!projectId || !costId) return;
 
   refreshDailyCostRowMetrics(sheet, row, columns);
@@ -143,37 +151,66 @@ function handleDailyCostsSheetEdit(sheet, range) {
 }
 
 function refreshDailyCostRowMetrics(dailySheet, rowNumber, columns) {
-  var rowValues = dailySheet.getRange(rowNumber, 1, 1, Math.max(dailySheet.getLastColumn(), columns.maxColumn)).getValues()[0];
-  var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
-  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : '';
+  var rowValues = dailySheet
+    .getRange(
+      rowNumber,
+      1,
+      1,
+      Math.max(dailySheet.getLastColumn(), columns.maxColumn),
+    )
+    .getValues()[0];
+  var projectId = columns.projectId
+    ? cleanText(rowValues[columns.projectId - 1])
+    : "";
+  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : "";
   if (!projectId || !costId) return;
 
-  var progress = columns.progress ? parseNumber(rowValues[columns.progress - 1]) : -1;
+  var progress = columns.progress
+    ? parseNumber(rowValues[columns.progress - 1])
+    : -1;
   if (progress < 0) {
     var linkedCost = findCostRecord(projectId, costId);
     if (linkedCost) {
-      progress = findActivityProgress(projectId, linkedCost.activityId, linkedCost.activity);
+      progress = findActivityProgress(
+        projectId,
+        linkedCost.activityId,
+        linkedCost.activity,
+      );
     }
   }
 
-  var plannedCost = columns.plannedCost ? parseNumber(rowValues[columns.plannedCost - 1]) : 0;
-  var plannedCostPerDay = columns.plannedCostPerDay ? parseNumber(rowValues[columns.plannedCostPerDay - 1]) : 0;
+  var plannedCost = columns.plannedCost
+    ? parseNumber(rowValues[columns.plannedCost - 1])
+    : 0;
+  var plannedCostPerDay = columns.plannedCostPerDay
+    ? parseNumber(rowValues[columns.plannedCostPerDay - 1])
+    : 0;
   var earnedValue = 0;
 
   if (plannedCost > 0 && progress >= 0) {
-    earnedValue = roundTo(plannedCost * (Math.max(0, Math.min(100, progress)) / 100), 2);
+    earnedValue = roundTo(
+      plannedCost * (Math.max(0, Math.min(100, progress)) / 100),
+      2,
+    );
   } else if (plannedCostPerDay > 0 && progress >= 0) {
-    earnedValue = roundTo(plannedCostPerDay * (Math.max(0, Math.min(100, progress)) / 100), 2);
+    earnedValue = roundTo(
+      plannedCostPerDay * (Math.max(0, Math.min(100, progress)) / 100),
+      2,
+    );
   }
 
   if (columns.progress && progress >= 0) {
-    dailySheet.getRange(rowNumber, columns.progress).setValue(roundTo(progress, 2));
-    dailySheet.getRange(rowNumber, columns.progress).setNumberFormat('0.00');
+    dailySheet
+      .getRange(rowNumber, columns.progress)
+      .setValue(roundTo(progress, 2));
+    dailySheet.getRange(rowNumber, columns.progress).setNumberFormat("0.00");
   }
 
   if (columns.earnedValue) {
     dailySheet.getRange(rowNumber, columns.earnedValue).setValue(earnedValue);
-    dailySheet.getRange(rowNumber, columns.earnedValue).setNumberFormat('#,##0.00');
+    dailySheet
+      .getRange(rowNumber, columns.earnedValue)
+      .setNumberFormat("#,##0.00");
   }
 }
 
@@ -186,11 +223,17 @@ function findCostRecord(projectId, costId) {
   var normalizedCostId = cleanText(costId);
 
   for (var i = 1; i < values.length; i += 1) {
-    if (cleanText(values[i][columns.projectId - 1]) === normalizedProjectId
-      && cleanText(values[i][columns.costId - 1]) === normalizedCostId) {
+    if (
+      cleanText(values[i][columns.projectId - 1]) === normalizedProjectId &&
+      cleanText(values[i][columns.costId - 1]) === normalizedCostId
+    ) {
       return {
-        activityId: columns.activityId ? cleanText(values[i][columns.activityId - 1]) : '',
-        activity: columns.activity ? cleanText(values[i][columns.activity - 1]) : '',
+        activityId: columns.activityId
+          ? cleanText(values[i][columns.activityId - 1])
+          : "",
+        activity: columns.activity
+          ? cleanText(values[i][columns.activity - 1])
+          : "",
       };
     }
   }
@@ -208,17 +251,29 @@ function findActivityProgress(projectId, activityId, activityName) {
   var normalizedActivityName = cleanText(activityName);
 
   for (var i = 1; i < values.length; i += 1) {
-    var rowProjectId = columns.projectId ? cleanText(values[i][columns.projectId - 1]) : '';
+    var rowProjectId = columns.projectId
+      ? cleanText(values[i][columns.projectId - 1])
+      : "";
     if (rowProjectId !== normalizedProjectId) continue;
 
-    var rowActivityId = columns.id ? cleanText(values[i][columns.id - 1]) : '';
-    var rowActivityName = columns.name ? cleanText(values[i][columns.name - 1]) : '';
-    var matches = (normalizedActivityId && rowActivityId === normalizedActivityId)
-      || (!normalizedActivityId && normalizedActivityName && rowActivityName === normalizedActivityName)
-      || (normalizedActivityId && !rowActivityId && normalizedActivityName && rowActivityName === normalizedActivityName);
+    var rowActivityId = columns.id ? cleanText(values[i][columns.id - 1]) : "";
+    var rowActivityName = columns.name
+      ? cleanText(values[i][columns.name - 1])
+      : "";
+    var matches =
+      (normalizedActivityId && rowActivityId === normalizedActivityId) ||
+      (!normalizedActivityId &&
+        normalizedActivityName &&
+        rowActivityName === normalizedActivityName) ||
+      (normalizedActivityId &&
+        !rowActivityId &&
+        normalizedActivityName &&
+        rowActivityName === normalizedActivityName);
     if (!matches) continue;
 
-    return parseNumber(columns.percentComplete ? values[i][columns.percentComplete - 1] : 0);
+    return parseNumber(
+      columns.percentComplete ? values[i][columns.percentComplete - 1] : 0,
+    );
   }
 
   return -1;
@@ -227,15 +282,24 @@ function findActivityProgress(projectId, activityId, activityName) {
 function handleActivitiesSheetEdit(sheet, range) {
   var columns = getActivityColumnMap(sheet);
   var editedColumn = range.getColumn();
-  var relevant = [columns.id, columns.name, columns.percentComplete, columns.projectId];
+  var relevant = [
+    columns.id,
+    columns.name,
+    columns.percentComplete,
+    columns.projectId,
+  ];
   if (relevant.indexOf(editedColumn) < 0) return;
 
   var row = range.getRow();
   if (row <= 1) return;
-  var rowValues = sheet.getRange(row, 1, 1, Math.max(sheet.getLastColumn(), columns.maxColumn)).getValues()[0];
-  var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
-  var activityId = columns.id ? cleanText(rowValues[columns.id - 1]) : '';
-  var activityName = columns.name ? cleanText(rowValues[columns.name - 1]) : '';
+  var rowValues = sheet
+    .getRange(row, 1, 1, Math.max(sheet.getLastColumn(), columns.maxColumn))
+    .getValues()[0];
+  var projectId = columns.projectId
+    ? cleanText(rowValues[columns.projectId - 1])
+    : "";
+  var activityId = columns.id ? cleanText(rowValues[columns.id - 1]) : "";
+  var activityName = columns.name ? cleanText(rowValues[columns.name - 1]) : "";
   if (!projectId || (!activityId && !activityName)) return;
   syncEarnedValueForActivity(projectId, activityId, activityName);
 }
@@ -243,7 +307,14 @@ function handleActivitiesSheetEdit(sheet, range) {
 function handleCostsSheetEdit(sheet, range) {
   var columns = getCostColumnMap(sheet);
   var editedColumn = range.getColumn();
-  var relevant = [columns.projectId, columns.costId, columns.activityId, columns.activity, columns.plannedCost, columns.actualCost];
+  var relevant = [
+    columns.projectId,
+    columns.costId,
+    columns.activityId,
+    columns.activity,
+    columns.plannedCost,
+    columns.actualCost,
+  ];
   if (relevant.indexOf(editedColumn) < 0) return;
 
   var row = range.getRow();
@@ -252,24 +323,45 @@ function handleCostsSheetEdit(sheet, range) {
 }
 
 function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
-  var rowValues = costsSheet.getRange(rowNumber, 1, 1, Math.max(costsSheet.getLastColumn(), columns.maxColumn)).getValues()[0];
-  var projectId = columns.projectId ? cleanText(rowValues[columns.projectId - 1]) : '';
-  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : '';
+  var rowValues = costsSheet
+    .getRange(
+      rowNumber,
+      1,
+      1,
+      Math.max(costsSheet.getLastColumn(), columns.maxColumn),
+    )
+    .getValues()[0];
+  var projectId = columns.projectId
+    ? cleanText(rowValues[columns.projectId - 1])
+    : "";
+  var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : "";
   if (!projectId || !costId) return;
 
   var cost = {
     projectId: projectId,
     costId: costId,
-    activityId: columns.activityId ? cleanText(rowValues[columns.activityId - 1]) : '',
-    activity: columns.activity ? cleanText(rowValues[columns.activity - 1]) : '',
-    plannedCost: columns.plannedCost ? parseNumber(rowValues[columns.plannedCost - 1]) : 0,
-    earnedValue: columns.earnedValue ? parseNumber(rowValues[columns.earnedValue - 1]) : 0,
+    activityId: columns.activityId
+      ? cleanText(rowValues[columns.activityId - 1])
+      : "",
+    activity: columns.activity
+      ? cleanText(rowValues[columns.activity - 1])
+      : "",
+    plannedCost: columns.plannedCost
+      ? parseNumber(rowValues[columns.plannedCost - 1])
+      : 0,
+    earnedValue: columns.earnedValue
+      ? parseNumber(rowValues[columns.earnedValue - 1])
+      : 0,
   };
 
   if (columns.earnedValue) {
     var computedEarnedValue = Number(computeEarnedValue(cost)) || 0;
-    costsSheet.getRange(rowNumber, columns.earnedValue).setValue(computedEarnedValue);
-    costsSheet.getRange(rowNumber, columns.earnedValue).setNumberFormat('#,##0.00');
+    costsSheet
+      .getRange(rowNumber, columns.earnedValue)
+      .setValue(computedEarnedValue);
+    costsSheet
+      .getRange(rowNumber, columns.earnedValue)
+      .setNumberFormat("#,##0.00");
   }
 
   syncCostActualFromDailyCost(projectId, costId);
@@ -279,7 +371,11 @@ function syncEarnedValueForActivity(projectId, activityId, activityName) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedActivityId = cleanText(activityId);
   var normalizedActivityName = cleanText(activityName);
-  if (!normalizedProjectId || (!normalizedActivityId && !normalizedActivityName)) return;
+  if (
+    !normalizedProjectId ||
+    (!normalizedActivityId && !normalizedActivityName)
+  )
+    return;
 
   var costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
   ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
@@ -288,14 +384,26 @@ function syncEarnedValueForActivity(projectId, activityId, activityName) {
 
   for (var i = 1; i < values.length; i += 1) {
     var row = values[i];
-    var rowProjectId = columns.projectId ? cleanText(row[columns.projectId - 1]) : '';
+    var rowProjectId = columns.projectId
+      ? cleanText(row[columns.projectId - 1])
+      : "";
     if (rowProjectId !== normalizedProjectId) continue;
 
-    var rowActivityId = columns.activityId ? cleanText(row[columns.activityId - 1]) : '';
-    var rowActivityName = columns.activity ? cleanText(row[columns.activity - 1]) : '';
-    var matches = (normalizedActivityId && rowActivityId === normalizedActivityId)
-      || (!normalizedActivityId && normalizedActivityName && rowActivityName === normalizedActivityName)
-      || (normalizedActivityId && !rowActivityId && normalizedActivityName && rowActivityName === normalizedActivityName);
+    var rowActivityId = columns.activityId
+      ? cleanText(row[columns.activityId - 1])
+      : "";
+    var rowActivityName = columns.activity
+      ? cleanText(row[columns.activity - 1])
+      : "";
+    var matches =
+      (normalizedActivityId && rowActivityId === normalizedActivityId) ||
+      (!normalizedActivityId &&
+        normalizedActivityName &&
+        rowActivityName === normalizedActivityName) ||
+      (normalizedActivityId &&
+        !rowActivityId &&
+        normalizedActivityName &&
+        rowActivityName === normalizedActivityName);
     if (!matches) continue;
 
     refreshCostRowMetrics(costsSheet, i + 1, columns);
@@ -305,40 +413,44 @@ function syncEarnedValueForActivity(projectId, activityId, activityName) {
 function handleRequest(payload) {
   try {
     const source = payload || {};
-    const resource = normalizeResource(source.resource || 'dashboard');
+    const resource = normalizeResource(source.resource || "dashboard");
     const action = cleanText(source.action).toLowerCase();
 
     if (action) {
-      if (resource === 'projects') {
+      if (resource === "projects") {
         const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
         ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
         return handleProjectMutation(action, source);
       }
 
-      if (resource === 'activities') {
+      if (resource === "activities") {
         const activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
         ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
         return handleActivityMutation(action, source);
       }
 
-      if (resource === 'costs') {
+      if (resource === "costs") {
         const costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
         ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
         return handleCostMutation(action, source);
       }
 
-      if (resource === 'daily_costs') {
+      if (resource === "daily_costs") {
         const dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
         ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
         return handleDailyCostMutation(action, source);
       }
 
-      throw new Error('Only "projects", "activities", "costs", and "daily_costs" are supported for mutations.');
+      throw new Error(
+        'Only "projects", "activities", "costs", and "daily_costs" are supported for mutations.',
+      );
     }
 
     const projectFilter = {
-      id: cleanText(source.projectId || source.project_id || ''),
-      name: cleanText(source.project || source.projectName || source.project_name || ''),
+      id: cleanText(source.projectId || source.project_id || ""),
+      name: cleanText(
+        source.project || source.projectName || source.project_name || "",
+      ),
     };
 
     const allData = loadDataByResource(resource);
@@ -357,7 +469,8 @@ function handleRequest(payload) {
       all: buildAllPayload(filtered),
     };
 
-    const responsePayload = payloadByResource[resource] || payloadByResource.dashboard;
+    const responsePayload =
+      payloadByResource[resource] || payloadByResource.dashboard;
 
     return jsonResponse({
       ok: true,
@@ -369,7 +482,10 @@ function handleRequest(payload) {
   } catch (error) {
     return jsonResponse({
       ok: false,
-      error: error && error.message ? error.message : 'Unexpected error while processing request.',
+      error:
+        error && error.message
+          ? error.message
+          : "Unexpected error while processing request.",
       generatedAt: new Date().toISOString(),
     });
   }
@@ -389,67 +505,156 @@ function loadDataByResource(resource) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const bundle = createEmptyDataBundle();
 
-  const readResource = function(targetKey, sheetName, expectedHeaders, normalizer) {
+  const readResource = function (
+    targetKey,
+    sheetName,
+    expectedHeaders,
+    normalizer,
+  ) {
     const result = readSheetRows(ss, sheetName, expectedHeaders);
     bundle[targetKey] = result.rows.map(normalizer);
     bundle.sheets[targetKey] = result.meta;
   };
 
-  if (resource === 'projects') {
-    readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
+  if (resource === "projects") {
+    readResource(
+      "projects",
+      CONFIG.sheetNames.projects,
+      CONFIG.headers.projects,
+      normalizeProjectRecord,
+    );
     return bundle;
   }
 
-  if (resource === 'activities') {
-    readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
+  if (resource === "activities") {
+    readResource(
+      "activities",
+      CONFIG.sheetNames.activities,
+      CONFIG.headers.activities,
+      normalizeActivityRecord,
+    );
     return bundle;
   }
 
-  if (resource === 'dashboard') {
-    readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
-    readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
-    readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
-    readResource('dailyCosts', CONFIG.sheetNames.dailyCosts, CONFIG.headers.dailyCosts, normalizeDailyCostRecord);
+  if (resource === "dashboard") {
+    readResource(
+      "projects",
+      CONFIG.sheetNames.projects,
+      CONFIG.headers.projects,
+      normalizeProjectRecord,
+    );
+    readResource(
+      "activities",
+      CONFIG.sheetNames.activities,
+      CONFIG.headers.activities,
+      normalizeActivityRecord,
+    );
+    readResource(
+      "costs",
+      CONFIG.sheetNames.costs,
+      CONFIG.headers.costs,
+      normalizeCostRecord,
+    );
+    readResource(
+      "dailyCosts",
+      CONFIG.sheetNames.dailyCosts,
+      CONFIG.headers.dailyCosts,
+      normalizeDailyCostRecord,
+    );
     return bundle;
   }
 
-  if (resource === 'costs') {
-    readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
+  if (resource === "costs") {
+    readResource(
+      "costs",
+      CONFIG.sheetNames.costs,
+      CONFIG.headers.costs,
+      normalizeCostRecord,
+    );
     return bundle;
   }
 
-  if (resource === 'daily_costs') {
-    readResource('dailyCosts', CONFIG.sheetNames.dailyCosts, CONFIG.headers.dailyCosts, normalizeDailyCostRecord);
+  if (resource === "daily_costs") {
+    readResource(
+      "dailyCosts",
+      CONFIG.sheetNames.dailyCosts,
+      CONFIG.headers.dailyCosts,
+      normalizeDailyCostRecord,
+    );
     return bundle;
   }
 
-  if (resource === 'reports' || resource === 'all') {
-    readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
-    readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
-    readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
-    readResource('dailyCosts', CONFIG.sheetNames.dailyCosts, CONFIG.headers.dailyCosts, normalizeDailyCostRecord);
+  if (resource === "reports" || resource === "all") {
+    readResource(
+      "projects",
+      CONFIG.sheetNames.projects,
+      CONFIG.headers.projects,
+      normalizeProjectRecord,
+    );
+    readResource(
+      "activities",
+      CONFIG.sheetNames.activities,
+      CONFIG.headers.activities,
+      normalizeActivityRecord,
+    );
+    readResource(
+      "costs",
+      CONFIG.sheetNames.costs,
+      CONFIG.headers.costs,
+      normalizeCostRecord,
+    );
+    readResource(
+      "dailyCosts",
+      CONFIG.sheetNames.dailyCosts,
+      CONFIG.headers.dailyCosts,
+      normalizeDailyCostRecord,
+    );
     return bundle;
   }
 
-  readResource('projects', CONFIG.sheetNames.projects, CONFIG.headers.projects, normalizeProjectRecord);
-  readResource('activities', CONFIG.sheetNames.activities, CONFIG.headers.activities, normalizeActivityRecord);
-  readResource('costs', CONFIG.sheetNames.costs, CONFIG.headers.costs, normalizeCostRecord);
-  readResource('dailyCosts', CONFIG.sheetNames.dailyCosts, CONFIG.headers.dailyCosts, normalizeDailyCostRecord);
+  readResource(
+    "projects",
+    CONFIG.sheetNames.projects,
+    CONFIG.headers.projects,
+    normalizeProjectRecord,
+  );
+  readResource(
+    "activities",
+    CONFIG.sheetNames.activities,
+    CONFIG.headers.activities,
+    normalizeActivityRecord,
+  );
+  readResource(
+    "costs",
+    CONFIG.sheetNames.costs,
+    CONFIG.headers.costs,
+    normalizeCostRecord,
+  );
+  readResource(
+    "dailyCosts",
+    CONFIG.sheetNames.dailyCosts,
+    CONFIG.headers.dailyCosts,
+    normalizeDailyCostRecord,
+  );
   return bundle;
 }
 
 function handleProjectMutation(action, payload) {
-  if (action === 'create') {
+  if (action === "create") {
     const project = normalizeIncomingProject(payload.project || payload);
     if (!project.name || !project.id) {
-      throw new Error('Project Name and Project ID are required.');
+      throw new Error("Project Name and Project ID are required.");
     }
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
     ensureSheetHeaders(sheet, CONFIG.headers.projects);
     const columns = getProjectColumnMap(sheet);
-    const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length, columns.maxColumn);
-    const rowValues = new Array(lastColumn).fill('');
+    const lastColumn = Math.max(
+      sheet.getLastColumn(),
+      CONFIG.headers.projects.length,
+      columns.maxColumn,
+    );
+    const rowValues = new Array(lastColumn).fill("");
     const storedProjectId = cleanText(project.id || project.code);
 
     if (columns.id) rowValues[columns.id - 1] = storedProjectId;
@@ -458,15 +663,18 @@ function handleProjectMutation(action, payload) {
     if (columns.status) rowValues[columns.status - 1] = project.status;
     if (columns.location) rowValues[columns.location - 1] = project.location;
     if (columns.startDate) rowValues[columns.startDate - 1] = project.startDate;
-    if (columns.finishDate) rowValues[columns.finishDate - 1] = project.finishDate;
+    if (columns.finishDate)
+      rowValues[columns.finishDate - 1] = project.finishDate;
     if (columns.budget) rowValues[columns.budget - 1] = project.budget;
     if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
 
-    sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
+    sheet
+      .getRange(sheet.getLastRow() + 1, 1, 1, lastColumn)
+      .setValues([rowValues]);
 
     return jsonResponse({
       ok: true,
-      message: 'Project saved successfully.',
+      message: "Project saved successfully.",
       project: {
         ...project,
         id: storedProjectId,
@@ -476,44 +684,50 @@ function handleProjectMutation(action, payload) {
     });
   }
 
-  if (action === 'update') {
+  if (action === "update") {
     const project = normalizeIncomingProject(payload.project || payload);
     if (!project.id) {
-      throw new Error('Project ID is required for update.');
+      throw new Error("Project ID is required for update.");
     }
 
     const updateResult = updateProjectRow(project);
     return jsonResponse({
       ok: true,
-      message: 'Project updated successfully.',
+      message: "Project updated successfully.",
       project: updateResult,
       generatedAt: new Date().toISOString(),
     });
   }
 
-  if (action === 'delete') {
+  if (action === "delete") {
     const projectId = cleanText(payload.projectId || payload.id);
     if (!projectId) {
-      throw new Error('Project ID is required for delete.');
+      throw new Error("Project ID is required for delete.");
     }
 
     deleteProjectRow(projectId);
     return jsonResponse({
       ok: true,
-      message: 'Project deleted successfully.',
+      message: "Project deleted successfully.",
       projectId: projectId,
       generatedAt: new Date().toISOString(),
     });
   }
 
-  throw new Error('Unsupported action. Use action=create|update|delete.');
+  throw new Error("Unsupported action. Use action=create|update|delete.");
 }
 
 function handleActivityMutation(action, payload) {
-  if (action === 'create') {
+  if (action === "create") {
     const activity = normalizeIncomingActivity(payload.activity || payload);
-    if (!activity.name || !activity.id || (!activity.project && !activity.projectId)) {
-      throw new Error('Activity ID, Activity Name, and Project (ID or Name) are required.');
+    if (
+      !activity.name ||
+      !activity.id ||
+      (!activity.project && !activity.projectId)
+    ) {
+      throw new Error(
+        "Activity ID, Activity Name, and Project (ID or Name) are required.",
+      );
     }
     validateActivityForMutation(activity, action);
 
@@ -522,142 +736,178 @@ function handleActivityMutation(action, payload) {
     const columns = getActivityColumnMap(sheet);
     assertActivitySheetColumns(columns);
     ensureActivityDoesNotExist(activity, sheet, columns);
-    const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length, columns.maxColumn);
-    const rowValues = new Array(lastColumn).fill('');
+    const lastColumn = Math.max(
+      sheet.getLastColumn(),
+      CONFIG.headers.activities.length,
+      columns.maxColumn,
+    );
+    const rowValues = new Array(lastColumn).fill("");
 
-    if (columns.projectId) rowValues[columns.projectId - 1] = activity.projectId;
+    if (columns.projectId)
+      rowValues[columns.projectId - 1] = activity.projectId;
     if (columns.project) rowValues[columns.project - 1] = activity.project;
     if (columns.id) rowValues[columns.id - 1] = activity.id;
     if (columns.name) rowValues[columns.name - 1] = activity.name;
     if (columns.status) rowValues[columns.status - 1] = activity.status;
-    if (columns.plannedStart) rowValues[columns.plannedStart - 1] = activity.plannedStart;
-    if (columns.plannedFinish) rowValues[columns.plannedFinish - 1] = activity.plannedFinish;
+    if (columns.plannedStart)
+      rowValues[columns.plannedStart - 1] = activity.plannedStart;
+    if (columns.plannedFinish)
+      rowValues[columns.plannedFinish - 1] = activity.plannedFinish;
     if (columns.duration) rowValues[columns.duration - 1] = activity.duration;
-    if (columns.percentComplete) rowValues[columns.percentComplete - 1] = activity.percentComplete;
+    if (columns.percentComplete)
+      rowValues[columns.percentComplete - 1] = activity.percentComplete;
     if (columns.notes) rowValues[columns.notes - 1] = activity.notes;
 
-    sheet.getRange(sheet.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
+    sheet
+      .getRange(sheet.getLastRow() + 1, 1, 1, lastColumn)
+      .setValues([rowValues]);
 
     return jsonResponse({
       ok: true,
-      message: 'Activity saved successfully.',
+      message: "Activity saved successfully.",
       activity: activity,
       generatedAt: new Date().toISOString(),
     });
   }
 
-  if (action === 'update') {
+  if (action === "update") {
     const activity = normalizeIncomingActivity(payload.activity || payload);
-    if (!activity.id) throw new Error('Activity ID is required for update.');
+    if (!activity.id) throw new Error("Activity ID is required for update.");
     validateActivityForMutation(activity, action);
 
     const updateResult = updateActivityRow(activity);
     return jsonResponse({
       ok: true,
-      message: 'Activity updated successfully.',
+      message: "Activity updated successfully.",
       activity: updateResult,
       generatedAt: new Date().toISOString(),
     });
   }
 
-  if (action === 'delete') {
+  if (action === "delete") {
     const activity = normalizeIncomingActivity(payload.activity || payload);
-    if (!activity.id) throw new Error('Activity ID is required for delete.');
+    if (!activity.id) throw new Error("Activity ID is required for delete.");
 
     deleteActivityRow(activity.id, activity.projectId, activity.project);
     return jsonResponse({
       ok: true,
-      message: 'Activity deleted successfully.',
+      message: "Activity deleted successfully.",
       activityId: activity.id,
       generatedAt: new Date().toISOString(),
     });
   }
 
-  throw new Error('Unsupported action. Use action=create|update|delete.');
+  throw new Error("Unsupported action. Use action=create|update|delete.");
 }
 
 function handleCostMutation(action, payload) {
-  if (action === 'create' || action === 'update') {
+  if (action === "create" || action === "update") {
     const cost = normalizeIncomingCost(payload.cost || payload);
     if (!cost.projectId || !cost.costId) {
-      throw new Error('Project ID and Cost ID are required.');
+      throw new Error("Project ID and Cost ID are required.");
     }
     assertProjectExists(cost.projectId);
     if (cost.activityId) {
       assertActivityExists(cost.projectId, cost.activityId);
     }
 
-    if (action === 'create' && costExists(cost.projectId, cost.costId)) {
-      throw new Error('Cost already exists for this project. Use update instead of create.');
+    if (action === "create" && costExists(cost.projectId, cost.costId)) {
+      throw new Error(
+        "Cost already exists for this project. Use update instead of create.",
+      );
     }
 
-    if (action === 'update' && !costExists(cost.projectId, cost.costId)) {
-      throw new Error('Cost record not found for update. Create the cost first.');
+    if (action === "update" && !costExists(cost.projectId, cost.costId)) {
+      throw new Error(
+        "Cost record not found for update. Create the cost first.",
+      );
     }
 
     upsertCostRow(cost);
     upsertDailyCostRow(buildDailyCostFromCost(cost));
     return jsonResponse({
       ok: true,
-      message: action === 'create' ? 'Cost saved successfully.' : 'Cost updated successfully.',
+      message:
+        action === "create"
+          ? "Cost saved successfully."
+          : "Cost updated successfully.",
       cost: cost,
       generatedAt: new Date().toISOString(),
     });
   }
 
-  throw new Error('Unsupported action for costs. Use action=create|update.');
+  throw new Error("Unsupported action for costs. Use action=create|update.");
 }
 
-
 function handleDailyCostMutation(action, payload) {
-  if (action === 'create' || action === 'update') {
-    const dailyCost = normalizeIncomingDailyCost(payload.dailyCost || payload.daily_cost || payload);
+  if (action === "create" || action === "update") {
+    const dailyCost = normalizeIncomingDailyCost(
+      payload.dailyCost || payload.daily_cost || payload,
+    );
     if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.date) {
-      throw new Error('Project ID, Cost ID, and Date are required.');
+      throw new Error("Project ID, Cost ID, and Date are required.");
     }
     assertProjectExists(dailyCost.projectId);
     assertCostExists(dailyCost.projectId, dailyCost.costId);
     upsertDailyCostRow(dailyCost);
     syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
-    return jsonResponse({ ok: true, message: 'Daily cost saved successfully.', dailyCost: dailyCost, generatedAt: new Date().toISOString() });
+    return jsonResponse({
+      ok: true,
+      message: "Daily cost saved successfully.",
+      dailyCost: dailyCost,
+      generatedAt: new Date().toISOString(),
+    });
   }
 
-  if (action === 'delete') {
-    const dailyCost = normalizeIncomingDailyCost(payload.dailyCost || payload.daily_cost || payload);
+  if (action === "delete") {
+    const dailyCost = normalizeIncomingDailyCost(
+      payload.dailyCost || payload.daily_cost || payload,
+    );
     if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.date) {
-      throw new Error('Project ID, Cost ID, and Date are required for delete.');
+      throw new Error("Project ID, Cost ID, and Date are required for delete.");
     }
     assertProjectExists(dailyCost.projectId);
     assertCostExists(dailyCost.projectId, dailyCost.costId);
     deleteDailyCostRow(dailyCost);
     syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
-    return jsonResponse({ ok: true, message: 'Daily cost deleted successfully.', generatedAt: new Date().toISOString() });
+    return jsonResponse({
+      ok: true,
+      message: "Daily cost deleted successfully.",
+      generatedAt: new Date().toISOString(),
+    });
   }
 
-  throw new Error('Unsupported action for daily costs. Use action=create|update|delete.');
+  throw new Error(
+    "Unsupported action for daily costs. Use action=create|update|delete.",
+  );
 }
-
 
 function assertProjectExists(projectId) {
   var normalizedProjectId = cleanText(projectId);
-  if (!normalizedProjectId) throw new Error('Project ID is required.');
+  if (!normalizedProjectId) throw new Error("Project ID is required.");
   if (!findProjectSheetRow(normalizedProjectId)) {
-    throw new Error('Project not found. Create the project first before adding related records.');
+    throw new Error(
+      "Project not found. Create the project first before adding related records.",
+    );
   }
 }
-
-
 
 function assertActivityExists(projectId, activityId) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedActivityId = cleanText(activityId);
   if (!normalizedProjectId || !normalizedActivityId) {
-    throw new Error('Project ID and Activity ID are required.');
+    throw new Error("Project ID and Activity ID are required.");
   }
 
-  var lookup = findActivitySheetRow(normalizedActivityId, normalizedProjectId, '');
+  var lookup = findActivitySheetRow(
+    normalizedActivityId,
+    normalizedProjectId,
+    "",
+  );
   if (!lookup) {
-    throw new Error('Activity not found for the given Project ID and Activity ID. Create the activity first.');
+    throw new Error(
+      "Activity not found for the given Project ID and Activity ID. Create the activity first.",
+    );
   }
 }
 
@@ -670,13 +920,15 @@ function costExists(projectId, costId) {
   ensureSheetHeaders(sheet, CONFIG.headers.costs);
   var columns = getCostColumnMap(sheet);
   if (!columns.projectId || !columns.costId) {
-    throw new Error('Costs sheet is missing Project ID or Cost ID columns.');
+    throw new Error("Costs sheet is missing Project ID or Cost ID columns.");
   }
 
   var values = sheet.getDataRange().getValues();
   for (var i = 1; i < values.length; i += 1) {
-    if (cleanText(values[i][columns.projectId - 1]) === normalizedProjectId
-      && cleanText(values[i][columns.costId - 1]) === normalizedCostId) {
+    if (
+      cleanText(values[i][columns.projectId - 1]) === normalizedProjectId &&
+      cleanText(values[i][columns.costId - 1]) === normalizedCostId
+    ) {
       return true;
     }
   }
@@ -688,52 +940,100 @@ function assertCostExists(projectId, costId) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedCostId = cleanText(costId);
   if (!normalizedProjectId || !normalizedCostId) {
-    throw new Error('Project ID and Cost ID are required.');
+    throw new Error("Project ID and Cost ID are required.");
   }
 
   if (!costExists(normalizedProjectId, normalizedCostId)) {
-    throw new Error('Cost record not found for the given Project ID and Cost ID. Create the cost first.');
+    throw new Error(
+      "Cost record not found for the given Project ID and Cost ID. Create the cost first.",
+    );
   }
 }
 
 function normalizeIncomingDailyCost(input) {
   var source = input || {};
-  var pickFirstDefined = function(candidates) {
+  var pickFirstDefined = function (candidates) {
     for (var i = 0; i < candidates.length; i += 1) {
-      if (candidates[i] !== undefined && candidates[i] !== null && candidates[i] !== '') return candidates[i];
+      if (
+        candidates[i] !== undefined &&
+        candidates[i] !== null &&
+        candidates[i] !== ""
+      )
+        return candidates[i];
     }
-    return '';
+    return "";
   };
 
-  var plannedCost = parseNumber(pickFirstDefined([source.plannedCost, source.planned_cost, source.plannedValue]));
-  var plannedCostPerDay = parseNumber(pickFirstDefined([source.plannedCostPerDay, source.planned_cost_per_day]));
-  var progress = roundTo(parseNumber(pickFirstDefined([source.progress, source.percentComplete, source.percent_complete, source['% Complete']])), 2);
-  var explicitEarnedValue = roundTo(parseNumber(pickFirstDefined([source.earnedValue, source.earned_value, source.ev])), 2);
-  var computedEarnedValue = plannedCostPerDay > 0 && progress >= 0
-    ? roundTo(plannedCostPerDay * (progress / 100), 2)
-    : 0;
+  var plannedCost = parseNumber(
+    pickFirstDefined([
+      source.plannedCost,
+      source.planned_cost,
+      source.plannedValue,
+    ]),
+  );
+  var plannedCostPerDay = parseNumber(
+    pickFirstDefined([source.plannedCostPerDay, source.planned_cost_per_day]),
+  );
+  var progress = roundTo(
+    parseNumber(
+      pickFirstDefined([
+        source.progress,
+        source.percentComplete,
+        source.percent_complete,
+        source["% Complete"],
+      ]),
+    ),
+    2,
+  );
+  var explicitEarnedValue = roundTo(
+    parseNumber(
+      pickFirstDefined([source.earnedValue, source.earned_value, source.ev]),
+    ),
+    2,
+  );
+  var computedEarnedValue =
+    plannedCostPerDay > 0 && progress >= 0
+      ? roundTo(plannedCostPerDay * (progress / 100), 2)
+      : 0;
 
   return {
     projectId: cleanText(source.projectId || source.project_id),
-    project: cleanText(source.project || source.projectName || source.project_name),
-    costId: cleanText(source.costId || source.cost_id || source.id || source.activityId || source.activity_id),
-    activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId || source.activityRefId || source.activity_ref_id),
+    project: cleanText(
+      source.project || source.projectName || source.project_name,
+    ),
+    costId: cleanText(
+      source.costId ||
+        source.cost_id ||
+        source.id ||
+        source.activityId ||
+        source.activity_id,
+    ),
+    activityId: cleanText(
+      source.activityId ||
+        source.activity_id ||
+        source.sourceActivityId ||
+        source.activityRefId ||
+        source.activity_ref_id,
+    ),
     activity: cleanText(source.activity || source.activityName),
     plannedCost: plannedCost,
     plannedCostPerDay: plannedCostPerDay,
     progress: progress,
     date: normalizeDate(source.date),
-    actualCost: parseNumber(source.actualCost || source.actual_cost || source.amount),
-    earnedValue: explicitEarnedValue >= 0 ? explicitEarnedValue : computedEarnedValue,
+    actualCost: parseNumber(
+      source.actualCost || source.actual_cost || source.amount,
+    ),
+    earnedValue:
+      explicitEarnedValue >= 0 ? explicitEarnedValue : computedEarnedValue,
   };
 }
-
 
 function dailyCostExists(projectId, costId, date) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedCostId = cleanText(costId);
   var normalizedDate = normalizeDate(date);
-  if (!normalizedProjectId || !normalizedCostId || !normalizedDate) return false;
+  if (!normalizedProjectId || !normalizedCostId || !normalizedDate)
+    return false;
 
   var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
   ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
@@ -741,9 +1041,11 @@ function dailyCostExists(projectId, costId, date) {
   var columns = getDailyCostColumnMap(sheet);
 
   for (var i = 1; i < values.length; i += 1) {
-    if (cleanText(values[i][columns.projectId - 1]) === normalizedProjectId
-      && cleanText(values[i][columns.costId - 1]) === normalizedCostId
-      && normalizeDate(values[i][columns.date - 1]) === normalizedDate) {
+    if (
+      cleanText(values[i][columns.projectId - 1]) === normalizedProjectId &&
+      cleanText(values[i][columns.costId - 1]) === normalizedCostId &&
+      normalizeDate(values[i][columns.date - 1]) === normalizedDate
+    ) {
       return true;
     }
   }
@@ -758,16 +1060,30 @@ function upsertDailyCostRow(dailyCost) {
   var columns = getDailyCostColumnMap(sheet);
   var rowNumber = -1;
   for (var i = 1; i < values.length; i += 1) {
-    if (cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId
-      && cleanText(values[i][columns.costId - 1]) === dailyCost.costId
-      && normalizeDate(values[i][columns.date - 1]) === dailyCost.date) { rowNumber = i + 1; break; }
+    if (
+      cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId &&
+      cleanText(values[i][columns.costId - 1]) === dailyCost.costId &&
+      normalizeDate(values[i][columns.date - 1]) === dailyCost.date
+    ) {
+      rowNumber = i + 1;
+      break;
+    }
   }
-  var rowLength = Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length, columns.maxColumn);
-  var existingRow = rowNumber > 1
-    ? sheet.getRange(rowNumber, 1, 1, rowLength).getValues()[0]
-    : [];
-  var row = new Array(rowLength).fill('');
-  for (var existingIndex = 0; existingIndex < existingRow.length; existingIndex += 1) {
+  var rowLength = Math.max(
+    sheet.getLastColumn(),
+    CONFIG.headers.dailyCosts.length,
+    columns.maxColumn,
+  );
+  var existingRow =
+    rowNumber > 1
+      ? sheet.getRange(rowNumber, 1, 1, rowLength).getValues()[0]
+      : [];
+  var row = new Array(rowLength).fill("");
+  for (
+    var existingIndex = 0;
+    existingIndex < existingRow.length;
+    existingIndex += 1
+  ) {
     row[existingIndex] = existingRow[existingIndex];
   }
   if (columns.projectId) row[columns.projectId - 1] = dailyCost.projectId;
@@ -776,7 +1092,8 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.activityId) row[columns.activityId - 1] = dailyCost.activityId;
   if (columns.activity) row[columns.activity - 1] = dailyCost.activity;
   if (columns.plannedCost) row[columns.plannedCost - 1] = dailyCost.plannedCost;
-  if (columns.plannedCostPerDay) row[columns.plannedCostPerDay - 1] = dailyCost.plannedCostPerDay;
+  if (columns.plannedCostPerDay)
+    row[columns.plannedCostPerDay - 1] = dailyCost.plannedCostPerDay;
   if (columns.progress) row[columns.progress - 1] = dailyCost.progress;
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
@@ -791,20 +1108,28 @@ function upsertDailyCostRow(dailyCost) {
       row[createdAtIndex] = new Date();
     }
   }
-  var targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
+  var targetRow =
+    rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
   applyDailyCostRowFormats(sheet, targetRow, columns);
 }
 
 function applyDailyCostRowFormats(sheet, rowNumber, columns) {
-  if (columns.plannedCost) sheet.getRange(rowNumber, columns.plannedCost).setNumberFormat('#,##0.00');
-  if (columns.plannedCostPerDay) sheet.getRange(rowNumber, columns.plannedCostPerDay).setNumberFormat('#,##0.00');
-  if (columns.progress) sheet.getRange(rowNumber, columns.progress).setNumberFormat('0.00');
-  if (columns.actualCost) sheet.getRange(rowNumber, columns.actualCost).setNumberFormat('#,##0.00');
-  if (columns.earnedValue) sheet.getRange(rowNumber, columns.earnedValue).setNumberFormat('#,##0.00');
-  if (columns.date) sheet.getRange(rowNumber, columns.date).setNumberFormat('yyyy-mm-dd');
+  if (columns.plannedCost)
+    sheet.getRange(rowNumber, columns.plannedCost).setNumberFormat("#,##0.00");
+  if (columns.plannedCostPerDay)
+    sheet
+      .getRange(rowNumber, columns.plannedCostPerDay)
+      .setNumberFormat("#,##0.00");
+  if (columns.progress)
+    sheet.getRange(rowNumber, columns.progress).setNumberFormat("0.00");
+  if (columns.actualCost)
+    sheet.getRange(rowNumber, columns.actualCost).setNumberFormat("#,##0.00");
+  if (columns.earnedValue)
+    sheet.getRange(rowNumber, columns.earnedValue).setNumberFormat("#,##0.00");
+  if (columns.date)
+    sheet.getRange(rowNumber, columns.date).setNumberFormat("yyyy-mm-dd");
 }
-
 
 function deleteDailyCostRow(dailyCost) {
   var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
@@ -812,9 +1137,12 @@ function deleteDailyCostRow(dailyCost) {
   var values = sheet.getDataRange().getValues();
   var columns = getDailyCostColumnMap(sheet);
   for (var i = values.length - 1; i >= 1; i -= 1) {
-    if (cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId
-      && cleanText(values[i][columns.costId - 1]) === dailyCost.costId
-      && normalizeDate(values[i][columns.date - 1]) === dailyCost.date) sheet.deleteRow(i + 1);
+    if (
+      cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId &&
+      cleanText(values[i][columns.costId - 1]) === dailyCost.costId &&
+      normalizeDate(values[i][columns.date - 1]) === dailyCost.date
+    )
+      sheet.deleteRow(i + 1);
   }
 }
 
@@ -830,9 +1158,14 @@ function syncCostActualFromDailyCost(projectId, costId) {
   var totalActualCost = 0;
 
   for (var i = 1; i < dailyValues.length; i += 1) {
-    if (cleanText(dailyValues[i][dailyColumns.projectId - 1]) === normalizedProjectId
-      && cleanText(dailyValues[i][dailyColumns.costId - 1]) === normalizedCostId) {
-      totalActualCost += parseNumber(dailyValues[i][dailyColumns.actualCost - 1]);
+    if (
+      cleanText(dailyValues[i][dailyColumns.projectId - 1]) ===
+        normalizedProjectId &&
+      cleanText(dailyValues[i][dailyColumns.costId - 1]) === normalizedCostId
+    ) {
+      totalActualCost += parseNumber(
+        dailyValues[i][dailyColumns.actualCost - 1],
+      );
     }
   }
 
@@ -842,24 +1175,46 @@ function syncCostActualFromDailyCost(projectId, costId) {
   var costValues = costsSheet.getDataRange().getValues();
 
   for (var rowIndex = 1; rowIndex < costValues.length; rowIndex += 1) {
-    if (cleanText(costValues[rowIndex][costColumns.projectId - 1]) === normalizedProjectId
-      && cleanText(costValues[rowIndex][costColumns.costId - 1]) === normalizedCostId) {
+    if (
+      cleanText(costValues[rowIndex][costColumns.projectId - 1]) ===
+        normalizedProjectId &&
+      cleanText(costValues[rowIndex][costColumns.costId - 1]) ===
+        normalizedCostId
+    ) {
       if (costColumns.actualCost) {
         var targetRow = rowIndex + 1;
-        costsSheet.getRange(targetRow, costColumns.actualCost).setValue(totalActualCost);
-        costsSheet.getRange(targetRow, costColumns.actualCost).setNumberFormat('#,##0.00');
+        costsSheet
+          .getRange(targetRow, costColumns.actualCost)
+          .setValue(totalActualCost);
+        costsSheet
+          .getRange(targetRow, costColumns.actualCost)
+          .setNumberFormat("#,##0.00");
         if (costColumns.earnedValue) {
           var currentCost = {
             projectId: normalizedProjectId,
             costId: normalizedCostId,
-            activityId: costColumns.activityId ? cleanText(costValues[rowIndex][costColumns.activityId - 1]) : '',
-            activity: costColumns.activity ? cleanText(costValues[rowIndex][costColumns.activity - 1]) : '',
-            plannedCost: costColumns.plannedCost ? parseNumber(costValues[rowIndex][costColumns.plannedCost - 1]) : 0,
-            plannedCostPerDay: costColumns.plannedCostPerDay ? parseNumber(costValues[rowIndex][costColumns.plannedCostPerDay - 1]) : 0,
+            activityId: costColumns.activityId
+              ? cleanText(costValues[rowIndex][costColumns.activityId - 1])
+              : "",
+            activity: costColumns.activity
+              ? cleanText(costValues[rowIndex][costColumns.activity - 1])
+              : "",
+            plannedCost: costColumns.plannedCost
+              ? parseNumber(costValues[rowIndex][costColumns.plannedCost - 1])
+              : 0,
+            plannedCostPerDay: costColumns.plannedCostPerDay
+              ? parseNumber(
+                  costValues[rowIndex][costColumns.plannedCostPerDay - 1],
+                )
+              : 0,
           };
           var earnedValue = Number(computeEarnedValue(currentCost)) || 0;
-          costsSheet.getRange(targetRow, costColumns.earnedValue).setValue(earnedValue);
-          costsSheet.getRange(targetRow, costColumns.earnedValue).setNumberFormat('#,##0.00');
+          costsSheet
+            .getRange(targetRow, costColumns.earnedValue)
+            .setValue(earnedValue);
+          costsSheet
+            .getRange(targetRow, costColumns.earnedValue)
+            .setNumberFormat("#,##0.00");
         }
       }
       return;
@@ -869,9 +1224,17 @@ function syncCostActualFromDailyCost(projectId, costId) {
   // If a matching cost row does not exist yet, create one from the latest daily-cost context
   // so accumulation is still reflected in the Costs sheet.
   var latestDailyRecord = null;
-  for (var dailyIndex = dailyValues.length - 1; dailyIndex >= 1; dailyIndex -= 1) {
-    if (cleanText(dailyValues[dailyIndex][dailyColumns.projectId - 1]) === normalizedProjectId
-      && cleanText(dailyValues[dailyIndex][dailyColumns.costId - 1]) === normalizedCostId) {
+  for (
+    var dailyIndex = dailyValues.length - 1;
+    dailyIndex >= 1;
+    dailyIndex -= 1
+  ) {
+    if (
+      cleanText(dailyValues[dailyIndex][dailyColumns.projectId - 1]) ===
+        normalizedProjectId &&
+      cleanText(dailyValues[dailyIndex][dailyColumns.costId - 1]) ===
+        normalizedCostId
+    ) {
       latestDailyRecord = dailyValues[dailyIndex];
       break;
     }
@@ -882,12 +1245,27 @@ function syncCostActualFromDailyCost(projectId, costId) {
   var generatedCost = {
     projectId: normalizedProjectId,
     costId: normalizedCostId,
-    activityId: costColumns.activityId && dailyColumns.activityId ? cleanText(latestDailyRecord[dailyColumns.activityId - 1]) : '',
-    activity: costColumns.activity && dailyColumns.activity ? cleanText(latestDailyRecord[dailyColumns.activity - 1]) : '',
-    plannedCost: costColumns.plannedCost && dailyColumns.plannedCost ? parseNumber(latestDailyRecord[dailyColumns.plannedCost - 1]) : 0,
-    plannedCostPerDay: costColumns.plannedCostPerDay && dailyColumns.plannedCostPerDay ? parseNumber(latestDailyRecord[dailyColumns.plannedCostPerDay - 1]) : 0,
+    activityId:
+      costColumns.activityId && dailyColumns.activityId
+        ? cleanText(latestDailyRecord[dailyColumns.activityId - 1])
+        : "",
+    activity:
+      costColumns.activity && dailyColumns.activity
+        ? cleanText(latestDailyRecord[dailyColumns.activity - 1])
+        : "",
+    plannedCost:
+      costColumns.plannedCost && dailyColumns.plannedCost
+        ? parseNumber(latestDailyRecord[dailyColumns.plannedCost - 1])
+        : 0,
+    plannedCostPerDay:
+      costColumns.plannedCostPerDay && dailyColumns.plannedCostPerDay
+        ? parseNumber(latestDailyRecord[dailyColumns.plannedCostPerDay - 1])
+        : 0,
     actualCost: totalActualCost,
-    date: costColumns.date && dailyColumns.date ? normalizeDate(latestDailyRecord[dailyColumns.date - 1]) : normalizeDate(new Date()),
+    date:
+      costColumns.date && dailyColumns.date
+        ? normalizeDate(latestDailyRecord[dailyColumns.date - 1])
+        : normalizeDate(new Date()),
   };
 
   upsertCostRow(generatedCost);
@@ -898,18 +1276,21 @@ function computeEarnedValue(cost) {
 
   var plannedCost = parseNumber(cost && cost.plannedCost);
   var plannedCostPerDay = parseNumber(cost && cost.plannedCostPerDay);
-  if (plannedCost <= 0 && plannedCostPerDay <= 0) return explicitEarnedValue > 0 ? explicitEarnedValue : 0;
+  if (plannedCost <= 0 && plannedCostPerDay <= 0)
+    return explicitEarnedValue > 0 ? explicitEarnedValue : 0;
 
   var activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
   ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
   var values = activitiesSheet.getDataRange().getValues();
   if (values.length <= 1) return 0;
 
-  var headers = values[0].map(function(cell) { return normalizeHeader(cell); });
-  var idxProjectId = headers.indexOf(normalizeHeader('Project ID'));
-  var idxActivityId = headers.indexOf(normalizeHeader('Activity ID'));
-  var idxActivity = headers.indexOf(normalizeHeader('Activity'));
-  var idxPercent = headers.indexOf(normalizeHeader('% Complete'));
+  var headers = values[0].map(function (cell) {
+    return normalizeHeader(cell);
+  });
+  var idxProjectId = headers.indexOf(normalizeHeader("Project ID"));
+  var idxActivityId = headers.indexOf(normalizeHeader("Activity ID"));
+  var idxActivity = headers.indexOf(normalizeHeader("Activity"));
+  var idxPercent = headers.indexOf(normalizeHeader("% Complete"));
   if (idxPercent < 0) return 0;
 
   var targetProjectId = cleanText(cost && cost.projectId);
@@ -919,14 +1300,18 @@ function computeEarnedValue(cost) {
 
   for (var i = 1; i < values.length; i += 1) {
     var row = values[i];
-    var rowProjectId = idxProjectId >= 0 ? cleanText(row[idxProjectId]) : '';
+    var rowProjectId = idxProjectId >= 0 ? cleanText(row[idxProjectId]) : "";
     if (targetProjectId && rowProjectId !== targetProjectId) continue;
 
-    var rowActivityId = idxActivityId >= 0 ? cleanText(row[idxActivityId]) : '';
-    var rowActivity = idxActivity >= 0 ? cleanText(row[idxActivity]) : '';
-    var matches = (targetActivityId && rowActivityId === targetActivityId)
-      || (!targetActivityId && targetActivity && rowActivity === targetActivity)
-      || (targetActivityId && !rowActivityId && targetActivity && rowActivity === targetActivity);
+    var rowActivityId = idxActivityId >= 0 ? cleanText(row[idxActivityId]) : "";
+    var rowActivity = idxActivity >= 0 ? cleanText(row[idxActivity]) : "";
+    var matches =
+      (targetActivityId && rowActivityId === targetActivityId) ||
+      (!targetActivityId && targetActivity && rowActivity === targetActivity) ||
+      (targetActivityId &&
+        !rowActivityId &&
+        targetActivity &&
+        rowActivity === targetActivity);
     if (!matches) continue;
 
     var percent = parseNumber(row[idxPercent]);
@@ -937,7 +1322,12 @@ function computeEarnedValue(cost) {
         return plannedCost * progressFactor;
       }
 
-      var recordedDays = countDailyCostRecords(targetProjectId, targetCostId, targetActivityId, targetActivity);
+      var recordedDays = countDailyCostRecords(
+        targetProjectId,
+        targetCostId,
+        targetActivityId,
+        targetActivity,
+      );
       if (plannedCostPerDay > 0 && recordedDays > 0) {
         return plannedCostPerDay * recordedDays * progressFactor;
       }
@@ -955,11 +1345,13 @@ function countDailyCostRecords(projectId, costId, activityId, activityName) {
   var values = dailySheet.getDataRange().getValues();
   if (values.length <= 1) return 0;
 
-  var headers = values[0].map(function(cell) { return normalizeHeader(cell); });
-  var idxProjectId = headers.indexOf(normalizeHeader('Project ID'));
-  var idxCostId = headers.indexOf(normalizeHeader('Cost ID'));
-  var idxActivityId = headers.indexOf(normalizeHeader('Activity ID'));
-  var idxActivity = headers.indexOf(normalizeHeader('Activity'));
+  var headers = values[0].map(function (cell) {
+    return normalizeHeader(cell);
+  });
+  var idxProjectId = headers.indexOf(normalizeHeader("Project ID"));
+  var idxCostId = headers.indexOf(normalizeHeader("Cost ID"));
+  var idxActivityId = headers.indexOf(normalizeHeader("Activity ID"));
+  var idxActivity = headers.indexOf(normalizeHeader("Activity"));
 
   var normalizedActivityId = cleanText(activityId);
   var normalizedActivityName = cleanText(activityName);
@@ -968,16 +1360,19 @@ function countDailyCostRecords(projectId, costId, activityId, activityName) {
   var count = 0;
   for (var i = 1; i < values.length; i += 1) {
     var row = values[i];
-    var rowProjectId = idxProjectId >= 0 ? cleanText(row[idxProjectId]) : '';
+    var rowProjectId = idxProjectId >= 0 ? cleanText(row[idxProjectId]) : "";
     if (projectId && rowProjectId !== projectId) continue;
 
-    var rowCostId = idxCostId >= 0 ? cleanText(row[idxCostId]) : '';
+    var rowCostId = idxCostId >= 0 ? cleanText(row[idxCostId]) : "";
     if (costId && rowCostId !== costId) continue;
 
-    var rowActivityId = idxActivityId >= 0 ? cleanText(row[idxActivityId]) : '';
-    var rowActivity = idxActivity >= 0 ? cleanText(row[idxActivity]) : '';
-    var matchesActivity = (normalizedActivityId && rowActivityId === normalizedActivityId)
-      || (!normalizedActivityId && normalizedActivityName && rowActivity === normalizedActivityName);
+    var rowActivityId = idxActivityId >= 0 ? cleanText(row[idxActivityId]) : "";
+    var rowActivity = idxActivity >= 0 ? cleanText(row[idxActivity]) : "";
+    var matchesActivity =
+      (normalizedActivityId && rowActivityId === normalizedActivityId) ||
+      (!normalizedActivityId &&
+        normalizedActivityName &&
+        rowActivity === normalizedActivityName);
 
     if (matchesActivity) count += 1;
   }
@@ -990,16 +1385,33 @@ function normalizeIncomingCost(input) {
   return {
     costId: cleanText(source.costId || source.id),
     projectId: cleanText(source.projectId || source.project_id),
-    project: cleanText(source.project || source.projectName || source.project_name),
-    activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId || source.activityRefId || source.activity_ref_id),
+    project: cleanText(
+      source.project || source.projectName || source.project_name,
+    ),
+    activityId: cleanText(
+      source.activityId ||
+        source.activity_id ||
+        source.sourceActivityId ||
+        source.activityRefId ||
+        source.activity_ref_id,
+    ),
     activity: cleanText(source.activity || source.activityName),
     duration: parseNumber(source.duration || source.durationDays),
-    category: cleanText(source.category || source.costCategory || source.cost_category) || 'General',
+    category:
+      cleanText(
+        source.category || source.costCategory || source.cost_category,
+      ) || "General",
     date: normalizeDate(source.date),
-    plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
-    plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
+    plannedCost: parseNumber(
+      source.plannedCost || source.planned_cost || source.plannedValue,
+    ),
+    plannedCostPerDay: parseNumber(
+      source.plannedCostPerDay || source.planned_cost_per_day,
+    ),
     actualCost: parseNumber(source.actualCost || source.actual_cost),
-    earnedValue: parseNumber(source.earnedValue || source.earned_value || source.ev),
+    earnedValue: parseNumber(
+      source.earnedValue || source.earned_value || source.ev,
+    ),
     notes: cleanText(source.notes || source.note || source.remarks),
   };
 }
@@ -1008,11 +1420,15 @@ function buildDailyCostFromCost(cost) {
   const plannedCost = parseNumber(cost.plannedCost);
   const duration = parseNumber(cost.duration);
   const explicitPerDay = parseNumber(cost.plannedCostPerDay);
-  const plannedCostPerDay = explicitPerDay || (duration > 0 ? plannedCost / duration : 0);
+  const plannedCostPerDay =
+    explicitPerDay || (duration > 0 ? plannedCost / duration : 0);
   const projectId = cleanText(cost.projectId);
   const activityId = cleanText(cost.activityId);
   const activityName = cleanText(cost.activity);
-  const progress = roundTo(findActivityProgress(projectId, activityId, activityName), 2);
+  const progress = roundTo(
+    findActivityProgress(projectId, activityId, activityName),
+    2,
+  );
 
   return {
     projectId: projectId,
@@ -1033,7 +1449,11 @@ function upsertCostRow(cost) {
   ensureSheetHeaders(sheet, CONFIG.headers.costs);
   const values = sheet.getDataRange().getValues();
   const columns = getCostColumnMap(sheet);
-  const lastColumn = Math.max(sheet.getLastColumn(), CONFIG.headers.costs.length, columns.maxColumn);
+  const lastColumn = Math.max(
+    sheet.getLastColumn(),
+    CONFIG.headers.costs.length,
+    columns.maxColumn,
+  );
 
   let rowNumber = -1;
   for (let i = 1; i < values.length; i += 1) {
@@ -1046,11 +1466,16 @@ function upsertCostRow(cost) {
     }
   }
 
-  const existingRowValues = rowNumber > 1
-    ? sheet.getRange(rowNumber, 1, 1, lastColumn).getValues()[0]
-    : [];
-  const rowValues = new Array(lastColumn).fill('');
-  for (let existingIndex = 0; existingIndex < existingRowValues.length; existingIndex += 1) {
+  const existingRowValues =
+    rowNumber > 1
+      ? sheet.getRange(rowNumber, 1, 1, lastColumn).getValues()[0]
+      : [];
+  const rowValues = new Array(lastColumn).fill("");
+  for (
+    let existingIndex = 0;
+    existingIndex < existingRowValues.length;
+    existingIndex += 1
+  ) {
     rowValues[existingIndex] = existingRowValues[existingIndex];
   }
   if (columns.costId) rowValues[columns.costId - 1] = cost.costId;
@@ -1059,38 +1484,53 @@ function upsertCostRow(cost) {
   if (columns.activityId) rowValues[columns.activityId - 1] = cost.activityId;
   if (columns.activity) rowValues[columns.activity - 1] = cost.activity;
   if (columns.duration) rowValues[columns.duration - 1] = cost.duration;
-  if (columns.plannedCost) rowValues[columns.plannedCost - 1] = cost.plannedCost;
-  if (columns.plannedCostPerDay) rowValues[columns.plannedCostPerDay - 1] = cost.plannedCostPerDay;
+  if (columns.plannedCost)
+    rowValues[columns.plannedCost - 1] = cost.plannedCost;
+  if (columns.plannedCostPerDay)
+    rowValues[columns.plannedCostPerDay - 1] = cost.plannedCostPerDay;
   if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
   const explicitEarnedValue = parseNumber(cost && cost.earnedValue);
   const computedEarnedValue = Number(computeEarnedValue(cost)) || 0;
-  const normalizedEarnedValue = explicitEarnedValue > 0 ? explicitEarnedValue : computedEarnedValue;
-  if (columns.earnedValue) rowValues[columns.earnedValue - 1] = Number(normalizedEarnedValue) || 0;
+  const normalizedEarnedValue =
+    explicitEarnedValue > 0 ? explicitEarnedValue : computedEarnedValue;
+  if (columns.earnedValue)
+    rowValues[columns.earnedValue - 1] = Number(normalizedEarnedValue) || 0;
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
-  if (columns.createdAt && rowNumber <= 1) rowValues[columns.createdAt - 1] = new Date();
+  if (columns.createdAt && rowNumber <= 1)
+    rowValues[columns.createdAt - 1] = new Date();
 
-  const targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
+  const targetRow =
+    rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
   applyCostRowFormats(sheet, targetRow, columns);
 }
 
 function applyCostRowFormats(sheet, rowNumber, columns) {
-  if (columns.plannedCost) sheet.getRange(rowNumber, columns.plannedCost).setNumberFormat('#,##0.00');
-  if (columns.plannedCostPerDay) sheet.getRange(rowNumber, columns.plannedCostPerDay).setNumberFormat('#,##0.00');
-  if (columns.actualCost) sheet.getRange(rowNumber, columns.actualCost).setNumberFormat('#,##0.00');
-  if (columns.earnedValue) sheet.getRange(rowNumber, columns.earnedValue).setNumberFormat('#,##0.00');
-  if (columns.date) sheet.getRange(rowNumber, columns.date).setNumberFormat('yyyy-mm-dd');
+  if (columns.plannedCost)
+    sheet.getRange(rowNumber, columns.plannedCost).setNumberFormat("#,##0.00");
+  if (columns.plannedCostPerDay)
+    sheet
+      .getRange(rowNumber, columns.plannedCostPerDay)
+      .setNumberFormat("#,##0.00");
+  if (columns.actualCost)
+    sheet.getRange(rowNumber, columns.actualCost).setNumberFormat("#,##0.00");
+  if (columns.earnedValue)
+    sheet.getRange(rowNumber, columns.earnedValue).setNumberFormat("#,##0.00");
+  if (columns.date)
+    sheet.getRange(rowNumber, columns.date).setNumberFormat("yyyy-mm-dd");
 }
 
 function updateProjectRow(project) {
   const lookup = findProjectSheetRow(project.id);
   if (!lookup) {
-    throw new Error('Project not found.');
+    throw new Error("Project not found.");
   }
 
-  const rowValues = lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).getValues()[0];
+  const rowValues = lookup.sheet
+    .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
+    .getValues()[0];
   rowValues[lookup.columns.id - 1] = project.id;
   rowValues[lookup.columns.name - 1] = project.name;
   rowValues[lookup.columns.type - 1] = project.type;
@@ -1099,7 +1539,9 @@ function updateProjectRow(project) {
   rowValues[lookup.columns.startDate - 1] = project.startDate;
   rowValues[lookup.columns.finishDate - 1] = project.finishDate;
   rowValues[lookup.columns.budget - 1] = project.budget;
-  lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
+  lookup.sheet
+    .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
+    .setValues([rowValues]);
   return project;
 }
 
@@ -1107,15 +1549,24 @@ function deleteProjectRow(projectId) {
   const normalizedProjectId = cleanText(projectId);
   const lookup = findProjectSheetRow(normalizedProjectId);
   if (!lookup) {
-    throw new Error('Project not found.');
+    throw new Error("Project not found.");
   }
 
-  var rowValues = lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).getValues()[0];
-  if (lookup.columns.status) rowValues[lookup.columns.status - 1] = 'Archived';
-  lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
+  var rowValues = lookup.sheet
+    .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
+    .getValues()[0];
+  if (lookup.columns.status) rowValues[lookup.columns.status - 1] = "Archived";
+  lookup.sheet
+    .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
+    .setValues([rowValues]);
 }
 
-function deleteRowsByProjectId(sheetName, getColumnMap, projectColumnKey, projectId) {
+function deleteRowsByProjectId(
+  sheetName,
+  getColumnMap,
+  projectColumnKey,
+  projectId,
+) {
   const normalizedProjectId = cleanText(projectId);
   if (!normalizedProjectId) return;
 
@@ -1128,7 +1579,8 @@ function deleteRowsByProjectId(sheetName, getColumnMap, projectColumnKey, projec
 
   ensureSheetHeaders(sheet, expectedHeadersBySheet[sheetName] || []);
   const columns = getColumnMap(sheet);
-  const projectColumn = columns && columns[projectColumnKey] ? columns[projectColumnKey] : 0;
+  const projectColumn =
+    columns && columns[projectColumnKey] ? columns[projectColumnKey] : 0;
   if (!projectColumn) return;
 
   const values = sheet.getDataRange().getValues();
@@ -1142,24 +1594,62 @@ function deleteRowsByProjectId(sheetName, getColumnMap, projectColumnKey, projec
 function normalizeIncomingActivity(input) {
   const source = input || {};
   const inferredProject = resolveProjectIdentity(
-    cleanText(source.projectId || source.project_id || source.projectCode || source.project_code),
-    cleanText(source.project || source.projectName || source.project_name)
+    cleanText(
+      source.projectId ||
+        source.project_id ||
+        source.projectCode ||
+        source.project_code,
+    ),
+    cleanText(source.project || source.projectName || source.project_name),
   );
 
-  const plannedStart = normalizeDate(source.plannedStart || source.planned_start || source.startDate || source.start_date);
-  const plannedFinish = normalizeDate(source.plannedFinish || source.planned_finish || source.finishDate || source.finish_date);
-  const duration = cleanText(source.duration || source.durationDays || source.duration_days) || calculateDurationDays(plannedStart, plannedFinish);
-  const percentComplete = clampPercent(source.percentComplete || source.percent_complete || source.progress);
+  const plannedStart = normalizeDate(
+    source.plannedStart ||
+      source.planned_start ||
+      source.startDate ||
+      source.start_date,
+  );
+  const plannedFinish = normalizeDate(
+    source.plannedFinish ||
+      source.planned_finish ||
+      source.finishDate ||
+      source.finish_date,
+  );
+  const duration =
+    cleanText(source.duration || source.durationDays || source.duration_days) ||
+    calculateDurationDays(plannedStart, plannedFinish);
+  const percentComplete = clampPercent(
+    source.percentComplete || source.percent_complete || source.progress,
+  );
 
-  const rawId = cleanText(source.id || source.activityId || source.activity_id || source.sourceActivityId || source.source_activity_id || source.code || source.activityCode || source.activity_code);
-  const normalizedId = ['-', '--', 'n/a', 'na', 'none', 'null', 'undefined'].indexOf(rawId.toLowerCase()) >= 0 ? '' : rawId;
+  const rawId = cleanText(
+    source.id ||
+      source.activityId ||
+      source.activity_id ||
+      source.sourceActivityId ||
+      source.source_activity_id ||
+      source.code ||
+      source.activityCode ||
+      source.activity_code,
+  );
+  const normalizedId =
+    ["-", "--", "n/a", "na", "none", "null", "undefined"].indexOf(
+      rawId.toLowerCase(),
+    ) >= 0
+      ? ""
+      : rawId;
 
   return {
     id: normalizedId || Utilities.getUuid(),
     projectId: inferredProject.id,
     project: inferredProject.name,
-    name: cleanText(source.name || source.activity || source.activityName || source.activity_name),
-    status: cleanText(source.status) || 'Not Started',
+    name: cleanText(
+      source.name ||
+        source.activity ||
+        source.activityName ||
+        source.activity_name,
+    ),
+    status: cleanText(source.status) || "Not Started",
     plannedStart: plannedStart,
     plannedFinish: plannedFinish,
     duration: duration,
@@ -1173,7 +1663,7 @@ function resolveProjectIdentity(projectIdInput, projectNameInput) {
   var normalizedName = cleanText(projectNameInput);
 
   if (!normalizedId && !normalizedName) {
-    return { id: '', name: '' };
+    return { id: "", name: "" };
   }
 
   const lookupSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
@@ -1187,12 +1677,14 @@ function resolveProjectIdentity(projectIdInput, projectNameInput) {
   const values = lookupSheet.getDataRange().getValues();
   for (var rowIdx = 1; rowIdx < values.length; rowIdx += 1) {
     const row = values[rowIdx];
-    const rowId = columns.id ? cleanText(row[columns.id - 1]) : '';
-    const rowName = columns.name ? cleanText(row[columns.name - 1]) : '';
+    const rowId = columns.id ? cleanText(row[columns.id - 1]) : "";
+    const rowName = columns.name ? cleanText(row[columns.name - 1]) : "";
     if (!rowId && !rowName) continue;
 
-    const matchesId = normalizedId && rowId.toLowerCase() === normalizedId.toLowerCase();
-    const matchesName = normalizedName && rowName.toLowerCase() === normalizedName.toLowerCase();
+    const matchesId =
+      normalizedId && rowId.toLowerCase() === normalizedId.toLowerCase();
+    const matchesName =
+      normalizedName && rowName.toLowerCase() === normalizedName.toLowerCase();
     if (!matchesId && !matchesName) continue;
 
     return {
@@ -1205,10 +1697,19 @@ function resolveProjectIdentity(projectIdInput, projectNameInput) {
 }
 
 function getActivityColumnMap(sheet) {
-  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length)).getValues()[0]
-    .map(function(header) { return normalizeHeader(header); });
+  const headers = sheet
+    .getRange(
+      1,
+      1,
+      1,
+      Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length),
+    )
+    .getValues()[0]
+    .map(function (header) {
+      return normalizeHeader(header);
+    });
 
-  const indexOfHeader = function(candidates) {
+  const indexOfHeader = function (candidates) {
     for (var i = 0; i < candidates.length; i += 1) {
       var candidate = normalizeHeader(candidates[i]);
       var found = headers.indexOf(candidate);
@@ -1218,16 +1719,25 @@ function getActivityColumnMap(sheet) {
   };
 
   return {
-    id: indexOfHeader(['Activity ID', 'ActivityID', 'Source Activity ID', 'ID']),
-    projectId: indexOfHeader(['Project ID']),
-    project: indexOfHeader(['Project Name', 'Project']),
-    name: indexOfHeader(['Activity', 'Activity Name', 'Name']),
-    plannedStart: indexOfHeader(['Planned Start', 'Start Date']),
-    plannedFinish: indexOfHeader(['Planned Finish', 'Finish Date']),
-    duration: indexOfHeader(['Duration', 'Duration Days']),
-    status: indexOfHeader(['Status']),
-    percentComplete: indexOfHeader(['% Complete', 'Percent Complete', 'Progress']),
-    notes: indexOfHeader(['Notes', 'Remarks']),
+    id: indexOfHeader([
+      "Activity ID",
+      "ActivityID",
+      "Source Activity ID",
+      "ID",
+    ]),
+    projectId: indexOfHeader(["Project ID"]),
+    project: indexOfHeader(["Project Name", "Project"]),
+    name: indexOfHeader(["Activity", "Activity Name", "Name"]),
+    plannedStart: indexOfHeader(["Planned Start", "Start Date"]),
+    plannedFinish: indexOfHeader(["Planned Finish", "Finish Date"]),
+    duration: indexOfHeader(["Duration", "Duration Days"]),
+    status: indexOfHeader(["Status"]),
+    percentComplete: indexOfHeader([
+      "% Complete",
+      "Percent Complete",
+      "Progress",
+    ]),
+    notes: indexOfHeader(["Notes", "Remarks"]),
     maxColumn: headers.length,
   };
 }
@@ -1239,15 +1749,21 @@ function findActivitySheetRow(activityId, projectId, projectName) {
   const values = sheet.getDataRange().getValues();
   if (!values.length) return null;
   const columns = getActivityColumnMap(sheet);
-  if (!columns.id) throw new Error('Activity ID column is missing.');
+  if (!columns.id) throw new Error("Activity ID column is missing.");
 
   var rowNumber = 0;
   for (var rowIdx = 1; rowIdx < values.length; rowIdx += 1) {
     var rowId = cleanText(values[rowIdx][columns.id - 1]);
     if (rowId !== activityId) continue;
 
-    var matchesProjectId = !projectId || !columns.projectId || cleanText(values[rowIdx][columns.projectId - 1]) === cleanText(projectId);
-    var matchesProjectName = !projectName || !columns.project || cleanText(values[rowIdx][columns.project - 1]) === cleanText(projectName);
+    var matchesProjectId =
+      !projectId ||
+      !columns.projectId ||
+      cleanText(values[rowIdx][columns.projectId - 1]) === cleanText(projectId);
+    var matchesProjectName =
+      !projectName ||
+      !columns.project ||
+      cleanText(values[rowIdx][columns.project - 1]) === cleanText(projectName);
     if (matchesProjectId && matchesProjectName) {
       rowNumber = rowIdx + 1;
       break;
@@ -1260,33 +1776,56 @@ function findActivitySheetRow(activityId, projectId, projectName) {
     sheet: sheet,
     rowNumber: rowNumber,
     columns: columns,
-    lastColumn: Math.max(sheet.getLastColumn(), CONFIG.headers.activities.length),
+    lastColumn: Math.max(
+      sheet.getLastColumn(),
+      CONFIG.headers.activities.length,
+    ),
   };
 }
 
 function updateActivityRow(activity) {
-  const lookup = findActivitySheetRow(activity.id, activity.projectId, activity.project);
-  if (!lookup) throw new Error('Activity not found.');
+  const lookup = findActivitySheetRow(
+    activity.id,
+    activity.projectId,
+    activity.project,
+  );
+  if (!lookup) throw new Error("Activity not found.");
   assertActivitySheetColumns(lookup.columns);
 
-  const rowValues = lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).getValues()[0];
+  const rowValues = lookup.sheet
+    .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
+    .getValues()[0];
   if (lookup.columns.id) rowValues[lookup.columns.id - 1] = activity.id;
-  if (lookup.columns.projectId) rowValues[lookup.columns.projectId - 1] = activity.projectId;
-  if (lookup.columns.project) rowValues[lookup.columns.project - 1] = activity.project;
+  if (lookup.columns.projectId)
+    rowValues[lookup.columns.projectId - 1] = activity.projectId;
+  if (lookup.columns.project)
+    rowValues[lookup.columns.project - 1] = activity.project;
   if (lookup.columns.name) rowValues[lookup.columns.name - 1] = activity.name;
-  if (lookup.columns.plannedStart) rowValues[lookup.columns.plannedStart - 1] = activity.plannedStart;
-  if (lookup.columns.plannedFinish) rowValues[lookup.columns.plannedFinish - 1] = activity.plannedFinish;
-  if (lookup.columns.duration) rowValues[lookup.columns.duration - 1] = activity.duration;
-  if (lookup.columns.status) rowValues[lookup.columns.status - 1] = activity.status;
-  if (lookup.columns.percentComplete) rowValues[lookup.columns.percentComplete - 1] = activity.percentComplete;
-  if (lookup.columns.notes) rowValues[lookup.columns.notes - 1] = activity.notes;
-  lookup.sheet.getRange(lookup.rowNumber, 1, 1, lookup.lastColumn).setValues([rowValues]);
+  if (lookup.columns.plannedStart)
+    rowValues[lookup.columns.plannedStart - 1] = activity.plannedStart;
+  if (lookup.columns.plannedFinish)
+    rowValues[lookup.columns.plannedFinish - 1] = activity.plannedFinish;
+  if (lookup.columns.duration)
+    rowValues[lookup.columns.duration - 1] = activity.duration;
+  if (lookup.columns.status)
+    rowValues[lookup.columns.status - 1] = activity.status;
+  if (lookup.columns.percentComplete)
+    rowValues[lookup.columns.percentComplete - 1] = activity.percentComplete;
+  if (lookup.columns.notes)
+    rowValues[lookup.columns.notes - 1] = activity.notes;
+  lookup.sheet
+    .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
+    .setValues([rowValues]);
   return activity;
 }
 
 function deleteActivityRow(activityId, projectId, projectName) {
-  const lookup = findActivitySheetRow(cleanText(activityId), cleanText(projectId), cleanText(projectName));
-  if (!lookup) throw new Error('Activity not found.');
+  const lookup = findActivitySheetRow(
+    cleanText(activityId),
+    cleanText(projectId),
+    cleanText(projectName),
+  );
+  if (!lookup) throw new Error("Activity not found.");
   lookup.sheet.deleteRow(lookup.rowNumber);
 }
 
@@ -1297,11 +1836,11 @@ function findProjectSheetRow(projectId) {
   const values = sheet.getDataRange().getValues();
   if (!values.length) return null;
 
-  const headers = values[0].map(function(header) {
+  const headers = values[0].map(function (header) {
     return normalizeHeader(header);
   });
 
-  const indexOfHeader = function(candidates) {
+  const indexOfHeader = function (candidates) {
     for (var i = 0; i < candidates.length; i += 1) {
       var normalized = normalizeHeader(candidates[i]);
       var found = headers.indexOf(normalized);
@@ -1311,18 +1850,18 @@ function findProjectSheetRow(projectId) {
   };
 
   const columns = {
-    id: indexOfHeader(['Project ID', 'ID']),
-    name: indexOfHeader(['Project Name', 'Project', 'Name']),
-    type: indexOfHeader(['Project Type', 'Type']),
-    status: indexOfHeader(['Status']),
-    location: indexOfHeader(['Location', 'Site', 'Address']),
-    startDate: indexOfHeader(['Start Date', 'Planned Start']),
-    finishDate: indexOfHeader(['Finish Date', 'End Date', 'Target Finish']),
-    budget: indexOfHeader(['Budget', 'Planned Value', 'Planned Cost']),
+    id: indexOfHeader(["Project ID", "ID"]),
+    name: indexOfHeader(["Project Name", "Project", "Name"]),
+    type: indexOfHeader(["Project Type", "Type"]),
+    status: indexOfHeader(["Status"]),
+    location: indexOfHeader(["Location", "Site", "Address"]),
+    startDate: indexOfHeader(["Start Date", "Planned Start"]),
+    finishDate: indexOfHeader(["Finish Date", "End Date", "Target Finish"]),
+    budget: indexOfHeader(["Budget", "Planned Value", "Planned Cost"]),
   };
 
   if (!columns.id) {
-    throw new Error('Project ID column is missing.');
+    throw new Error("Project ID column is missing.");
   }
 
   var rowNumber = 0;
@@ -1344,26 +1883,40 @@ function findProjectSheetRow(projectId) {
 }
 
 function normalizeResource(value) {
-  const supported = ['dashboard', 'projects', 'activities', 'costs', 'daily_costs', 'reports', 'all'];
+  const supported = [
+    "dashboard",
+    "projects",
+    "activities",
+    "costs",
+    "daily_costs",
+    "reports",
+    "all",
+  ];
   const normalized = cleanText(value).toLowerCase();
-  if (normalized === 'daily-costs' || normalized === 'dailycosts' || normalized === 'dailycost') return 'daily_costs';
-  return supported.indexOf(normalized) >= 0 ? normalized : 'dashboard';
+  if (
+    normalized === "daily-costs" ||
+    normalized === "dailycosts" ||
+    normalized === "dailycost"
+  )
+    return "daily_costs";
+  return supported.indexOf(normalized) >= 0 ? normalized : "dashboard";
 }
 
 function parsePostPayload(e) {
   if (!e) return {};
 
-  const parseFormEncoded = function(raw) {
+  const parseFormEncoded = function (raw) {
     const result = {};
     if (!raw) return result;
 
-    raw.split('&').forEach(function(part) {
+    raw.split("&").forEach(function (part) {
       if (!part) return;
-      const separatorIndex = part.indexOf('=');
+      const separatorIndex = part.indexOf("=");
       const rawKey = separatorIndex >= 0 ? part.slice(0, separatorIndex) : part;
-      const rawValue = separatorIndex >= 0 ? part.slice(separatorIndex + 1) : '';
-      const key = decodeURIComponent(rawKey.replace(/\+/g, ' '));
-      const value = decodeURIComponent(rawValue.replace(/\+/g, ' '));
+      const rawValue =
+        separatorIndex >= 0 ? part.slice(separatorIndex + 1) : "";
+      const key = decodeURIComponent(rawKey.replace(/\+/g, " "));
+      const value = decodeURIComponent(rawValue.replace(/\+/g, " "));
       if (key) result[key] = value;
     });
 
@@ -1375,20 +1928,20 @@ function parsePostPayload(e) {
     try {
       return JSON.parse(parameterPayload);
     } catch (error) {
-      throw new Error('Invalid payload parameter JSON.');
+      throw new Error("Invalid payload parameter JSON.");
     }
   }
 
   if (!e.postData || !e.postData.contents) return {};
-  const rawContents = String(e.postData.contents || '');
+  const rawContents = String(e.postData.contents || "");
 
-  if (rawContents.indexOf('payload=') === 0) {
+  if (rawContents.indexOf("payload=") === 0) {
     try {
       const params = parseFormEncoded(rawContents);
       const nestedPayload = params.payload;
       if (nestedPayload) return JSON.parse(nestedPayload);
     } catch (error) {
-      throw new Error('Invalid payload parameter JSON.');
+      throw new Error("Invalid payload parameter JSON.");
     }
   }
 
@@ -1401,7 +1954,7 @@ function parsePostPayload(e) {
     } catch (urlError) {
       // Fall through to final error.
     }
-    throw new Error('Invalid JSON payload.');
+    throw new Error("Invalid JSON payload.");
   }
 }
 
@@ -1415,7 +1968,9 @@ function safeParseJson(value) {
 }
 
 function normalizeSheetKey(value) {
-  return cleanText(value).toLowerCase().replace(/[\s_\-]+/g, '');
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/[\s_\-]+/g, "");
 }
 
 function getSheetAliases(sheetName) {
@@ -1423,16 +1978,16 @@ function getSheetAliases(sheetName) {
   if (normalizedName === normalizeSheetKey(CONFIG.sheetNames.dailyCosts)) {
     return [
       CONFIG.sheetNames.dailyCosts,
-      'Daily Cost',
-      'Daily Costs',
-      'daily_costs',
-      'daily-costs',
-      'dailycost',
-      'dailycosts',
+      "Daily Cost",
+      "Daily Costs",
+      "daily_costs",
+      "daily-costs",
+      "dailycost",
+      "dailycosts",
     ];
   }
   if (normalizedName === normalizeSheetKey(CONFIG.sheetNames.costs)) {
-    return [CONFIG.sheetNames.costs, 'Cost', 'costs'];
+    return [CONFIG.sheetNames.costs, "Cost", "costs"];
   }
   return [sheetName];
 }
@@ -1444,7 +1999,7 @@ function getOrCreateSheet(sheetName) {
 
   const aliases = getSheetAliases(sheetName);
   const aliasLookup = {};
-  aliases.forEach(function(alias) {
+  aliases.forEach(function (alias) {
     aliasLookup[normalizeSheetKey(alias)] = true;
   });
 
@@ -1461,13 +2016,17 @@ function getOrCreateSheet(sheetName) {
 
 function ensureProjectHeaders(sheet) {
   const expectedHeaders = CONFIG.headers.projects;
-  const existingHeaders = sheet.getRange(1, 1, 1, expectedHeaders.length).getValues()[0];
-  const hasAnyHeader = existingHeaders.some(function(cell) {
-    return cleanText(cell) !== '';
+  const existingHeaders = sheet
+    .getRange(1, 1, 1, expectedHeaders.length)
+    .getValues()[0];
+  const hasAnyHeader = existingHeaders.some(function (cell) {
+    return cleanText(cell) !== "";
   });
 
   if (!hasAnyHeader) {
-    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    sheet
+      .getRange(1, 1, 1, expectedHeaders.length)
+      .setValues([expectedHeaders]);
   }
 }
 
@@ -1483,12 +2042,14 @@ function ensureWorkbookStructure() {
   ensureSheetHeaders(dailyCostsSheet, CONFIG.headers.dailyCosts);
 }
 
-
-
 function isHeaderLikeDailyCostsDataRow(row) {
   if (!row || !row.length) return false;
-  const expected = CONFIG.headers.dailyCosts.map(function(header) { return normalizeHeader(header); });
-  const normalizedRow = row.map(function(value) { return normalizeHeader(value); });
+  const expected = CONFIG.headers.dailyCosts.map(function (header) {
+    return normalizeHeader(header);
+  });
+  const normalizedRow = row.map(function (value) {
+    return normalizeHeader(value);
+  });
   let matched = 0;
   for (var i = 0; i < expected.length; i += 1) {
     if (!expected[i]) continue;
@@ -1498,60 +2059,106 @@ function isHeaderLikeDailyCostsDataRow(row) {
 }
 
 function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
-  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 11)).getValues()[0];
-  const normalized = headers.map(function(header) { return normalizeHeader(header); });
+  const headers = sheet
+    .getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 11))
+    .getValues()[0];
+  const normalized = headers.map(function (header) {
+    return normalizeHeader(header);
+  });
   const legacySignatures = [
-    ['project id', 'cost id', 'activity', 'planned cost', 'planned cost/day', 'date', 'actual cost', 'created at', 'actual cost', 'earned value'],
-    ['projectid', 'cost id', 'activity', 'planned cost', 'planned cost/day', 'date', 'actual cost', 'created at', 'actual cost', 'earned value'],
+    [
+      "project id",
+      "cost id",
+      "activity",
+      "planned cost",
+      "planned cost/day",
+      "date",
+      "actual cost",
+      "created at",
+      "actual cost",
+      "earned value",
+    ],
+    [
+      "projectid",
+      "cost id",
+      "activity",
+      "planned cost",
+      "planned cost/day",
+      "date",
+      "actual cost",
+      "created at",
+      "actual cost",
+      "earned value",
+    ],
   ];
-  const signatureMatch = legacySignatures.some(function(signature) {
-    return signature.every(function(label, index) {
+  const signatureMatch = legacySignatures.some(function (signature) {
+    return signature.every(function (label, index) {
       return normalized[index] === label;
     });
   });
 
   const hasLegacyFieldSet =
-    normalized.indexOf('project id') >= 0 &&
-    normalized.indexOf('cost id') >= 0 &&
-    normalized.indexOf('planned cost/day') >= 0 &&
-    normalized.indexOf('date') >= 0 &&
-    normalized.indexOf('actual cost') >= 0 &&
-    normalized.indexOf('earned value') >= 0 &&
-    normalized.indexOf('progress') < 0 &&
-    normalized.indexOf('activity id') < 0;
+    normalized.indexOf("project id") >= 0 &&
+    normalized.indexOf("cost id") >= 0 &&
+    normalized.indexOf("planned cost/day") >= 0 &&
+    normalized.indexOf("date") >= 0 &&
+    normalized.indexOf("actual cost") >= 0 &&
+    normalized.indexOf("earned value") >= 0 &&
+    normalized.indexOf("progress") < 0 &&
+    normalized.indexOf("activity id") < 0;
 
   if (!signatureMatch && !hasLegacyFieldSet) return;
 
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    sheet.getRange(1, 1, 1, CONFIG.headers.dailyCosts.length).setValues([CONFIG.headers.dailyCosts]);
+    sheet
+      .getRange(1, 1, 1, CONFIG.headers.dailyCosts.length)
+      .setValues([CONFIG.headers.dailyCosts]);
     return;
   }
 
   const sourceWidth = Math.max(sheet.getLastColumn(), 11);
   const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
-  const migrated = values.map(function(row) {
-    const projectId = row[0];
-    const costId = row[1];
-    const activity = row[2];
-    const plannedCost = row[3];
-    const plannedCostPerDay = row[4];
-    const date = row[5];
-    const actualCost = row[6] !== '' ? row[6] : row[8];
-    const createdAt = row[7];
-    const earnedValue = row[9];
+  const migrated = values
+    .map(function (row) {
+      const projectId = row[0];
+      const costId = row[1];
+      const activity = row[2];
+      const plannedCost = row[3];
+      const plannedCostPerDay = row[4];
+      const date = row[5];
+      const actualCost = row[6] !== "" ? row[6] : row[8];
+      const createdAt = row[7];
+      const earnedValue = row[9];
 
-    // Target layout:
-    // [Project ID, Project Name, Cost ID, Activity ID, Activity, Progress,
-    //  Planned Cost, Planned Cost/Day, Date, Actual Cost, Earned Value, Created At]
-    return [projectId, '', costId, '', activity, '', plannedCost, plannedCostPerDay, date, actualCost, earnedValue, createdAt];
-  }).filter(function(row) {
-    return !isHeaderLikeDailyCostsDataRow(row);
-  });
+      // Target layout:
+      // [Project ID, Project Name, Cost ID, Activity ID, Activity, Progress,
+      //  Planned Cost, Planned Cost/Day, Date, Actual Cost, Earned Value, Created At]
+      return [
+        projectId,
+        "",
+        costId,
+        "",
+        activity,
+        "",
+        plannedCost,
+        plannedCostPerDay,
+        date,
+        actualCost,
+        earnedValue,
+        createdAt,
+      ];
+    })
+    .filter(function (row) {
+      return !isHeaderLikeDailyCostsDataRow(row);
+    });
 
   const targetWidth = CONFIG.headers.dailyCosts.length;
   if (sheet.getMaxColumns() < targetWidth) {
-    sheet.insertColumnsAfter(sheet.getMaxColumns(), targetWidth - sheet.getMaxColumns());
+    sheet.insertColumnsAfter(
+      sheet.getMaxColumns(),
+      targetWidth - sheet.getMaxColumns(),
+    );
   }
   sheet.getRange(1, 1, 1, targetWidth).setValues([CONFIG.headers.dailyCosts]);
   sheet.getRange(2, 1, Math.max(lastRow - 1, 1), targetWidth).clearContent();
@@ -1562,16 +2169,28 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
   const targetHeaders = CONFIG.headers.dailyCosts;
   const targetWidth = targetHeaders.length;
   const sourceWidth = Math.max(sheet.getLastColumn(), targetWidth);
-  const headers = sheet.getRange(1, 1, 1, sourceWidth).getValues()[0]
-    .map(function(header) { return normalizeHeader(header); });
+  const headers = sheet
+    .getRange(1, 1, 1, sourceWidth)
+    .getValues()[0]
+    .map(function (header) {
+      return normalizeHeader(header);
+    });
 
-  const expectedNormalized = targetHeaders.map(function(header) { return normalizeHeader(header); });
-  const duplicateExpectedHeaderExists = expectedNormalized.some(function(expectedHeader) {
-    return headers.indexOf(expectedHeader) !== headers.lastIndexOf(expectedHeader);
+  const expectedNormalized = targetHeaders.map(function (header) {
+    return normalizeHeader(header);
   });
-  const headerOrderMismatch = expectedNormalized.some(function(expectedHeader, index) {
-    return headers[index] !== expectedHeader;
-  });
+  const duplicateExpectedHeaderExists = expectedNormalized.some(
+    function (expectedHeader) {
+      return (
+        headers.indexOf(expectedHeader) !== headers.lastIndexOf(expectedHeader)
+      );
+    },
+  );
+  const headerOrderMismatch = expectedNormalized.some(
+    function (expectedHeader, index) {
+      return headers[index] !== expectedHeader;
+    },
+  );
 
   if (!duplicateExpectedHeaderExists && !headerOrderMismatch) return;
 
@@ -1583,22 +2202,27 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
 
   const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
   const resolvedHeaderIndex = {};
-  expectedNormalized.forEach(function(header) {
+  expectedNormalized.forEach(function (header) {
     resolvedHeaderIndex[header] = headers.lastIndexOf(header);
   });
 
-  const rebuiltRows = values.map(function(row) {
-    return expectedNormalized.map(function(header) {
-      const idx = resolvedHeaderIndex[header];
-      if (idx < 0) return '';
-      return row[idx];
+  const rebuiltRows = values
+    .map(function (row) {
+      return expectedNormalized.map(function (header) {
+        const idx = resolvedHeaderIndex[header];
+        if (idx < 0) return "";
+        return row[idx];
+      });
+    })
+    .filter(function (row) {
+      return !isHeaderLikeDailyCostsDataRow(row);
     });
-  }).filter(function(row) {
-    return !isHeaderLikeDailyCostsDataRow(row);
-  });
 
   if (sheet.getMaxColumns() < targetWidth) {
-    sheet.insertColumnsAfter(sheet.getMaxColumns(), targetWidth - sheet.getMaxColumns());
+    sheet.insertColumnsAfter(
+      sheet.getMaxColumns(),
+      targetWidth - sheet.getMaxColumns(),
+    );
   }
   sheet.getRange(1, 1, 1, targetWidth).setValues([targetHeaders]);
   sheet.getRange(2, 1, Math.max(lastRow - 1, 1), sourceWidth).clearContent();
@@ -1608,16 +2232,19 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
 function ensureSheetHeaders(sheet, expectedHeaders) {
   if (!expectedHeaders || !expectedHeaders.length) return;
 
-  const isDailyCostsSheet = cleanText(sheet.getName()) === cleanText(CONFIG.sheetNames.dailyCosts);
-  const isDailyCostsHeaderSet = expectedHeaders.length === CONFIG.headers.dailyCosts.length
-    && normalizeHeader(expectedHeaders[0]) === normalizeHeader(CONFIG.headers.dailyCosts[0]);
+  const isDailyCostsSheet =
+    cleanText(sheet.getName()) === cleanText(CONFIG.sheetNames.dailyCosts);
+  const isDailyCostsHeaderSet =
+    expectedHeaders.length === CONFIG.headers.dailyCosts.length &&
+    normalizeHeader(expectedHeaders[0]) ===
+      normalizeHeader(CONFIG.headers.dailyCosts[0]);
   if (isDailyCostsSheet && isDailyCostsHeaderSet) {
     migrateLegacyDailyCostsLayoutIfNeeded(sheet);
     normalizeDailyCostsColumnsIfNeeded(sheet);
   }
 
-  const normalizeHeaders = function(headers) {
-    return headers.map(function(header) {
+  const normalizeHeaders = function (headers) {
+    return headers.map(function (header) {
       return normalizeHeader(header);
     });
   };
@@ -1626,59 +2253,78 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   let lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
 
   if (sheet.getMaxColumns() < maxColumns) {
-    sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+    sheet.insertColumnsAfter(
+      sheet.getMaxColumns(),
+      maxColumns - sheet.getMaxColumns(),
+    );
   }
 
   let firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-  const hasAnyHeader = firstRow.some(function(cell) {
-    return cleanText(cell) !== '';
+  const hasAnyHeader = firstRow.some(function (cell) {
+    return cleanText(cell) !== "";
   });
 
   if (!hasAnyHeader) {
-    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    sheet
+      .getRange(1, 1, 1, expectedHeaders.length)
+      .setValues([expectedHeaders]);
     return;
   }
 
   const normalizedExpected = normalizeHeaders(expectedHeaders);
   const normalizedExistingFirstRow = normalizeHeaders(firstRow);
   const expectedLookup = {};
-  normalizedExpected.forEach(function(header) {
+  normalizedExpected.forEach(function (header) {
     expectedLookup[header] = true;
   });
-  const firstRowHeaderMatchCount = normalizedExistingFirstRow.reduce(function(count, header) {
+  const firstRowHeaderMatchCount = normalizedExistingFirstRow.reduce(function (
+    count,
+    header,
+  ) {
     return count + (header && expectedLookup[header] ? 1 : 0);
   }, 0);
-  const firstRowLooksLikeData = firstRowHeaderMatchCount < Math.max(2, Math.ceil(expectedHeaders.length * 0.35));
+  const firstRowLooksLikeData =
+    firstRowHeaderMatchCount <
+    Math.max(2, Math.ceil(expectedHeaders.length * 0.35));
 
   if (firstRowLooksLikeData) {
     sheet.insertRowBefore(1);
-    sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
+    sheet
+      .getRange(1, 1, 1, expectedHeaders.length)
+      .setValues([expectedHeaders]);
     return;
   }
   const normalizedExisting = normalizedExistingFirstRow;
-  const legacyProjectCodeIndex = normalizedExisting.indexOf('project code');
-  const expectsProjectCode = normalizedExpected.indexOf('project code') >= 0;
-  const expectsDescription = normalizedExpected.indexOf('description') >= 0;
+  const legacyProjectCodeIndex = normalizedExisting.indexOf("project code");
+  const expectsProjectCode = normalizedExpected.indexOf("project code") >= 0;
+  const expectsDescription = normalizedExpected.indexOf("description") >= 0;
 
   if (legacyProjectCodeIndex >= 0 && !expectsProjectCode) {
     sheet.deleteColumn(legacyProjectCodeIndex + 1);
     maxColumns = expectedHeaders.length;
     lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
     if (sheet.getMaxColumns() < maxColumns) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        maxColumns - sheet.getMaxColumns(),
+      );
     }
     firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   }
 
   var normalizedAfterProjectCodeCleanup = normalizeHeaders(firstRow);
-  const legacyDescriptionIndex = normalizedAfterProjectCodeCleanup.indexOf('description');
+  const legacyDescriptionIndex =
+    normalizedAfterProjectCodeCleanup.indexOf("description");
 
   if (legacyDescriptionIndex >= 0 && !expectsDescription) {
     sheet.deleteColumn(legacyDescriptionIndex + 1);
     maxColumns = expectedHeaders.length;
     lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
     if (sheet.getMaxColumns() < maxColumns) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        maxColumns - sheet.getMaxColumns(),
+      );
     }
     firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   }
@@ -1686,31 +2332,49 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   const normalizedWithoutLegacy = normalizeHeaders(firstRow);
   const duplicateCreatedAtIndexes = [];
   const expectedLastHeader = normalizedExpected[normalizedExpected.length - 1];
-  for (var idx = expectedHeaders.length; idx < normalizedWithoutLegacy.length; idx += 1) {
-    if (normalizedWithoutLegacy[idx] === expectedLastHeader && expectedLastHeader === 'created at') {
+  for (
+    var idx = expectedHeaders.length;
+    idx < normalizedWithoutLegacy.length;
+    idx += 1
+  ) {
+    if (
+      normalizedWithoutLegacy[idx] === expectedLastHeader &&
+      expectedLastHeader === "created at"
+    ) {
       duplicateCreatedAtIndexes.push(idx + 1);
     }
   }
-  for (var deleteIdx = duplicateCreatedAtIndexes.length - 1; deleteIdx >= 0; deleteIdx -= 1) {
+  for (
+    var deleteIdx = duplicateCreatedAtIndexes.length - 1;
+    deleteIdx >= 0;
+    deleteIdx -= 1
+  ) {
     sheet.deleteColumn(duplicateCreatedAtIndexes[deleteIdx]);
   }
   if (duplicateCreatedAtIndexes.length) {
     maxColumns = expectedHeaders.length;
     lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
     if (sheet.getMaxColumns() < maxColumns) {
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), maxColumns - sheet.getMaxColumns());
+      sheet.insertColumnsAfter(
+        sheet.getMaxColumns(),
+        maxColumns - sheet.getMaxColumns(),
+      );
     }
     firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   }
 
   const normalizedAfter = normalizeHeaders(firstRow);
-  const needsHeaderSync = expectedHeaders.some(function(header, idx) {
+  const needsHeaderSync = expectedHeaders.some(function (header, idx) {
     return normalizedAfter[idx] !== normalizeHeader(header);
   });
 
   var hasGapsInsideExpectedRange = false;
-  for (var expectedIndex = 0; expectedIndex < expectedHeaders.length; expectedIndex += 1) {
-    if (cleanText(firstRow[expectedIndex]) === '') {
+  for (
+    var expectedIndex = 0;
+    expectedIndex < expectedHeaders.length;
+    expectedIndex += 1
+  ) {
+    if (cleanText(firstRow[expectedIndex]) === "") {
       hasGapsInsideExpectedRange = true;
       break;
     }
@@ -1723,9 +2387,9 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   const mustUseExpectedHeaders = isDailyCostsSheet && isDailyCostsHeaderSet;
   const patchedHeaders = mustUseExpectedHeaders
     ? expectedHeaders
-    : expectedHeaders.map(function(header, idx) {
+    : expectedHeaders.map(function (header, idx) {
         const existingHeader = cleanText(firstRow[idx]);
-        return existingHeader !== '' ? existingHeader : header;
+        return existingHeader !== "" ? existingHeader : header;
       });
   sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([patchedHeaders]);
 }
@@ -1733,23 +2397,59 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
 function normalizeIncomingProject(input) {
   const source = input || {};
 
-  const id = cleanText(source.id || source.projectId || source.project_id || source.projectCode || source.project_code);
-  const code = cleanText(source.code || source.projectCode || source.project_code || source.projectId || source.project_id);
-  const name = cleanText(source.name || source.project || source.projectName || source.project_name);
-  const type = cleanText(source.type || source.projectType || source.project_type) || 'General';
-  let status = cleanText(source.status) || 'Not Started';
+  const id = cleanText(
+    source.id ||
+      source.projectId ||
+      source.project_id ||
+      source.projectCode ||
+      source.project_code,
+  );
+  const code = cleanText(
+    source.code ||
+      source.projectCode ||
+      source.project_code ||
+      source.projectId ||
+      source.project_id,
+  );
+  const name = cleanText(
+    source.name || source.project || source.projectName || source.project_name,
+  );
+  const type =
+    cleanText(source.type || source.projectType || source.project_type) ||
+    "General";
+  let status = cleanText(source.status) || "Not Started";
   let location = cleanText(source.location || source.site || source.address);
-  let startDate = normalizeDate(source.startDate || source.start_date || source.plannedStart);
-  let finishDate = normalizeDate(source.finishDate || source.finish_date || source.targetFinish || source.endDate);
+  let startDate = normalizeDate(
+    source.startDate || source.start_date || source.plannedStart,
+  );
+  let finishDate = normalizeDate(
+    source.finishDate ||
+      source.finish_date ||
+      source.targetFinish ||
+      source.endDate,
+  );
   let budget = parseNumber(source.budget);
   const descriptionBudget = parseNumber(source.description || source.notes);
-  const createdAtBudget = parseNumber(source.createdAt || source.created_at || source.timestamp || source.dateCreated);
+  const createdAtBudget = parseNumber(
+    source.createdAt ||
+      source.created_at ||
+      source.timestamp ||
+      source.dateCreated,
+  );
 
-  const isKnownStatus = function(value) {
+  const isKnownStatus = function (value) {
     const normalized = cleanText(value).toLowerCase();
-    return ['not started', 'in progress', 'on hold', 'completed', 'archived'].indexOf(normalized) >= 0;
+    return (
+      [
+        "not started",
+        "in progress",
+        "on hold",
+        "completed",
+        "archived",
+      ].indexOf(normalized) >= 0
+    );
   };
-  const isDateLike = function(value) {
+  const isDateLike = function (value) {
     if (!value) return false;
     const parsed = new Date(value);
     return !Number.isNaN(parsed.getTime());
@@ -1783,10 +2483,19 @@ function normalizeIncomingProject(input) {
 }
 
 function getProjectColumnMap(sheet) {
-  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length)).getValues()[0]
-    .map(function(header) { return normalizeHeader(header); });
+  const headers = sheet
+    .getRange(
+      1,
+      1,
+      1,
+      Math.max(sheet.getLastColumn(), CONFIG.headers.projects.length),
+    )
+    .getValues()[0]
+    .map(function (header) {
+      return normalizeHeader(header);
+    });
 
-  const indexOfHeader = function(candidates) {
+  const indexOfHeader = function (candidates) {
     for (var i = 0; i < candidates.length; i += 1) {
       var candidate = normalizeHeader(candidates[i]);
       var found = headers.indexOf(candidate);
@@ -1796,25 +2505,34 @@ function getProjectColumnMap(sheet) {
   };
 
   return {
-    id: indexOfHeader(['Project ID', 'ID']),
-    code: indexOfHeader(['Project Code', 'Code']),
-    name: indexOfHeader(['Project Name', 'Project', 'Name']),
-    type: indexOfHeader(['Project Type', 'Type']),
-    status: indexOfHeader(['Status']),
-    location: indexOfHeader(['Location', 'Site', 'Address']),
-    startDate: indexOfHeader(['Start Date', 'Planned Start']),
-    finishDate: indexOfHeader(['Finish Date', 'End Date', 'Target Finish']),
-    budget: indexOfHeader(['Budget', 'Planned Value', 'Planned Cost']),
-    createdAt: indexOfHeader(['Created At']),
+    id: indexOfHeader(["Project ID", "ID"]),
+    code: indexOfHeader(["Project Code", "Code"]),
+    name: indexOfHeader(["Project Name", "Project", "Name"]),
+    type: indexOfHeader(["Project Type", "Type"]),
+    status: indexOfHeader(["Status"]),
+    location: indexOfHeader(["Location", "Site", "Address"]),
+    startDate: indexOfHeader(["Start Date", "Planned Start"]),
+    finishDate: indexOfHeader(["Finish Date", "End Date", "Target Finish"]),
+    budget: indexOfHeader(["Budget", "Planned Value", "Planned Cost"]),
+    createdAt: indexOfHeader(["Created At"]),
     maxColumn: headers.length,
   };
 }
 
 function getCostColumnMap(sheet) {
-  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.costs.length)).getValues()[0]
-    .map(function(header) { return normalizeHeader(header); });
+  const headers = sheet
+    .getRange(
+      1,
+      1,
+      1,
+      Math.max(sheet.getLastColumn(), CONFIG.headers.costs.length),
+    )
+    .getValues()[0]
+    .map(function (header) {
+      return normalizeHeader(header);
+    });
 
-  const indexOfHeader = function(candidates) {
+  const indexOfHeader = function (candidates) {
     for (var i = 0; i < candidates.length; i += 1) {
       var candidate = normalizeHeader(candidates[i]);
       var found = headers.indexOf(candidate);
@@ -1824,30 +2542,52 @@ function getCostColumnMap(sheet) {
   };
 
   return {
-    costId: indexOfHeader(['Cost ID', 'ID']),
-    projectId: indexOfHeader(['Project ID']),
-    project: indexOfHeader(['Project Name', 'Project']),
-    activityId: indexOfHeader(['Activity ID', 'ActivityID', 'Source Activity ID', 'Activity Ref ID', 'Activity Reference ID']),
-    activity: indexOfHeader(['Activity', 'Activity Name']),
-    duration: indexOfHeader(['Duration']),
-    category: indexOfHeader(['Cost Category', 'Category', 'Type']),
-    date: indexOfHeader(['Date', 'Cost Date']),
-    plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
-    plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost Per Day']),
-    actualCost: indexOfHeader(['Actual Cost/Day', 'Actual Cost', 'Cost', 'Amount']),
-    earnedValue: indexOfHeader(['Earned Value/Day', 'Earned Value', 'EV']),
-    notes: indexOfHeader(['Notes', 'Remarks']),
-    createdAt: indexOfHeader(['Created At']),
+    costId: indexOfHeader(["Cost ID", "ID"]),
+    projectId: indexOfHeader(["Project ID"]),
+    project: indexOfHeader(["Project Name", "Project"]),
+    activityId: indexOfHeader([
+      "Activity ID",
+      "ActivityID",
+      "Source Activity ID",
+      "Activity Ref ID",
+      "Activity Reference ID",
+    ]),
+    activity: indexOfHeader(["Activity", "Activity Name"]),
+    duration: indexOfHeader(["Duration"]),
+    category: indexOfHeader(["Cost Category", "Category", "Type"]),
+    date: indexOfHeader(["Date", "Cost Date"]),
+    plannedCost: indexOfHeader(["Planned Cost", "Planned Value", "Budget"]),
+    plannedCostPerDay: indexOfHeader([
+      "Planned Cost/Day",
+      "Planned Cost Per Day",
+    ]),
+    actualCost: indexOfHeader([
+      "Actual Cost/Day",
+      "Actual Cost",
+      "Cost",
+      "Amount",
+    ]),
+    earnedValue: indexOfHeader(["Earned Value/Day", "Earned Value", "EV"]),
+    notes: indexOfHeader(["Notes", "Remarks"]),
+    createdAt: indexOfHeader(["Created At"]),
     maxColumn: headers.length,
   };
 }
 
-
 function getDailyCostColumnMap(sheet) {
-  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length)).getValues()[0]
-    .map(function(header) { return normalizeHeader(header); });
+  const headers = sheet
+    .getRange(
+      1,
+      1,
+      1,
+      Math.max(sheet.getLastColumn(), CONFIG.headers.dailyCosts.length),
+    )
+    .getValues()[0]
+    .map(function (header) {
+      return normalizeHeader(header);
+    });
 
-  const indexOfHeader = function(candidates) {
+  const indexOfHeader = function (candidates) {
     for (var i = 0; i < candidates.length; i += 1) {
       var candidate = normalizeHeader(candidates[i]);
       var found = headers.lastIndexOf(candidate);
@@ -1857,18 +2597,33 @@ function getDailyCostColumnMap(sheet) {
   };
 
   return {
-    projectId: indexOfHeader(['Project ID', 'Project']),
-    project: indexOfHeader(['Project Name', 'Project']),
-    costId: indexOfHeader(['Cost ID', 'ID']),
-    activityId: indexOfHeader(['Activity ID', 'ActivityID', 'Source Activity ID', 'Activity Ref ID', 'Activity Reference ID']),
-    activity: indexOfHeader(['Activity', 'Activity Name']),
-    plannedCost: indexOfHeader(['Planned Cost', 'Planned Value', 'Budget']),
-    progress: indexOfHeader(['Progress', '% Complete', 'Percent Complete']),
-    plannedCostPerDay: indexOfHeader(['Planned Cost/Day', 'Planned Cost per day', 'Planned Cost Per Day']),
-    date: indexOfHeader(['Date']),
-    actualCost: indexOfHeader(['Actual Cost/Day', 'Actual Cost', 'Cost', 'Amount']),
-    earnedValue: indexOfHeader(['Earned Value/Day', 'Earned Value', 'EV']),
-    createdAt: indexOfHeader(['Created At']),
+    projectId: indexOfHeader(["Project ID", "Project"]),
+    project: indexOfHeader(["Project Name", "Project"]),
+    costId: indexOfHeader(["Cost ID", "ID"]),
+    activityId: indexOfHeader([
+      "Activity ID",
+      "ActivityID",
+      "Source Activity ID",
+      "Activity Ref ID",
+      "Activity Reference ID",
+    ]),
+    activity: indexOfHeader(["Activity", "Activity Name"]),
+    plannedCost: indexOfHeader(["Planned Cost", "Planned Value", "Budget"]),
+    progress: indexOfHeader(["Progress", "% Complete", "Percent Complete"]),
+    plannedCostPerDay: indexOfHeader([
+      "Planned Cost/Day",
+      "Planned Cost per day",
+      "Planned Cost Per Day",
+    ]),
+    date: indexOfHeader(["Date"]),
+    actualCost: indexOfHeader([
+      "Actual Cost/Day",
+      "Actual Cost",
+      "Cost",
+      "Amount",
+    ]),
+    earnedValue: indexOfHeader(["Earned Value/Day", "Earned Value", "EV"]),
+    createdAt: indexOfHeader(["Created At"]),
     maxColumn: headers.length,
   };
 }
@@ -1890,26 +2645,26 @@ function readSheetRows(ss, sheetName, expectedHeaders) {
     };
   }
 
-  const stringRows = rawValues.map(function(row) {
-    return row.map(function(cell) {
-      return String(cell || '');
+  const stringRows = rawValues.map(function (row) {
+    return row.map(function (cell) {
+      return String(cell || "");
     });
   });
   const headerRowIndex = findHeaderRowIndex(stringRows);
-  const headers = stringRows[headerRowIndex].map(function(header) {
-    return String(header || '').trim();
+  const headers = stringRows[headerRowIndex].map(function (header) {
+    return String(header || "").trim();
   });
 
-  const rows = rawValues.slice(headerRowIndex + 1).reduce(function(acc, row) {
+  const rows = rawValues.slice(headerRowIndex + 1).reduce(function (acc, row) {
     const rowObj = {};
 
-    headers.forEach(function(header, index) {
+    headers.forEach(function (header, index) {
       if (!header) return;
       rowObj[header] = row[index];
     });
 
-    const hasValue = Object.keys(rowObj).some(function(key) {
-      return String(rowObj[key] || '').trim() !== '';
+    const hasValue = Object.keys(rowObj).some(function (key) {
+      return String(rowObj[key] || "").trim() !== "";
     });
 
     if (hasValue) acc.push(rowObj);
@@ -1929,28 +2684,30 @@ function readSheetRows(ss, sheetName, expectedHeaders) {
 
 function findHeaderRowIndex(rows) {
   const expectedHeaderAliases = [
-    'project',
-    'project id',
-    'activity',
-    'planned value',
-    'actual cost',
-    'cost',
-    'earned value',
-    'budget',
+    "project",
+    "project id",
+    "activity",
+    "planned value",
+    "actual cost",
+    "cost",
+    "earned value",
+    "budget",
   ];
 
   let bestIndex = 0;
   let bestScore = 0;
 
-  rows.forEach(function(row, index) {
-    const normalizedCells = row.map(function(cell) {
-      return normalizeHeader(cell);
-    }).filter(Boolean);
+  rows.forEach(function (row, index) {
+    const normalizedCells = row
+      .map(function (cell) {
+        return normalizeHeader(cell);
+      })
+      .filter(Boolean);
 
     if (!normalizedCells.length) return;
 
-    const score = expectedHeaderAliases.reduce(function(count, alias) {
-      const hasAlias = normalizedCells.some(function(cell) {
+    const score = expectedHeaderAliases.reduce(function (count, alias) {
+      const hasAlias = normalizedCells.some(function (cell) {
         return cell.indexOf(alias) >= 0;
       });
       return count + (hasAlias ? 1 : 0);
@@ -1966,20 +2723,41 @@ function findHeaderRowIndex(rows) {
 }
 
 function normalizeProjectRecord(row) {
-  const projectId = cleanText(getCell(row, ['project id', 'id', 'projectid']));
-  let status = cleanText(getCell(row, ['status'])) || 'Not Started';
-  let location = cleanText(getCell(row, ['location', 'site', 'address']));
-  let startDate = normalizeDate(getCell(row, ['start date', 'planned start', 'planned_start']));
-  let finishDate = normalizeDate(getCell(row, ['finish date', 'end date', 'planned finish', 'planned_finish']));
-  let budget = parseNumber(getCell(row, ['budget', 'planned value', 'planned cost']));
-  const descriptionBudget = parseNumber(getCell(row, ['description', 'notes']));
-  const createdAtBudget = parseNumber(getCell(row, ['created at', 'created_at', 'timestamp', 'date created']));
+  const projectId = cleanText(getCell(row, ["project id", "id", "projectid"]));
+  let status = cleanText(getCell(row, ["status"])) || "Not Started";
+  let location = cleanText(getCell(row, ["location", "site", "address"]));
+  let startDate = normalizeDate(
+    getCell(row, ["start date", "planned start", "planned_start"]),
+  );
+  let finishDate = normalizeDate(
+    getCell(row, [
+      "finish date",
+      "end date",
+      "planned finish",
+      "planned_finish",
+    ]),
+  );
+  let budget = parseNumber(
+    getCell(row, ["budget", "planned value", "planned cost"]),
+  );
+  const descriptionBudget = parseNumber(getCell(row, ["description", "notes"]));
+  const createdAtBudget = parseNumber(
+    getCell(row, ["created at", "created_at", "timestamp", "date created"]),
+  );
 
-  const isKnownStatus = function(value) {
+  const isKnownStatus = function (value) {
     const normalized = cleanText(value).toLowerCase();
-    return ['not started', 'in progress', 'on hold', 'completed', 'archived'].indexOf(normalized) >= 0;
+    return (
+      [
+        "not started",
+        "in progress",
+        "on hold",
+        "completed",
+        "archived",
+      ].indexOf(normalized) >= 0
+    );
   };
-  const isDateLike = function(value) {
+  const isDateLike = function (value) {
     if (!value) return false;
     const parsed = new Date(value);
     return !Number.isNaN(parsed.getTime());
@@ -1995,15 +2773,17 @@ function normalizeProjectRecord(row) {
     status = location;
     location = startDate;
     startDate = finishDate;
-    finishDate = normalizeDate(getCell(row, ['budget', 'planned value', 'planned cost']));
+    finishDate = normalizeDate(
+      getCell(row, ["budget", "planned value", "planned cost"]),
+    );
     budget = descriptionBudget || createdAtBudget || 0;
   }
 
   return {
     id: projectId,
     code: projectId,
-    name: cleanText(getCell(row, ['project', 'project name', 'name'])),
-    type: cleanText(getCell(row, ['type', 'project type'])) || 'General',
+    name: cleanText(getCell(row, ["project", "project name", "name"])),
+    type: cleanText(getCell(row, ["type", "project type"])) || "General",
     status: status,
     location: location,
     startDate: startDate,
@@ -2014,66 +2794,147 @@ function normalizeProjectRecord(row) {
 }
 
 function normalizeActivityRecord(row) {
-  const projectId = cleanText(getCell(row, ['project id', 'projectid']));
+  const projectId = cleanText(getCell(row, ["project id", "projectid"]));
 
   return {
-    id: cleanText(getCell(row, ['activity id', 'id', 'activity code', 'task id'])),
+    id: cleanText(
+      getCell(row, ["activity id", "id", "activity code", "task id"]),
+    ),
     projectId: projectId,
     projectCode: projectId,
-    project: cleanText(getCell(row, ['project', 'project name'])),
-    name: cleanText(getCell(row, ['activity', 'activity name', 'name'])),
-    type: cleanText(getCell(row, ['type', 'activity type'])) || 'General',
-    status: cleanText(getCell(row, ['status'])) || 'Not Started',
-    plannedStart: normalizeDate(getCell(row, ['planned start', 'start date', 'planned_start'])),
-    plannedFinish: normalizeDate(getCell(row, ['planned finish', 'finish date', 'planned_finish'])),
-    duration: cleanText(getCell(row, ['duration', 'duration days', 'duration_days'])),
-    percentComplete: parseNumber(getCell(row, ['% complete', 'percent complete', 'progress'])),
-    createdAt: normalizeDate(getCell(row, ['created at', 'created_at', 'timestamp', 'date created'])),
-    plannedValue: parseNumber(getCell(row, ['planned value', 'planned cost', 'budget'])),
-    actualCost: parseNumber(getCell(row, ['actual cost', 'ac', 'actual'])),
-    earnedValue: parseNumber(getCell(row, ['earned value', 'ev'])),
-    costVariance: parseNumber(getCell(row, ['cost variance', 'cv'])),
+    project: cleanText(getCell(row, ["project", "project name"])),
+    name: cleanText(getCell(row, ["activity", "activity name", "name"])),
+    type: cleanText(getCell(row, ["type", "activity type"])) || "General",
+    status: cleanText(getCell(row, ["status"])) || "Not Started",
+    plannedStart: normalizeDate(
+      getCell(row, ["planned start", "start date", "planned_start"]),
+    ),
+    plannedFinish: normalizeDate(
+      getCell(row, ["planned finish", "finish date", "planned_finish"]),
+    ),
+    duration: cleanText(
+      getCell(row, ["duration", "duration days", "duration_days"]),
+    ),
+    percentComplete: parseNumber(
+      getCell(row, ["% complete", "percent complete", "progress"]),
+    ),
+    createdAt: normalizeDate(
+      getCell(row, ["created at", "created_at", "timestamp", "date created"]),
+    ),
+    plannedValue: parseNumber(
+      getCell(row, ["planned value", "planned cost", "budget"]),
+    ),
+    actualCost: parseNumber(getCell(row, ["actual cost", "ac", "actual"])),
+    earnedValue: parseNumber(getCell(row, ["earned value", "ev"])),
+    costVariance: parseNumber(getCell(row, ["cost variance", "cv"])),
     raw: row,
   };
 }
 
 function normalizeCostRecord(row) {
-  const projectId = cleanText(getCell(row, ['project id', 'projectid']));
+  const projectId = cleanText(getCell(row, ["project id", "projectid"]));
 
   return {
-    id: cleanText(getCell(row, ['cost id', 'id'])),
-    costId: cleanText(getCell(row, ['cost id', 'id'])),
+    id: cleanText(getCell(row, ["cost id", "id"])),
+    costId: cleanText(getCell(row, ["cost id", "id"])),
     projectId: projectId,
     projectCode: projectId,
-    project: cleanText(getCell(row, ['project', 'project name'])),
-    activityId: cleanText(getCell(row, ['activity id', 'activityid', 'activity_id', 'id activity', 'source activity id', 'activity ref id', 'activity reference id'])),
-    activity: cleanText(getCell(row, ['activity', 'activity name', 'name'])),
-    duration: parseNumber(getCell(row, ['duration', 'duration days', 'duration_days'])),
-    category: cleanText(getCell(row, ['cost category', 'category', 'type'])) || 'General',
-    date: normalizeDate(getCell(row, ['date', 'cost date', 'transaction date'])),
-    plannedCost: parseNumber(getCell(row, ['planned cost', 'planned value', 'budget'])),
-    plannedCostPerDay: parseNumber(getCell(row, ['planned cost/day', 'planned cost per day', 'planned_cost_per_day'])),
-    actualCost: parseNumber(getCell(row, ['actual cost', 'cost', 'amount'])),
-    earnedValue: parseNumber(getCell(row, ['earned value', 'ev'])),
-    notes: cleanText(getCell(row, ['note', 'notes', 'remarks'])),
+    project: cleanText(getCell(row, ["project", "project name"])),
+    activityId: cleanText(
+      getCell(row, [
+        "activity id",
+        "activityid",
+        "activity_id",
+        "id activity",
+        "source activity id",
+        "activity ref id",
+        "activity reference id",
+      ]),
+    ),
+    activity: cleanText(getCell(row, ["activity", "activity name", "name"])),
+    duration: parseNumber(
+      getCell(row, ["duration", "duration days", "duration_days"]),
+    ),
+    category:
+      cleanText(getCell(row, ["cost category", "category", "type"])) ||
+      "General",
+    date: normalizeDate(
+      getCell(row, ["date", "cost date", "transaction date"]),
+    ),
+    plannedCost: parseNumber(
+      getCell(row, ["planned cost", "planned value", "budget"]),
+    ),
+    plannedCostPerDay: parseNumber(
+      getCell(row, [
+        "planned cost/day",
+        "planned cost per day",
+        "planned_cost_per_day",
+      ]),
+    ),
+    actualCost: parseNumber(getCell(row, ["actual cost", "cost", "amount"])),
+    earnedValue: parseNumber(getCell(row, ["earned value", "ev"])),
+    notes: cleanText(getCell(row, ["note", "notes", "remarks"])),
     raw: row,
   };
 }
 
 function normalizeDailyCostRecord(row) {
   return {
-    projectId: cleanText(row['Project ID'] || row['projectId'] || row['project_id']),
-    project: cleanText(row['Project Name'] || row['Project'] || row['project'] || row['projectName']),
-    costId: cleanText(row['Cost ID'] || row['costId'] || row['cost_id']),
-    activityId: cleanText(row['Activity ID'] || row['activityId'] || row['activity_id'] || row['Source Activity ID'] || row['Activity Ref ID'] || row['Activity Reference ID']),
-    activity: cleanText(row['Activity'] || row['activity'] || row['activityName']),
-    plannedCost: parseNumber(row['Planned Cost'] || row['plannedCost'] || row['planned_cost'] || row['plannedValue']),
-    progress: parseNumber(row['Progress'] || row['progress'] || row['percentComplete'] || row['% Complete']),
-    plannedCostPerDay: parseNumber(row['Planned Cost/Day'] || row['plannedCostPerDay'] || row['planned_cost_per_day']),
-    date: normalizeDate(row['Date'] || row['date']),
-    actualCost: parseNumber(row['Actual Cost/Day'] || row['Actual Cost'] || row['actualCost'] || row['actual_cost']),
-    earnedValue: parseNumber(row['Earned Value/Day'] || row['Earned Value'] || row['earnedValue'] || row['earned_value'] || row['EV']),
-    createdAt: normalizeDate(row['Created At'] || row['createdAt'] || row['created_at']),
+    projectId: cleanText(
+      row["Project ID"] || row["projectId"] || row["project_id"],
+    ),
+    project: cleanText(
+      row["Project Name"] ||
+        row["Project"] ||
+        row["project"] ||
+        row["projectName"],
+    ),
+    costId: cleanText(row["Cost ID"] || row["costId"] || row["cost_id"]),
+    activityId: cleanText(
+      row["Activity ID"] ||
+        row["activityId"] ||
+        row["activity_id"] ||
+        row["Source Activity ID"] ||
+        row["Activity Ref ID"] ||
+        row["Activity Reference ID"],
+    ),
+    activity: cleanText(
+      row["Activity"] || row["activity"] || row["activityName"],
+    ),
+    plannedCost: parseNumber(
+      row["Planned Cost"] ||
+        row["plannedCost"] ||
+        row["planned_cost"] ||
+        row["plannedValue"],
+    ),
+    progress: parseNumber(
+      row["Progress"] ||
+        row["progress"] ||
+        row["percentComplete"] ||
+        row["% Complete"],
+    ),
+    plannedCostPerDay: parseNumber(
+      row["Planned Cost/Day"] ||
+        row["plannedCostPerDay"] ||
+        row["planned_cost_per_day"],
+    ),
+    date: normalizeDate(row["Date"] || row["date"]),
+    actualCost: parseNumber(
+      row["Actual Cost/Day"] ||
+        row["Actual Cost"] ||
+        row["actualCost"] ||
+        row["actual_cost"],
+    ),
+    earnedValue: parseNumber(
+      row["Earned Value/Day"] ||
+        row["Earned Value"] ||
+        row["earnedValue"] ||
+        row["earned_value"] ||
+        row["EV"],
+    ),
+    createdAt: normalizeDate(
+      row["Created At"] || row["createdAt"] || row["created_at"],
+    ),
   };
 }
 
@@ -2081,13 +2942,14 @@ function applyProjectFilter(data, filter) {
   const hasFilter = filter.id || filter.name;
   if (!hasFilter) return data;
 
-  const projectMatches = function(record) {
+  const projectMatches = function (record) {
     if (!record) return false;
     const id = cleanText(record.projectId || record.id);
     const name = cleanText(record.project || record.name);
 
     if (filter.id && filter.id === id) return true;
-    if (filter.name && filter.name.toLowerCase() === name.toLowerCase()) return true;
+    if (filter.name && filter.name.toLowerCase() === name.toLowerCase())
+      return true;
     return false;
   };
 
@@ -2101,14 +2963,14 @@ function applyProjectFilter(data, filter) {
 }
 
 function buildProjectsPayload(projects) {
-  const typeCounts = projects.reduce(function(acc, row) {
-    const key = row.type || 'General';
+  const typeCounts = projects.reduce(function (acc, row) {
+    const key = row.type || "General";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 
-  const statusCounts = projects.reduce(function(acc, row) {
-    const key = row.status || 'Not Started';
+  const statusCounts = projects.reduce(function (acc, row) {
+    const key = row.status || "Not Started";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
@@ -2119,14 +2981,14 @@ function buildProjectsPayload(projects) {
     summary: {
       byType: typeCounts,
       byStatus: statusCounts,
-      totalBudget: sumBy(projects, 'budget'),
+      totalBudget: sumBy(projects, "budget"),
     },
   };
 }
 
 function buildActivitiesPayload(activities) {
-  const statusCounts = activities.reduce(function(acc, row) {
-    const key = row.status || 'Not Started';
+  const statusCounts = activities.reduce(function (acc, row) {
+    const key = row.status || "Not Started";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
@@ -2136,17 +2998,17 @@ function buildActivitiesPayload(activities) {
     activities: activities,
     summary: {
       byStatus: statusCounts,
-      totalPlannedValue: sumBy(activities, 'plannedValue'),
-      totalActualCost: sumBy(activities, 'actualCost'),
-      totalEarnedValue: sumBy(activities, 'earnedValue'),
-      totalCostVariance: sumBy(activities, 'costVariance'),
+      totalPlannedValue: sumBy(activities, "plannedValue"),
+      totalActualCost: sumBy(activities, "actualCost"),
+      totalEarnedValue: sumBy(activities, "earnedValue"),
+      totalCostVariance: sumBy(activities, "costVariance"),
     },
   };
 }
 
 function buildCostsPayload(costs) {
-  const byCategory = costs.reduce(function(acc, row) {
-    const key = row.category || 'General';
+  const byCategory = costs.reduce(function (acc, row) {
+    const key = row.category || "General";
     acc[key] = (acc[key] || 0) + row.actualCost;
     return acc;
   }, {});
@@ -2156,8 +3018,8 @@ function buildCostsPayload(costs) {
     costs: costs,
     summary: {
       byCategory: byCategory,
-      totalPlannedCost: sumBy(costs, 'plannedCost'),
-      totalActualCost: sumBy(costs, 'actualCost'),
+      totalPlannedCost: sumBy(costs, "plannedCost"),
+      totalActualCost: sumBy(costs, "actualCost"),
     },
   };
 }
@@ -2167,10 +3029,10 @@ function buildDashboardPayload(data) {
   const activityCount = data.activities.length;
   const costCount = data.costs.length;
 
-  const totalPlanned = sumBy(data.activities, 'plannedValue');
-  const totalActual = sumBy(data.activities, 'actualCost');
-  const totalEarned = sumBy(data.activities, 'earnedValue');
-  const totalCv = sumBy(data.activities, 'costVariance');
+  const totalPlanned = sumBy(data.activities, "plannedValue");
+  const totalActual = sumBy(data.activities, "actualCost");
+  const totalEarned = sumBy(data.activities, "earnedValue");
+  const totalCv = sumBy(data.activities, "costVariance");
 
   const budget = totalPlanned;
   const spentPercent = budget ? (totalActual / budget) * 100 : 0;
@@ -2187,14 +3049,14 @@ function buildDashboardPayload(data) {
       totalCostVariance: totalCv,
       spentPercent: roundTo(spentPercent, 2),
       earnedPercent: roundTo(earnedPercent, 2),
-      projectStatus: totalCv >= 0 ? 'Under Budget' : 'Over Budget',
+      projectStatus: totalCv >= 0 ? "Under Budget" : "Over Budget",
     },
     rows: data.activities,
   };
 }
 
 function buildReportsPayload(data) {
-  const projectsByName = data.projects.reduce(function(acc, project) {
+  const projectsByName = data.projects.reduce(function (acc, project) {
     const key = project.name || project.code || project.id;
     if (!key) return acc;
 
@@ -2206,7 +3068,7 @@ function buildReportsPayload(data) {
     return acc;
   }, {});
 
-  data.activities.forEach(function(activity) {
+  data.activities.forEach(function (activity) {
     const key = activity.project || activity.projectId;
     if (!key) return;
     if (!projectsByName[key]) {
@@ -2215,7 +3077,7 @@ function buildReportsPayload(data) {
     projectsByName[key].activities.push(activity);
   });
 
-  data.costs.forEach(function(cost) {
+  data.costs.forEach(function (cost) {
     const key = cost.project || cost.projectId;
     if (!key) return;
     if (!projectsByName[key]) {
@@ -2224,12 +3086,12 @@ function buildReportsPayload(data) {
     projectsByName[key].costs.push(cost);
   });
 
-  const projectReports = Object.keys(projectsByName).map(function(projectKey) {
+  const projectReports = Object.keys(projectsByName).map(function (projectKey) {
     const bundle = projectsByName[projectKey];
-    const totalPlanned = sumBy(bundle.activities, 'plannedValue');
-    const totalActual = sumBy(bundle.activities, 'actualCost');
-    const totalEv = sumBy(bundle.activities, 'earnedValue');
-    const totalCv = sumBy(bundle.activities, 'costVariance');
+    const totalPlanned = sumBy(bundle.activities, "plannedValue");
+    const totalActual = sumBy(bundle.activities, "actualCost");
+    const totalEv = sumBy(bundle.activities, "earnedValue");
+    const totalCv = sumBy(bundle.activities, "costVariance");
 
     return {
       projectKey: projectKey,
@@ -2241,7 +3103,7 @@ function buildReportsPayload(data) {
         actualCost: totalActual,
         earnedValue: totalEv,
         costVariance: totalCv,
-        status: totalCv >= 0 ? 'Under Budget' : 'Over Budget',
+        status: totalCv >= 0 ? "Under Budget" : "Over Budget",
       },
       activities: bundle.activities,
       costs: bundle.costs,
@@ -2265,22 +3127,25 @@ function buildAllPayload(data) {
 }
 
 function sumBy(rows, field) {
-  return rows.reduce(function(total, row) {
+  return rows.reduce(function (total, row) {
     return total + parseNumber(row[field]);
   }, 0);
 }
 
 function parseNumber(value) {
-  if (value === null || value === undefined || value === '') return 0;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
 
   const stringValue = String(value).trim();
   // Guard against date-like strings (e.g., 5/5/2026) being misread as numbers (552026).
-  if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(stringValue) || /^\d{4}-\d{1,2}-\d{1,2}$/.test(stringValue)) {
+  if (
+    /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(stringValue) ||
+    /^\d{4}-\d{1,2}-\d{1,2}$/.test(stringValue)
+  ) {
     return 0;
   }
   const isAccountingNegative = /^\(.*\)$/.test(stringValue);
-  const cleaned = stringValue.replace(/[^0-9.-]/g, '');
+  const cleaned = stringValue.replace(/[^0-9.-]/g, "");
   const parsed = Number(cleaned);
 
   if (!Number.isFinite(parsed)) return 0;
@@ -2293,32 +3158,40 @@ function roundTo(value, digits) {
 }
 
 function normalizeDate(value) {
-  if (!value) return '';
+  if (!value) return "";
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    return Utilities.formatDate(
+      value,
+      Session.getScriptTimeZone(),
+      "yyyy-MM-dd",
+    );
   }
 
   var textValue = cleanText(value);
   var exactIsoDate = textValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (exactIsoDate) {
-    return exactIsoDate[1] + '-' + exactIsoDate[2] + '-' + exactIsoDate[3];
+    return exactIsoDate[1] + "-" + exactIsoDate[2] + "-" + exactIsoDate[3];
   }
 
   var slashDate = textValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (slashDate) {
-    var month = ('0' + slashDate[1]).slice(-2);
-    var day = ('0' + slashDate[2]).slice(-2);
-    return slashDate[3] + '-' + month + '-' + day;
+    var month = ("0" + slashDate[1]).slice(-2);
+    var day = ("0" + slashDate[2]).slice(-2);
+    return slashDate[3] + "-" + month + "-" + day;
   }
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return textValue;
-  return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return Utilities.formatDate(
+    parsed,
+    Session.getScriptTimeZone(),
+    "yyyy-MM-dd",
+  );
 }
 
 function getCell(row, aliases) {
   const keys = Object.keys(row || {});
-  const normalizedKeys = keys.map(function(key) {
+  const normalizedKeys = keys.map(function (key) {
     return {
       key: key,
       normalized: normalizeHeader(key),
@@ -2331,37 +3204,39 @@ function getCell(row, aliases) {
     const normalizedAlias = normalizeHeader(alias);
     const compactAlias = compactHeader(alias);
 
-    const exact = normalizedKeys.find(function(entry) {
-      return entry.normalized === normalizedAlias || entry.compact === compactAlias;
+    const exact = normalizedKeys.find(function (entry) {
+      return (
+        entry.normalized === normalizedAlias || entry.compact === compactAlias
+      );
     });
     if (exact) return row[exact.key];
 
-    const shouldUsePrefixMatch = normalizedAlias.indexOf(' ') >= 0;
+    const shouldUsePrefixMatch = normalizedAlias.indexOf(" ") >= 0;
     if (shouldUsePrefixMatch) {
-      const prefixed = normalizedKeys.find(function(entry) {
-        return entry.normalized.indexOf(normalizedAlias + ' ') === 0;
+      const prefixed = normalizedKeys.find(function (entry) {
+        return entry.normalized.indexOf(normalizedAlias + " ") === 0;
       });
       if (prefixed) return row[prefixed.key];
     }
   }
 
-  return '';
+  return "";
 }
 
 function normalizeHeader(value) {
-  return String(value || '')
+  return String(value || "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 function compactHeader(value) {
-  return normalizeHeader(value).replace(/\s+/g, '');
+  return normalizeHeader(value).replace(/\s+/g, "");
 }
 
 function cleanText(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
 function clampPercent(value) {
@@ -2371,39 +3246,50 @@ function clampPercent(value) {
 }
 
 function calculateDurationDays(startDate, finishDate) {
-  if (!startDate || !finishDate) return '';
+  if (!startDate || !finishDate) return "";
   const start = new Date(startDate);
   const finish = new Date(finishDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(finish.getTime())) return '';
+  if (Number.isNaN(start.getTime()) || Number.isNaN(finish.getTime()))
+    return "";
   const dayMs = 24 * 60 * 60 * 1000;
   const diff = Math.floor((finish.getTime() - start.getTime()) / dayMs) + 1;
-  if (diff <= 0) return '';
+  if (diff <= 0) return "";
   return String(diff);
 }
 
 function validateActivityForMutation(activity, action) {
   if (!activity.projectId && !activity.project) {
-    throw new Error('Activity is missing project reference. Provide Project ID or Project Name.');
+    throw new Error(
+      "Activity is missing project reference. Provide Project ID or Project Name.",
+    );
   }
 
   if (activity.plannedStart && activity.plannedFinish) {
     const start = new Date(activity.plannedStart);
     const finish = new Date(activity.plannedFinish);
-    if (!Number.isNaN(start.getTime()) && !Number.isNaN(finish.getTime()) && start.getTime() > finish.getTime()) {
-      throw new Error('Planned Start cannot be after Planned Finish.');
+    if (
+      !Number.isNaN(start.getTime()) &&
+      !Number.isNaN(finish.getTime()) &&
+      start.getTime() > finish.getTime()
+    ) {
+      throw new Error("Planned Start cannot be after Planned Finish.");
     }
   }
 
-  if (action === 'create' && !activity.id) {
-    throw new Error('Activity ID is required for create.');
+  if (action === "create" && !activity.id) {
+    throw new Error("Activity ID is required for create.");
   }
 }
 
 function assertActivitySheetColumns(columns) {
-  if (!columns.id) throw new Error('Activities sheet is missing "Activity ID" column.');
-  if (!columns.projectId) throw new Error('Activities sheet is missing "Project ID" column.');
-  if (!columns.project) throw new Error('Activities sheet is missing "Project Name" column.');
-  if (!columns.name) throw new Error('Activities sheet is missing "Activity" column.');
+  if (!columns.id)
+    throw new Error('Activities sheet is missing "Activity ID" column.');
+  if (!columns.projectId)
+    throw new Error('Activities sheet is missing "Project ID" column.');
+  if (!columns.project)
+    throw new Error('Activities sheet is missing "Project Name" column.');
+  if (!columns.name)
+    throw new Error('Activities sheet is missing "Activity" column.');
 }
 
 function ensureActivityDoesNotExist(activity, sheet, columns) {
@@ -2418,17 +3304,27 @@ function ensureActivityDoesNotExist(activity, sheet, columns) {
     const rowId = cleanText(row[columns.id - 1]).toLowerCase();
     if (!rowId || rowId !== incomingId) continue;
 
-    const rowProjectId = columns.projectId ? cleanText(row[columns.projectId - 1]).toLowerCase() : '';
-    const rowProjectName = columns.project ? cleanText(row[columns.project - 1]).toLowerCase() : '';
-    const projectIdMatch = !incomingProjectId || incomingProjectId === rowProjectId;
-    const projectNameMatch = !incomingProjectName || incomingProjectName === rowProjectName;
+    const rowProjectId = columns.projectId
+      ? cleanText(row[columns.projectId - 1]).toLowerCase()
+      : "";
+    const rowProjectName = columns.project
+      ? cleanText(row[columns.project - 1]).toLowerCase()
+      : "";
+    const projectIdMatch =
+      !incomingProjectId || incomingProjectId === rowProjectId;
+    const projectNameMatch =
+      !incomingProjectName || incomingProjectName === rowProjectName;
 
     if (projectIdMatch && projectNameMatch) {
-      throw new Error('Activity already exists for this project. Use update instead of create.');
+      throw new Error(
+        "Activity already exists for this project. Use update instead of create.",
+      );
     }
   }
 }
 
 function jsonResponse(payload) {
-  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(
+    ContentService.MimeType.JSON,
+  );
 }
