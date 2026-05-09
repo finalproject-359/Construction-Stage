@@ -1498,7 +1498,11 @@ function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
     const actualCost = row[6] !== '' ? row[6] : row[8];
     const createdAt = row[7];
     const earnedValue = row[9];
-    return [projectId, costId, '', activity, '', plannedCost, plannedCostPerDay, date, actualCost, earnedValue, createdAt];
+
+    // Target layout:
+    // [Project ID, Project Name, Cost ID, Activity ID, Activity, Progress,
+    //  Planned Cost, Planned Cost/Day, Date, Actual Cost, Earned Value, Created At]
+    return [projectId, '', costId, '', activity, '', plannedCost, plannedCostPerDay, date, actualCost, earnedValue, createdAt];
   });
 
   const targetWidth = CONFIG.headers.dailyCosts.length;
