@@ -609,8 +609,10 @@ function normalizeIncomingDailyCost(input) {
     activity: cleanText(source.activity || source.activityName),
     plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
     plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
+    progress: parseNumber(source.progress || source.percentComplete || source.percent_complete || source['% Complete']),
     date: normalizeDate(source.date),
     actualCost: parseNumber(source.actualCost || source.actual_cost || source.amount),
+    earnedValue: parseNumber(source.earnedValue || source.earned_value || source.ev),
   };
 }
 
@@ -655,8 +657,10 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.activity) row[columns.activity - 1] = dailyCost.activity;
   if (columns.plannedCost) row[columns.plannedCost - 1] = dailyCost.plannedCost;
   if (columns.plannedCostPerDay) row[columns.plannedCostPerDay - 1] = dailyCost.plannedCostPerDay;
+  if (columns.progress) row[columns.progress - 1] = dailyCost.progress;
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
+  if (columns.earnedValue) row[columns.earnedValue - 1] = dailyCost.earnedValue;
   if (columns.createdAt) row[columns.createdAt - 1] = new Date();
   var targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
