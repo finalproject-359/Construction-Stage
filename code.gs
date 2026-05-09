@@ -602,17 +602,25 @@ function assertCostExists(projectId, costId) {
 
 function normalizeIncomingDailyCost(input) {
   var source = input || {};
+  var plannedCost = parseNumber(source.plannedCost || source.planned_cost || source.plannedValue);
+  var plannedCostPerDay = parseNumber(source.plannedCostPerDay || source.planned_cost_per_day);
+  var progress = parseNumber(source.progress || source.percentComplete || source.percent_complete || source['% Complete']);
+  var explicitEarnedValue = parseNumber(source.earnedValue || source.earned_value || source.ev);
+  var computedEarnedValue = plannedCostPerDay > 0 && progress >= 0
+    ? (plannedCostPerDay * (progress / 100))
+    : 0;
+
   return {
     projectId: cleanText(source.projectId || source.project_id),
     costId: cleanText(source.costId || source.cost_id || source.id || source.activityId || source.activity_id),
     activityId: cleanText(source.activityId || source.activity_id || source.sourceActivityId || source.activityRefId || source.activity_ref_id),
     activity: cleanText(source.activity || source.activityName),
-    plannedCost: parseNumber(source.plannedCost || source.planned_cost || source.plannedValue),
-    plannedCostPerDay: parseNumber(source.plannedCostPerDay || source.planned_cost_per_day),
-    progress: parseNumber(source.progress || source.percentComplete || source.percent_complete || source['% Complete']),
+    plannedCost: plannedCost,
+    plannedCostPerDay: plannedCostPerDay,
+    progress: progress,
     date: normalizeDate(source.date),
     actualCost: parseNumber(source.actualCost || source.actual_cost || source.amount),
-    earnedValue: parseNumber(source.earnedValue || source.earned_value || source.ev),
+    earnedValue: explicitEarnedValue > 0 ? explicitEarnedValue : computedEarnedValue,
   };
 }
 
@@ -664,7 +672,18 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.createdAt) row[columns.createdAt - 1] = new Date();
   var targetRow = rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
+  applyDailyCostRowFormats(sheet, targetRow, columns);
 }
+
+function applyDailyCostRowFormats(sheet, rowNumber, columns) {
+  if (columns.plannedCost) sheet.getRange(rowNumber, columns.plannedCost).setNumberFormat('#,##0.00');
+  if (columns.plannedCostPerDay) sheet.getRange(rowNumber, columns.plannedCostPerDay).setNumberFormat('#,##0.00');
+  if (columns.progress) sheet.getRange(rowNumber, columns.progress).setNumberFormat('0.00');
+  if (columns.actualCost) sheet.getRange(rowNumber, columns.actualCost).setNumberFormat('#,##0.00');
+  if (columns.earnedValue) sheet.getRange(rowNumber, columns.earnedValue).setNumberFormat('#,##0.00');
+  if (columns.date) sheet.getRange(rowNumber, columns.date).setNumberFormat('yyyy-mm-dd');
+}
+
 
 function deleteDailyCostRow(dailyCost) {
   var sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
