@@ -2,7 +2,7 @@
  * Google Apps Script Web App endpoint for Construction Stage data.
  *
  * Supported query params:
- * - resource: dashboard | projects | activities | costs | daily-costs | reports | all
+ * - resource: dashboard | projects | activities | costs | daily-costs | all
  * - projectId / project: optional project filter
  *
  * Expected sheet tabs (default names can be customized below):
@@ -735,7 +735,6 @@ function handleRequest(payload) {
         dailyCosts: filtered.dailyCosts,
       },
       dashboard: buildDashboardPayload(filtered),
-      reports: buildReportsPayload(filtered),
       all: buildAllPayload(filtered),
     };
 
@@ -871,7 +870,7 @@ function loadDataByResource(resource) {
     return bundle;
   }
 
-  if (resource === "reports" || resource === "all") {
+  if (resource === "all") {
     readResource(
       "projects",
       CONFIG.sheetNames.projects,
@@ -2504,7 +2503,6 @@ function normalizeResource(value) {
     "activities",
     "costs",
     "daily_costs",
-    "reports",
     "all",
   ];
   const normalized = cleanText(value).toLowerCase();
@@ -4157,67 +4155,6 @@ function buildDashboardPayload(data) {
   };
 }
 
-function buildReportsPayload(data) {
-  const projectsByName = data.projects.reduce(function (acc, project) {
-    const key = project.name || project.code || project.id;
-    if (!key) return acc;
-
-    acc[key] = {
-      project: project,
-      activities: [],
-      costs: [],
-    };
-    return acc;
-  }, {});
-
-  data.activities.forEach(function (activity) {
-    const key = activity.project || activity.projectId;
-    if (!key) return;
-    if (!projectsByName[key]) {
-      projectsByName[key] = { project: null, activities: [], costs: [] };
-    }
-    projectsByName[key].activities.push(activity);
-  });
-
-  data.costs.forEach(function (cost) {
-    const key = cost.project || cost.projectId;
-    if (!key) return;
-    if (!projectsByName[key]) {
-      projectsByName[key] = { project: null, activities: [], costs: [] };
-    }
-    projectsByName[key].costs.push(cost);
-  });
-
-  const projectReports = Object.keys(projectsByName).map(function (projectKey) {
-    const bundle = projectsByName[projectKey];
-    const totalPlanned = sumBy(bundle.activities, "plannedValue");
-    const totalActual = sumBy(bundle.activities, "actualCost");
-    const totalEv = sumBy(bundle.activities, "earnedValue");
-    const totalCv = sumBy(bundle.activities, "costVariance");
-
-    return {
-      projectKey: projectKey,
-      project: bundle.project,
-      summary: {
-        activityCount: bundle.activities.length,
-        costEntryCount: bundle.costs.length,
-        plannedValue: totalPlanned,
-        actualCost: totalActual,
-        earnedValue: totalEv,
-        costVariance: totalCv,
-        status: totalCv >= 0 ? "Under Budget" : "Over Budget",
-      },
-      activities: bundle.activities,
-      costs: bundle.costs,
-    };
-  });
-
-  return {
-    count: projectReports.length,
-    reports: projectReports,
-  };
-}
-
 function buildAllPayload(data) {
   return {
     projects: buildProjectsPayload(data.projects),
@@ -4228,7 +4165,6 @@ function buildAllPayload(data) {
       dailyCosts: data.dailyCosts,
     },
     dashboard: buildDashboardPayload(data),
-    reports: buildReportsPayload(data),
   };
 }
 
