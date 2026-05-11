@@ -71,6 +71,12 @@ const CONFIG = {
   },
 };
 
+function getSpreadsheetTodayDate() {
+  var timeZone = Session.getScriptTimeZone();
+  var isoDate = Utilities.formatDate(new Date(), timeZone, "yyyy-MM-dd");
+  return new Date(isoDate + "T12:00:00");
+}
+
 function doGet(e) {
   const params = (e && e.parameter) || {};
   const payloadParam = params.payload;
@@ -666,7 +672,7 @@ function handleProjectMutation(action, payload) {
     if (columns.finishDate)
       rowValues[columns.finishDate - 1] = project.finishDate;
     if (columns.budget) rowValues[columns.budget - 1] = project.budget;
-    if (columns.createdAt) rowValues[columns.createdAt - 1] = new Date();
+    if (columns.createdAt) rowValues[columns.createdAt - 1] = getSpreadsheetTodayDate();
 
     sheet
       .getRange(sheet.getLastRow() + 1, 1, 1, lastColumn)
@@ -1105,7 +1111,7 @@ function upsertDailyCostRow(dailyCost) {
     // Guard against legacy column drift where non-date values (for example,
     // Cost IDs like "C1") land in Created At and appear to mutate on refresh.
     if (!normalizedCreatedAt) {
-      row[createdAtIndex] = new Date();
+      row[createdAtIndex] = getSpreadsheetTodayDate();
     }
   }
   var targetRow =
@@ -1512,7 +1518,7 @@ function upsertCostRow(cost) {
     const currentCreatedAt = rowValues[createdAtIndex];
     const normalizedCreatedAt = normalizeDate(currentCreatedAt);
     if (!normalizedCreatedAt) {
-      rowValues[createdAtIndex] = new Date();
+      rowValues[createdAtIndex] = getSpreadsheetTodayDate();
     }
   }
 
@@ -2197,11 +2203,18 @@ function normalizeCostsColumnsIfNeeded(sheet) {
   const expectedNormalized = targetHeaders.map(function (header) {
     return normalizeHeader(header);
   });
+  const headerAliases = {
+    "planned cost": ["planned cost"],
+    "actual cost": ["actual cost"],
+    "planned cost day": ["planned cost day", "planned cost d"],
+  };
 
   const shouldNormalize =
     headers.indexOf(normalizeHeader("planned cost/day")) >= 0 ||
+    headers.indexOf(normalizeHeader("planned cost/d")) >= 0 ||
     expectedNormalized.some(function (expectedHeader, index) {
-      return headers[index] !== expectedHeader;
+      const aliases = headerAliases[expectedHeader] || [expectedHeader];
+      return aliases.indexOf(headers[index]) < 0;
     });
 
   if (!shouldNormalize) return;
@@ -2215,7 +2228,13 @@ function normalizeCostsColumnsIfNeeded(sheet) {
   const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
   const resolvedHeaderIndex = {};
   expectedNormalized.forEach(function (header) {
-    resolvedHeaderIndex[header] = headers.lastIndexOf(header);
+    const aliases = headerAliases[header] || [header];
+    const matchedAlias = aliases.find(function (alias) {
+      return headers.lastIndexOf(alias) >= 0;
+    });
+    resolvedHeaderIndex[header] = matchedAlias
+      ? headers.lastIndexOf(matchedAlias)
+      : -1;
   });
 
   const rebuiltRows = values.map(function (row) {
