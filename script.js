@@ -38,6 +38,7 @@ let costChart = null;
 let dashboardRefreshTimer = null;
 let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
+let lastStableDashboardRows = [];
 
 const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
 const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
@@ -836,35 +837,64 @@ const generateCharts = (rows) => {
   });
 };
 
-const processRows = (rawRows, sourceName = "web app") => {
-  if (!Array.isArray(rawRows) || !rawRows.length) {
-    if (activitySummaryRows.length) {
-      showMessage(
-        `Live source temporarily returned no rows from ${sourceName}. Retaining the last ${activitySummaryRows.length} activity row(s).`,
-        true
-      );
-      return;
-    }
+const readCachedDashboardRows = () => {
+  try {
+    const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
+    if (!cached) return [];
+    const parsedCache = JSON.parse(cached);
+    const rows = Array.isArray(parsedCache) ? parsedCache : parsedCache?.rows;
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    localStorage.removeItem(DASHBOARD_CACHE_KEY);
+    return [];
+  }
+};
 
-    activitySummaryRows = [];
-    renderKpis({ planned: 0, actual: 0, cv: 0 });
-    renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
-    renderTable([]);
-    renderOverrunTable([]);
-    renderGapTable([]);
-    if (varianceDisplayEl) varianceDisplayEl.textContent = formatCurrency(0);
-    if (varianceStatusEl) varianceStatusEl.textContent = "Balanced";
-    destroyCharts();
-    showMessage(`No rows detected from ${sourceName}.`, true);
+const restoreStableDashboardRows = (sourceName, reason = "temporarily returned no rows") => {
+  const stableRows = activitySummaryRows.length
+    ? activitySummaryRows
+    : lastStableDashboardRows.length
+      ? lastStableDashboardRows
+      : readCachedDashboardRows();
+
+  if (!stableRows.length) return false;
+
+  activitySummaryRows = stableRows;
+  lastStableDashboardRows = stableRows;
+  latestDashboardSignature = JSON.stringify(stableRows);
+  syncFilterOptionsFromRows(stableRows);
+  applyFiltersAndRender();
+  showMessage(
+    `Live source ${reason} from ${sourceName}. Keeping the last stable ${stableRows.length} activity row(s).`,
+    true
+  );
+  return true;
+};
+
+const renderEmptyDashboardState = (sourceName = "web app") => {
+  activitySummaryRows = [];
+  renderKpis({ planned: 0, actual: 0, cv: 0 });
+  renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
+  renderTable([]);
+  renderOverrunTable([]);
+  renderGapTable([]);
+  if (varianceDisplayEl) varianceDisplayEl.textContent = formatCurrency(0);
+  if (varianceStatusEl) varianceStatusEl.textContent = "Balanced";
+  destroyCharts();
+  showMessage(`No rows detected from ${sourceName}.`, true);
+};
+
+const processRows = (rawRows, sourceName = "web app", { allowEmptyRender = false } = {}) => {
+  if (!Array.isArray(rawRows) || !rawRows.length) {
+    if (!allowEmptyRender && restoreStableDashboardRows(sourceName)) return;
+    renderEmptyDashboardState(sourceName);
     return;
   }
 
   const rows = extractDashboardRows(rawRows);
-  if (!rows.length && activitySummaryRows.length) {
-    showMessage(
-      `Live source returned an empty parsed result from ${sourceName}. Keeping the last stable ${activitySummaryRows.length} activity row(s).`,
-      true
-    );
+  if (!rows.length) {
+    if (!allowEmptyRender && restoreStableDashboardRows(sourceName, "returned an empty parsed result")) return;
+    renderEmptyDashboardState(sourceName);
     return;
   }
 
@@ -888,6 +918,7 @@ const processRows = (rawRows, sourceName = "web app") => {
   latestDashboardSignature = nextSignature;
   localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
   activitySummaryRows = rows;
+  lastStableDashboardRows = rows;
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
 
@@ -1132,6 +1163,7 @@ const hydrateDashboardFromCache = () => {
     const cacheIsStale = savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS;
     latestDashboardSignature = JSON.stringify(rows);
     activitySummaryRows = rows;
+    lastStableDashboardRows = rows;
     syncFilterOptionsFromRows(rows);
     applyFiltersAndRender();
     showMessage(
@@ -1166,7 +1198,7 @@ const refreshDashboardData = async ({ force = false } = {}) => {
         processRows(localRows, "Cost Management local storage");
         showMessage("Using Cost Management local data because no live data source URL is configured.");
       } else {
-        processRows([], "local storage");
+        processRows([], "local storage", { allowEmptyRender: true });
         showMessage("No dashboard data source URL configured and no local Cost Management data found.", true);
       }
       return;
