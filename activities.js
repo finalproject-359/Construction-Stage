@@ -1257,11 +1257,14 @@ const handleDeleteActivity = async (activityKey) => {
   }
 
   const activity = state.allActivities[index];
-  const shouldDelete = window.confirm(`Delete activity "${activity.name}"?`);
+  const shouldDelete = window.confirm(
+    `Delete activity "${activity.name}" and all costs related to it?`,
+  );
   if (!shouldDelete) return;
 
+  let deletePayload = null;
   try {
-    await mutateActivityInSource({
+    deletePayload = await mutateActivityInSource({
       action: "delete",
       activity: {
         id: activity.id,
@@ -1277,7 +1280,16 @@ const handleDeleteActivity = async (activityKey) => {
   state.allActivities.splice(index, 1);
   refreshFilterOptions();
   applyFilters();
-  window.alert("Activity deleted successfully.");
+
+  const deletedCosts = Number(deletePayload?.deletedCosts) || 0;
+  const deletedDailyCosts = Number(deletePayload?.deletedDailyCosts) || 0;
+  const deletedCostSummary =
+    deletedCosts || deletedDailyCosts
+      ? ` Deleted ${deletedCosts} cost record(s) and ${deletedDailyCosts} daily cost record(s).`
+      : "";
+  window.alert(
+    `Activity and related costs deleted successfully.${deletedCostSummary}`,
+  );
 };
 
 const refreshFilterOptions = () => {
