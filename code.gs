@@ -356,21 +356,30 @@ function handleActivitiesSheetEdit(sheet, range) {
 
 function handleCostsSheetEdit(sheet, range) {
   var columns = getCostColumnMap(sheet);
-  var editedColumn = range.getColumn();
+  var firstEditedColumn = range.getColumn();
+  var lastEditedColumn = firstEditedColumn + range.getNumColumns() - 1;
   var relevant = [
     columns.projectId,
+    columns.project,
     columns.costId,
     columns.activityId,
     columns.activity,
     columns.plannedCost,
     columns.actualCost,
     columns.progress,
-  ];
-  if (relevant.indexOf(editedColumn) < 0) return;
+  ].filter(function (column) {
+    return column > 0;
+  });
+  var touchesRelevantColumn = relevant.some(function (column) {
+    return column >= firstEditedColumn && column <= lastEditedColumn;
+  });
+  if (!touchesRelevantColumn) return;
 
-  var row = range.getRow();
-  if (row <= 1) return;
-  refreshCostRowMetrics(sheet, row, columns);
+  var firstRow = Math.max(range.getRow(), 2);
+  var lastRow = range.getRow() + range.getNumRows() - 1;
+  for (var row = firstRow; row <= lastRow; row += 1) {
+    refreshCostRowMetrics(sheet, row, columns);
+  }
 }
 
 function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
@@ -390,6 +399,7 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
 
   var cost = {
     projectId: projectId,
+    project: columns.project ? cleanText(rowValues[columns.project - 1]) : "",
     costId: costId,
     activityId: columns.activityId
       ? cleanText(rowValues[columns.activityId - 1])
@@ -420,7 +430,7 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
       .setNumberFormat("#,##0.00");
   }
 
-  syncCostActualFromDailyCost(projectId, costId);
+  syncCostActualFromDailyCost(projectId, costId, { syncProgress: false });
 }
 
 function syncEarnedValueForActivity(projectId, activityId, activityName) {
@@ -468,10 +478,13 @@ function syncEarnedValueForActivity(projectId, activityId, activityName) {
 
 function syncActivityProgressFromCost(cost) {
   var normalizedProjectId = cleanText(cost && cost.projectId);
+  var normalizedProjectName = cleanText(
+    cost && (cost.project || cost.projectName || cost.project_name),
+  );
   var normalizedActivityId = cleanText(cost && cost.activityId);
   var normalizedActivityName = cleanText(cost && cost.activity);
   if (
-    !normalizedProjectId ||
+    (!normalizedProjectId && !normalizedProjectName) ||
     (!normalizedActivityId && !normalizedActivityName)
   ) {
     return false;
@@ -484,27 +497,47 @@ function syncActivityProgressFromCost(cost) {
 
   var values = activitiesSheet.getDataRange().getValues();
   var progress = roundTo(clampPercent(cost && cost.progress), 2);
+  var targetProjectId = normalizedProjectId.toLowerCase();
+  var targetProjectName = normalizedProjectName.toLowerCase();
+  var targetActivityId = normalizedActivityId.toLowerCase();
+  var targetActivityName = normalizedActivityName.toLowerCase();
 
   for (var i = 1; i < values.length; i += 1) {
     var rowProjectId = columns.projectId
       ? cleanText(values[i][columns.projectId - 1])
       : "";
-    if (rowProjectId !== normalizedProjectId) continue;
+    var rowProjectName = columns.project
+      ? cleanText(values[i][columns.project - 1])
+      : "";
+    var rowProjectIdLower = rowProjectId.toLowerCase();
+    var rowProjectNameLower = rowProjectName.toLowerCase();
+    var matchesProject =
+      (targetProjectId && rowProjectIdLower === targetProjectId) ||
+      (!targetProjectId &&
+        targetProjectName &&
+        rowProjectNameLower === targetProjectName) ||
+      (targetProjectId &&
+        !rowProjectIdLower &&
+        targetProjectName &&
+        rowProjectNameLower === targetProjectName);
+    if (!matchesProject) continue;
 
     var rowActivityId = columns.id ? cleanText(values[i][columns.id - 1]) : "";
     var rowActivityName = columns.name
       ? cleanText(values[i][columns.name - 1])
       : "";
-    var matches =
-      (normalizedActivityId && rowActivityId === normalizedActivityId) ||
-      (!normalizedActivityId &&
-        normalizedActivityName &&
-        rowActivityName === normalizedActivityName) ||
-      (normalizedActivityId &&
-        !rowActivityId &&
-        normalizedActivityName &&
-        rowActivityName === normalizedActivityName);
-    if (!matches) continue;
+    var rowActivityIdLower = rowActivityId.toLowerCase();
+    var rowActivityNameLower = rowActivityName.toLowerCase();
+    var matchesActivity =
+      (targetActivityId && rowActivityIdLower === targetActivityId) ||
+      (!targetActivityId &&
+        targetActivityName &&
+        rowActivityNameLower === targetActivityName) ||
+      (targetActivityId &&
+        !rowActivityIdLower &&
+        targetActivityName &&
+        rowActivityNameLower === targetActivityName);
+    if (!matchesActivity) continue;
 
     activitiesSheet
       .getRange(i + 1, columns.percentComplete)
@@ -538,6 +571,7 @@ function syncAllActivityProgressFromCosts() {
 
     syncActivityProgressFromCost({
       projectId: cleanText(row[columns.projectId - 1]),
+      project: columns.project ? cleanText(row[columns.project - 1]) : "",
       activityId: columns.activityId
         ? cleanText(row[columns.activityId - 1])
         : "",
@@ -1290,9 +1324,10 @@ function deleteDailyCostRow(dailyCost) {
   }
 }
 
-function syncCostActualFromDailyCost(projectId, costId) {
+function syncCostActualFromDailyCost(projectId, costId, options) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedCostId = cleanText(costId);
+  var syncProgress = !options || options.syncProgress !== false;
   if (!normalizedProjectId || !normalizedCostId) return;
 
   var dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
@@ -1349,7 +1384,7 @@ function syncCostActualFromDailyCost(projectId, costId) {
         costsSheet
           .getRange(targetRow, costColumns.actualCost)
           .setNumberFormat("#,##0.00");
-        if (costProgressColumn > 0) {
+        if (syncProgress && costProgressColumn > 0) {
           costsSheet.getRange(targetRow, costProgressColumn).setValue(
             roundTo(totalProgress, 2),
           );
@@ -1365,16 +1400,21 @@ function syncCostActualFromDailyCost(projectId, costId) {
             .getRange(targetRow, costColumns.earnedValue)
             .setNumberFormat("#,##0.00");
         }
-        syncActivityProgressFromCost({
-          projectId: normalizedProjectId,
-          activityId: costColumns.activityId
-            ? cleanText(costValues[rowIndex][costColumns.activityId - 1])
-            : "",
-          activity: costColumns.activity
-            ? cleanText(costValues[rowIndex][costColumns.activity - 1])
-            : "",
-          progress: totalProgress,
-        });
+        if (syncProgress) {
+          syncActivityProgressFromCost({
+            projectId: normalizedProjectId,
+            project: costColumns.project
+              ? cleanText(costValues[rowIndex][costColumns.project - 1])
+              : "",
+            activityId: costColumns.activityId
+              ? cleanText(costValues[rowIndex][costColumns.activityId - 1])
+              : "",
+            activity: costColumns.activity
+              ? cleanText(costValues[rowIndex][costColumns.activity - 1])
+              : "",
+            progress: totalProgress,
+          });
+        }
       }
       return;
     }
@@ -1656,7 +1696,21 @@ function upsertCostRow(cost) {
   if (columns.activity) rowValues[columns.activity - 1] = cost.activity;
   if (columns.duration) rowValues[columns.duration - 1] = cost.duration;
   if (columns.progress) rowValues[columns.progress - 1] = cost.progress;
-  syncActivityProgressFromCost(cost);
+  syncActivityProgressFromCost({
+    projectId: columns.projectId
+      ? cleanText(rowValues[columns.projectId - 1])
+      : cleanText(cost.projectId),
+    project: columns.project
+      ? cleanText(rowValues[columns.project - 1])
+      : cleanText(cost.project),
+    activityId: columns.activityId
+      ? cleanText(rowValues[columns.activityId - 1])
+      : cleanText(cost.activityId),
+    activity: columns.activity
+      ? cleanText(rowValues[columns.activity - 1])
+      : cleanText(cost.activity),
+    progress: columns.progress ? rowValues[columns.progress - 1] : cost.progress,
+  });
   if (columns.plannedCost)
     rowValues[columns.plannedCost - 1] = cost.plannedCost;
   if (columns.plannedCostPerDay)
