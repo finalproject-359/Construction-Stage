@@ -497,10 +497,14 @@ function syncActivityProgressFromCost(cost) {
 
   var values = activitiesSheet.getDataRange().getValues();
   var progress = roundTo(clampPercent(cost && cost.progress), 2);
-  var targetProjectId = normalizedProjectId.toLowerCase();
-  var targetProjectName = normalizedProjectName.toLowerCase();
-  var targetActivityId = normalizedActivityId.toLowerCase();
-  var targetActivityName = normalizedActivityName.toLowerCase();
+  var targetProjectCandidates = getIdentityCandidates(
+    normalizedProjectId,
+    normalizedProjectName,
+  );
+  var targetActivityCandidates = getIdentityCandidates(
+    normalizedActivityId,
+    normalizedActivityName,
+  );
 
   for (var i = 1; i < values.length; i += 1) {
     var rowProjectId = columns.projectId
@@ -509,34 +513,28 @@ function syncActivityProgressFromCost(cost) {
     var rowProjectName = columns.project
       ? cleanText(values[i][columns.project - 1])
       : "";
-    var rowProjectIdLower = rowProjectId.toLowerCase();
-    var rowProjectNameLower = rowProjectName.toLowerCase();
-    var matchesProject =
-      (targetProjectId && rowProjectIdLower === targetProjectId) ||
-      (!targetProjectId &&
-        targetProjectName &&
-        rowProjectNameLower === targetProjectName) ||
-      (targetProjectId &&
-        !rowProjectIdLower &&
-        targetProjectName &&
-        rowProjectNameLower === targetProjectName);
+    var rowProjectCandidates = getIdentityCandidates(
+      rowProjectId,
+      rowProjectName,
+    );
+    var matchesProject = identityCandidatesMatch(
+      rowProjectCandidates,
+      targetProjectCandidates,
+    );
     if (!matchesProject) continue;
 
     var rowActivityId = columns.id ? cleanText(values[i][columns.id - 1]) : "";
     var rowActivityName = columns.name
       ? cleanText(values[i][columns.name - 1])
       : "";
-    var rowActivityIdLower = rowActivityId.toLowerCase();
-    var rowActivityNameLower = rowActivityName.toLowerCase();
-    var matchesActivity =
-      (targetActivityId && rowActivityIdLower === targetActivityId) ||
-      (!targetActivityId &&
-        targetActivityName &&
-        rowActivityNameLower === targetActivityName) ||
-      (targetActivityId &&
-        !rowActivityIdLower &&
-        targetActivityName &&
-        rowActivityNameLower === targetActivityName);
+    var rowActivityCandidates = getIdentityCandidates(
+      rowActivityId,
+      rowActivityName,
+    );
+    var matchesActivity = identityCandidatesMatch(
+      rowActivityCandidates,
+      targetActivityCandidates,
+    );
     if (!matchesActivity) continue;
 
     activitiesSheet
@@ -545,6 +543,16 @@ function syncActivityProgressFromCost(cost) {
     activitiesSheet
       .getRange(i + 1, columns.percentComplete)
       .setNumberFormat("0.00");
+
+    if (columns.status) {
+      var nextStatus =
+        progress >= 100
+          ? "Completed"
+          : progress > 0
+            ? "In Progress"
+            : "Not Started";
+      activitiesSheet.getRange(i + 1, columns.status).setValue(nextStatus);
+    }
     return true;
   }
 
@@ -1491,7 +1499,13 @@ function computeEarnedValue(cost) {
   var idxProjectId = headers.indexOf(normalizeHeader("Project ID"));
   var idxActivityId = headers.indexOf(normalizeHeader("Activity ID"));
   var idxActivity = headers.indexOf(normalizeHeader("Activity"));
-  var idxPercent = headers.indexOf(normalizeHeader("% Complete"));
+  var idxPercent = ["Progress", "% Complete", "Percent Complete"].reduce(
+    function (foundIndex, header) {
+      if (foundIndex >= 0) return foundIndex;
+      return headers.indexOf(normalizeHeader(header));
+    },
+    -1,
+  );
   if (idxPercent < 0) return 0;
 
   var targetProjectId = cleanText(cost && cost.projectId);
@@ -1895,8 +1909,16 @@ function normalizeIncomingActivity(input) {
 }
 
 function resolveProjectIdentity(projectIdInput, projectNameInput) {
-  var normalizedId = cleanText(projectIdInput);
-  var normalizedName = cleanText(projectNameInput);
+  var parsedProjectId = splitIdentityLabel(projectIdInput);
+  var parsedProjectName = splitIdentityLabel(projectNameInput);
+  var normalizedId = cleanText(parsedProjectId.id || projectIdInput);
+  var normalizedName = cleanText(
+    (parsedProjectName.name && parsedProjectName.name !== parsedProjectName.id
+      ? parsedProjectName.name
+      : "") ||
+      projectNameInput ||
+      parsedProjectId.name,
+  );
 
   if (!normalizedId && !normalizedName) {
     return { id: "", name: "" };
@@ -1918,10 +1940,22 @@ function resolveProjectIdentity(projectIdInput, projectNameInput) {
     if (!rowId && !rowName) continue;
 
     const matchesId =
-      normalizedId && rowId.toLowerCase() === normalizedId.toLowerCase();
+      normalizedId &&
+      identityCandidatesMatch(
+        getIdentityCandidates(rowId),
+        getIdentityCandidates(normalizedId),
+      );
     const matchesName =
-      normalizedName && rowName.toLowerCase() === normalizedName.toLowerCase();
-    if (!matchesId && !matchesName) continue;
+      normalizedName &&
+      identityCandidatesMatch(
+        getIdentityCandidates(rowName),
+        getIdentityCandidates(normalizedName),
+      );
+    const matchesCombined = identityCandidatesMatch(
+      getIdentityCandidates(rowId, rowName),
+      getIdentityCandidates(projectIdInput, projectNameInput),
+    );
+    if (!matchesId && !matchesName && !matchesCombined) continue;
 
     return {
       id: rowId || normalizedId,
@@ -1969,9 +2003,9 @@ function getActivityColumnMap(sheet) {
     duration: indexOfHeader(["Duration", "Duration Days"]),
     status: indexOfHeader(["Status"]),
     percentComplete: indexOfHeader([
+      "Progress",
       "% Complete",
       "Percent Complete",
-      "Progress",
     ]),
     notes: indexOfHeader(["Notes", "Remarks"]),
     maxColumn: headers.length,
@@ -3364,7 +3398,7 @@ function normalizeActivityRecord(row) {
       getCell(row, ["duration", "duration days", "duration_days"]),
     ),
     percentComplete: parseNumber(
-      getCell(row, ["% complete", "percent complete", "progress"]),
+      getCell(row, ["progress", "% complete", "percent complete"]),
     ),
     createdAt: normalizeDate(
       getCell(row, ["created at", "created_at", "timestamp", "date created"]),
@@ -3788,6 +3822,48 @@ function compactHeader(value) {
 
 function cleanText(value) {
   return String(value || "").trim();
+}
+
+function splitIdentityLabel(value) {
+  var text = cleanText(value);
+  if (!text) return { id: "", name: "" };
+
+  var separatorMatch = text.match(/^(.+?)\s+(?:-|–|—)\s+(.+)$/);
+  if (separatorMatch) {
+    return {
+      id: cleanText(separatorMatch[1]),
+      name: cleanText(separatorMatch[2]),
+    };
+  }
+
+  return { id: text, name: text };
+}
+
+function normalizeIdentityForCompare(value) {
+  return cleanText(value).toLowerCase();
+}
+
+function getIdentityCandidates() {
+  var candidates = [];
+  for (var i = 0; i < arguments.length; i += 1) {
+    var value = cleanText(arguments[i]);
+    if (!value) continue;
+    var parsed = splitIdentityLabel(value);
+    [value, parsed.id, parsed.name].forEach(function (candidate) {
+      var normalized = normalizeIdentityForCompare(candidate);
+      if (normalized && candidates.indexOf(normalized) < 0) {
+        candidates.push(normalized);
+      }
+    });
+  }
+  return candidates;
+}
+
+function identityCandidatesMatch(rowCandidates, targetCandidates) {
+  if (!rowCandidates.length || !targetCandidates.length) return false;
+  return rowCandidates.some(function (candidate) {
+    return targetCandidates.indexOf(candidate) >= 0;
+  });
 }
 
 function clampPercent(value) {
