@@ -95,3 +95,237 @@ a.activity-cancel-btn {
     background: #fff;
   }
 }
+
+/* Professional construction-focused enhancements for activities.html. */
+.page-eyebrow {
+  margin: 0 0 6px;
+  color: #986a06;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body.page-activities .main-content {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(243, 246, 250, 0.92)),
+    repeating-linear-gradient(135deg, rgba(15, 23, 42, 0.025) 0 1px, transparent 1px 14px);
+}
+
+body.page-activities .activities-topbar {
+  border: 1px solid #dbe4f0;
+  border-radius: 22px;
+  padding: 22px;
+  background:
+    linear-gradient(135deg, #ffffff, #f6f9fd 68%),
+    radial-gradient(circle at 100% 0%, rgba(248, 181, 17, 0.16), transparent 34%);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+body.page-activities .activities-topbar h1 {
+  margin-bottom: 0;
+  color: #0b1f3f;
+  font-size: clamp(2rem, 3vw, 3.1rem);
+}
+
+body.page-activities .activities-subtitle {
+  max-width: 720px;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.activities-controls-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.activities-controls-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.activities-controls-header p {
+  max-width: 520px;
+  margin: 0;
+  color: #667085;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+body.page-activities .activities-project-selection-filters,
+body.page-activities .activities-controls {
+  padding: 16px;
+}
+
+body.page-activities .activities-project-selection-filters {
+  position: sticky;
+  top: 12px;
+  z-index: 6;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+}
+
+body.page-activities .activities-search-field,
+body.page-activities .activities-select-field,
+body.page-activities .activities-date-btn {
+  border-color: #d6deeb;
+  background: #fff;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 150ms ease;
+}
+
+body.page-activities .activities-search-field:hover,
+body.page-activities .activities-select-field:hover,
+body.page-activities .activities-date-btn:hover {
+  border-color: #bfccdf;
+}
+
+.activities-project-picker-card {
+  position: relative;
+  align-items: stretch;
+  gap: 12px;
+  min-height: 126px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.activities-project-picker-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(180deg, #f8b511, #0d2f63);
+}
+
+.activities-project-card-copy {
+  display: grid;
+  gap: 9px;
+}
+
+.activities-project-card-title {
+  color: #0f172a;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.activities-project-card-meta,
+.activities-project-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.activities-project-card-meta span,
+.activities-project-card-tags span {
+  border: 1px solid #dbe4f0;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.activities-project-card-tags .badge {
+  border: 0;
+  padding: 5px 9px;
+}
+
+.activities-project-picker-card > svg {
+  align-self: center;
+  margin-left: auto;
+}
+
+body.page-activities .activities-kpi-card {
+  position: relative;
+  overflow: hidden;
+}
+
+body.page-activities .activities-kpi-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 14px 0;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(90deg, #f8b511, #0d2f63);
+  opacity: 0.28;
+}
+
+body.page-activities .activities-table-panel {
+  overflow: hidden;
+}
+
+body.page-activities .activities-table-panel table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+body.page-activities .activities-table-panel th {
+  border-bottom: 1px solid #d9e2ef;
+  background: #f8fafc;
+  white-space: nowrap;
+}
+
+body.page-activities .activities-table-panel tbody tr:hover {
+  box-shadow: inset 4px 0 0 #f8b511;
+}
+
+.activity-name-cell {
+  display: grid;
+  gap: 5px;
+}
+
+.activity-name-cell strong {
+  color: #0f172a;
+}
+
+.activity-name-cell span {
+  color: #667085;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+body.page-activities .activity-row-actions .project-action-btn {
+  border: 1px solid #d8deea;
+  background: #fff;
+  font-weight: 700;
+}
+
+body.page-activities .activity-row-actions .project-action-btn:hover {
+  border-color: #b8c5f4;
+}
+
+@media (max-width: 900px) {
+  .activities-controls-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  body.page-activities .activities-project-selection-filters {
+    position: static;
+    backdrop-filter: none;
+  }
+}
+
+.activities-project-card-tags .badge-completed {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.activities-project-card-tags .badge-in-progress {
+  background: #e6ecff;
+  color: #2f55ff;
+}
+
+.activities-project-card-tags .badge-not-started {
+  background: #eef2f7;
+  color: #667085;
+}
+
+.activities-project-card-tags .badge-delayed {
+  background: #fee2e2;
+  color: #ef4444;
+}
