@@ -363,6 +363,7 @@ function handleCostsSheetEdit(sheet, range) {
     columns.activity,
     columns.plannedCost,
     columns.actualCost,
+    columns.progress,
   ];
   if (relevant.indexOf(editedColumn) < 0) return;
 
@@ -401,7 +402,12 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
     earnedValue: columns.earnedValue
       ? parseNumber(rowValues[columns.earnedValue - 1])
       : 0,
+    progress: columns.progress
+      ? parseNumber(rowValues[columns.progress - 1])
+      : 0,
   };
+
+  syncActivityProgressFromCost(cost);
 
   if (columns.earnedValue) {
     var computedEarnedValue = Number(computeEarnedValue(cost)) || 0;
@@ -456,6 +462,87 @@ function syncEarnedValueForActivity(projectId, activityId, activityName) {
     if (!matches) continue;
 
     refreshCostRowMetrics(costsSheet, i + 1, columns);
+  }
+}
+
+function syncActivityProgressFromCost(cost) {
+  var normalizedProjectId = cleanText(cost && cost.projectId);
+  var normalizedActivityId = cleanText(cost && cost.activityId);
+  var normalizedActivityName = cleanText(cost && cost.activity);
+  if (
+    !normalizedProjectId ||
+    (!normalizedActivityId && !normalizedActivityName)
+  ) {
+    return false;
+  }
+
+  var activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+  ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
+  var columns = getActivityColumnMap(activitiesSheet);
+  if (!columns.percentComplete) return false;
+
+  var values = activitiesSheet.getDataRange().getValues();
+  var progress = roundTo(clampPercent(cost && cost.progress), 2);
+
+  for (var i = 1; i < values.length; i += 1) {
+    var rowProjectId = columns.projectId
+      ? cleanText(values[i][columns.projectId - 1])
+      : "";
+    if (rowProjectId !== normalizedProjectId) continue;
+
+    var rowActivityId = columns.id ? cleanText(values[i][columns.id - 1]) : "";
+    var rowActivityName = columns.name
+      ? cleanText(values[i][columns.name - 1])
+      : "";
+    var matches =
+      (normalizedActivityId && rowActivityId === normalizedActivityId) ||
+      (!normalizedActivityId &&
+        normalizedActivityName &&
+        rowActivityName === normalizedActivityName) ||
+      (normalizedActivityId &&
+        !rowActivityId &&
+        normalizedActivityName &&
+        rowActivityName === normalizedActivityName);
+    if (!matches) continue;
+
+    activitiesSheet
+      .getRange(i + 1, columns.percentComplete)
+      .setValue(progress);
+    activitiesSheet
+      .getRange(i + 1, columns.percentComplete)
+      .setNumberFormat("0.00");
+    return true;
+  }
+
+  return false;
+}
+
+function syncAllActivityProgressFromCosts() {
+  var costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+  var columns = getCostColumnMap(costsSheet);
+  if (!columns.projectId || !columns.progress) return;
+
+  var values = costsSheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    var row = values[i];
+    var rawProgress = row[columns.progress - 1];
+    if (
+      rawProgress === "" ||
+      rawProgress === null ||
+      rawProgress === undefined
+    ) {
+      continue;
+    }
+
+    syncActivityProgressFromCost({
+      projectId: cleanText(row[columns.projectId - 1]),
+      activityId: columns.activityId
+        ? cleanText(row[columns.activityId - 1])
+        : "",
+      activity: columns.activity ? cleanText(row[columns.activity - 1]) : "",
+      progress: rawProgress,
+    });
   }
 }
 
@@ -553,6 +640,14 @@ function createEmptyDataBundle() {
 function loadDataByResource(resource) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const bundle = createEmptyDataBundle();
+
+  if (
+    resource !== "projects" &&
+    resource !== "costs" &&
+    resource !== "daily_costs"
+  ) {
+    syncAllActivityProgressFromCosts();
+  }
 
   const readResource = function (
     targetKey,
@@ -1272,6 +1367,16 @@ function syncCostActualFromDailyCost(projectId, costId) {
             .getRange(targetRow, costColumns.earnedValue)
             .setNumberFormat("#,##0.00");
         }
+        syncActivityProgressFromCost({
+          projectId: normalizedProjectId,
+          activityId: costColumns.activityId
+            ? cleanText(costValues[rowIndex][costColumns.activityId - 1])
+            : "",
+          activity: costColumns.activity
+            ? cleanText(costValues[rowIndex][costColumns.activity - 1])
+            : "",
+          progress: totalProgress,
+        });
       }
       return;
     }
@@ -1553,6 +1658,7 @@ function upsertCostRow(cost) {
   if (columns.activity) rowValues[columns.activity - 1] = cost.activity;
   if (columns.duration) rowValues[columns.duration - 1] = cost.duration;
   if (columns.progress) rowValues[columns.progress - 1] = cost.progress;
+  syncActivityProgressFromCost(cost);
   if (columns.plannedCost)
     rowValues[columns.plannedCost - 1] = cost.plannedCost;
   if (columns.plannedCostPerDay)
@@ -2720,6 +2826,7 @@ function getCostColumnMap(sheet) {
       "Planned Cost/Day",
       "Planned Cost Per Day",
     ]),
+    progress: indexOfHeader(["Progress", "% Complete", "Percent Complete"]),
     actualCost: indexOfHeader([
       "Actual Cost/Day",
       "Actual Cost",
@@ -2768,7 +2875,12 @@ function getDailyCostColumnMap(sheet) {
     ]),
     activity: indexOfHeader(["Activity", "Activity Name"]),
     plannedCost: indexOfHeader(["Planned Cost", "Planned Value", "Budget"]),
-    progress: indexOfHeader(["Progress/Day", "Progress", "% Complete", "Percent Complete"]),
+    progress: indexOfHeader([
+      "Progress/Day",
+      "Progress",
+      "% Complete",
+      "Percent Complete",
+    ]),
     plannedCostPerDay: indexOfHeader([
       "Planned Cost/Day",
       "Planned Cost per day",
