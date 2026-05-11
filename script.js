@@ -354,13 +354,13 @@ const syncFilterOptionsFromRows = (rows) => {
     .map((project) => `<option value="${escapeHtml(project.toLowerCase())}">${escapeHtml(project)}</option>`)
     .join("")}`;
 
-  const selected = prefilledSelection || currentSelection;
+  const selected = prefilledSelection || (currentSelection === "all" ? "" : currentSelection);
   const selectedExists = selected && projects.some((project) => project.toLowerCase() === selected);
 
   if (selectedExists) {
     projectFilterEl.value = selected;
-  } else if (projects.length === 1 || !projectFilterEl.value || projectFilterEl.value === "all") {
-    projectFilterEl.value = projects[0]?.toLowerCase() || "all";
+  } else {
+    projectFilterEl.value = "all";
   }
 
   hasAppliedProjectFilterPrefill = true;
