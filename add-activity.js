@@ -1,6 +1,6 @@
 const DATA_SOURCE_URL =
   window.DataBridge?.DEFAULT_DATA_SOURCE_URL ||
-  "https://script.google.com/macros/s/AKfycbwT7-Cii02NmqtQu1n47ECRtQ_3m_riu6s_qjyl7sSQI6JpLIjTjlB3DBUykAnOSGUc/exec";
+  "https://script.google.com/macros/s/AKfycbxzTCSAXinIHXaXX4nEKcKC69M7DQHgosaTN-2vmuBMKknJbrefRnOUKA336xz6BZuX/exec";
 
 const activityPageForm = document.getElementById("activityPageForm");
 const activityProjectInput = document.getElementById("activityProjectInput");
