@@ -1126,12 +1126,15 @@ function normalizeIncomingDailyCost(input) {
   ]);
   var hasProgress = hasExplicitValue(rawProgress);
   var progress = hasProgress ? roundTo(parseNumber(rawProgress), 2) : null;
-  var explicitEarnedValue = roundTo(
-    parseNumber(
-      pickFirstDefined([source.earnedValue, source.earned_value, source.ev]),
-    ),
-    2,
-  );
+  var rawEarnedValue = pickFirstDefined([
+    source.earnedValue,
+    source.earned_value,
+    source.ev,
+  ]);
+  var hasEarnedValue = hasExplicitValue(rawEarnedValue);
+  var explicitEarnedValue = hasEarnedValue
+    ? roundTo(parseNumber(rawEarnedValue), 2)
+    : null;
   var computedEarnedValue =
     plannedCostPerDay > 0 && progress >= 0
       ? roundTo(plannedCostPerDay * (progress / 100), 2)
@@ -1165,7 +1168,11 @@ function normalizeIncomingDailyCost(input) {
       source.actualCost || source.actual_cost || source.amount,
     ),
     earnedValue:
-      explicitEarnedValue >= 0 ? explicitEarnedValue : computedEarnedValue,
+      explicitEarnedValue !== null
+        ? explicitEarnedValue
+        : hasProgress
+          ? computedEarnedValue
+          : null,
   };
 }
 
@@ -1239,7 +1246,8 @@ function upsertDailyCostRow(dailyCost) {
     row[columns.progress - 1] = dailyCost.progress;
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
-  if (columns.earnedValue) row[columns.earnedValue - 1] = dailyCost.earnedValue;
+  if (columns.earnedValue && dailyCost.earnedValue !== null)
+    row[columns.earnedValue - 1] = dailyCost.earnedValue;
   if (columns.createdAt) {
     var createdAtIndex = columns.createdAt - 1;
     var currentCreatedAt = row[createdAtIndex];
