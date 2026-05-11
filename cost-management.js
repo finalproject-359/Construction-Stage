@@ -1118,6 +1118,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         },
       });
       await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
+      await syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity });
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
       alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
@@ -1128,6 +1129,40 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
     renderDailyCostModal(projectId, activityId);
+  });
+};
+
+const syncCostSummaryToSheet = async ({ projectId, projectName, activity }) => {
+  const resolvedProjectId = String(projectId || activity?.projectId || "").trim();
+  const resolvedProjectName = String(projectName || activity?.projectName || activity?.project || "").trim();
+  const activityId = String(getActivityRefId(activity) || "").trim();
+  const costId = String(activity?.costId || "").trim();
+  if (!resolvedProjectId || !activityId || !costId) return;
+
+  const refreshed = getProjectCostData(resolvedProjectId, loadCostActivities()).rows
+    .find((row) => String(getActivityRefId(row) || "").trim() === activityId || String(row.costId || "").trim() === costId);
+  if (!refreshed) return;
+
+  const durationDays = Number(refreshed.durationDays) || 0;
+  const plannedCost = parseBudgetValue(refreshed.plannedCost);
+  const plannedCostPerDay = durationDays > 0 ? plannedCost / durationDays : 0;
+  await postToDataSource("costs", "update", {
+    cost: {
+      costId,
+      projectId: resolvedProjectId,
+      project: resolvedProjectName,
+      activityId,
+      activity: refreshed.name || activity?.name || "",
+      duration: durationDays,
+      category: "Planned Cost",
+      date: new Date().toISOString().slice(0, 10),
+      plannedCost,
+      plannedCostPerDay,
+      progress: clampPercent(refreshed.progressPercent),
+      actualCost: parseBudgetValue(refreshed.actualCost),
+      earnedValue: parseBudgetValue(refreshed.earnedValue),
+      notes: `Activity ID: ${activityId}`,
+    },
   });
 };
 
