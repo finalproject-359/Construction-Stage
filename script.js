@@ -169,6 +169,19 @@ const getVarianceBand = (cv, plannedCost) => {
   return "under";
 };
 
+const normalizeIdentityKey = (value) => String(value || "").trim().toLowerCase();
+const makeDashboardCompositeKey = ({ projectId = "", activityId = "", costId = "" } = {}) =>
+  [projectId, activityId, costId].map(normalizeIdentityKey).join("::");
+
+const formatActivityCostIdentity = (row = {}) => {
+  const activityId = String(row.activityId || "").trim();
+  const costId = String(row.costId || "").trim();
+  if (activityId && costId && normalizeIdentityKey(activityId) !== normalizeIdentityKey(costId)) {
+    return `${activityId} / ${costId}`;
+  }
+  return activityId || costId || "-";
+};
+
 
 const normalizeHeader = (value) =>
   String(value)
@@ -222,7 +235,11 @@ const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row, index) => {
       const detectedActivityId = normalize(
-        getCell(row, ["activity id", "activity id/cost id", "cost id", "id", "activity code", "wbs", "task id"]),
+        getCell(row, ["activity id", "activity id/cost id", "activity code", "wbs", "task id"]),
+        ""
+      );
+      const detectedCostId = normalize(
+        getCell(row, ["cost id", "cost code", "cost_id", "costid"]),
         ""
       );
       const activity = normalize(
@@ -230,6 +247,7 @@ const extractDashboardRows = (rawRows) =>
           "activity",
           "activity name",
           "activity title",
+          "name",
           "task",
           "task name",
           "description",
@@ -237,9 +255,10 @@ const extractDashboardRows = (rawRows) =>
         ""
       );
       const hasValidActivityId = isValidActivityId(detectedActivityId);
+      const hasValidCostId = isValidActivityId(detectedCostId);
       const hasValidActivityName = activity !== "" && !isSummaryLabel(activity);
 
-      if (!hasValidActivityId && !hasValidActivityName) return null;
+      if (!hasValidActivityId && !hasValidCostId && !hasValidActivityName) return null;
 
       const projectId = normalize(getCell(row, ["project id", "project code", "projectid", "code"]), "");
       const projectName = normalize(getCell(row, ["project name", "project", "project title"]), "");
@@ -257,21 +276,28 @@ const extractDashboardRows = (rawRows) =>
       const percentComplete = normalizeProgressPercent(
         getCell(row, ["% complete", "percent complete", "progress %", "progress", "completion"] )
       );
+      const rawEarnedValue = getCell(row, ["earned value", "earned value/day", "ev"]);
+      const hasProvidedEarnedValue =
+        rawEarnedValue !== null && rawEarnedValue !== undefined && String(rawEarnedValue).trim() !== "";
+      const ev = hasProvidedEarnedValue ? parseNumber(rawEarnedValue) : plannedCost * (percentComplete / 100);
       const rawCv = getCell(row, ["cost variance", "cv"]);
       const hasProvidedCv =
         rawCv !== null && rawCv !== undefined && String(rawCv).trim() !== "";
       const providedCv = parseNumber(rawCv);
-      const cv = hasProvidedCv ? providedCv : (plannedCost * (percentComplete / 100)) - actualCost;
+      const cv = hasProvidedCv ? providedCv : ev - actualCost;
 
       return {
-        activityId: hasValidActivityId ? detectedActivityId : `ROW-${index + 1}`,
-        activity: activity || (hasValidActivityId ? `Activity ${detectedActivityId}` : "Unnamed Activity"),
+        activityId: hasValidActivityId ? detectedActivityId : "",
+        costId: hasValidCostId ? detectedCostId : "",
+        activity: activity || (hasValidActivityId ? `Activity ${detectedActivityId}` : hasValidCostId ? `Cost ${detectedCostId}` : "Unnamed Activity"),
+        projectId,
+        projectName,
         project,
         startDate,
         finishDate,
         plannedCost,
         actualCost,
-        ev: plannedCost * (percentComplete / 100),
+        ev,
         percentComplete,
         cv,
         costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
@@ -468,7 +494,7 @@ const renderTable = (rows) => {
     .map(
       (row) => `
       <tr class="variance-row variance-${getVarianceBand(row.cv, row.plannedCost)}">
-        <td>${escapeHtml(row.activityId || "-")}</td>
+        <td>${escapeHtml(formatActivityCostIdentity(row))}</td>
         <td>${escapeHtml(row.activity)}</td>
         <td>${formatCurrency(row.plannedCost)}</td>
         <td>${formatCurrency(row.actualCost)}</td>
@@ -726,24 +752,35 @@ const loadRowsFromCostManagementLocalData = () => {
   if (!mergedActivities.length) return [];
   const dailyCosts = safeParseArray(localStorage.getItem(DAILY_COSTS_LOCAL_STORAGE_KEY));
 
-  const actualCostByActivityId = dailyCosts.reduce((map, item) => {
-    const key = String(item?.activityId || "").trim();
-    if (!key) return map;
-    map.set(key, (map.get(key) || 0) + parseNumber(item?.actualCost));
+  const actualCostByCompositeKey = dailyCosts.reduce((map, item) => {
+    const projectId = String(item?.projectId || item?.project_id || "").trim();
+    const activityId = String(item?.activityId || item?.activity_id || "").trim();
+    const costId = String(item?.costId || item?.cost_id || "").trim();
+    const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
+    const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
+    if (!projectId || (!activityId && !costId)) return map;
+    map.set(compositeKey, (map.get(compositeKey) || 0) + parseNumber(item?.actualCost));
+    if (activityFallbackKey !== compositeKey) {
+      map.set(activityFallbackKey, (map.get(activityFallbackKey) || 0) + parseNumber(item?.actualCost));
+    }
     return map;
   }, new Map());
 
   return mergedActivities.map((activity) => {
-    const activityId = String(activity?.activityRefId || activity?.id || "").trim();
+    const activityId = String(activity?.activityRefId || activity?.activityId || activity?.id || "").trim();
+    const costId = String(activity?.costId || activity?.cost_id || "").trim();
     const projectId = String(activity?.projectId || "").trim();
     const projectName = String(activity?.projectName || activity?.project || "").trim();
+    const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
+    const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
     return {
       "Project ID": projectId,
       "Project Name": projectName,
       "Activity ID": activityId,
-      Activity: String(activity?.name || activity?.activity || (activityId ? `Activity ${activityId}` : "Unnamed Activity")).trim(),
+      "Cost ID": costId,
+      Activity: String(activity?.name || activity?.activity || (activityId ? `Activity ${activityId}` : costId ? `Cost ${costId}` : "Unnamed Activity")).trim(),
       "Planned Cost": parseNumber(activity?.plannedCost),
-      "Actual Cost": actualCostByActivityId.get(activityId) || 0,
+      "Actual Cost": actualCostByCompositeKey.get(compositeKey) || actualCostByCompositeKey.get(activityFallbackKey) || 0,
       "% Complete": parseNumber(activity?.progressPercent),
     };
   });
@@ -753,84 +790,118 @@ const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
   if (!Array.isArray(remoteRows) || !remoteRows.length) return [];
   if (!Array.isArray(localRows) || !localRows.length) return remoteRows;
 
-  const localByActivityId = new Map(
-    localRows.map((row) => [String(row?.["Activity ID"] || "").trim(), row]).filter(([key]) => key)
-  );
+  const localByCompositeKey = new Map();
+  const localByProjectActivityKey = new Map();
+  localRows.forEach((row) => {
+    const projectId = String(row?.["Project ID"] || "").trim();
+    const activityId = String(row?.["Activity ID"] || "").trim();
+    const costId = String(row?.["Cost ID"] || "").trim();
+    const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
+    const projectActivityKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
+    if (projectId && (activityId || costId)) localByCompositeKey.set(compositeKey, row);
+    if (projectId && activityId && !localByProjectActivityKey.has(projectActivityKey)) {
+      localByProjectActivityKey.set(projectActivityKey, row);
+    }
+  });
 
   return remoteRows.map((row) => {
+    const projectId = String(getCell(row, ["project id", "project code", "projectid", "code"]) || "").trim();
     const activityId = String(
       getCell(row, ["activity id", "id", "activity code", "wbs", "task id"]) || ""
     ).trim();
-    if (!activityId || !localByActivityId.has(activityId)) return row;
+    const costId = String(getCell(row, ["cost id", "cost code", "cost_id", "costid"]) || "").trim();
+    const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
+    const projectActivityKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
+    const local = localByCompositeKey.get(compositeKey) || localByProjectActivityKey.get(projectActivityKey);
+    if (!local) return row;
 
-    const local = localByActivityId.get(activityId);
     return {
       ...row,
       "Actual Cost":
         parseNumber(local?.["Actual Cost"]) || parseNumber(getCell(row, ["actual cost", "total spent", "ac", "actual"])),
-      "Project ID": local?.["Project ID"] || getCell(row, ["project id", "project code", "projectid", "code"]) || "",
+      "Project ID": local?.["Project ID"] || projectId,
       "Project Name": local?.["Project Name"] || getCell(row, ["project name", "project", "project title"]) || "",
+      "Activity ID": local?.["Activity ID"] || activityId,
+      "Cost ID": local?.["Cost ID"] || costId,
     };
   });
 };
 
 const buildRowsFromActivitiesAndCosts = (activities, costs) => {
-  const normalizeKey = (value) => String(value || "").trim().toLowerCase();
   const activitiesList = Array.isArray(activities) ? activities : [];
   const costsList = Array.isArray(costs) ? costs : [];
-  const aggregatedCostsByProjectAndActivityId = new Map();
+  const activityByProjectAndActivityId = new Map();
 
-  costsList.forEach((cost) => {
-    const projectIdRaw = String(cost?.projectId || cost?.project_id || "").trim();
-    const costActivityIdRaw = String(cost?.activityId || cost?.activity_id || "").trim();
-    const costRefIdRaw = String(cost?.activityRefId || cost?.activity_ref_id || "").trim();
-    const fallbackCostIdRaw = String(cost?.costId || cost?.cost_id || "").trim();
-    const explicitCostIdRaw = String(cost?.costId || cost?.cost_id || "").trim();
-    const activityIdRaw = costActivityIdRaw || costRefIdRaw || fallbackCostIdRaw;
-    const key = `${normalizeKey(projectIdRaw)}::${normalizeKey(activityIdRaw)}`;
-    if (!normalizeKey(projectIdRaw) || !normalizeKey(activityIdRaw)) return;
-
-    const current = aggregatedCostsByProjectAndActivityId.get(key) || {
-      plannedCost: 0,
-      actualCost: 0,
-      projectName: "",
-      activityName: "",
-      activityIdRaw,
-      costIdRaw: explicitCostIdRaw,
-      projectIdRaw,
-    };
-
-    current.plannedCost += parseNumber(cost?.plannedCost ?? cost?.planned_cost);
-    current.actualCost += parseNumber(cost?.actualCost ?? cost?.actual_cost);
-    current.projectName = current.projectName || String(cost?.project || cost?.projectName || "").trim();
-    current.activityName = current.activityName || String(cost?.activity || cost?.activityName || "").trim();
-    current.costIdRaw = current.costIdRaw || explicitCostIdRaw;
-    aggregatedCostsByProjectAndActivityId.set(key, current);
-  });
-
-  return activitiesList.map((activity) => {
-    const projectIdRaw = String(activity?.projectId || activity?.project_id || "").trim();
-    const activityIdRaw = String(
+  activitiesList.forEach((activity) => {
+    const projectId = String(activity?.projectId || activity?.project_id || "").trim();
+    const activityId = String(
       activity?.activityRefId || activity?.activityId || activity?.activity_id || activity?.id || ""
     ).trim();
-    const key = `${normalizeKey(projectIdRaw)}::${normalizeKey(activityIdRaw)}`;
-    const matchedCost = aggregatedCostsByProjectAndActivityId.get(key);
+    if (!projectId || !activityId) return;
+    activityByProjectAndActivityId.set(makeDashboardCompositeKey({ projectId, activityId, costId: "" }), activity);
+  });
 
-    return {
-      "Project ID": projectIdRaw,
-      "Project Name": String(activity?.project || activity?.projectName || matchedCost?.projectName || "").trim(),
-      "Activity ID": activityIdRaw,
-      "Cost ID": matchedCost?.costIdRaw || "",
-      Activity: String(
-        activity?.activity || activity?.name || matchedCost?.activityName || (activityIdRaw ? `Activity ${activityIdRaw}` : "Unnamed Activity")
-      ).trim(),
-      "Planned Cost": parseNumber(matchedCost?.plannedCost),
-      "Actual Cost": parseNumber(matchedCost?.actualCost),
-      "% Complete": parseNumber(activity?.progressPercent ?? activity?.progress ?? activity?.completion ?? 0),
+  const rows = [];
+  const costBackedActivityKeys = new Set();
+
+  costsList.forEach((cost) => {
+    const projectId = String(cost?.projectId || cost?.project_id || "").trim();
+    const activityId = String(
+      cost?.activityId || cost?.activity_id || cost?.activityRefId || cost?.activity_ref_id || ""
+    ).trim();
+    const costId = String(cost?.costId || cost?.cost_id || cost?.id || "").trim();
+    if (!projectId || (!activityId && !costId)) return;
+
+    const activityKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
+    const matchedActivity = activityByProjectAndActivityId.get(activityKey);
+    if (activityId) costBackedActivityKeys.add(activityKey);
+
+    const projectName = String(
+      cost?.project || cost?.projectName || matchedActivity?.project || matchedActivity?.projectName || ""
+    ).trim();
+    const activityName = String(
+      cost?.activity || cost?.activityName || matchedActivity?.activity || matchedActivity?.name || (activityId ? `Activity ${activityId}` : `Cost ${costId}`)
+    ).trim();
+
+    rows.push({
+      "Project ID": projectId,
+      "Project Name": projectName,
+      "Activity ID": activityId,
+      "Cost ID": costId,
+      Activity: activityName,
+      "Planned Cost": parseNumber(cost?.plannedCost ?? cost?.planned_cost ?? matchedActivity?.plannedValue),
+      "Actual Cost": parseNumber(cost?.actualCost ?? cost?.actual_cost),
+      "% Complete": parseNumber(matchedActivity?.percentComplete ?? matchedActivity?.progress ?? cost?.progress ?? cost?.percentComplete ?? 0),
+      "Earned Value": parseNumber(cost?.earnedValue ?? cost?.earned_value),
+      "Planned Start": matchedActivity?.plannedStart || matchedActivity?.startDate || "",
+      "Planned Finish": matchedActivity?.plannedFinish || matchedActivity?.finishDate || "",
+    });
+  });
+
+  activitiesList.forEach((activity) => {
+    const projectId = String(activity?.projectId || activity?.project_id || "").trim();
+    const activityId = String(
+      activity?.activityRefId || activity?.activityId || activity?.activity_id || activity?.id || ""
+    ).trim();
+    const activityKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
+    if (!projectId || !activityId || costBackedActivityKeys.has(activityKey)) return;
+
+    rows.push({
+      "Project ID": projectId,
+      "Project Name": String(activity?.project || activity?.projectName || "").trim(),
+      "Activity ID": activityId,
+      "Cost ID": "",
+      Activity: String(activity?.activity || activity?.name || `Activity ${activityId}`).trim(),
+      "Planned Cost": parseNumber(activity?.plannedValue ?? activity?.plannedCost),
+      "Actual Cost": parseNumber(activity?.actualCost),
+      "% Complete": parseNumber(activity?.percentComplete ?? activity?.progress ?? activity?.completion ?? 0),
+      "Earned Value": parseNumber(activity?.earnedValue),
       "Planned Start": activity?.plannedStart || activity?.startDate || "",
       "Planned Finish": activity?.plannedFinish || activity?.finishDate || "",
-    };
+    });
   });
+
+  return rows;
 };
 
 const hydrateDashboardFromCache = () => {
