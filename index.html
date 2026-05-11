@@ -74,6 +74,23 @@
     </aside>
 
     <main class="main-content">
+      <section class="dashboard-control-panel" aria-label="Dashboard controls">
+        <div class="control-panel-heading">
+          <strong>Portfolio Filters</strong>
+          <span class="as-of-text" id="lastSyncBadge">Awaiting latest sync</span>
+        </div>
+        <div class="dashboard-filters">
+          <label class="filter-item">
+            <span>Project</span>
+            <select id="projectFilter"><option value="all">All Projects</option></select>
+          </label>
+          <label class="filter-item date-filter-item">
+            <span>Date Range</span>
+            <div class="date-range-inputs"><input id="dateStartFilter" type="date" aria-label="Start date" /><input id="dateEndFilter" type="date" aria-label="End date" /></div>
+          </label>
+        </div>
+      </section>
+
       <header class="topbar dashboard-hero">
         <div class="dashboard-hero-copy">
           <span class="eyebrow">Construction Control Center</span>
@@ -82,22 +99,6 @@
           <div class="hero-actions" aria-label="Dashboard quick actions">
             <a class="hero-action primary" href="add-activity.html">Log Site Activity</a>
             <a class="hero-action" href="reports.html">Open Reports</a>
-          </div>
-        </div>
-        <div class="dashboard-control-panel" aria-label="Dashboard controls">
-          <div class="control-panel-heading">
-            <strong>Portfolio Filters</strong>
-            <span class="as-of-text" id="lastSyncBadge">Awaiting latest sync</span>
-          </div>
-          <div class="dashboard-filters">
-            <label class="filter-item">
-              <span>Project</span>
-              <select id="projectFilter"><option value="all">All Projects</option></select>
-            </label>
-            <label class="filter-item date-filter-item">
-              <span>Date Range</span>
-              <div class="date-range-inputs"><input id="dateStartFilter" type="date" aria-label="Start date" /><input id="dateEndFilter" type="date" aria-label="End date" /></div>
-            </label>
           </div>
         </div>
       </header>
