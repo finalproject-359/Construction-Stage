@@ -30,6 +30,8 @@
     if (Array.isArray(payload.items)) return payload.items;
     if (Array.isArray(payload.activities)) return payload.activities;
     if (Array.isArray(payload.costs)) return payload.costs;
+    if (Array.isArray(payload.dailyCosts)) return payload.dailyCosts;
+    if (Array.isArray(payload.daily_costs)) return payload.daily_costs;
     if (payload.dashboard && typeof payload.dashboard === "object") {
       const dashboardRows = extractRowsFromPayload(payload.dashboard);
       if (dashboardRows.length) return dashboardRows;
@@ -204,7 +206,11 @@
         return {
           activities: extractResourceRows(payload, "activities"),
           costs: extractResourceRows(payload, "costs"),
-          sourceName: "Apps Script Web App (activities + costs)",
+          dailyCosts: extractResourceRows(payload, "daily_costs").length
+            ? extractResourceRows(payload, "daily_costs")
+            : extractResourceRows(payload, "dailyCosts"),
+          dashboardRows: extractResourceRows(payload, "dashboard"),
+          sourceName: "Apps Script Web App (activities + costs + actual costs)",
         };
       } finally {
         clearTimeout(timeout);

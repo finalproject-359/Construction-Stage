@@ -3850,7 +3850,56 @@ function makeDashboardCompositeKey(projectId, activityId, costId) {
 function buildDashboardRows(data) {
   const activities = data.activities || [];
   const costs = data.costs || [];
+  const dailyCosts = data.dailyCosts || [];
   const activitiesByProjectAndActivityId = {};
+  const dailyCostsByCompositeKey = {};
+  const dailyCostsByProjectActivityKey = {};
+
+  const addDailyCostTotal = function (map, key, dailyCost) {
+    if (!key) return;
+    if (!map[key]) {
+      map[key] = { actualCost: 0, earnedValue: 0, progress: 0, count: 0 };
+    }
+
+    map[key].actualCost += parseNumber(dailyCost.actualCost);
+    map[key].earnedValue += parseNumber(dailyCost.earnedValue);
+    map[key].progress += parseNumber(dailyCost.progress);
+    map[key].count += 1;
+  };
+
+  dailyCosts.forEach(function (dailyCost) {
+    const projectId = cleanText(dailyCost.projectId);
+    const activityId = cleanText(dailyCost.activityId);
+    const costId = cleanText(dailyCost.costId || dailyCost.id);
+    if (!projectId || (!activityId && !costId)) return;
+
+    addDailyCostTotal(
+      dailyCostsByCompositeKey,
+      makeDashboardCompositeKey(projectId, activityId, costId),
+      dailyCost,
+    );
+    if (activityId) {
+      addDailyCostTotal(
+        dailyCostsByProjectActivityKey,
+        makeDashboardCompositeKey(projectId, activityId, ""),
+        dailyCost,
+      );
+    }
+  });
+
+  const getDailyTotalsForRow = function (projectId, activityId, costId) {
+    return (
+      dailyCostsByCompositeKey[
+        makeDashboardCompositeKey(projectId, activityId, costId)
+      ] ||
+      (activityId
+        ? dailyCostsByProjectActivityKey[
+            makeDashboardCompositeKey(projectId, activityId, "")
+          ]
+        : null) ||
+      null
+    );
+  };
 
   activities.forEach(function (activity) {
     const projectId = cleanText(activity.projectId);
@@ -3878,9 +3927,18 @@ function buildDashboardRows(data) {
     const plannedCost = parseNumber(
       cost.plannedCost || (activity && activity.plannedValue),
     );
-    const actualCost = parseNumber(cost.actualCost);
+    const dailyTotals = getDailyTotalsForRow(projectId, activityId, costId);
+    const actualCost = dailyTotals
+      ? parseNumber(dailyTotals.actualCost)
+      : parseNumber(cost.actualCost);
+    const rowPercentComplete =
+      dailyTotals && parseNumber(dailyTotals.progress)
+        ? parseNumber(dailyTotals.progress)
+        : percentComplete;
     const earnedValue =
-      parseNumber(cost.earnedValue) || plannedCost * (percentComplete / 100);
+      (dailyTotals && parseNumber(dailyTotals.earnedValue)) ||
+      parseNumber(cost.earnedValue) ||
+      plannedCost * (rowPercentComplete / 100);
     const costVariance = earnedValue - actualCost;
 
     rows.push({
@@ -3897,7 +3955,7 @@ function buildDashboardRows(data) {
       ),
       plannedStart: activity ? activity.plannedStart : "",
       plannedFinish: activity ? activity.plannedFinish : "",
-      percentComplete: percentComplete,
+      percentComplete: rowPercentComplete,
       plannedValue: plannedCost,
       actualCost: actualCost,
       earnedValue: earnedValue,
@@ -3912,10 +3970,17 @@ function buildDashboardRows(data) {
     if (!projectId || !activityId || costBackedActivityKeys[activityKey]) return;
 
     const plannedCost = parseNumber(activity.plannedValue);
-    const actualCost = parseNumber(activity.actualCost);
-    const percentComplete = parseNumber(activity.percentComplete);
+    const dailyTotals = getDailyTotalsForRow(projectId, activityId, "");
+    const actualCost = dailyTotals
+      ? parseNumber(dailyTotals.actualCost)
+      : parseNumber(activity.actualCost);
+    const percentComplete = dailyTotals && parseNumber(dailyTotals.progress)
+      ? parseNumber(dailyTotals.progress)
+      : parseNumber(activity.percentComplete);
     const earnedValue =
-      parseNumber(activity.earnedValue) || plannedCost * (percentComplete / 100);
+      (dailyTotals && parseNumber(dailyTotals.earnedValue)) ||
+      parseNumber(activity.earnedValue) ||
+      plannedCost * (percentComplete / 100);
 
     rows.push({
       projectId: projectId,
@@ -4036,6 +4101,10 @@ function buildAllPayload(data) {
     projects: buildProjectsPayload(data.projects),
     activities: buildActivitiesPayload(data.activities),
     costs: buildCostsPayload(data.costs),
+    daily_costs: {
+      count: data.dailyCosts.length,
+      dailyCosts: data.dailyCosts,
+    },
     dashboard: buildDashboardPayload(data),
     reports: buildReportsPayload(data),
   };
