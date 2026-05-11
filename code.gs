@@ -2155,8 +2155,8 @@ function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
       const earnedValue = row[9];
 
       // Target layout:
-      // [Project ID, Project Name, Cost ID, Activity ID, Activity, Progress,
-      //  Planned Cost, Planned Cost/Day, Date, Actual Cost, Earned Value, Created At]
+      // [Project ID, Project Name, Cost ID, Activity ID, Activity, Progress/Day,
+      //  Planned Cost, Planned Cost/Day, Date, Actual Cost/Day, Earned Value/Day, Created At]
       return [
         projectId,
         "",
@@ -2270,6 +2270,11 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
   const expectedNormalized = targetHeaders.map(function (header) {
     return normalizeHeader(header);
   });
+  const headerAliases = {
+    "progress day": ["progress day", "progress"],
+    "actual cost day": ["actual cost day", "actual cost"],
+    "earned value day": ["earned value day", "earned value", "ev"],
+  };
   const duplicateExpectedHeaderExists = expectedNormalized.some(
     function (expectedHeader) {
       return (
@@ -2294,7 +2299,13 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
   const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
   const resolvedHeaderIndex = {};
   expectedNormalized.forEach(function (header) {
-    resolvedHeaderIndex[header] = headers.lastIndexOf(header);
+    const aliases = headerAliases[header] || [header];
+    const matchedAlias = aliases.find(function (alias) {
+      return headers.lastIndexOf(alias) >= 0;
+    });
+    resolvedHeaderIndex[header] = matchedAlias
+      ? headers.lastIndexOf(matchedAlias)
+      : -1;
   });
 
   const rebuiltRows = values
@@ -3002,8 +3013,11 @@ function normalizeDailyCostRecord(row) {
         row["plannedValue"],
     ),
     progress: parseNumber(
-      row["Progress"] ||
+      row["Progress/Day"] ||
+        row["Progress"] ||
         row["progress"] ||
+        row["progressPerDay"] ||
+        row["progress_per_day"] ||
         row["percentComplete"] ||
         row["% Complete"],
     ),
