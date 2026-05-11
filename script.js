@@ -983,6 +983,10 @@ const loadRowsFromCostManagementLocalData = () => {
     const projectName = String(activity?.projectName || activity?.project || "").trim();
     const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
     const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
+    const hasActualCost = actualCostByCompositeKey.has(compositeKey) || actualCostByCompositeKey.has(activityFallbackKey);
+    const actualCost = hasActualCost
+      ? actualCostByCompositeKey.get(compositeKey) || actualCostByCompositeKey.get(activityFallbackKey) || 0
+      : 0;
     return {
       "Project ID": projectId,
       "Project Name": projectName,
@@ -990,8 +994,9 @@ const loadRowsFromCostManagementLocalData = () => {
       "Cost ID": costId,
       Activity: String(activity?.name || activity?.activity || (activityId ? `Activity ${activityId}` : costId ? `Cost ${costId}` : "Unnamed Activity")).trim(),
       "Planned Cost": parseNumber(activity?.plannedCost),
-      "Actual Cost": actualCostByCompositeKey.get(compositeKey) || actualCostByCompositeKey.get(activityFallbackKey) || 0,
+      "Actual Cost": actualCost,
       "Progress": parseNumber(activity?.progressPercent),
+      __hasActualCost: hasActualCost,
     };
   });
 };
@@ -1025,12 +1030,13 @@ const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
     const local = localByCompositeKey.get(compositeKey) || localByProjectActivityKey.get(projectActivityKey);
     if (!local) return row;
 
+    const remoteActualCost = parseNumber(firstNonEmptyCell(row, ["actual cost", "actualCost", "actual_cost", "actual cost/day", "total spent", "ac", "actual"], 0));
+    const localActualCost = parseNumber(local?.["Actual Cost"]);
+    const localHasActualCost = Boolean(local?.__hasActualCost) || localActualCost > 0;
+
     return {
       ...row,
-      "Actual Cost":
-        firstNonEmptyCell(local, ["Actual Cost"], null) !== null
-          ? parseNumber(local?.["Actual Cost"])
-          : parseNumber(firstNonEmptyCell(row, ["actual cost", "actual cost/day", "total spent", "ac", "actual"])),
+      "Actual Cost": localHasActualCost ? localActualCost : remoteActualCost,
       "Project ID": local?.["Project ID"] || projectId,
       "Project Name": local?.["Project Name"] || getCell(row, ["project name", "project", "project title"]) || "",
       "Activity ID": local?.["Activity ID"] || activityId,
@@ -1039,10 +1045,13 @@ const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
   });
 };
 
-const buildRowsFromActivitiesAndCosts = (activities, costs) => {
+const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => {
   const activitiesList = Array.isArray(activities) ? activities : [];
   const costsList = Array.isArray(costs) ? costs : [];
+  const dailyCostsList = Array.isArray(dailyCosts) ? dailyCosts : [];
   const activityByProjectAndActivityId = new Map();
+  const dailyCostsByCompositeKey = new Map();
+  const dailyCostsByProjectActivityKey = new Map();
   const readBundleCell = (row, aliases, fallback = "") => firstNonEmptyCell(row, aliases, fallback);
 
   const getActivityProjectId = (activity) =>
@@ -1074,6 +1083,49 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
     ).trim();
   const getCostId = (cost) =>
     String(readBundleCell(cost, ["cost id", "costId", "cost_id", "id"])).trim();
+  const getDailyActualCost = (dailyCost) =>
+    parseNumber(readBundleCell(dailyCost, ["actual cost/day", "actualCostPerDay", "actual_cost_per_day", "actual cost", "actualCost", "actual_cost", "cost", "amount"], 0));
+  const getDailyEarnedValue = (dailyCost) =>
+    parseNumber(readBundleCell(dailyCost, ["earned value/day", "earnedValuePerDay", "earned_value_per_day", "earned value", "earnedValue", "earned_value", "ev"], 0));
+  const getDailyProgress = (dailyCost) =>
+    parseNumber(readBundleCell(dailyCost, ["progress/day", "progressPerDay", "progress_per_day", "progress", "percent complete", "percentComplete", "% complete"], 0));
+
+  const addDailyCostTotal = (map, key, dailyCost) => {
+    if (!key || key === "::") return;
+    const existing = map.get(key) || { actualCost: 0, earnedValue: 0, progress: 0, count: 0 };
+    existing.actualCost += getDailyActualCost(dailyCost);
+    existing.earnedValue += getDailyEarnedValue(dailyCost);
+    existing.progress += getDailyProgress(dailyCost);
+    existing.count += 1;
+    map.set(key, existing);
+  };
+
+  dailyCostsList.forEach((dailyCost) => {
+    const projectId = getCostProjectId(dailyCost);
+    const activityId = getCostActivityId(dailyCost);
+    const costId = getCostId(dailyCost);
+    if (!projectId || (!activityId && !costId)) return;
+
+    addDailyCostTotal(
+      dailyCostsByCompositeKey,
+      makeDashboardCompositeKey({ projectId, activityId, costId }),
+      dailyCost
+    );
+    if (activityId) {
+      addDailyCostTotal(
+        dailyCostsByProjectActivityKey,
+        makeDashboardCompositeKey({ projectId, activityId, costId: "" }),
+        dailyCost
+      );
+    }
+  });
+
+  const getDailyTotalsForRow = ({ projectId, activityId, costId }) =>
+    dailyCostsByCompositeKey.get(makeDashboardCompositeKey({ projectId, activityId, costId })) ||
+    (activityId
+      ? dailyCostsByProjectActivityKey.get(makeDashboardCompositeKey({ projectId, activityId, costId: "" }))
+      : null) ||
+    null;
 
   activitiesList.forEach((activity) => {
     const projectId = getActivityProjectId(activity);
@@ -1113,6 +1165,7 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
         readBundleCell(cost, ["progress", "percent complete", "percentComplete", "progress/day"], 0)
     );
     const providedEarnedValue = readBundleCell(cost, ["earned value", "earnedValue", "earned_value", "earned value/day"], "");
+    const dailyTotals = getDailyTotalsForRow({ projectId, activityId, costId });
 
     rows.push({
       "Project ID": projectId,
@@ -1121,9 +1174,15 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
       "Cost ID": costId,
       Activity: activityName,
       "Planned Cost": plannedCost,
-      "Actual Cost": parseNumber(readBundleCell(cost, ["actual cost", "actualCost", "actual_cost", "actual cost/day", "cost", "amount"], 0)),
-      "Progress": progress,
-      "Earned Value": providedEarnedValue !== "" ? parseNumber(providedEarnedValue) : plannedCost * (progress / 100),
+      "Actual Cost": dailyTotals?.count
+        ? dailyTotals.actualCost
+        : parseNumber(readBundleCell(cost, ["actual cost", "actualCost", "actual_cost", "actual cost/day", "cost", "amount"], 0)),
+      "Progress": dailyTotals?.count && dailyTotals.progress ? dailyTotals.progress : progress,
+      "Earned Value": dailyTotals?.count && dailyTotals.earnedValue
+        ? dailyTotals.earnedValue
+        : providedEarnedValue !== ""
+          ? parseNumber(providedEarnedValue)
+          : plannedCost * (progress / 100),
       "Planned Start": readBundleCell(matchedActivity, ["planned start", "plannedStart", "start date", "startDate"], ""),
       "Planned Finish": readBundleCell(matchedActivity, ["planned finish", "plannedFinish", "finish date", "finishDate"], ""),
     });
@@ -1137,6 +1196,7 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
     const plannedCost = parseNumber(readBundleCell(activity, ["planned value", "plannedValue", "planned cost", "plannedCost"], 0));
     const progress = parseNumber(readBundleCell(activity, ["percent complete", "percentComplete", "progress", "completion"], 0));
     const providedEarnedValue = readBundleCell(activity, ["earned value", "earnedValue", "earned_value"], "");
+    const dailyTotals = getDailyTotalsForRow({ projectId, activityId, costId: "" });
 
     rows.push({
       "Project ID": projectId,
@@ -1145,9 +1205,15 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
       "Cost ID": "",
       Activity: String(readBundleCell(activity, ["activity", "activity name", "activityName", "name"], `Activity ${activityId}`)).trim(),
       "Planned Cost": plannedCost,
-      "Actual Cost": parseNumber(readBundleCell(activity, ["actual cost", "actualCost", "actual_cost"], 0)),
-      "Progress": progress,
-      "Earned Value": providedEarnedValue !== "" ? parseNumber(providedEarnedValue) : plannedCost * (progress / 100),
+      "Actual Cost": dailyTotals?.count
+        ? dailyTotals.actualCost
+        : parseNumber(readBundleCell(activity, ["actual cost", "actualCost", "actual_cost"], 0)),
+      "Progress": dailyTotals?.count && dailyTotals.progress ? dailyTotals.progress : progress,
+      "Earned Value": dailyTotals?.count && dailyTotals.earnedValue
+        ? dailyTotals.earnedValue
+        : providedEarnedValue !== ""
+          ? parseNumber(providedEarnedValue)
+          : plannedCost * (progress / 100),
       "Planned Start": readBundleCell(activity, ["planned start", "plannedStart", "start date", "startDate"], ""),
       "Planned Finish": readBundleCell(activity, ["planned finish", "plannedFinish", "finish date", "finishDate"], ""),
     });
@@ -1214,12 +1280,13 @@ const refreshDashboardData = async ({ force = false } = {}) => {
 
     if (typeof window.DataBridge.fetchDashboardBundleFromSource === "function") {
       try {
-        const { activities, costs, sourceName } = await window.DataBridge.fetchDashboardBundleFromSource(
+        const { activities, costs, dailyCosts, dashboardRows, sourceName } = await window.DataBridge.fetchDashboardBundleFromSource(
           DATA_SOURCE_URL
         );
-        const bundleRows = buildRowsFromActivitiesAndCosts(activities, costs);
-        if (bundleRows.length) {
-          const enrichedBundleRows = mergeRemoteRowsWithCostManagementActuals(bundleRows, localRows);
+        const bundleRows = buildRowsFromActivitiesAndCosts(activities, costs, dailyCosts);
+        const sourceRows = bundleRows.length ? bundleRows : dashboardRows;
+        if (sourceRows.length) {
+          const enrichedBundleRows = mergeRemoteRowsWithCostManagementActuals(sourceRows, localRows);
           processRows(enrichedBundleRows, sourceName);
           return;
         }
