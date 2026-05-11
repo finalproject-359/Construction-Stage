@@ -17,6 +17,7 @@ const overrunTableBodyEl = document.getElementById("overrunTableBody");
 const gapTableBodyEl = document.getElementById("gapTableBody");
 const varianceDisplayEl = document.getElementById("varianceDisplay");
 const varianceStatusEl = document.getElementById("varianceStatus");
+const varianceBreakdownEl = document.querySelector(".breakdown-donut");
 const projectFilterEl = document.getElementById("projectFilter");
 const dateStartFilterEl = document.getElementById("dateStartFilter");
 const dateEndFilterEl = document.getElementById("dateEndFilter");
@@ -42,8 +43,8 @@ const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
 const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
 const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
-const DASHBOARD_CACHE_TTL_MS = 5 * 1000;
-const DASHBOARD_REFRESH_INTERVAL_MS = 3 * 1000;
+const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
+const DASHBOARD_REFRESH_INTERVAL_MS = 30 * 1000;
 
 const getProjectFilterPrefill = () => {
   try {
@@ -155,7 +156,13 @@ const normalizeProgressPercent = (value) => {
   return numericValue <= 1 ? numericValue * 100 : numericValue;
 };
 
-const formatPercent = (value) => `${parseNumber(value).toFixed(2)}%`;
+const formatPercent = (value, maximumFractionDigits = 1) =>
+  `${parseNumber(value).toFixed(maximumFractionDigits)}%`;
+
+const truncateChartLabel = (value, maxLength = 22) => {
+  const label = normalize(value, "Untitled");
+  return label.length > maxLength ? `${label.slice(0, maxLength - 1)}…` : label;
+};
 
 const formatSignedPercent = (value) => {
   const numericValue = parseNumber(value);
@@ -484,8 +491,20 @@ const renderProgressKpis = (metrics, totals) => {
   }
 
 
-  if (varianceDisplayEl) varianceDisplayEl.textContent = formatCurrency(parseNumber(totals?.cv));
-  if (varianceStatusEl) varianceStatusEl.textContent = parseNumber(totals?.cv) < 0 ? "Over Budget" : "Under Budget";
+  const totalCv = parseNumber(totals?.cv);
+  const totalPlanned = parseNumber(totals?.planned);
+  const totalActual = parseNumber(totals?.actual);
+  const unfavorableShare = totalPlanned ? Math.max(0, Math.min(100, (totalActual / totalPlanned) * 100)) : 0;
+
+  if (varianceDisplayEl) varianceDisplayEl.textContent = formatCurrency(totalCv);
+  if (varianceStatusEl) varianceStatusEl.textContent = totalCv < 0 ? "Over Budget" : "Under Budget";
+  if (varianceBreakdownEl) {
+    varianceBreakdownEl.style.setProperty("--cost-used-share", `${unfavorableShare}%`);
+    varianceBreakdownEl.setAttribute(
+      "aria-label",
+      `Cost used ${formatPercent(unfavorableShare)} of approved budget`
+    );
+  }
 };
 
 const renderGapTable = (rows) => {
@@ -619,6 +638,82 @@ const destroyCharts = () => {
 
 };
 
+const buildDashboardChartOptions = ({ yAxis, valueFormatter, legendPosition = "bottom" } = {}) => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 260 },
+  interaction: { mode: "index", intersect: false },
+  plugins: {
+    legend: {
+      display: true,
+      position: legendPosition,
+      align: "start",
+      labels: {
+        boxWidth: 10,
+        boxHeight: 10,
+        color: "#475467",
+        font: { size: 12, weight: "700" },
+        usePointStyle: true,
+        padding: 16,
+      },
+    },
+    tooltip: {
+      backgroundColor: "#0f172a",
+      borderColor: "rgba(255,255,255,0.12)",
+      borderWidth: 1,
+      padding: 12,
+      titleFont: { weight: "800" },
+      bodyFont: { weight: "600" },
+      callbacks: {
+        title: (items) => labelsFromChartItems(items).join(""),
+        label: (context) => {
+          const label = context.dataset.label || "Value";
+          const value = context.parsed?.y ?? context.parsed;
+          return `${label}: ${valueFormatter ? valueFormatter(value) : value}`;
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: {
+        color: "#667085",
+        font: { size: 11, weight: "700" },
+        maxRotation: 0,
+        callback: function tickLabel(value) {
+          return truncateChartLabel(this.getLabelForValue(value));
+        },
+      },
+    },
+    y: {
+      ...yAxis,
+      border: { display: false },
+      grid: { color: "rgba(148, 163, 184, 0.2)" },
+      ticks: {
+        color: "#667085",
+        font: { size: 11, weight: "700" },
+        ...(yAxis?.ticks || {}),
+      },
+    },
+  },
+});
+
+const labelsFromChartItems = (items = []) => {
+  const firstItem = items[0];
+  const sourceLabels = firstItem?.chart?.data?.labels || [];
+  const label = sourceLabels[firstItem?.dataIndex] || firstItem?.label || "";
+  return [label];
+};
+
+const updateOrCreateChart = (existingChart, canvas, config) => {
+  if (!existingChart) return new Chart(canvas, config);
+  existingChart.data = config.data;
+  existingChart.options = config.options;
+  existingChart.update("none");
+  return existingChart;
+};
+
 const generateCharts = (rows) => {
   if (typeof window.Chart === "undefined") {
     showMessage(chartDependencyWarning, true);
@@ -634,11 +729,8 @@ const generateCharts = (rows) => {
   const labels = rows.map((row) => row.activity);
   const completeSeries = rows.map((row) => row.percentComplete);
   const costUsedSeries = rows.map((row) => row.costUsedPercent);
-  const varianceValues = rows.map((row) => row.actualCost - row.plannedCost);
-  const varianceAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
-  const costAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 7 });
-
-  destroyCharts();
+  const varianceValues = rows.map((row) => row.cv);
+  const costAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 6 });
 
   const varianceCanvas = document.getElementById("varianceChart");
   const costCanvas = document.getElementById("costChart");
@@ -647,72 +739,78 @@ const generateCharts = (rows) => {
     return;
   }
 
-  varianceChart = new Chart(varianceCanvas, {
+  const sharedLineStyles = {
+    pointRadius: 3,
+    pointHoverRadius: 5,
+    borderWidth: 3,
+    tension: 0.35,
+    fill: false,
+  };
+
+  varianceChart = updateOrCreateChart(varianceChart, varianceCanvas, {
     type: "line",
     data: {
       labels,
       datasets: [
         {
+          ...sharedLineStyles,
           label: "Progress",
           data: completeSeries,
           borderColor: "#2f55ff",
           backgroundColor: "#2f55ff",
-          tension: 0.25,
+          pointBackgroundColor: "#ffffff",
+          pointBorderColor: "#2f55ff",
         },
         {
+          ...sharedLineStyles,
           label: "% Cost Used",
           data: costUsedSeries,
           borderColor: "#16a34a",
           backgroundColor: "#16a34a",
-          tension: 0.25,
+          pointBackgroundColor: "#ffffff",
+          pointBorderColor: "#16a34a",
         },
       ],
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: {
-          min: 0,
-          max: 100,
-          ticks: {
-            callback: (value) => `${value}%`,
-          },
-        },
+    options: buildDashboardChartOptions({
+      valueFormatter: (value) => formatPercent(value),
+      yAxis: {
+        min: 0,
+        max: 100,
+        ticks: { callback: (value) => `${value}%` },
       },
-    },
+    }),
   });
 
-  costChart = new Chart(costCanvas, {
+  costChart = updateOrCreateChart(costChart, costCanvas, {
     type: "bar",
     data: {
       labels,
       datasets: [
         {
-          label: "Cost Variance (AC - PC)",
+          label: "Cost Variance (EV - AC)",
           data: varianceValues,
-          backgroundColor: rows.map((row) => (row.actualCost - row.plannedCost <= 0 ? "#22c55e" : "#ef4444")),
-          borderRadius: 6,
+          backgroundColor: rows.map((row) => (row.cv >= 0 ? "rgba(34, 197, 94, 0.84)" : "rgba(239, 68, 68, 0.84)")),
+          borderColor: rows.map((row) => (row.cv >= 0 ? "#16a34a" : "#dc2626")),
+          borderWidth: 1,
+          borderRadius: 10,
+          borderSkipped: false,
+          maxBarThickness: 42,
         },
       ],
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          min: costAxis.min,
-          max: costAxis.max,
-          ticks: {
-            stepSize: costAxis.stepSize,
-            callback: (value) => formatCurrency(value),
-          },
+    options: buildDashboardChartOptions({
+      valueFormatter: formatCurrency,
+      yAxis: {
+        min: costAxis.min,
+        max: costAxis.max,
+        ticks: {
+          stepSize: costAxis.stepSize,
+          callback: (value) => formatCurrency(value),
         },
       },
-    },
+    }),
   });
-
 };
 
 const processRows = (rawRows, sourceName = "web app") => {
@@ -739,6 +837,14 @@ const processRows = (rawRows, sourceName = "web app") => {
   }
 
   const rows = extractDashboardRows(rawRows);
+  if (!rows.length && activitySummaryRows.length) {
+    showMessage(
+      `Live source returned an empty parsed result from ${sourceName}. Keeping the last stable ${activitySummaryRows.length} activity row(s).`,
+      true
+    );
+    return;
+  }
+
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
     showMessage(`Live sync active. No new updates from ${sourceName}.`);
@@ -947,7 +1053,10 @@ const hydrateDashboardFromCache = () => {
     const rows = Array.isArray(parsedCache) ? parsedCache : parsedCache?.rows;
     const savedAt = Array.isArray(parsedCache) ? 0 : Number(parsedCache?.savedAt || 0);
     if (!Array.isArray(rows) || !rows.length) return;
-    if (savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS) return;
+    if (savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS) {
+      showMessage("Cached dashboard data is stale. Loading a fresh copy...");
+      return;
+    }
     latestDashboardSignature = JSON.stringify(rows);
     activitySummaryRows = rows;
     syncFilterOptionsFromRows(rows);
@@ -1016,7 +1125,7 @@ const refreshDashboardData = async ({ force = false } = {}) => {
       return;
     }
 
-    if (localRows.length) {
+    if (localRows.length && !activitySummaryRows.length) {
       processRows(localRows, "Cost Management local storage");
       showMessage("Live source returned no rows. Showing Cost Management local data.");
     } else {
@@ -1024,7 +1133,9 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     }
   } catch (error) {
     const localRows = loadRowsFromCostManagementLocalData();
-    if (localRows.length) {
+    if (activitySummaryRows.length) {
+      showMessage(`Live source is temporarily unavailable (${error.message}). Keeping the last stable dashboard data.`, true);
+    } else if (localRows.length) {
       processRows(localRows, "Cost Management local storage");
       showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
     } else {
@@ -1092,7 +1203,7 @@ const setupServiceWorkerUpdates = async () => {
     });
 
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      window.location.reload();
+      showMessage("Dashboard update installed. Continue working; refresh manually when convenient.");
     });
 
     requestImmediateActivation();
@@ -1100,7 +1211,7 @@ const setupServiceWorkerUpdates = async () => {
 
     setInterval(() => {
       registration.update();
-    }, 60 * 1000);
+    }, 10 * 60 * 1000);
 
     window.addEventListener("focus", () => {
       registration.update();
