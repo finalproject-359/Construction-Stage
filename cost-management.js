@@ -733,11 +733,16 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       return entryActivityId === refId || (rowCostId && entryCostId === rowCostId);
     });
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
+    const accumulatedProgress = dailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
+    const progressPercent = dailyItems.length ? clampPercent(accumulatedProgress) : clampPercent(activity.progressPercent);
+    const earnedValueFromDaily = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
     const plannedCostPerDay = Number(activity.durationDays) > 0
       ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
       : 0;
-    const earnedValue = computeEarnedValue(plannedCostPerDay, dailyItems.length, activity.progressPercent, activity.earnedValue);
-    return { ...activity, actualCost, dailyItems, earnedValue };
+    const earnedValue = earnedValueFromDaily > 0
+      ? earnedValueFromDaily
+      : computeEarnedValue(plannedCostPerDay, dailyItems.length, progressPercent, activity.earnedValue);
+    return { ...activity, progressPercent, actualCost, dailyItems, earnedValue };
   });
 
   // Consolidate duplicate activity rows (same costId/activity) so daily-cost updates
@@ -784,6 +789,12 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       activityRefId: String(getActivityRefId(existing) || getActivityRefId(row) || "").trim(),
       plannedCost: parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
       earnedValue: (() => {
+        const mergedProgress = uniqueDailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
+        const mergedProgressPercent = uniqueDailyItems.length
+          ? clampPercent(mergedProgress)
+          : clampPercent(Number(row.progressPercent) || Number(existing.progressPercent) || 0);
+        const mergedEarnedValueFromDaily = uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
+        if (mergedEarnedValueFromDaily > 0) return mergedEarnedValueFromDaily;
         const mergedPlannedCost = parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost);
         const mergedDurationDays = Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0);
         const mergedPlannedCostPerDay = mergedPlannedCost > 0 && mergedDurationDays > 0
@@ -792,9 +803,14 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
         return computeEarnedValue(
           mergedPlannedCostPerDay,
           uniqueDailyItems.length,
-          Number(row.progressPercent) || Number(existing.progressPercent) || 0,
+          mergedProgressPercent,
           parseBudgetValue(row.earnedValue) || parseBudgetValue(existing.earnedValue),
         );
+      })(),
+      progressPercent: (() => {
+        const mergedProgress = uniqueDailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
+        if (uniqueDailyItems.length) return clampPercent(mergedProgress);
+        return clampPercent(Number(existing.progressPercent) || Number(row.progressPercent) || 0);
       })(),
       actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
       durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
