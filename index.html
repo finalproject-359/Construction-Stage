@@ -74,26 +74,50 @@
     </aside>
 
     <main class="main-content">
-      <header class="topbar dashboard-topbar">
-        <div>
-          <h1>Financial Dashboard</h1>
-          <p class="topbar-subtitle">Track project financial performance and progress in real-time.</p>
+      <header class="topbar dashboard-hero">
+        <div class="dashboard-hero-copy">
+          <span class="eyebrow">Construction Control Center</span>
+          <h1>Executive Project Dashboard</h1>
+          <p class="topbar-subtitle">Monitor budget, earned value, cost risk, and field progress for the Pati Piso Limas flood-control works.</p>
+          <div class="hero-actions" aria-label="Dashboard quick actions">
+            <a class="hero-action primary" href="add-activity.html">Log Site Activity</a>
+            <a class="hero-action" href="reports.html">Open Reports</a>
+          </div>
         </div>
-        <div class="dashboard-filters">
-          <label class="filter-item">
-            <span>Project</span>
-            <select id="projectFilter"><option value="all">All Projects</option></select>
-          </label>
-          <label class="filter-item">
-            <span>Date Range</span>
-            <div class="date-range-inputs"><input id="dateStartFilter" type="date" aria-label="Start date" /><input id="dateEndFilter" type="date" aria-label="End date" /></div>
-          </label>
-          <div class="as-of-text">Data as of: Awaiting latest sync</div>
+        <div class="dashboard-control-panel" aria-label="Dashboard controls">
+          <div class="control-panel-heading">
+            <strong>Portfolio Filters</strong>
+            <span class="as-of-text" id="lastSyncBadge">Awaiting latest sync</span>
+          </div>
+          <div class="dashboard-filters">
+            <label class="filter-item">
+              <span>Project</span>
+              <select id="projectFilter"><option value="all">All Projects</option></select>
+            </label>
+            <label class="filter-item date-filter-item">
+              <span>Date Range</span>
+              <div class="date-range-inputs"><input id="dateStartFilter" type="date" aria-label="Start date" /><input id="dateEndFilter" type="date" aria-label="End date" /></div>
+            </label>
+          </div>
         </div>
       </header>
 
+      <section class="dashboard-summary-strip" aria-label="Dashboard status summary">
+        <article>
+          <span>Active Scope</span>
+          <strong id="activeProjectCount">0 activities</strong>
+        </article>
+        <article>
+          <span>Cost Health</span>
+          <strong id="dashboardRiskLevel">Awaiting data</strong>
+        </article>
+        <article>
+          <span>Field Focus</span>
+          <strong>Progress vs cost burn</strong>
+        </article>
+      </section>
 
-      <section class="kpi-grid">
+      <section class="kpi-grid" aria-label="Project financial key performance indicators">
         <article class="kpi-card">
           <h2>
             <span class="kpi-icon planned-icon" aria-hidden="true">
@@ -102,7 +126,8 @@
             Total Budget (PC)
           </h2>
           <p id="totalPlanned">₱0.00</p>
-          <small>Planned Cost</small>
+          <small>Approved contract budget</small>
+          <span class="kpi-footnote">Baseline control value</span>
         </article>
         <article class="kpi-card">
           <h2>
@@ -112,7 +137,8 @@
             Total Spent (AC)
           </h2>
           <p id="totalActual">₱0.00</p>
-          <small>Actual Cost</small>
+          <small>Actual cost to date</small>
+          <span class="kpi-footnote">Validated site spending</span>
         </article>
         <article class="kpi-card">
           <h2>
@@ -122,7 +148,8 @@
             Total Earned Value
           </h2>
           <p id="physicalProgress">₱0.00</p>
-          <small>Total Earned Value</small>
+          <small>Earned value from progress</small>
+          <span class="kpi-footnote">Progress-weighted budget</span>
         </article>
         <article class="kpi-card">
           <h2>
@@ -132,7 +159,8 @@
             Total Cost Variance
           </h2>
           <p id="totalCv">₱0.00</p>
-          <small>Total Cost Variance</small>
+          <small>EV minus actual cost</small>
+          <span class="kpi-footnote">Positive is favorable</span>
         </article>
         <article class="kpi-card status-card" id="statusCard">
           <h2>
@@ -142,7 +170,8 @@
             Cost Perf. Index (CPI)
           </h2>
           <p id="costSpent">0.00</p>
-          <small>EV / AC</small>
+          <small>EV / actual cost</small>
+          <span class="kpi-footnote">Above 1.00 is efficient</span>
         </article>
         <article class="kpi-card progress-bar-card" id="efficiencyCard">
           <h2>
@@ -162,7 +191,7 @@
       <section class="chart-grid">
         <section class="chart-panel">
           <div class="panel-header">
-            <h3>Percentage Accomplishment vs. Cost</h3>
+            <div><h3>Progress vs Cost Used</h3><p>Compare earned field progress with budget consumption.</p></div>
           </div>
           <article class="chart-card">
             <div class="chart-canvas-wrap">
@@ -173,7 +202,7 @@
 
         <section class="chart-panel">
           <div class="panel-header">
-            <h3>Cost Variance Trend (AC - PC)</h3>
+            <div><h3>Cost Variance Trend</h3><p>Track activities where actual spending diverges from plan.</p></div>
           </div>
           <article class="chart-card">
             <div class="chart-canvas-wrap">
@@ -183,7 +212,7 @@
         </section>
         <section class="chart-panel">
           <div class="panel-header">
-            <h3>Cost Variance Breakdown</h3>
+            <div><h3>Cost Variance Breakdown</h3><p>Portfolio budget position at a glance.</p></div>
           </div>
           <article class="chart-card breakdown-card">
             <div class="breakdown-donut" aria-hidden="true">
@@ -202,7 +231,7 @@
 
       <section class="table-panel gap-panel">
         <div class="panel-header">
-          <h3>Progress vs Cost Gap Analysis</h3>
+          <div><h3>Progress vs Cost Gap Analysis</h3><p>Prioritize activities where spending is moving faster than construction progress.</p></div>
         </div>
         <div class="table-wrap">
           <table>
@@ -226,7 +255,7 @@
       <section class="table-split-grid">
         <section class="table-panel">
           <div class="panel-header">
-            <h3>Activities Performance Summary</h3>
+            <div><h3>Activities Performance Summary</h3><p>Earned value and cost performance by activity.</p></div>
           </div>
           <div class="table-wrap">
             <table>
@@ -255,7 +284,7 @@
 
         <section class="table-panel">
           <div class="panel-header">
-            <h3>Top Over Budget Activities</h3>
+            <div><h3>Top Over Budget Activities</h3><p>Immediate attention list for cost-control meetings.</p></div>
           </div>
           <div class="table-wrap">
             <table>
@@ -277,7 +306,7 @@
         </section>
       </section>
 
-      <section class="dashboard-note">Positive variance and CPI above 1.00 indicate good cost performance. Negative variance and CPI below 1.00 indicate cost overruns.</section>
+      <section class="dashboard-note"><strong>Reading guide:</strong> Positive cost variance and CPI above 1.00 indicate favorable cost performance. Negative variance and CPI below 1.00 indicate cost pressure that should be reviewed with field documentation.</section>
 
       <p id="message" class="message"></p>
     </main>

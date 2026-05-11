@@ -20,6 +20,8 @@ const varianceStatusEl = document.getElementById("varianceStatus");
 const projectFilterEl = document.getElementById("projectFilter");
 const dateStartFilterEl = document.getElementById("dateStartFilter");
 const dateEndFilterEl = document.getElementById("dateEndFilter");
+const activeProjectCountEl = document.getElementById("activeProjectCount");
+const dashboardRiskLevelEl = document.getElementById("dashboardRiskLevel");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const USE_COST_MANAGEMENT_ONLY = false;
@@ -366,11 +368,43 @@ const syncFilterOptionsFromRows = (rows) => {
   hasAppliedProjectFilterPrefill = true;
 };
 
+
+const updateDashboardSummary = (rows, totals, progressMetrics) => {
+  const activityCount = rows.length;
+  const uniqueProjects = new Set(rows.map((row) => normalize(row.project, "Unspecified"))).size;
+  const overBudgetCount = rows.filter((row) => parseNumber(row.cv) < 0).length;
+  const actualCost = parseNumber(totals?.actual);
+  const earnedValue = (parseNumber(totals?.planned) * parseNumber(progressMetrics?.physicalProgressPercent)) / 100;
+  const cpi = actualCost ? earnedValue / actualCost : 0;
+
+  if (activeProjectCountEl) {
+    const activityLabel = activityCount === 1 ? "activity" : "activities";
+    const projectLabel = uniqueProjects === 1 ? "project" : "projects";
+    activeProjectCountEl.textContent = activityCount
+      ? `${activityCount} ${activityLabel} · ${uniqueProjects} ${projectLabel}`
+      : "No active data";
+  }
+
+  if (dashboardRiskLevelEl) {
+    if (!activityCount) {
+      dashboardRiskLevelEl.textContent = "Awaiting data";
+    } else if (!actualCost) {
+      dashboardRiskLevelEl.textContent = "Awaiting actual costs";
+    } else if (parseNumber(totals?.cv) < 0 || cpi < 1) {
+      const alertLabel = overBudgetCount === 1 ? "cost alert" : "cost alerts";
+      dashboardRiskLevelEl.textContent = `${overBudgetCount} ${alertLabel} · CPI ${cpi.toFixed(2)}`;
+    } else {
+      dashboardRiskLevelEl.textContent = `On track · CPI ${cpi.toFixed(2)}`;
+    }
+  }
+};
+
 const renderDashboardFromRows = (rows, summaryRows = rows) => {
   const totals = calculateTotalsFromRows(rows);
   const progressMetrics = calculateProgressMetrics(rows, totals);
   renderKpis(totals);
   renderProgressKpis(progressMetrics, totals);
+  updateDashboardSummary(rows, totals, progressMetrics);
   renderTable(summaryRows);
   renderOverrunTable(rows);
   renderGapTable(rows);
@@ -719,7 +753,7 @@ const processRows = (rawRows, sourceName = "web app") => {
 
   const asOfEl = document.querySelector(".as-of-text");
   if (asOfEl) {
-    asOfEl.textContent = `Data as of: ${new Date().toLocaleString()}`;
+    asOfEl.textContent = `Synced ${new Date().toLocaleString()}`;
   }
 
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
