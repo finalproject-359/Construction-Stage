@@ -976,11 +976,17 @@ function handleActivityMutation(action, payload) {
     const activity = normalizeIncomingActivity(payload.activity || payload);
     if (!activity.id) throw new Error("Activity ID is required for delete.");
 
-    deleteActivityRow(activity.id, activity.projectId, activity.project);
+    const deleteResult = deleteActivityRow(
+      activity.id,
+      activity.projectId,
+      activity.project,
+    );
     return jsonResponse({
       ok: true,
-      message: "Activity deleted successfully.",
+      message: "Activity and related costs deleted successfully.",
       activityId: activity.id,
+      deletedCosts: deleteResult.deletedCosts,
+      deletedDailyCosts: deleteResult.deletedDailyCosts,
       generatedAt: new Date().toISOString(),
     });
   }
@@ -2096,7 +2102,187 @@ function deleteActivityRow(activityId, projectId, projectName) {
     cleanText(projectName),
   );
   if (!lookup) throw new Error("Activity not found.");
+
+  const rowValues = lookup.sheet
+    .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
+    .getValues()[0];
+  const activityContext = {
+    activityId: cleanText(activityId),
+    projectId:
+      cleanText(projectId) ||
+      (lookup.columns.projectId
+        ? cleanText(rowValues[lookup.columns.projectId - 1])
+        : ""),
+    project:
+      cleanText(projectName) ||
+      (lookup.columns.project
+        ? cleanText(rowValues[lookup.columns.project - 1])
+        : ""),
+    activity: lookup.columns.name
+      ? cleanText(rowValues[lookup.columns.name - 1])
+      : "",
+  };
+
+  const deleteResult = deleteCostsRelatedToActivity(activityContext);
   lookup.sheet.deleteRow(lookup.rowNumber);
+  return deleteResult;
+}
+
+function deleteCostsRelatedToActivity(activityContext) {
+  const costDeleteResult = deleteCostRowsRelatedToActivity(activityContext);
+  const deletedDailyCosts = deleteDailyCostRowsRelatedToActivity(
+    activityContext,
+    costDeleteResult.deletedCostKeys,
+  );
+
+  return {
+    deletedCosts: costDeleteResult.deletedCosts,
+    deletedDailyCosts: deletedDailyCosts,
+  };
+}
+
+function deleteCostRowsRelatedToActivity(activityContext) {
+  const sheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(sheet, CONFIG.headers.costs);
+  const values = sheet.getDataRange().getValues();
+  const columns = getCostColumnMap(sheet);
+  const deletedCostKeys = [];
+  var deletedCosts = 0;
+
+  for (var rowIdx = values.length - 1; rowIdx >= 1; rowIdx -= 1) {
+    if (!isActivityRelatedRow(values[rowIdx], columns, activityContext)) {
+      continue;
+    }
+
+    deletedCostKeys.push({
+      projectId:
+        columns.projectId
+          ? cleanText(values[rowIdx][columns.projectId - 1])
+          : cleanText(activityContext.projectId),
+      project:
+        columns.project
+          ? cleanText(values[rowIdx][columns.project - 1])
+          : cleanText(activityContext.project),
+      costId:
+        columns.costId
+          ? cleanText(values[rowIdx][columns.costId - 1])
+          : "",
+    });
+    sheet.deleteRow(rowIdx + 1);
+    deletedCosts += 1;
+  }
+
+  return {
+    deletedCosts: deletedCosts,
+    deletedCostKeys: deletedCostKeys,
+  };
+}
+
+function deleteDailyCostRowsRelatedToActivity(activityContext, costKeys) {
+  const sheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+  ensureSheetHeaders(sheet, CONFIG.headers.dailyCosts);
+  const values = sheet.getDataRange().getValues();
+  const columns = getDailyCostColumnMap(sheet);
+  const normalizedCostKeys = (costKeys || [])
+    .map(function (costKey) {
+      return {
+        projectId: cleanText(costKey && costKey.projectId),
+        project: cleanText(costKey && costKey.project),
+        costId: cleanText(costKey && costKey.costId),
+      };
+    })
+    .filter(function (costKey) {
+      return costKey.costId;
+    });
+  var deletedDailyCosts = 0;
+
+  for (var rowIdx = values.length - 1; rowIdx >= 1; rowIdx -= 1) {
+    if (
+      !isActivityRelatedRow(values[rowIdx], columns, activityContext) &&
+      !isCostKeyRelatedRow(values[rowIdx], columns, normalizedCostKeys)
+    ) {
+      continue;
+    }
+
+    sheet.deleteRow(rowIdx + 1);
+    deletedDailyCosts += 1;
+  }
+
+  return deletedDailyCosts;
+}
+
+function isActivityRelatedRow(row, columns, activityContext) {
+  const normalizedProjectId = cleanText(
+    activityContext && activityContext.projectId,
+  );
+  const normalizedProject = cleanText(
+    activityContext && activityContext.project,
+  );
+  const normalizedActivityId = cleanText(
+    activityContext && activityContext.activityId,
+  );
+  const normalizedActivity = cleanText(
+    activityContext && activityContext.activity,
+  );
+
+  const rowProjectId = columns.projectId
+    ? cleanText(row[columns.projectId - 1])
+    : "";
+  const rowProject = columns.project
+    ? cleanText(row[columns.project - 1])
+    : "";
+  const rowActivityId = columns.activityId
+    ? cleanText(row[columns.activityId - 1])
+    : "";
+  const rowActivity = columns.activity
+    ? cleanText(row[columns.activity - 1])
+    : "";
+
+  const hasProjectContext = Boolean(normalizedProjectId || normalizedProject);
+  const matchesProject =
+    !hasProjectContext ||
+    (normalizedProjectId && rowProjectId === normalizedProjectId) ||
+    (normalizedProject && rowProject === normalizedProject);
+  if (!matchesProject) return false;
+
+  if (normalizedActivityId && rowActivityId === normalizedActivityId) {
+    return true;
+  }
+
+  return Boolean(
+    normalizedActivity &&
+      rowActivity === normalizedActivity &&
+      (hasProjectContext || !normalizedActivityId),
+  );
+}
+
+function isCostKeyRelatedRow(row, columns, costKeys) {
+  if (!columns.costId || !costKeys || !costKeys.length) return false;
+
+  const rowCostId = cleanText(row[columns.costId - 1]);
+  const rowProjectId = columns.projectId
+    ? cleanText(row[columns.projectId - 1])
+    : "";
+  const rowProject = columns.project
+    ? cleanText(row[columns.project - 1])
+    : "";
+
+  for (var i = 0; i < costKeys.length; i += 1) {
+    if (rowCostId !== costKeys[i].costId) continue;
+
+    const hasCostProjectContext = Boolean(
+      costKeys[i].projectId || costKeys[i].project,
+    );
+    if (!hasCostProjectContext || (!rowProjectId && !rowProject)) return true;
+    if (costKeys[i].projectId && rowProjectId === costKeys[i].projectId) {
+      return true;
+    }
+    if (costKeys[i].project && rowProject === costKeys[i].project) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function findProjectSheetRow(projectId) {
