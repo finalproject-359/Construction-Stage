@@ -45,6 +45,7 @@ const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivitie
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
 const DASHBOARD_REFRESH_INTERVAL_MS = 30 * 1000;
+const DASHBOARD_MIN_STABLE_ROW_RATIO = 0.5;
 
 const getProjectFilterPrefill = () => {
   try {
@@ -202,6 +203,8 @@ const normalizeHeader = (value) =>
 const compactHeader = (value) => normalizeHeader(value).replace(/\s+/g, "");
 
 const getCell = (row, aliases) => {
+  if (!row || typeof row !== "object") return null;
+
   const keyEntries = Object.keys(row).map((key) => ({
     key,
     normalized: normalizeHeader(key),
@@ -228,6 +231,16 @@ const getCell = (row, aliases) => {
   return null;
 };
 
+const firstNonEmptyCell = (row, aliases, fallback = "") => {
+  for (const alias of aliases) {
+    const value = getCell(row, [alias]);
+    if (value !== null && value !== undefined && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return fallback;
+};
+
 const isSummaryLabel = (value) => {
   const text = normalize(value, "").toLowerCase();
   return text.includes("total") || text.includes("summary") || text.includes("grand total");
@@ -244,15 +257,25 @@ const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row, index) => {
       const detectedActivityId = normalize(
-        getCell(row, ["activity id", "activity id/cost id", "activity code", "wbs", "task id"]),
+        firstNonEmptyCell(row, [
+          "activity id",
+          "activity id/cost id",
+          "activity code",
+          "activity ref id",
+          "activity reference id",
+          "source activity id",
+          "wbs",
+          "task id",
+          "id",
+        ]),
         ""
       );
       const detectedCostId = normalize(
-        getCell(row, ["cost id", "cost code", "cost_id", "costid"]),
+        firstNonEmptyCell(row, ["cost id", "cost code", "cost_id", "costid"]),
         ""
       );
       const activity = normalize(
-        getCell(row, [
+        firstNonEmptyCell(row, [
           "activity",
           "activity name",
           "activity title",
@@ -269,27 +292,27 @@ const extractDashboardRows = (rawRows) =>
 
       if (!hasValidActivityId && !hasValidCostId && !hasValidActivityName) return null;
 
-      const projectId = normalize(getCell(row, ["project id", "project code", "projectid", "code"]), "");
-      const projectName = normalize(getCell(row, ["project name", "project", "project title"]), "");
+      const projectId = normalize(firstNonEmptyCell(row, ["project id", "project code", "projectid", "code"]), "");
+      const projectName = normalize(firstNonEmptyCell(row, ["project name", "project", "project title"]), "");
       const project = projectId && projectName
         ? `${projectId} - ${projectName}`
         : projectId || projectName || "No Project ID";
       const startDate = normalizeDateOnly(getCell(row, ["planned start", "start date", "start"]));
       const finishDate = normalizeDateOnly(getCell(row, ["planned finish", "finish date", "end date", "finish"]));
       const plannedCost = parseNumber(
-        getCell(row, ["planned value", "planned cost", "total budget", "pv", "budget"])
+        firstNonEmptyCell(row, ["planned value", "planned cost", "planned cost/day", "planned cost per day", "total budget", "pv", "budget"])
       );
       const actualCost = parseNumber(
-        getCell(row, ["actual cost", "total spent", "ac", "actual"])
+        firstNonEmptyCell(row, ["actual cost", "actual cost/day", "actual cost per day", "total spent", "ac", "actual", "cost", "amount"])
       );
       const percentComplete = normalizeProgressPercent(
-        getCell(row, ["% complete", "percent complete", "progress %", "progress", "completion"] )
+        firstNonEmptyCell(row, ["% complete", "percent complete", "progress %", "progress", "progress/day", "completion"] )
       );
-      const rawEarnedValue = getCell(row, ["earned value", "earned value/day", "ev"]);
+      const rawEarnedValue = firstNonEmptyCell(row, ["earned value", "earned value/day", "ev"]);
       const hasProvidedEarnedValue =
         rawEarnedValue !== null && rawEarnedValue !== undefined && String(rawEarnedValue).trim() !== "";
       const ev = hasProvidedEarnedValue ? parseNumber(rawEarnedValue) : plannedCost * (percentComplete / 100);
-      const rawCv = getCell(row, ["cost variance", "cv"]);
+      const rawCv = firstNonEmptyCell(row, ["cost variance", "cv"]);
       const hasProvidedCv =
         rawCv !== null && rawCv !== undefined && String(rawCv).trim() !== "";
       const providedCv = parseNumber(rawCv);
@@ -845,6 +868,17 @@ const processRows = (rawRows, sourceName = "web app") => {
     return;
   }
 
+  const previousRowCount = activitySummaryRows.length;
+  const droppedTooMuch =
+    previousRowCount > 2 && rows.length > 0 && rows.length < previousRowCount * DASHBOARD_MIN_STABLE_ROW_RATIO;
+  if (droppedTooMuch) {
+    showMessage(
+      `Live source returned only ${rows.length} parsed row(s), down from ${previousRowCount}. Keeping the last stable dashboard data until the next sync.`,
+      true
+    );
+    return;
+  }
+
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
     showMessage(`Live sync active. No new updates from ${sourceName}.`);
@@ -958,7 +992,9 @@ const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
     return {
       ...row,
       "Actual Cost":
-        parseNumber(local?.["Actual Cost"]) || parseNumber(getCell(row, ["actual cost", "total spent", "ac", "actual"])),
+        firstNonEmptyCell(local, ["Actual Cost"], null) !== null
+          ? parseNumber(local?.["Actual Cost"])
+          : parseNumber(firstNonEmptyCell(row, ["actual cost", "actual cost/day", "total spent", "ac", "actual"])),
       "Project ID": local?.["Project ID"] || projectId,
       "Project Name": local?.["Project Name"] || getCell(row, ["project name", "project", "project title"]) || "",
       "Activity ID": local?.["Activity ID"] || activityId,
@@ -971,12 +1007,41 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
   const activitiesList = Array.isArray(activities) ? activities : [];
   const costsList = Array.isArray(costs) ? costs : [];
   const activityByProjectAndActivityId = new Map();
+  const readBundleCell = (row, aliases, fallback = "") => firstNonEmptyCell(row, aliases, fallback);
+
+  const getActivityProjectId = (activity) =>
+    String(readBundleCell(activity, ["project id", "projectId", "project_id", "project code", "projectCode"])).trim();
+  const getActivityId = (activity) =>
+    String(
+      readBundleCell(activity, [
+        "activity id",
+        "activityId",
+        "activity_id",
+        "activity ref id",
+        "activityRefId",
+        "id",
+      ])
+    ).trim();
+  const getCostProjectId = (cost) =>
+    String(readBundleCell(cost, ["project id", "projectId", "project_id", "project code", "projectCode"])).trim();
+  const getCostActivityId = (cost) =>
+    String(
+      readBundleCell(cost, [
+        "activity id",
+        "activityId",
+        "activity_id",
+        "activity ref id",
+        "activityRefId",
+        "activity_ref_id",
+        "source activity id",
+      ])
+    ).trim();
+  const getCostId = (cost) =>
+    String(readBundleCell(cost, ["cost id", "costId", "cost_id", "id"])).trim();
 
   activitiesList.forEach((activity) => {
-    const projectId = String(activity?.projectId || activity?.project_id || "").trim();
-    const activityId = String(
-      activity?.activityRefId || activity?.activityId || activity?.activity_id || activity?.id || ""
-    ).trim();
+    const projectId = getActivityProjectId(activity);
+    const activityId = getActivityId(activity);
     if (!projectId || !activityId) return;
     activityByProjectAndActivityId.set(makeDashboardCompositeKey({ projectId, activityId, costId: "" }), activity);
   });
@@ -985,11 +1050,9 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
   const costBackedActivityKeys = new Set();
 
   costsList.forEach((cost) => {
-    const projectId = String(cost?.projectId || cost?.project_id || "").trim();
-    const activityId = String(
-      cost?.activityId || cost?.activity_id || cost?.activityRefId || cost?.activity_ref_id || ""
-    ).trim();
-    const costId = String(cost?.costId || cost?.cost_id || cost?.id || "").trim();
+    const projectId = getCostProjectId(cost);
+    const activityId = getCostActivityId(cost);
+    const costId = getCostId(cost);
     if (!projectId || (!activityId && !costId)) return;
 
     const activityKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
@@ -997,11 +1060,23 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
     if (activityId) costBackedActivityKeys.add(activityKey);
 
     const projectName = String(
-      cost?.project || cost?.projectName || matchedActivity?.project || matchedActivity?.projectName || ""
+      readBundleCell(cost, ["project", "project name", "projectName"], "") ||
+        readBundleCell(matchedActivity, ["project", "project name", "projectName"], "")
     ).trim();
     const activityName = String(
-      cost?.activity || cost?.activityName || matchedActivity?.activity || matchedActivity?.name || (activityId ? `Activity ${activityId}` : `Cost ${costId}`)
+      readBundleCell(cost, ["activity", "activity name", "activityName", "name"], "") ||
+        readBundleCell(matchedActivity, ["activity", "activity name", "activityName", "name"], "") ||
+        (activityId ? `Activity ${activityId}` : `Cost ${costId}`)
     ).trim();
+    const plannedCost = parseNumber(
+      readBundleCell(cost, ["planned cost", "plannedCost", "planned_cost", "planned value", "plannedValue"], "") ||
+        readBundleCell(matchedActivity, ["planned value", "plannedValue", "planned cost", "plannedCost"], "")
+    );
+    const progress = parseNumber(
+      readBundleCell(matchedActivity, ["percent complete", "percentComplete", "progress", "completion"], "") ||
+        readBundleCell(cost, ["progress", "percent complete", "percentComplete", "progress/day"], 0)
+    );
+    const providedEarnedValue = readBundleCell(cost, ["earned value", "earnedValue", "earned_value", "earned value/day"], "");
 
     rows.push({
       "Project ID": projectId,
@@ -1009,35 +1084,36 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
       "Activity ID": activityId,
       "Cost ID": costId,
       Activity: activityName,
-      "Planned Cost": parseNumber(cost?.plannedCost ?? cost?.planned_cost ?? matchedActivity?.plannedValue),
-      "Actual Cost": parseNumber(cost?.actualCost ?? cost?.actual_cost),
-      "Progress": parseNumber(matchedActivity?.percentComplete ?? matchedActivity?.progress ?? cost?.progress ?? cost?.percentComplete ?? 0),
-      "Earned Value": parseNumber(cost?.earnedValue ?? cost?.earned_value),
-      "Planned Start": matchedActivity?.plannedStart || matchedActivity?.startDate || "",
-      "Planned Finish": matchedActivity?.plannedFinish || matchedActivity?.finishDate || "",
+      "Planned Cost": plannedCost,
+      "Actual Cost": parseNumber(readBundleCell(cost, ["actual cost", "actualCost", "actual_cost", "actual cost/day", "cost", "amount"], 0)),
+      "Progress": progress,
+      "Earned Value": providedEarnedValue !== "" ? parseNumber(providedEarnedValue) : plannedCost * (progress / 100),
+      "Planned Start": readBundleCell(matchedActivity, ["planned start", "plannedStart", "start date", "startDate"], ""),
+      "Planned Finish": readBundleCell(matchedActivity, ["planned finish", "plannedFinish", "finish date", "finishDate"], ""),
     });
   });
 
   activitiesList.forEach((activity) => {
-    const projectId = String(activity?.projectId || activity?.project_id || "").trim();
-    const activityId = String(
-      activity?.activityRefId || activity?.activityId || activity?.activity_id || activity?.id || ""
-    ).trim();
+    const projectId = getActivityProjectId(activity);
+    const activityId = getActivityId(activity);
     const activityKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
     if (!projectId || !activityId || costBackedActivityKeys.has(activityKey)) return;
+    const plannedCost = parseNumber(readBundleCell(activity, ["planned value", "plannedValue", "planned cost", "plannedCost"], 0));
+    const progress = parseNumber(readBundleCell(activity, ["percent complete", "percentComplete", "progress", "completion"], 0));
+    const providedEarnedValue = readBundleCell(activity, ["earned value", "earnedValue", "earned_value"], "");
 
     rows.push({
       "Project ID": projectId,
-      "Project Name": String(activity?.project || activity?.projectName || "").trim(),
+      "Project Name": String(readBundleCell(activity, ["project", "project name", "projectName"], "")).trim(),
       "Activity ID": activityId,
       "Cost ID": "",
-      Activity: String(activity?.activity || activity?.name || `Activity ${activityId}`).trim(),
-      "Planned Cost": parseNumber(activity?.plannedValue ?? activity?.plannedCost),
-      "Actual Cost": parseNumber(activity?.actualCost),
-      "Progress": parseNumber(activity?.percentComplete ?? activity?.progress ?? activity?.completion ?? 0),
-      "Earned Value": parseNumber(activity?.earnedValue),
-      "Planned Start": activity?.plannedStart || activity?.startDate || "",
-      "Planned Finish": activity?.plannedFinish || activity?.finishDate || "",
+      Activity: String(readBundleCell(activity, ["activity", "activity name", "activityName", "name"], `Activity ${activityId}`)).trim(),
+      "Planned Cost": plannedCost,
+      "Actual Cost": parseNumber(readBundleCell(activity, ["actual cost", "actualCost", "actual_cost"], 0)),
+      "Progress": progress,
+      "Earned Value": providedEarnedValue !== "" ? parseNumber(providedEarnedValue) : plannedCost * (progress / 100),
+      "Planned Start": readBundleCell(activity, ["planned start", "plannedStart", "start date", "startDate"], ""),
+      "Planned Finish": readBundleCell(activity, ["planned finish", "plannedFinish", "finish date", "finishDate"], ""),
     });
   });
 
@@ -1053,16 +1129,15 @@ const hydrateDashboardFromCache = () => {
     const rows = Array.isArray(parsedCache) ? parsedCache : parsedCache?.rows;
     const savedAt = Array.isArray(parsedCache) ? 0 : Number(parsedCache?.savedAt || 0);
     if (!Array.isArray(rows) || !rows.length) return;
-    if (savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS) {
-      showMessage("Cached dashboard data is stale. Loading a fresh copy...");
-      return;
-    }
+    const cacheIsStale = savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS;
     latestDashboardSignature = JSON.stringify(rows);
     activitySummaryRows = rows;
     syncFilterOptionsFromRows(rows);
     applyFiltersAndRender();
     showMessage(
-      `Loaded ${rows.length} cached activity row(s). Verifying against live source now...`
+      cacheIsStale
+        ? `Showing the last saved ${rows.length} dashboard row(s) while refreshing live data...`
+        : `Loaded ${rows.length} cached activity row(s). Verifying against live source now...`
     );
   } catch {
     localStorage.removeItem(DASHBOARD_CACHE_KEY);
