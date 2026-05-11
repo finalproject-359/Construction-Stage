@@ -38,7 +38,7 @@ const CONFIG = {
       "Planned Finish",
       "Duration",
       "Status",
-      "% Complete",
+      "Progress",
       "Notes",
     ],
     costs: [
