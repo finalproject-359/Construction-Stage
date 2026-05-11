@@ -563,6 +563,9 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
       activityName: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
       plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
+      actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
+      progressPercent: clampPercent(getValueByAliases(row, ["progress", "progressPercent", "progress_percent", "percentComplete", "percent_complete", "% complete", "percent complete"])),
+      earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
     }))
     .filter((row) => row.projectId && (row.activityRefId || row.activityName));
@@ -1119,6 +1122,8 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       });
       await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
       await syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity });
+      const refreshedMetadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
+      applyCostMetadataRows(refreshedMetadataRows);
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
       alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
@@ -1376,6 +1381,57 @@ const getActiveDetailsTabFromUi = () => {
   return activeTab === "costing" ? "costing" : "overview";
 };
 
+const applyCostMetadataRows = (rows = []) => {
+  if (!rows.length) return;
+  const metadataByActivityId = new Map();
+  const metadataByActivityName = new Map();
+  const metadataByActivityIdFallback = new Map();
+  const metadataByActivityNameFallback = new Map();
+  const pickLatest = (existing, incoming) => {
+    if (!existing) return incoming;
+    const existingDate = new Date(existing.date || "").getTime();
+    const incomingDate = new Date(incoming.date || "").getTime();
+    const shouldReplace = Number.isFinite(incomingDate) && (!Number.isFinite(existingDate) || incomingDate >= existingDate);
+    return shouldReplace ? incoming : existing;
+  };
+
+  rows.forEach((row) => {
+    const projectKey = String(row.projectId || "").trim();
+    const activityRefKey = String(row.activityRefId || "").trim();
+    const activityNameKey = normalizeLookup(row.activityName);
+    if (activityRefKey) {
+      const byIdKey = `${projectKey}::${activityRefKey}`;
+      metadataByActivityId.set(byIdKey, pickLatest(metadataByActivityId.get(byIdKey), row));
+      metadataByActivityIdFallback.set(activityRefKey, pickLatest(metadataByActivityIdFallback.get(activityRefKey), row));
+    }
+    if (activityNameKey) {
+      const byNameKey = `${projectKey}::${activityNameKey}`;
+      metadataByActivityName.set(byNameKey, pickLatest(metadataByActivityName.get(byNameKey), row));
+      metadataByActivityNameFallback.set(activityNameKey, pickLatest(metadataByActivityNameFallback.get(activityNameKey), row));
+    }
+  });
+
+  saveCostActivityOverrides(costActivitiesState.map((activity) => {
+    const projectKey = String(activity.projectId || "").trim();
+    const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
+    const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
+    const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
+    const fallbackActivityNameKey = normalizeLookup(activity.name);
+    const metadata = metadataByActivityId.get(activityKey)
+      || metadataByActivityName.get(activityNameKey)
+      || metadataByActivityIdFallback.get(fallbackActivityRefKey)
+      || metadataByActivityNameFallback.get(fallbackActivityNameKey);
+    if (!metadata) return activity;
+    return normalizeCostActivity({
+      ...activity,
+      costId: String(metadata.costId || activity.costId || "").trim(),
+      plannedCost: parseBudgetValue(metadata.plannedCost) || parseBudgetValue(activity.plannedCost),
+      progressPercent: clampPercent(metadata.progressPercent),
+      earnedValue: parseBudgetValue(metadata.earnedValue),
+    });
+  }));
+};
+
 const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
   const remoteProjects = (await loadRemoteProjects()).map(normalizeProject).filter((project) => project.id);
   projectsState = remoteProjects.length
@@ -1429,53 +1485,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
 
   await syncDailyCostsFromSheet(projectFilter, remoteDailyCosts);
 
-  if (remoteCostMetadataRows.length) {
-    const metadataByActivityId = new Map();
-    const metadataByActivityName = new Map();
-    const metadataByActivityIdFallback = new Map();
-    const metadataByActivityNameFallback = new Map();
-    const pickLatest = (existing, incoming) => {
-      if (!existing) return incoming;
-      const existingDate = new Date(existing.date || "").getTime();
-      const incomingDate = new Date(incoming.date || "").getTime();
-      const shouldReplace = Number.isFinite(incomingDate) && (!Number.isFinite(existingDate) || incomingDate >= existingDate);
-      return shouldReplace ? incoming : existing;
-    };
-
-    remoteCostMetadataRows.forEach((row) => {
-      const projectKey = String(row.projectId || "").trim();
-      const activityRefKey = String(row.activityRefId || "").trim();
-      const activityNameKey = normalizeLookup(row.activityName);
-      if (activityRefKey) {
-        const byIdKey = `${projectKey}::${activityRefKey}`;
-        metadataByActivityId.set(byIdKey, pickLatest(metadataByActivityId.get(byIdKey), row));
-        metadataByActivityIdFallback.set(activityRefKey, pickLatest(metadataByActivityIdFallback.get(activityRefKey), row));
-      }
-      if (activityNameKey) {
-        const byNameKey = `${projectKey}::${activityNameKey}`;
-        metadataByActivityName.set(byNameKey, pickLatest(metadataByActivityName.get(byNameKey), row));
-        metadataByActivityNameFallback.set(activityNameKey, pickLatest(metadataByActivityNameFallback.get(activityNameKey), row));
-      }
-    });
-
-    saveCostActivityOverrides(costActivitiesState.map((activity) => {
-      const projectKey = String(activity.projectId || "").trim();
-      const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
-      const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
-      const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
-      const fallbackActivityNameKey = normalizeLookup(activity.name);
-      const metadata = metadataByActivityId.get(activityKey)
-        || metadataByActivityName.get(activityNameKey)
-        || metadataByActivityIdFallback.get(fallbackActivityRefKey)
-        || metadataByActivityNameFallback.get(fallbackActivityNameKey);
-      if (!metadata) return activity;
-      return normalizeCostActivity({
-        ...activity,
-        costId: String(metadata.costId || activity.costId || "").trim(),
-        plannedCost: parseBudgetValue(metadata.plannedCost) || parseBudgetValue(activity.plannedCost),
-      });
-    }));
-  }
+  if (remoteCostMetadataRows.length) applyCostMetadataRows(remoteCostMetadataRows);
 
   const activitiesForDisplay = loadCostActivities();
 
