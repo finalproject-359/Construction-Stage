@@ -2559,6 +2559,94 @@ function normalizeProjectProgress(value, status) {
   return Math.max(0, Math.min(100, parseNumber(value)));
 }
 
+function normalizeActivitiesColumnsIfNeeded(sheet) {
+  const targetHeaders = CONFIG.headers.activities;
+  const targetWidth = targetHeaders.length;
+  const sourceWidth = Math.max(sheet.getLastColumn(), targetWidth);
+  const headers = sheet
+    .getRange(1, 1, 1, sourceWidth)
+    .getValues()[0]
+    .map(function (header) {
+      return normalizeHeader(header);
+    });
+  const expectedNormalized = targetHeaders.map(function (header) {
+    return normalizeHeader(header);
+  });
+  const headerAliases = {
+    "project id": ["project id", "projectid", "project code", "code"],
+    "project name": ["project name", "project", "name"],
+    "activity id": [
+      "activity id",
+      "activityid",
+      "source activity id",
+      "activity code",
+      "task id",
+      "id",
+    ],
+    activity: ["activity", "activity name", "name"],
+    "planned start": ["planned start", "planned_start", "start date"],
+    "planned finish": [
+      "planned finish",
+      "planned_finish",
+      "finish date",
+      "end date",
+    ],
+    duration: ["duration", "duration days"],
+    status: ["status"],
+    progress: ["progress", "% complete", "percent complete", "completion"],
+    notes: ["notes", "remarks"],
+  };
+  const duplicateExpectedHeaderExists = expectedNormalized.some(function (header) {
+    return header && headers.indexOf(header) !== headers.lastIndexOf(header);
+  });
+  const headerOrderMismatch = expectedNormalized.some(function (header, index) {
+    return headers[index] !== header;
+  });
+
+  if (!headerOrderMismatch && !duplicateExpectedHeaderExists) return;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    sheet.getRange(1, 1, 1, targetWidth).setValues([targetHeaders]);
+    return;
+  }
+
+  const resolvedHeaderIndex = {};
+  expectedNormalized.forEach(function (header) {
+    const aliases = headerAliases[header] || [header];
+    const matchedAlias = aliases.find(function (alias) {
+      return headers.lastIndexOf(normalizeHeader(alias)) >= 0;
+    });
+    resolvedHeaderIndex[header] = matchedAlias
+      ? headers.lastIndexOf(normalizeHeader(matchedAlias))
+      : -1;
+  });
+
+  const statusIndex = resolvedHeaderIndex.status;
+  const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
+  const rebuiltRows = values.map(function (row) {
+    return expectedNormalized.map(function (header) {
+      const idx = resolvedHeaderIndex[header];
+      if (idx >= 0) return row[idx];
+      if (header === "progress") {
+        const status = statusIndex >= 0 ? row[statusIndex] : "";
+        return cleanText(status).toLowerCase() === "completed" ? 100 : 0;
+      }
+      return "";
+    });
+  });
+
+  if (sheet.getMaxColumns() < targetWidth) {
+    sheet.insertColumnsAfter(
+      sheet.getMaxColumns(),
+      targetWidth - sheet.getMaxColumns(),
+    );
+  }
+  sheet.getRange(1, 1, 1, targetWidth).setValues([targetHeaders]);
+  sheet.getRange(2, 1, Math.max(lastRow - 1, 1), sourceWidth).clearContent();
+  sheet.getRange(2, 1, rebuiltRows.length, targetWidth).setValues(rebuiltRows);
+}
+
 function normalizeProjectsColumnsIfNeeded(sheet) {
   const targetHeaders = CONFIG.headers.projects;
   const targetWidth = targetHeaders.length;
@@ -2665,6 +2753,16 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
       normalizeHeader(CONFIG.headers.costs[0]);
   if (isCostsSheet && isCostsHeaderSet) {
     normalizeCostsColumnsIfNeeded(sheet);
+  }
+
+  const isActivitiesSheet =
+    cleanText(sheet.getName()) === cleanText(CONFIG.sheetNames.activities);
+  const isActivitiesHeaderSet =
+    expectedHeaders.length === CONFIG.headers.activities.length &&
+    normalizeHeader(expectedHeaders[0]) ===
+      normalizeHeader(CONFIG.headers.activities[0]);
+  if (isActivitiesSheet && isActivitiesHeaderSet) {
+    normalizeActivitiesColumnsIfNeeded(sheet);
   }
 
   const normalizeHeaders = function (headers) {
