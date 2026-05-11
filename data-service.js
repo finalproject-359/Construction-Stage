@@ -28,6 +28,26 @@
     if (Array.isArray(payload.rows)) return payload.rows;
     if (Array.isArray(payload.data)) return payload.data;
     if (Array.isArray(payload.items)) return payload.items;
+    if (Array.isArray(payload.activities)) return payload.activities;
+    if (Array.isArray(payload.costs)) return payload.costs;
+    if (payload.dashboard && typeof payload.dashboard === "object") {
+      const dashboardRows = extractRowsFromPayload(payload.dashboard);
+      if (dashboardRows.length) return dashboardRows;
+    }
+    return [];
+  };
+
+  const extractResourceRows = (payload, resourceName) => {
+    const resourcePayload = payload?.[resourceName];
+    if (Array.isArray(resourcePayload)) return resourcePayload;
+    if (resourcePayload && typeof resourcePayload === "object") {
+      const directRows = extractRowsFromPayload(resourcePayload);
+      if (directRows.length) return directRows;
+      if (Array.isArray(resourcePayload[resourceName])) return resourcePayload[resourceName];
+    }
+
+    const directValue = payload?.[resourceName];
+    if (Array.isArray(directValue)) return directValue;
     return [];
   };
 
@@ -182,8 +202,8 @@
         if (payload?.error) throw new Error(payload.error);
 
         return {
-          activities: Array.isArray(payload?.activities) ? payload.activities : [],
-          costs: Array.isArray(payload?.costs) ? payload.costs : [],
+          activities: extractResourceRows(payload, "activities"),
+          costs: extractResourceRows(payload, "costs"),
           sourceName: "Apps Script Web App (activities + costs)",
         };
       } finally {
