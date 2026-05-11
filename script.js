@@ -619,7 +619,7 @@ const generateCharts = (rows) => {
       labels,
       datasets: [
         {
-          label: "% Complete",
+          label: "Progress",
           data: completeSeries,
           borderColor: "#2f55ff",
           backgroundColor: "#2f55ff",
@@ -781,7 +781,7 @@ const loadRowsFromCostManagementLocalData = () => {
       Activity: String(activity?.name || activity?.activity || (activityId ? `Activity ${activityId}` : costId ? `Cost ${costId}` : "Unnamed Activity")).trim(),
       "Planned Cost": parseNumber(activity?.plannedCost),
       "Actual Cost": actualCostByCompositeKey.get(compositeKey) || actualCostByCompositeKey.get(activityFallbackKey) || 0,
-      "% Complete": parseNumber(activity?.progressPercent),
+      "Progress": parseNumber(activity?.progressPercent),
     };
   });
 };
@@ -871,7 +871,7 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
       Activity: activityName,
       "Planned Cost": parseNumber(cost?.plannedCost ?? cost?.planned_cost ?? matchedActivity?.plannedValue),
       "Actual Cost": parseNumber(cost?.actualCost ?? cost?.actual_cost),
-      "% Complete": parseNumber(matchedActivity?.percentComplete ?? matchedActivity?.progress ?? cost?.progress ?? cost?.percentComplete ?? 0),
+      "Progress": parseNumber(matchedActivity?.percentComplete ?? matchedActivity?.progress ?? cost?.progress ?? cost?.percentComplete ?? 0),
       "Earned Value": parseNumber(cost?.earnedValue ?? cost?.earned_value),
       "Planned Start": matchedActivity?.plannedStart || matchedActivity?.startDate || "",
       "Planned Finish": matchedActivity?.plannedFinish || matchedActivity?.finishDate || "",
@@ -894,7 +894,7 @@ const buildRowsFromActivitiesAndCosts = (activities, costs) => {
       Activity: String(activity?.activity || activity?.name || `Activity ${activityId}`).trim(),
       "Planned Cost": parseNumber(activity?.plannedValue ?? activity?.plannedCost),
       "Actual Cost": parseNumber(activity?.actualCost),
-      "% Complete": parseNumber(activity?.percentComplete ?? activity?.progress ?? activity?.completion ?? 0),
+      "Progress": parseNumber(activity?.percentComplete ?? activity?.progress ?? activity?.completion ?? 0),
       "Earned Value": parseNumber(activity?.earnedValue),
       "Planned Start": activity?.plannedStart || activity?.startDate || "",
       "Planned Finish": activity?.plannedFinish || activity?.finishDate || "",
