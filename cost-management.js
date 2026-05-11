@@ -1152,6 +1152,7 @@ const syncCostSummaryToSheet = async ({ projectId, projectName, activity }) => {
   const plannedCost = parseBudgetValue(refreshed.plannedCost);
   const plannedCostPerDay = durationDays > 0 ? plannedCost / durationDays : 0;
   await postToDataSource("costs", "update", {
+    skipDailyCostSync: true,
     cost: {
       costId,
       projectId: resolvedProjectId,
@@ -1160,7 +1161,7 @@ const syncCostSummaryToSheet = async ({ projectId, projectName, activity }) => {
       activity: refreshed.name || activity?.name || "",
       duration: durationDays,
       category: "Planned Cost",
-      date: new Date().toISOString().slice(0, 10),
+      date: refreshed.startDate || activity?.startDate || "",
       plannedCost,
       plannedCostPerDay,
       progress: clampPercent(refreshed.progressPercent),
@@ -1285,7 +1286,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
           activity: target.name || "",
           duration: durationDays,
           category: "Planned Cost",
-          date: new Date().toISOString().slice(0, 10),
+          date: target.startDate || "",
           plannedCost: nextPlannedCost,
           plannedCostPerDay,
           actualCost: 0,
