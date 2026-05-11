@@ -253,6 +253,43 @@ const isValidActivityId = (value) => {
   return !isSummaryLabel(normalizedValue);
 };
 
+const normalizeDateOnly = (value) => {
+  const raw = normalize(value, "");
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().split("T")[0];
+};
+
+const getDateSortTime = (value) => {
+  const normalizedDate = normalizeDateOnly(value);
+  if (!normalizedDate) return Number.POSITIVE_INFINITY;
+  const timestamp = new Date(`${normalizedDate}T00:00:00`).getTime();
+  return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
+};
+
+const compareDashboardRowsByStartPriority = (a, b) => {
+  const startDiff = getDateSortTime(a?.startDate) - getDateSortTime(b?.startDate);
+  if (startDiff) return startDiff;
+
+  const finishDiff = getDateSortTime(a?.finishDate) - getDateSortTime(b?.finishDate);
+  if (finishDiff) return finishDiff;
+
+  const projectDiff = normalize(a?.project, "").localeCompare(normalize(b?.project, ""));
+  if (projectDiff) return projectDiff;
+
+  const activityIdDiff = formatActivityCostIdentity(a).localeCompare(formatActivityCostIdentity(b));
+  if (activityIdDiff) return activityIdDiff;
+
+  const activityDiff = normalize(a?.activity, "").localeCompare(normalize(b?.activity, ""));
+  if (activityDiff) return activityDiff;
+
+  return parseNumber(a?.sourceIndex) - parseNumber(b?.sourceIndex);
+};
+
+const sortDashboardRowsByStartPriority = (rows) =>
+  Array.isArray(rows) ? [...rows].sort(compareDashboardRowsByStartPriority) : [];
+
 const extractDashboardRows = (rawRows) =>
   rawRows
     .map((row, index) => {
@@ -335,21 +372,15 @@ const extractDashboardRows = (rawRows) =>
         costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
         budgetVariancePercent: plannedCost ? (cv / plannedCost) * 100 : 0,
         budgetStatus: cv >= 0 ? "Under Budget" : "Over Budget",
+        sourceIndex: index,
       };
     })
     .filter(
       (row) =>
         row &&
         (row.plannedCost !== 0 || row.actualCost !== 0 || row.ev !== 0 || row.percentComplete !== 0)
-    );
-
-const normalizeDateOnly = (value) => {
-  const raw = normalize(value, "");
-  if (!raw) return "";
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().split("T")[0];
-};
+    )
+    .sort(compareDashboardRowsByStartPriority);
 
 const rowMatchesDateFilter = (row, startDate, endDate) => {
   if (!startDate && !endDate) return true;
@@ -366,11 +397,13 @@ const getFilteredRows = (rows) => {
   const startDate = String(dateStartFilterEl?.value || "").trim();
   const endDate = String(dateEndFilterEl?.value || "").trim();
 
-  return rows.filter((row) => {
-    const projectMatches = selectedProject === "all"
-      || normalize(row.project, "").trim().toLowerCase() === selectedProject;
-    return projectMatches && rowMatchesDateFilter(row, startDate, endDate);
-  });
+  return sortDashboardRowsByStartPriority(
+    rows.filter((row) => {
+      const projectMatches = selectedProject === "all"
+        || normalize(row.project, "").trim().toLowerCase() === selectedProject;
+      return projectMatches && rowMatchesDateFilter(row, startDate, endDate);
+    })
+  );
 };
 
 const syncFilterOptionsFromRows = (rows) => {
@@ -430,15 +463,17 @@ const updateDashboardSummary = (rows, totals, progressMetrics) => {
 };
 
 const renderDashboardFromRows = (rows, summaryRows = rows) => {
-  const totals = calculateTotalsFromRows(rows);
-  const progressMetrics = calculateProgressMetrics(rows, totals);
+  const orderedRows = sortDashboardRowsByStartPriority(rows);
+  const orderedSummaryRows = summaryRows === rows ? orderedRows : sortDashboardRowsByStartPriority(summaryRows);
+  const totals = calculateTotalsFromRows(orderedRows);
+  const progressMetrics = calculateProgressMetrics(orderedRows, totals);
   renderKpis(totals);
   renderProgressKpis(progressMetrics, totals);
-  updateDashboardSummary(rows, totals, progressMetrics);
-  renderTable(summaryRows);
-  renderOverrunTable(rows);
-  renderGapTable(rows);
-  generateCharts(rows);
+  updateDashboardSummary(orderedRows, totals, progressMetrics);
+  renderTable(orderedSummaryRows);
+  renderOverrunTable(orderedRows);
+  renderGapTable(orderedRows);
+  generateCharts(orderedRows);
 };
 
 const applyFiltersAndRender = () => {
@@ -956,6 +991,8 @@ const loadRowsFromCostManagementLocalData = () => {
       "Planned Cost": parseNumber(activity?.plannedCost),
       "Actual Cost": actualCostByCompositeKey.get(compositeKey) || actualCostByCompositeKey.get(activityFallbackKey) || 0,
       "Progress": parseNumber(activity?.progressPercent),
+      "Planned Start": activity?.plannedStart || activity?.plannedStartDate || activity?.startDate || "",
+      "Planned Finish": activity?.plannedFinish || activity?.plannedFinishDate || activity?.finishDate || "",
     };
   });
 };
