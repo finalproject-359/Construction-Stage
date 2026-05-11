@@ -8,6 +8,9 @@ const projectsEmpty = document.getElementById("costProjectsEmpty");
 const selectionView = document.getElementById("costSelectionView");
 const detailsView = document.getElementById("costDetailsView");
 const selectedProjectBannerHost = document.getElementById("selectedProjectBannerHost");
+const clearCostFiltersBtn = document.getElementById("clearCostFilters");
+const visibleProjectCount = document.getElementById("visibleProjectCount");
+const visibleProjectBudget = document.getElementById("visibleProjectBudget");
 
 const hasProjectSelectionInUrl = (() => {
   const query = new URLSearchParams(window.location.search);
@@ -184,6 +187,18 @@ const formatLongHumanDate = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value || "-");
   return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+};
+const formatProjectTimeline = (project) => {
+  const start = project.startDate ? formatHumanDate(project.startDate) : "Start not set";
+  const finish = project.finishDate ? formatHumanDate(project.finishDate) : "Finish not set";
+  return `${start} — ${finish}`;
+};
+const getStatusTone = (status = "") => {
+  const normalized = String(status).toLowerCase();
+  if (/complete|done|finished/.test(normalized)) return "complete";
+  if (/progress|ongoing|active|started/.test(normalized)) return "active";
+  if (/hold|delay|risk|issue/.test(normalized)) return "risk";
+  return "neutral";
 };
 
 const normalizeDateKey = (value) => {
@@ -1339,13 +1354,16 @@ const renderProjects = (query = "") => {
   const endDateFilter = String(dateEndInput?.value || "").trim();
   const projects = loadProjects().map(normalizeProject).filter((project) => !isArchivedProject(project)).filter((project) => !normalizedQuery || [project.name, project.code, project.status].some((value) => value.toLowerCase().includes(normalizedQuery))).filter((project) => projectMatchesDateRange(project, startDateFilter, endDateFilter));
   projectsList.innerHTML = "";
+  if (visibleProjectCount) visibleProjectCount.textContent = String(projects.length);
+  if (visibleProjectBudget) visibleProjectBudget.textContent = formatBudget(projects.reduce((sum, project) => sum + parseBudgetValue(project.budget), 0));
   if (!projects.length) return projectsEmpty.classList.remove("hidden");
   projectsEmpty.classList.add("hidden");
   projects.forEach((project) => {
     const row = document.createElement("button");
     row.type = "button";
     row.className = "project-row";
-    row.innerHTML = `<div class="project-meta"><strong>${escapeHtml(formatProjectIdentityLabel(project))}</strong><p>Status: ${escapeHtml(project.status)}</p></div><strong>${formatBudget(project.budget)}</strong>`;
+    const statusTone = getStatusTone(project.status);
+    row.innerHTML = `<div class="project-row-main"><span class="project-status-badge ${statusTone}">${escapeHtml(project.status || "Not Started")}</span><div class="project-meta"><strong>${escapeHtml(formatProjectIdentityLabel(project))}</strong><p>${escapeHtml(formatProjectTimeline(project))}</p></div></div><div class="project-cost-preview"><span>Approved budget</span><strong>${formatBudget(project.budget)}</strong></div><span class="project-row-action">Open cost review →</span>`;
     row.addEventListener("click", () => {
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.set("projectId", project.id);
@@ -1362,6 +1380,13 @@ const syncSearches = (value) => {
 topSearch?.addEventListener("input", (event) => syncSearches(event.target.value));
 dateStartInput?.addEventListener("change", () => renderProjects(topSearch?.value || ""));
 dateEndInput?.addEventListener("change", () => renderProjects(topSearch?.value || ""));
+clearCostFiltersBtn?.addEventListener("click", () => {
+  if (topSearch) topSearch.value = "";
+  if (dateStartInput) dateStartInput.value = "";
+  if (dateEndInput) dateEndInput.value = "";
+  renderProjects("");
+  topSearch?.focus();
+});
 
 const getSelectedViewParams = () => {
   const params = new URLSearchParams(window.location.search);

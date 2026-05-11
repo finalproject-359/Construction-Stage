@@ -20,29 +20,44 @@
         <a href="projects.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg></span>Projects</a>
         <a href="activities.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span>Activities</a>
         <a class="active" href="cost-management.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 21V10m7 11V3m7 18v-7"/></svg></span>Cost Management</a>
-        <a href="reports.html"><span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 0v6h6"/></svg></span>Reports</a>
       </nav>
     </aside>
 
     <main class="main-content">
-      <header class="topbar cost-header">
-        <div>
-          <h1>Cost Management</h1>
-          <p>Track and manage project costs efficiently.</p>
+      <header class="cost-hero" aria-labelledby="costPageTitle">
+        <div class="cost-hero-copy">
+          <span class="eyebrow">Construction cost control</span>
+          <h1 id="costPageTitle">Cost Management</h1>
+          <p>Review planned budgets, actual spending, earned value, and daily cost entries for each flood-control project.</p>
+          <div class="cost-hero-actions" aria-label="Cost management workflow">
+            <span><strong>1</strong> Select project</span>
+            <span><strong>2</strong> Review variance</span>
+            <span><strong>3</strong> Update daily cost</span>
+          </div>
         </div>
-        <button class="ghost-btn" type="button">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v5"/><path d="M12 7h.01"/></svg>
-          How it works
-        </button>
+        <div class="cost-hero-panel" aria-label="Cost control focus areas">
+          <div><span>Budget discipline</span><strong>Planned vs Actual</strong></div>
+          <div><span>Field validation</span><strong>Daily Cost Logs</strong></div>
+          <div><span>Performance signal</span><strong>Earned Value</strong></div>
+        </div>
       </header>
 
       <section class="cost-selection-filters cost-selection-filters-top" aria-label="Project filters">
+        <div class="filter-heading">
+          <div>
+            <h2>Find a project</h2>
+            <p>Filter active project cost records by name, code, status, or working date range.</p>
+          </div>
+          <button id="clearCostFilters" class="ghost-btn compact" type="button">Clear filters</button>
+        </div>
         <div class="toolbar-row" role="group" aria-label="Project selection filters">
           <label class="search-box" for="costTopSearch">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <input id="costTopSearch" type="search" placeholder="Search projects..." />
+            <span class="field-label">Search</span>
+            <input id="costTopSearch" type="search" placeholder="Project name, code, or status" />
           </label>
           <label class="search-box date-range-box" for="costDateStart">
+            <span class="field-label">Date range</span>
             <input id="costDateStart" type="date" aria-label="Start date filter" />
             <span>to</span>
             <input id="costDateEnd" type="date" aria-label="End date filter" />
@@ -60,14 +75,24 @@
           <div class="state-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
           </div>
+          <span class="eyebrow">Project cost workspace</span>
           <h2>Select a project to view cost details</h2>
-          <p>Cost data is organized by project.<br />Choose a project below to start tracking budgets and expenses.</p>
+          <p>Cost data is organized by project. Choose a project below to review budgets, field spending, and cost performance.</p>
         </section>
 
-        <hr />
+        <section class="cost-summary-strip" aria-label="Project cost portfolio summary">
+          <article><span>Visible projects</span><strong id="visibleProjectCount">0</strong></article>
+          <article><span>Combined budget</span><strong id="visibleProjectBudget">₱0.00</strong></article>
+          <article><span>Active monitoring</span><strong>Cost & EV</strong></article>
+        </section>
 
-        <section>
-          <h3>All Projects</h3>
+        <section class="projects-section">
+          <div class="section-title-row">
+            <div>
+              <h3>All Projects</h3>
+              <p>Select a project to open its cost dashboard and costing record.</p>
+            </div>
+          </div>
           <div class="projects-list" id="costProjectsList"></div>
           <div class="projects-empty" id="costProjectsEmpty">
             <div class="state-icon muted" aria-hidden="true">
