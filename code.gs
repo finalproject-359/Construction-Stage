@@ -151,10 +151,13 @@ function handleDailyCostsSheetEdit(sheet, range) {
     ? cleanText(rowValues[columns.projectId - 1])
     : "";
   var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : "";
+  var activityId = columns.activityId
+    ? cleanText(rowValues[columns.activityId - 1])
+    : "";
   if (!projectId || !costId) return;
 
   refreshDailyCostRowMetrics(sheet, row, columns);
-  syncCostActualFromDailyCost(projectId, costId);
+  syncCostActualFromDailyCost(projectId, costId, { activityId: activityId });
 }
 
 function refreshDailyCostRowMetrics(dailySheet, rowNumber, columns) {
@@ -1005,13 +1008,13 @@ function handleCostMutation(action, payload) {
       assertActivityExists(cost.projectId, cost.activityId);
     }
 
-    if (action === "create" && costExists(cost.projectId, cost.costId)) {
+    if (action === "create" && costExists(cost.projectId, cost.costId, cost.activityId)) {
       throw new Error(
         "Cost already exists for this project. Use update instead of create.",
       );
     }
 
-    if (action === "update" && !costExists(cost.projectId, cost.costId)) {
+    if (action === "update" && !costExists(cost.projectId, cost.costId, cost.activityId)) {
       throw new Error(
         "Cost record not found for update. Create the cost first.",
       );
@@ -1044,9 +1047,11 @@ function handleDailyCostMutation(action, payload) {
       throw new Error("Project ID, Cost ID, and Date are required.");
     }
     assertProjectExists(dailyCost.projectId);
-    assertCostExists(dailyCost.projectId, dailyCost.costId);
+    assertCostExists(dailyCost.projectId, dailyCost.costId, dailyCost.activityId);
     upsertDailyCostRow(dailyCost);
-    syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
+    syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId, {
+      activityId: dailyCost.activityId,
+    });
     return jsonResponse({
       ok: true,
       message: "Daily cost saved successfully.",
@@ -1063,9 +1068,11 @@ function handleDailyCostMutation(action, payload) {
       throw new Error("Project ID, Cost ID, and Date are required for delete.");
     }
     assertProjectExists(dailyCost.projectId);
-    assertCostExists(dailyCost.projectId, dailyCost.costId);
+    assertCostExists(dailyCost.projectId, dailyCost.costId, dailyCost.activityId);
     deleteDailyCostRow(dailyCost);
-    syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId);
+    syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId, {
+      activityId: dailyCost.activityId,
+    });
     return jsonResponse({
       ok: true,
       message: "Daily cost deleted successfully.",
@@ -1107,9 +1114,10 @@ function assertActivityExists(projectId, activityId) {
   }
 }
 
-function costExists(projectId, costId) {
+function costExists(projectId, costId, activityId) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedCostId = cleanText(costId);
+  var normalizedActivityId = cleanText(activityId);
   if (!normalizedProjectId || !normalizedCostId) return false;
 
   var sheet = getOrCreateSheet(CONFIG.sheetNames.costs);
@@ -1123,7 +1131,10 @@ function costExists(projectId, costId) {
   for (var i = 1; i < values.length; i += 1) {
     if (
       cleanText(values[i][columns.projectId - 1]) === normalizedProjectId &&
-      cleanText(values[i][columns.costId - 1]) === normalizedCostId
+      cleanText(values[i][columns.costId - 1]) === normalizedCostId &&
+      (!normalizedActivityId ||
+        !columns.activityId ||
+        cleanText(values[i][columns.activityId - 1]) === normalizedActivityId)
     ) {
       return true;
     }
@@ -1132,16 +1143,16 @@ function costExists(projectId, costId) {
   return false;
 }
 
-function assertCostExists(projectId, costId) {
+function assertCostExists(projectId, costId, activityId) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedCostId = cleanText(costId);
   if (!normalizedProjectId || !normalizedCostId) {
     throw new Error("Project ID and Cost ID are required.");
   }
 
-  if (!costExists(normalizedProjectId, normalizedCostId)) {
+  if (!costExists(normalizedProjectId, normalizedCostId, activityId)) {
     throw new Error(
-      "Cost record not found for the given Project ID and Cost ID. Create the cost first.",
+      "Cost record not found for the given Project ID, Activity ID, and Cost ID. Create the cost first.",
     );
   }
 }
@@ -1254,6 +1265,9 @@ function upsertDailyCostRow(dailyCost) {
     if (
       cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId &&
       cleanText(values[i][columns.costId - 1]) === dailyCost.costId &&
+      (!dailyCost.activityId ||
+        !columns.activityId ||
+        cleanText(values[i][columns.activityId - 1]) === dailyCost.activityId) &&
       normalizeDate(values[i][columns.date - 1]) === dailyCost.date
     ) {
       rowNumber = i + 1;
@@ -1332,6 +1346,9 @@ function deleteDailyCostRow(dailyCost) {
     if (
       cleanText(values[i][columns.projectId - 1]) === dailyCost.projectId &&
       cleanText(values[i][columns.costId - 1]) === dailyCost.costId &&
+      (!dailyCost.activityId ||
+        !columns.activityId ||
+        cleanText(values[i][columns.activityId - 1]) === dailyCost.activityId) &&
       normalizeDate(values[i][columns.date - 1]) === dailyCost.date
     )
       sheet.deleteRow(i + 1);
@@ -1341,6 +1358,7 @@ function deleteDailyCostRow(dailyCost) {
 function syncCostActualFromDailyCost(projectId, costId, options) {
   var normalizedProjectId = cleanText(projectId);
   var normalizedCostId = cleanText(costId);
+  var normalizedActivityId = cleanText(options && options.activityId);
   var syncProgress = !options || options.syncProgress !== false;
   if (!normalizedProjectId || !normalizedCostId) return;
 
@@ -1356,7 +1374,11 @@ function syncCostActualFromDailyCost(projectId, costId, options) {
     if (
       cleanText(dailyValues[i][dailyColumns.projectId - 1]) ===
         normalizedProjectId &&
-      cleanText(dailyValues[i][dailyColumns.costId - 1]) === normalizedCostId
+      cleanText(dailyValues[i][dailyColumns.costId - 1]) === normalizedCostId &&
+      (!normalizedActivityId ||
+        !dailyColumns.activityId ||
+        cleanText(dailyValues[i][dailyColumns.activityId - 1]) ===
+          normalizedActivityId)
     ) {
       totalActualCost += parseNumber(
         dailyValues[i][dailyColumns.actualCost - 1],
@@ -1388,7 +1410,11 @@ function syncCostActualFromDailyCost(projectId, costId, options) {
       cleanText(costValues[rowIndex][costColumns.projectId - 1]) ===
         normalizedProjectId &&
       cleanText(costValues[rowIndex][costColumns.costId - 1]) ===
-        normalizedCostId
+        normalizedCostId &&
+      (!normalizedActivityId ||
+        !costColumns.activityId ||
+        cleanText(costValues[rowIndex][costColumns.activityId - 1]) ===
+          normalizedActivityId)
     ) {
       if (costColumns.actualCost) {
         var targetRow = rowIndex + 1;
@@ -1446,7 +1472,11 @@ function syncCostActualFromDailyCost(projectId, costId, options) {
       cleanText(dailyValues[dailyIndex][dailyColumns.projectId - 1]) ===
         normalizedProjectId &&
       cleanText(dailyValues[dailyIndex][dailyColumns.costId - 1]) ===
-        normalizedCostId
+        normalizedCostId &&
+      (!normalizedActivityId ||
+        !dailyColumns.activityId ||
+        cleanText(dailyValues[dailyIndex][dailyColumns.activityId - 1]) ===
+          normalizedActivityId)
     ) {
       latestDailyRecord = dailyValues[dailyIndex];
       break;
@@ -1691,7 +1721,14 @@ function upsertCostRow(cost) {
     const row = values[i];
     const rowCostId = cleanText(row[columns.costId - 1]);
     const rowProjectId = cleanText(row[columns.projectId - 1]);
-    if (rowCostId === cost.costId && rowProjectId === cost.projectId) {
+    const rowActivityId = columns.activityId
+      ? cleanText(row[columns.activityId - 1])
+      : "";
+    if (
+      rowCostId === cost.costId &&
+      rowProjectId === cost.projectId &&
+      (!cost.activityId || !columns.activityId || rowActivityId === cost.activityId)
+    ) {
       rowNumber = i + 1;
       break;
     }
@@ -3623,6 +3660,9 @@ function normalizeCostRecord(row) {
     duration: parseNumber(
       getCell(row, ["duration", "duration days", "duration_days"]),
     ),
+    progress: parseNumber(
+      getCell(row, ["progress", "progress/day", "% complete", "percent complete"]),
+    ),
     category:
       cleanText(getCell(row, ["cost category", "category", "type"])) ||
       "General",
@@ -3795,15 +3835,119 @@ function buildCostsPayload(costs) {
   };
 }
 
+function normalizeDashboardIdentityKey(value) {
+  return cleanText(value).toLowerCase();
+}
+
+function makeDashboardCompositeKey(projectId, activityId, costId) {
+  return [projectId, activityId, costId]
+    .map(function (value) {
+      return normalizeDashboardIdentityKey(value);
+    })
+    .join("::");
+}
+
+function buildDashboardRows(data) {
+  const activities = data.activities || [];
+  const costs = data.costs || [];
+  const activitiesByProjectAndActivityId = {};
+
+  activities.forEach(function (activity) {
+    const projectId = cleanText(activity.projectId);
+    const activityId = cleanText(activity.id || activity.activityId);
+    if (!projectId || !activityId) return;
+    activitiesByProjectAndActivityId[makeDashboardCompositeKey(projectId, activityId, "")] = activity;
+  });
+
+  const rows = [];
+  const costBackedActivityKeys = {};
+
+  costs.forEach(function (cost) {
+    const projectId = cleanText(cost.projectId);
+    const activityId = cleanText(cost.activityId);
+    const costId = cleanText(cost.costId || cost.id);
+    if (!projectId || (!activityId && !costId)) return;
+
+    const activityKey = makeDashboardCompositeKey(projectId, activityId, "");
+    const activity = activitiesByProjectAndActivityId[activityKey] || null;
+    if (activityId) costBackedActivityKeys[activityKey] = true;
+
+    const percentComplete = parseNumber(
+      activity ? activity.percentComplete : cost.progress,
+    );
+    const plannedCost = parseNumber(
+      cost.plannedCost || (activity && activity.plannedValue),
+    );
+    const actualCost = parseNumber(cost.actualCost);
+    const earnedValue =
+      parseNumber(cost.earnedValue) || plannedCost * (percentComplete / 100);
+    const costVariance = earnedValue - actualCost;
+
+    rows.push({
+      projectId: projectId,
+      projectCode: projectId,
+      project: cleanText(cost.project || (activity && activity.project)),
+      activityId: activityId,
+      costId: costId,
+      id: activityId || costId,
+      name: cleanText(
+        cost.activity ||
+          (activity && activity.name) ||
+          (activityId ? "Activity " + activityId : "Cost " + costId),
+      ),
+      plannedStart: activity ? activity.plannedStart : "",
+      plannedFinish: activity ? activity.plannedFinish : "",
+      percentComplete: percentComplete,
+      plannedValue: plannedCost,
+      actualCost: actualCost,
+      earnedValue: earnedValue,
+      costVariance: costVariance,
+    });
+  });
+
+  activities.forEach(function (activity) {
+    const projectId = cleanText(activity.projectId);
+    const activityId = cleanText(activity.id || activity.activityId);
+    const activityKey = makeDashboardCompositeKey(projectId, activityId, "");
+    if (!projectId || !activityId || costBackedActivityKeys[activityKey]) return;
+
+    const plannedCost = parseNumber(activity.plannedValue);
+    const actualCost = parseNumber(activity.actualCost);
+    const percentComplete = parseNumber(activity.percentComplete);
+    const earnedValue =
+      parseNumber(activity.earnedValue) || plannedCost * (percentComplete / 100);
+
+    rows.push({
+      projectId: projectId,
+      projectCode: projectId,
+      project: cleanText(activity.project),
+      activityId: activityId,
+      costId: "",
+      id: activityId,
+      name: cleanText(activity.name || "Activity " + activityId),
+      plannedStart: activity.plannedStart,
+      plannedFinish: activity.plannedFinish,
+      percentComplete: percentComplete,
+      plannedValue: plannedCost,
+      actualCost: actualCost,
+      earnedValue: earnedValue,
+      costVariance: earnedValue - actualCost,
+    });
+  });
+
+  return rows;
+}
+
 function buildDashboardPayload(data) {
+  const dashboardRows = buildDashboardRows(data);
   const projectCount = data.projects.length;
   const activityCount = data.activities.length;
   const costCount = data.costs.length;
 
-  const totalPlanned = sumBy(data.activities, "plannedValue");
-  const totalActual = sumBy(data.activities, "actualCost");
-  const totalEarned = sumBy(data.activities, "earnedValue");
-  const totalCv = sumBy(data.activities, "costVariance");
+  const totalPlanned = sumBy(dashboardRows, "plannedValue");
+  const totalActual = sumBy(dashboardRows, "actualCost");
+  const totalEarned = sumBy(dashboardRows, "earnedValue");
+  const totalCv = sumBy(dashboardRows, "costVariance");
 
   const budget = totalPlanned;
   const spentPercent = budget ? (totalActual / budget) * 100 : 0;
@@ -3822,7 +3966,7 @@ function buildDashboardPayload(data) {
       earnedPercent: roundTo(earnedPercent, 2),
       projectStatus: totalCv >= 0 ? "Under Budget" : "Over Budget",
     },
-    rows: data.activities,
+    rows: dashboardRows,
   };
 }
 
