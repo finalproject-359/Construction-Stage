@@ -12,7 +12,7 @@
     "planned start",
     "planned finish",
     "complete",
-    "notes",
+    "created at",
   ];
 
   const normalizeHeader = (value) =>
