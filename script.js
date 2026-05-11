@@ -36,7 +36,6 @@ const chartDependencyWarning =
 let activitySummaryRows = [];
 let varianceChart = null;
 let costChart = null;
-let dashboardRefreshTimer = null;
 let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
 
@@ -45,7 +44,6 @@ const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
 const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
-const DASHBOARD_REFRESH_INTERVAL_MS = 30 * 1000;
 const DASHBOARD_MIN_STABLE_ROW_RATIO = 0.5;
 
 const getProjectFilterPrefill = () => {
@@ -909,7 +907,7 @@ const processRows = (rawRows, sourceName = "web app") => {
     previousRowCount > 2 && rows.length > 0 && rows.length < previousRowCount * DASHBOARD_MIN_STABLE_ROW_RATIO;
   if (droppedTooMuch) {
     showMessage(
-      `Live source returned only ${rows.length} parsed row(s), down from ${previousRowCount}. Keeping the last stable dashboard data until the next sync.`,
+      `Live source returned only ${rows.length} parsed row(s), down from ${previousRowCount}. Keeping the last stable dashboard data until the next load.`,
       true
     );
     return;
@@ -917,7 +915,7 @@ const processRows = (rawRows, sourceName = "web app") => {
 
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
-    showMessage(`Live sync active. No new updates from ${sourceName}.`);
+    showMessage(`Dashboard data is already up to date from ${sourceName}.`);
     return;
   }
 
@@ -1325,36 +1323,6 @@ const refreshDashboardData = async ({ force = false } = {}) => {
 };
 
 
-const handleRealtimeStorageSync = (event) => {
-  const trackedKeys = new Set([
-    COST_ACTIVITIES_LOCAL_STORAGE_KEY,
-    DAILY_COSTS_LOCAL_STORAGE_KEY,
-    DASHBOARD_CACHE_KEY,
-  ]);
-
-  if (event?.key && !trackedKeys.has(event.key)) return;
-  refreshDashboardData({ force: true });
-};
-
-const setupRealtimeDashboardSync = () => {
-  if (dashboardRefreshTimer) {
-    clearInterval(dashboardRefreshTimer);
-  }
-
-  dashboardRefreshTimer = setInterval(() => {
-    refreshDashboardData();
-  }, DASHBOARD_REFRESH_INTERVAL_MS);
-
-  window.addEventListener("focus", () => refreshDashboardData({ force: true }));
-  window.addEventListener("online", () => refreshDashboardData({ force: true }));
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      refreshDashboardData({ force: true });
-    }
-  });
-  window.addEventListener("storage", handleRealtimeStorageSync);
-};
-
 const setupServiceWorkerUpdates = async () => {
   if (!("serviceWorker" in navigator)) {
     return;
@@ -1419,4 +1387,3 @@ if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", applyFiltersAndR
 setupServiceWorkerUpdates();
 hydrateDashboardFromCache();
 refreshDashboardData({ force: true });
-setupRealtimeDashboardSync();
