@@ -247,6 +247,49 @@ function findCostRecord(projectId, costId) {
   return null;
 }
 
+function findActivitySchedule(projectId, activityId, activityName) {
+  var activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+  ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
+  var columns = getActivityColumnMap(activitiesSheet);
+  var values = activitiesSheet.getDataRange().getValues();
+  var normalizedProjectId = cleanText(projectId);
+  var normalizedActivityId = cleanText(activityId);
+  var normalizedActivityName = cleanText(activityName);
+
+  for (var i = 1; i < values.length; i += 1) {
+    var rowProjectId = columns.projectId
+      ? cleanText(values[i][columns.projectId - 1])
+      : "";
+    if (rowProjectId !== normalizedProjectId) continue;
+
+    var rowActivityId = columns.id ? cleanText(values[i][columns.id - 1]) : "";
+    var rowActivityName = columns.name
+      ? cleanText(values[i][columns.name - 1])
+      : "";
+    var matches =
+      (normalizedActivityId && rowActivityId === normalizedActivityId) ||
+      (!normalizedActivityId &&
+        normalizedActivityName &&
+        rowActivityName === normalizedActivityName) ||
+      (normalizedActivityId &&
+        !rowActivityId &&
+        normalizedActivityName &&
+        rowActivityName === normalizedActivityName);
+    if (!matches) continue;
+
+    return {
+      plannedStart: columns.plannedStart
+        ? normalizeDate(values[i][columns.plannedStart - 1])
+        : "",
+      plannedFinish: columns.plannedFinish
+        ? normalizeDate(values[i][columns.plannedFinish - 1])
+        : "",
+    };
+  }
+
+  return { plannedStart: "", plannedFinish: "" };
+}
+
 function findActivityProgress(projectId, activityId, activityName) {
   var activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
   ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
@@ -830,7 +873,9 @@ function handleCostMutation(action, payload) {
     }
 
     upsertCostRow(cost);
-    upsertDailyCostRow(buildDailyCostFromCost(cost));
+    if (!payload.skipDailyCostSync && !payload.summaryOnly) {
+      upsertDailyCostRow(buildDailyCostFromCost(cost));
+    }
     return jsonResponse({
       ok: true,
       message:
@@ -1443,6 +1488,15 @@ function buildDailyCostFromCost(cost) {
     findActivityProgress(projectId, activityId, activityName),
     2,
   );
+  const activitySchedule = findActivitySchedule(
+    projectId,
+    activityId,
+    activityName,
+  );
+  const dailyCostDate =
+    normalizeDate(activitySchedule.plannedStart) ||
+    normalizeDate(cost.date) ||
+    normalizeDate(new Date());
 
   return {
     projectId: projectId,
@@ -1453,7 +1507,7 @@ function buildDailyCostFromCost(cost) {
     plannedCost: plannedCost,
     plannedCostPerDay: plannedCostPerDay,
     progress: progress >= 0 ? progress : 0,
-    date: normalizeDate(cost.date) || normalizeDate(new Date()),
+    date: dailyCostDate,
     actualCost: parseNumber(cost.actualCost),
   };
 }
