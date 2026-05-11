@@ -80,6 +80,14 @@ const PROGRESS_CLASS_BY_STATUS = {
   Delayed: "progress-delayed",
 };
 
+const getProjectStatusBadgeClass = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "completed") return "badge-completed";
+  if (normalized === "in progress") return "badge-in-progress";
+  if (normalized === "on hold") return "badge-delayed";
+  return "badge-not-started";
+};
+
 const PAGE_SIZE = 8;
 const ACTIVITIES_REFRESH_INTERVAL_MS = 10 * 1000;
 
@@ -438,11 +446,16 @@ const buildActivityRowHtml = (activity) => {
   return `
     <tr>
       <td>${escapeHtml(activity.id)}</td>
-      <td>${escapeHtml(activity.name)}</td>
+      <td>
+        <div class="activity-name-cell">
+          <strong>${escapeHtml(activity.name)}</strong>
+          <span>${escapeHtml(activity.type && activity.type !== "-" ? activity.type : "General activity")}</span>
+        </div>
+      </td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>${escapeHtml(activity.plannedFinish)}</td>
       <td>${escapeHtml(activity.duration)}</td>
-      <td>${escapeHtml(activity.status)}</td>
+      <td><span class="badge ${BADGE_CLASS_BY_STATUS[activity.status] || "badge-not-started"}">${escapeHtml(activity.status)}</span></td>
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>
@@ -1025,7 +1038,17 @@ const renderProjectPicker = () => {
     .map(
       (project) => `
         <button type="button" class="activities-project-picker-card" data-project-id="${encodeURIComponent(project.id || "")}" data-project="${encodeURIComponent(project.name)}">
-          <span>${escapeHtml(formatProjectIdentityLabel(project.id || project.code, project.name))}</span>
+          <span class="activities-project-card-copy">
+            <span class="activities-project-card-title">${escapeHtml(formatProjectIdentityLabel(project.id || project.code, project.name))}</span>
+            <span class="activities-project-card-meta">
+              <span>${escapeHtml(project.location || "No location set")}</span>
+              <span>${escapeHtml(project.type || "General")}</span>
+            </span>
+            <span class="activities-project-card-tags">
+              <span class="badge ${getProjectStatusBadgeClass(project.status)}">${escapeHtml(project.status || "Not Started")}</span>
+              <span>${escapeHtml(project.startDate ? toDisplayDate(project.startDate) : "No start date")}</span>
+            </span>
+          </span>
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
       `
