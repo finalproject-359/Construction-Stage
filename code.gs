@@ -27,6 +27,7 @@ const CONFIG = {
       "Start Date",
       "Finish Date",
       "Budget",
+      "Progress",
       "Created At",
     ],
     activities: [
@@ -810,6 +811,7 @@ function handleProjectMutation(action, payload) {
     if (columns.finishDate)
       rowValues[columns.finishDate - 1] = project.finishDate;
     if (columns.budget) rowValues[columns.budget - 1] = project.budget;
+    if (columns.progress) rowValues[columns.progress - 1] = project.progress;
     if (columns.createdAt) rowValues[columns.createdAt - 1] = getSpreadsheetTodayDate();
 
     sheet
@@ -1718,6 +1720,7 @@ function updateProjectRow(project) {
   rowValues[lookup.columns.startDate - 1] = project.startDate;
   rowValues[lookup.columns.finishDate - 1] = project.finishDate;
   rowValues[lookup.columns.budget - 1] = project.budget;
+  if (lookup.columns.progress) rowValues[lookup.columns.progress - 1] = project.progress;
   lookup.sheet
     .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
     .setValues([rowValues]);
@@ -2487,6 +2490,105 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
   sheet.getRange(2, 1, rebuiltRows.length, targetWidth).setValues(rebuiltRows);
 }
 
+function getDefaultProjectProgressForStatus(status) {
+  const normalized = cleanText(status).toLowerCase();
+  if (normalized === "completed") return 100;
+  if (normalized === "in progress") return 55;
+  if (normalized === "on hold") return 25;
+  return 0;
+}
+
+function normalizeProjectProgress(value, status) {
+  if (value === undefined || value === null || value === "") {
+    return getDefaultProjectProgressForStatus(status);
+  }
+  return Math.max(0, Math.min(100, parseNumber(value)));
+}
+
+function normalizeProjectsColumnsIfNeeded(sheet) {
+  const targetHeaders = CONFIG.headers.projects;
+  const targetWidth = targetHeaders.length;
+  const sourceWidth = Math.max(sheet.getLastColumn(), targetWidth);
+  const headers = sheet
+    .getRange(1, 1, 1, sourceWidth)
+    .getValues()[0]
+    .map(function (header) {
+      return normalizeHeader(header);
+    });
+  const expectedNormalized = targetHeaders.map(function (header) {
+    return normalizeHeader(header);
+  });
+  const headerOrderMismatch = expectedNormalized.some(function (header, index) {
+    return headers[index] !== header;
+  });
+  const duplicateExpectedHeaderExists = expectedNormalized.some(function (header) {
+    return header && headers.indexOf(header) !== headers.lastIndexOf(header);
+  });
+
+  if (!headerOrderMismatch && !duplicateExpectedHeaderExists) return;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    sheet.getRange(1, 1, 1, targetWidth).setValues([targetHeaders]);
+    return;
+  }
+
+  const headerAliases = {
+    "project id": ["project id", "id", "projectid", "project code", "code"],
+    "project name": ["project name", "project", "name"],
+    "project type": ["project type", "type"],
+    status: ["status"],
+    location: ["location", "site", "address"],
+    "start date": ["start date", "planned start", "planned_start"],
+    "finish date": [
+      "finish date",
+      "target finish",
+      "end date",
+      "planned finish",
+      "planned_finish",
+    ],
+    budget: ["budget", "planned value", "planned cost"],
+    progress: ["progress", "% complete", "percent complete"],
+    "created at": ["created at", "created_at", "timestamp", "date created"],
+  };
+
+  const resolvedHeaderIndex = {};
+  expectedNormalized.forEach(function (header) {
+    const aliases = headerAliases[header] || [header];
+    const matchedAlias = aliases.find(function (alias) {
+      return headers.lastIndexOf(normalizeHeader(alias)) >= 0;
+    });
+    resolvedHeaderIndex[header] = matchedAlias
+      ? headers.lastIndexOf(normalizeHeader(matchedAlias))
+      : -1;
+  });
+
+  const statusIndex = resolvedHeaderIndex.status;
+  const values = sheet.getRange(2, 1, lastRow - 1, sourceWidth).getValues();
+  const rebuiltRows = values.map(function (row) {
+    return expectedNormalized.map(function (header) {
+      const idx = resolvedHeaderIndex[header];
+      if (idx >= 0) return row[idx];
+      if (header === "progress") {
+        return getDefaultProjectProgressForStatus(
+          statusIndex >= 0 ? row[statusIndex] : "",
+        );
+      }
+      return "";
+    });
+  });
+
+  if (sheet.getMaxColumns() < targetWidth) {
+    sheet.insertColumnsAfter(
+      sheet.getMaxColumns(),
+      targetWidth - sheet.getMaxColumns(),
+    );
+  }
+  sheet.getRange(1, 1, 1, targetWidth).setValues([targetHeaders]);
+  sheet.getRange(2, 1, Math.max(lastRow - 1, 1), sourceWidth).clearContent();
+  sheet.getRange(2, 1, rebuiltRows.length, targetWidth).setValues(rebuiltRows);
+}
+
 function ensureSheetHeaders(sheet, expectedHeaders) {
   if (!expectedHeaders || !expectedHeaders.length) return;
 
@@ -2631,6 +2733,19 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
     firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   }
 
+  const isProjectsSheet =
+    cleanText(sheet.getName()) === cleanText(CONFIG.sheetNames.projects);
+  const isProjectsHeaderSet =
+    expectedHeaders.length === CONFIG.headers.projects.length &&
+    normalizeHeader(expectedHeaders[0]) ===
+      normalizeHeader(CONFIG.headers.projects[0]);
+  if (isProjectsSheet && isProjectsHeaderSet) {
+    normalizeProjectsColumnsIfNeeded(sheet);
+    maxColumns = expectedHeaders.length;
+    lastColumn = Math.max(sheet.getLastColumn(), maxColumns);
+    firstRow = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  }
+
   const normalizedAfter = normalizeHeaders(firstRow);
   const needsHeaderSync = expectedHeaders.some(function (header, idx) {
     return normalizedAfter[idx] !== normalizeHeader(header);
@@ -2690,6 +2805,14 @@ function normalizeIncomingProject(input) {
       source.endDate,
   );
   let budget = parseNumber(source.budget);
+  const explicitProgress =
+    source.progress !== undefined && source.progress !== null
+      ? source.progress
+      : source.percentComplete !== undefined && source.percentComplete !== null
+        ? source.percentComplete
+        : source.percent_complete !== undefined && source.percent_complete !== null
+          ? source.percent_complete
+          : source["% Complete"];
   const descriptionBudget = parseNumber(source.description || source.notes);
   const createdAtBudget = parseNumber(
     source.createdAt ||
@@ -2740,6 +2863,7 @@ function normalizeIncomingProject(input) {
     startDate: startDate,
     finishDate: finishDate,
     budget: budget,
+    progress: normalizeProjectProgress(explicitProgress, status),
   };
 }
 
@@ -2775,6 +2899,7 @@ function getProjectColumnMap(sheet) {
     startDate: indexOfHeader(["Start Date", "Planned Start"]),
     finishDate: indexOfHeader(["Finish Date", "End Date", "Target Finish"]),
     budget: indexOfHeader(["Budget", "Planned Value", "Planned Cost"]),
+    progress: indexOfHeader(["Progress", "% Complete", "Percent Complete"]),
     createdAt: indexOfHeader(["Created At"]),
     maxColumn: headers.length,
   };
@@ -3056,6 +3181,10 @@ function normalizeProjectRecord(row) {
     startDate: startDate,
     finishDate: finishDate,
     budget: budget,
+    progress: normalizeProjectProgress(
+      getCell(row, ["progress", "% complete", "percent complete"]),
+      status,
+    ),
     raw: row,
   };
 }
