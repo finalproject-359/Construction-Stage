@@ -192,6 +192,10 @@
         <section class="chart-panel">
           <div class="panel-header">
             <div><h3>Progress vs Cost Used</h3><p>Compare earned field progress with budget consumption.</p></div>
+            <div class="chart-metric-chips" aria-label="Chart legend">
+              <span class="chip chip-blue">Progress</span>
+              <span class="chip chip-green">Cost used</span>
+            </div>
           </div>
           <article class="chart-card">
             <div class="chart-canvas-wrap">
@@ -203,6 +207,10 @@
         <section class="chart-panel">
           <div class="panel-header">
             <div><h3>Cost Variance Trend</h3><p>Track activities where actual spending diverges from plan.</p></div>
+            <div class="chart-metric-chips" aria-label="Variance legend">
+              <span class="chip chip-green">Favorable</span>
+              <span class="chip chip-red">Risk</span>
+            </div>
           </div>
           <article class="chart-card">
             <div class="chart-canvas-wrap">
@@ -215,15 +223,15 @@
             <div><h3>Cost Variance Breakdown</h3><p>Portfolio budget position at a glance.</p></div>
           </div>
           <article class="chart-card breakdown-card">
-            <div class="breakdown-donut" aria-hidden="true">
+            <div class="breakdown-donut" role="img" aria-label="Cost used 0% of approved budget">
               <div class="breakdown-center">
                 <strong id="varianceDisplay">₱0.00</strong>
                 <span id="varianceStatus">Balanced</span>
               </div>
             </div>
             <div class="breakdown-legend">
-              <p><span class="dot under"></span> Under Budget</p>
-              <p><span class="dot over"></span> Over Budget</p>
+              <p><span class="dot under"></span> Budget remaining / favorable</p>
+              <p><span class="dot over"></span> Cost used / pressure</p>
             </div>
           </article>
         </section>

@@ -7,6 +7,9 @@ body.page-dashboard {
   --dashboard-surface: rgba(255, 255, 255, 0.92);
   --dashboard-line: #d9e2ef;
   --dashboard-text-soft: #667085;
+  --chart-blue: #2f55ff;
+  --chart-green: #16a34a;
+  --chart-red: #ef4444;
 }
 
 @keyframes spinner-rotate {
@@ -335,13 +338,32 @@ body.page-dashboard {
 
 .page-dashboard .chart-panel,
 .page-dashboard .table-panel {
+  position: relative;
+  overflow: hidden;
   border-color: var(--dashboard-line);
   border-radius: 18px;
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.07);
 }
 
+.page-dashboard .chart-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--chart-blue), var(--dashboard-amber), var(--chart-green));
+}
+
+.page-dashboard .chart-panel:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+}
+
+.page-dashboard .chart-panel {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
 .page-dashboard .panel-header {
-  padding-bottom: 10px;
+  padding: 2px 2px 12px;
   border-bottom: 1px solid #edf1f7;
 }
 
@@ -357,10 +379,48 @@ body.page-dashboard {
 }
 
 .page-dashboard .chart-card {
+  position: relative;
   border: none;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.94) 0%, #ffffff 100%),
+    radial-gradient(circle at top right, rgba(47, 85, 255, 0.1), transparent 16rem);
 }
+
+.page-dashboard .chart-canvas-wrap {
+  height: clamp(260px, 28vw, 340px);
+}
+
+.chart-metric-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 0.76rem;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px #e4eaf3;
+}
+
+.chip::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.chip-blue::before { background: var(--chart-blue); }
+.chip-green::before { background: var(--chart-green); }
+.chip-red::before { background: var(--chart-red); }
 
 .breakdown-card {
   display: grid;
@@ -373,7 +433,9 @@ body.page-dashboard {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  background: conic-gradient(#22c55e 0 46%, #ef4444 46% 100%);
+  --cost-used-share: 0%;
+  background:
+    conic-gradient(var(--chart-red) 0 var(--cost-used-share), var(--chart-green) var(--cost-used-share) 100%);
   display: grid;
   place-items: center;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05), 0 16px 35px rgba(15, 23, 42, 0.08);
@@ -393,6 +455,7 @@ body.page-dashboard {
 
 .breakdown-center strong { font-size: 1.2rem; }
 .breakdown-center span { color: #dc2626; font-weight: 800; }
+.breakdown-center strong { font-variant-numeric: tabular-nums; }
 
 .breakdown-legend { width: 100%; }
 .breakdown-legend p { margin: 0 0 8px; display: flex; align-items: center; gap: 8px; color: #475467; font-weight: 700; }
@@ -511,6 +574,8 @@ body.page-dashboard {
 }
 
 @media (max-width: 760px) {
+  .page-dashboard .chart-canvas-wrap { height: 300px; }
+  .chart-metric-chips { width: 100%; }
   .dashboard-hero { padding: 20px; border-radius: 22px; }
   .dashboard-hero h1 { letter-spacing: -0.035em; }
   .dashboard-summary-strip,
