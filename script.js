@@ -150,10 +150,29 @@ const escapeHtml = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const clampPercent = (value) => Math.max(0, Math.min(100, parseNumber(value)));
+
 const normalizeProgressPercent = (value) => {
   const numericValue = parseNumber(value);
   if (!Number.isFinite(numericValue) || numericValue <= 0) return 0;
-  return numericValue <= 1 ? numericValue * 100 : numericValue;
+  const percentValue = numericValue <= 1 ? numericValue * 100 : numericValue;
+  return clampPercent(percentValue);
+};
+
+const calculateEarnedValue = (plannedCost, percentComplete) =>
+  parseNumber(plannedCost) * (clampPercent(percentComplete) / 100);
+
+const calculateCostVariance = (earnedValue, actualCost) =>
+  parseNumber(earnedValue) - parseNumber(actualCost);
+
+const calculateCostUsedPercent = (actualCost, plannedCost) => {
+  const planned = parseNumber(plannedCost);
+  return planned ? (parseNumber(actualCost) / planned) * 100 : 0;
+};
+
+const calculateBudgetVariancePercent = (costVariance, plannedCost) => {
+  const planned = parseNumber(plannedCost);
+  return planned ? (parseNumber(costVariance) / planned) * 100 : 0;
 };
 
 const formatPercent = (value, maximumFractionDigits = 1) =>
@@ -307,15 +326,8 @@ const extractDashboardRows = (rawRows) =>
       const percentComplete = normalizeProgressPercent(
         firstNonEmptyCell(row, ["% complete", "percent complete", "progress %", "progress", "progress/day", "completion"] )
       );
-      const rawEarnedValue = firstNonEmptyCell(row, ["earned value", "earned value/day", "ev"]);
-      const hasProvidedEarnedValue =
-        rawEarnedValue !== null && rawEarnedValue !== undefined && String(rawEarnedValue).trim() !== "";
-      const ev = hasProvidedEarnedValue ? parseNumber(rawEarnedValue) : plannedCost * (percentComplete / 100);
-      const rawCv = firstNonEmptyCell(row, ["cost variance", "cv"]);
-      const hasProvidedCv =
-        rawCv !== null && rawCv !== undefined && String(rawCv).trim() !== "";
-      const providedCv = parseNumber(rawCv);
-      const cv = hasProvidedCv ? providedCv : ev - actualCost;
+      const ev = calculateEarnedValue(plannedCost, percentComplete);
+      const cv = calculateCostVariance(ev, actualCost);
 
       return {
         activityId: hasValidActivityId ? detectedActivityId : "",
@@ -331,8 +343,8 @@ const extractDashboardRows = (rawRows) =>
         ev,
         percentComplete,
         cv,
-        costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
-        budgetVariancePercent: plannedCost ? (cv / plannedCost) * 100 : 0,
+        costUsedPercent: calculateCostUsedPercent(actualCost, plannedCost),
+        budgetVariancePercent: calculateBudgetVariancePercent(cv, plannedCost),
         budgetStatus: cv >= 0 ? "Under Budget" : "Over Budget",
       };
     })
@@ -438,7 +450,7 @@ const updateDashboardSummary = (rows, totals, progressMetrics) => {
   const uniqueProjects = new Set(rows.map((row) => normalize(row.project, "Unspecified"))).size;
   const overBudgetCount = rows.filter((row) => parseNumber(row.cv) < 0).length;
   const actualCost = parseNumber(totals?.actual);
-  const earnedValue = (parseNumber(totals?.planned) * parseNumber(progressMetrics?.physicalProgressPercent)) / 100;
+  const earnedValue = parseNumber(totals?.ev);
   const cpi = actualCost ? earnedValue / actualCost : 0;
 
   if (activeProjectCountEl) {
@@ -485,19 +497,17 @@ const calculateTotalsFromRows = (rows) =>
     (acc, row) => {
       acc.planned += row.plannedCost;
       acc.actual += row.actualCost;
+      acc.ev += row.ev;
       acc.cv += row.cv;
       return acc;
     },
-    { planned: 0, actual: 0, cv: 0 }
+    { planned: 0, actual: 0, ev: 0, cv: 0 }
   );
 
 const calculateProgressMetrics = (rows, totals) => {
-  const weightedProgressValue = rows.reduce(
-    (acc, row) => acc + row.plannedCost * (row.percentComplete / 100),
-    0
-  );
-  const physicalProgressPercent = totals.planned ? (weightedProgressValue / totals.planned) * 100 : 0;
-  const costSpentPercent = totals.planned ? (totals.actual / totals.planned) * 100 : 0;
+  const earnedValue = parseNumber(totals?.ev);
+  const physicalProgressPercent = totals.planned ? (earnedValue / totals.planned) * 100 : 0;
+  const costSpentPercent = calculateCostUsedPercent(totals.actual, totals.planned);
   const efficiencyGapPercent = physicalProgressPercent - costSpentPercent;
 
   return { physicalProgressPercent, costSpentPercent, efficiencyGapPercent };
@@ -507,6 +517,7 @@ const renderKpis = (totals) => {
   const safeTotals = {
     planned: parseNumber(totals?.planned),
     actual: parseNumber(totals?.actual),
+    ev: parseNumber(totals?.ev),
     cv: parseNumber(totals?.cv),
   };
 
@@ -514,23 +525,26 @@ const renderKpis = (totals) => {
   if (totalActualEl) totalActualEl.textContent = formatCurrency(safeTotals.actual);
   if (totalCvEl) totalCvEl.textContent = formatCurrency(safeTotals.cv);
 
-  if (statusCardEl) statusCardEl.classList.remove("status-under", "status-over");
   if (efficiencyCardEl) efficiencyCardEl.classList.remove("status-under", "status-over");
 
-  if (safeTotals.actual < safeTotals.planned) {
-    if (projectStatusEl) projectStatusEl.textContent = "Under Budget";
-    if (statusCardEl) statusCardEl.classList.add("status-under");
-  } else if (safeTotals.actual > safeTotals.planned) {
+  if (safeTotals.cv > 0) {
+    if (projectStatusEl) projectStatusEl.textContent = "Favorable Variance";
+  } else if (safeTotals.cv < 0) {
     if (projectStatusEl) projectStatusEl.textContent = "Over Budget";
-    if (statusCardEl) statusCardEl.classList.add("status-over");
   } else {
     if (projectStatusEl) projectStatusEl.textContent = "On Budget";
   }
 };
 
 const renderProgressKpis = (metrics, totals) => {
-  const earnedValue = (parseNumber(totals?.planned) * parseNumber(metrics.physicalProgressPercent)) / 100;
+  const earnedValue = parseNumber(totals?.ev);
   const cpi = parseNumber(totals?.actual) ? earnedValue / parseNumber(totals?.actual) : 0;
+
+  if (statusCardEl) {
+    statusCardEl.classList.remove("status-under", "status-over");
+    if (cpi >= 1) statusCardEl.classList.add("status-under");
+    else if (parseNumber(totals?.actual) > 0) statusCardEl.classList.add("status-over");
+  }
 
   if (physicalProgressEl) physicalProgressEl.textContent = formatCurrency(earnedValue);
   if (costSpentEl) costSpentEl.textContent = cpi.toFixed(2);
@@ -788,6 +802,7 @@ const generateCharts = (rows) => {
   const costUsedSeries = rows.map((row) => row.costUsedPercent);
   const varianceValues = rows.map((row) => row.cv);
   const costAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 6 });
+  const percentAxisMax = Math.max(100, Math.ceil(Math.max(...completeSeries, ...costUsedSeries, 0) / 10) * 10);
 
   const varianceCanvas = document.getElementById("varianceChart");
   const costCanvas = document.getElementById("costChart");
@@ -833,7 +848,7 @@ const generateCharts = (rows) => {
       valueFormatter: (value) => formatPercent(value),
       yAxis: {
         min: 0,
-        max: 100,
+        max: percentAxisMax,
         ticks: { callback: (value) => `${value}%` },
       },
     }),
