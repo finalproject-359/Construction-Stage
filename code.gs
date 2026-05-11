@@ -1098,14 +1098,12 @@ function assertCostExists(projectId, costId) {
 
 function normalizeIncomingDailyCost(input) {
   var source = input || {};
+  var hasExplicitValue = function (value) {
+    return value !== undefined && value !== null && value !== "";
+  };
   var pickFirstDefined = function (candidates) {
     for (var i = 0; i < candidates.length; i += 1) {
-      if (
-        candidates[i] !== undefined &&
-        candidates[i] !== null &&
-        candidates[i] !== ""
-      )
-        return candidates[i];
+      if (hasExplicitValue(candidates[i])) return candidates[i];
     }
     return "";
   };
@@ -1120,17 +1118,14 @@ function normalizeIncomingDailyCost(input) {
   var plannedCostPerDay = parseNumber(
     pickFirstDefined([source.plannedCostPerDay, source.planned_cost_per_day]),
   );
-  var progress = roundTo(
-    parseNumber(
-      pickFirstDefined([
-        source.progress,
-        source.percentComplete,
-        source.percent_complete,
-        source["% Complete"],
-      ]),
-    ),
-    2,
-  );
+  var rawProgress = pickFirstDefined([
+    source.progress,
+    source.percentComplete,
+    source.percent_complete,
+    source["% Complete"],
+  ]);
+  var hasProgress = hasExplicitValue(rawProgress);
+  var progress = hasProgress ? roundTo(parseNumber(rawProgress), 2) : null;
   var explicitEarnedValue = roundTo(
     parseNumber(
       pickFirstDefined([source.earnedValue, source.earned_value, source.ev]),
@@ -1240,7 +1235,8 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.plannedCost) row[columns.plannedCost - 1] = dailyCost.plannedCost;
   if (columns.plannedCostPerDay)
     row[columns.plannedCostPerDay - 1] = dailyCost.plannedCostPerDay;
-  if (columns.progress) row[columns.progress - 1] = dailyCost.progress;
+  if (columns.progress && dailyCost.progress !== null)
+    row[columns.progress - 1] = dailyCost.progress;
   if (columns.date) row[columns.date - 1] = dailyCost.date;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
   if (columns.earnedValue) row[columns.earnedValue - 1] = dailyCost.earnedValue;
