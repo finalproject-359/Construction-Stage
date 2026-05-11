@@ -39,7 +39,7 @@ const CONFIG = {
       "Planned Finish",
       "Duration",
       "Status",
-      "% Complete",
+      "Progress",
       "Notes",
     ],
     costs: [
@@ -1499,7 +1499,13 @@ function computeEarnedValue(cost) {
   var idxProjectId = headers.indexOf(normalizeHeader("Project ID"));
   var idxActivityId = headers.indexOf(normalizeHeader("Activity ID"));
   var idxActivity = headers.indexOf(normalizeHeader("Activity"));
-  var idxPercent = headers.indexOf(normalizeHeader("% Complete"));
+  var idxPercent = ["Progress", "% Complete", "Percent Complete"].reduce(
+    function (foundIndex, header) {
+      if (foundIndex >= 0) return foundIndex;
+      return headers.indexOf(normalizeHeader(header));
+    },
+    -1,
+  );
   if (idxPercent < 0) return 0;
 
   var targetProjectId = cleanText(cost && cost.projectId);
@@ -1997,9 +2003,9 @@ function getActivityColumnMap(sheet) {
     duration: indexOfHeader(["Duration", "Duration Days"]),
     status: indexOfHeader(["Status"]),
     percentComplete: indexOfHeader([
+      "Progress",
       "% Complete",
       "Percent Complete",
-      "Progress",
     ]),
     notes: indexOfHeader(["Notes", "Remarks"]),
     maxColumn: headers.length,
@@ -3392,7 +3398,7 @@ function normalizeActivityRecord(row) {
       getCell(row, ["duration", "duration days", "duration_days"]),
     ),
     percentComplete: parseNumber(
-      getCell(row, ["% complete", "percent complete", "progress"]),
+      getCell(row, ["progress", "% complete", "percent complete"]),
     ),
     createdAt: normalizeDate(
       getCell(row, ["created at", "created_at", "timestamp", "date created"]),
