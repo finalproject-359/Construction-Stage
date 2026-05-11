@@ -1164,6 +1164,8 @@ const syncCostSummaryToSheet = async ({ projectId, projectName, activity }) => {
       plannedCost,
       plannedCostPerDay,
       progress: clampPercent(refreshed.progressPercent),
+      progressPercent: clampPercent(refreshed.progressPercent),
+      percentComplete: clampPercent(refreshed.progressPercent),
       actualCost: parseBudgetValue(refreshed.actualCost),
       earnedValue: parseBudgetValue(refreshed.earnedValue),
       notes: `Activity ID: ${activityId}`,
