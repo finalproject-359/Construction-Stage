@@ -39,7 +39,7 @@ const CONFIG = {
       "Planned Finish",
       "Duration",
       "Status",
-      "Progress",
+      "% Complete",
       "Notes",
     ],
     costs: [
@@ -2003,8 +2003,8 @@ function getActivityColumnMap(sheet) {
     duration: indexOfHeader(["Duration", "Duration Days"]),
     status: indexOfHeader(["Status"]),
     percentComplete: indexOfHeader([
-      "Progress",
       "% Complete",
+      "Progress",
       "Percent Complete",
     ]),
     notes: indexOfHeader(["Notes", "Remarks"]),
@@ -2628,6 +2628,7 @@ function normalizeActivitiesColumnsIfNeeded(sheet) {
     duration: ["duration", "duration days"],
     status: ["status"],
     progress: ["progress", "% complete", "percent complete", "completion"],
+    "% complete": ["% complete", "progress", "percent complete", "completion"],
     notes: ["notes", "remarks"],
   };
   const duplicateExpectedHeaderExists = expectedNormalized.some(function (header) {
@@ -2662,7 +2663,7 @@ function normalizeActivitiesColumnsIfNeeded(sheet) {
     return expectedNormalized.map(function (header) {
       const idx = resolvedHeaderIndex[header];
       if (idx >= 0) return row[idx];
-      if (header === "progress") {
+      if (header === "progress" || header === "% complete") {
         const status = statusIndex >= 0 ? row[statusIndex] : "";
         return cleanText(status).toLowerCase() === "completed" ? 100 : 0;
       }
