@@ -563,6 +563,9 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
       activityName: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
       plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
+      actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
+      progressPercent: clampPercent(getValueByAliases(row, ["progress", "progressPercent", "progress_percent", "percentComplete", "percent_complete", "% complete", "percent complete"])),
+      earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
     }))
     .filter((row) => row.projectId && (row.activityRefId || row.activityName));
@@ -733,11 +736,16 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       return entryActivityId === refId || (rowCostId && entryCostId === rowCostId);
     });
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
+    const accumulatedProgress = dailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
+    const progressPercent = dailyItems.length ? clampPercent(accumulatedProgress) : clampPercent(activity.progressPercent);
+    const earnedValueFromDaily = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
     const plannedCostPerDay = Number(activity.durationDays) > 0
       ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
       : 0;
-    const earnedValue = computeEarnedValue(plannedCostPerDay, dailyItems.length, activity.progressPercent, activity.earnedValue);
-    return { ...activity, actualCost, dailyItems, earnedValue };
+    const earnedValue = earnedValueFromDaily > 0
+      ? earnedValueFromDaily
+      : computeEarnedValue(plannedCostPerDay, dailyItems.length, progressPercent, activity.earnedValue);
+    return { ...activity, progressPercent, actualCost, dailyItems, earnedValue };
   });
 
   // Consolidate duplicate activity rows (same costId/activity) so daily-cost updates
@@ -784,6 +792,12 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       activityRefId: String(getActivityRefId(existing) || getActivityRefId(row) || "").trim(),
       plannedCost: parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
       earnedValue: (() => {
+        const mergedProgress = uniqueDailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
+        const mergedProgressPercent = uniqueDailyItems.length
+          ? clampPercent(mergedProgress)
+          : clampPercent(Number(row.progressPercent) || Number(existing.progressPercent) || 0);
+        const mergedEarnedValueFromDaily = uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
+        if (mergedEarnedValueFromDaily > 0) return mergedEarnedValueFromDaily;
         const mergedPlannedCost = parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost);
         const mergedDurationDays = Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0);
         const mergedPlannedCostPerDay = mergedPlannedCost > 0 && mergedDurationDays > 0
@@ -792,9 +806,14 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
         return computeEarnedValue(
           mergedPlannedCostPerDay,
           uniqueDailyItems.length,
-          Number(row.progressPercent) || Number(existing.progressPercent) || 0,
+          mergedProgressPercent,
           parseBudgetValue(row.earnedValue) || parseBudgetValue(existing.earnedValue),
         );
+      })(),
+      progressPercent: (() => {
+        const mergedProgress = uniqueDailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
+        if (uniqueDailyItems.length) return clampPercent(mergedProgress);
+        return clampPercent(Number(existing.progressPercent) || Number(row.progressPercent) || 0);
       })(),
       actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
       durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
@@ -1102,6 +1121,9 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         },
       });
       await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
+      await syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity });
+      const refreshedMetadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
+      applyCostMetadataRows(refreshedMetadataRows);
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
       alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
@@ -1112,6 +1134,40 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
     renderDailyCostModal(projectId, activityId);
+  });
+};
+
+const syncCostSummaryToSheet = async ({ projectId, projectName, activity }) => {
+  const resolvedProjectId = String(projectId || activity?.projectId || "").trim();
+  const resolvedProjectName = String(projectName || activity?.projectName || activity?.project || "").trim();
+  const activityId = String(getActivityRefId(activity) || "").trim();
+  const costId = String(activity?.costId || "").trim();
+  if (!resolvedProjectId || !activityId || !costId) return;
+
+  const refreshed = getProjectCostData(resolvedProjectId, loadCostActivities()).rows
+    .find((row) => String(getActivityRefId(row) || "").trim() === activityId || String(row.costId || "").trim() === costId);
+  if (!refreshed) return;
+
+  const durationDays = Number(refreshed.durationDays) || 0;
+  const plannedCost = parseBudgetValue(refreshed.plannedCost);
+  const plannedCostPerDay = durationDays > 0 ? plannedCost / durationDays : 0;
+  await postToDataSource("costs", "update", {
+    cost: {
+      costId,
+      projectId: resolvedProjectId,
+      project: resolvedProjectName,
+      activityId,
+      activity: refreshed.name || activity?.name || "",
+      duration: durationDays,
+      category: "Planned Cost",
+      date: new Date().toISOString().slice(0, 10),
+      plannedCost,
+      plannedCostPerDay,
+      progress: clampPercent(refreshed.progressPercent),
+      actualCost: parseBudgetValue(refreshed.actualCost),
+      earnedValue: parseBudgetValue(refreshed.earnedValue),
+      notes: `Activity ID: ${activityId}`,
+    },
   });
 };
 
@@ -1325,6 +1381,57 @@ const getActiveDetailsTabFromUi = () => {
   return activeTab === "costing" ? "costing" : "overview";
 };
 
+const applyCostMetadataRows = (rows = []) => {
+  if (!rows.length) return;
+  const metadataByActivityId = new Map();
+  const metadataByActivityName = new Map();
+  const metadataByActivityIdFallback = new Map();
+  const metadataByActivityNameFallback = new Map();
+  const pickLatest = (existing, incoming) => {
+    if (!existing) return incoming;
+    const existingDate = new Date(existing.date || "").getTime();
+    const incomingDate = new Date(incoming.date || "").getTime();
+    const shouldReplace = Number.isFinite(incomingDate) && (!Number.isFinite(existingDate) || incomingDate >= existingDate);
+    return shouldReplace ? incoming : existing;
+  };
+
+  rows.forEach((row) => {
+    const projectKey = String(row.projectId || "").trim();
+    const activityRefKey = String(row.activityRefId || "").trim();
+    const activityNameKey = normalizeLookup(row.activityName);
+    if (activityRefKey) {
+      const byIdKey = `${projectKey}::${activityRefKey}`;
+      metadataByActivityId.set(byIdKey, pickLatest(metadataByActivityId.get(byIdKey), row));
+      metadataByActivityIdFallback.set(activityRefKey, pickLatest(metadataByActivityIdFallback.get(activityRefKey), row));
+    }
+    if (activityNameKey) {
+      const byNameKey = `${projectKey}::${activityNameKey}`;
+      metadataByActivityName.set(byNameKey, pickLatest(metadataByActivityName.get(byNameKey), row));
+      metadataByActivityNameFallback.set(activityNameKey, pickLatest(metadataByActivityNameFallback.get(activityNameKey), row));
+    }
+  });
+
+  saveCostActivityOverrides(costActivitiesState.map((activity) => {
+    const projectKey = String(activity.projectId || "").trim();
+    const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
+    const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
+    const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
+    const fallbackActivityNameKey = normalizeLookup(activity.name);
+    const metadata = metadataByActivityId.get(activityKey)
+      || metadataByActivityName.get(activityNameKey)
+      || metadataByActivityIdFallback.get(fallbackActivityRefKey)
+      || metadataByActivityNameFallback.get(fallbackActivityNameKey);
+    if (!metadata) return activity;
+    return normalizeCostActivity({
+      ...activity,
+      costId: String(metadata.costId || activity.costId || "").trim(),
+      plannedCost: parseBudgetValue(metadata.plannedCost) || parseBudgetValue(activity.plannedCost),
+      progressPercent: clampPercent(metadata.progressPercent),
+      earnedValue: parseBudgetValue(metadata.earnedValue),
+    });
+  }));
+};
+
 const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
   const remoteProjects = (await loadRemoteProjects()).map(normalizeProject).filter((project) => project.id);
   projectsState = remoteProjects.length
@@ -1378,53 +1485,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
 
   await syncDailyCostsFromSheet(projectFilter, remoteDailyCosts);
 
-  if (remoteCostMetadataRows.length) {
-    const metadataByActivityId = new Map();
-    const metadataByActivityName = new Map();
-    const metadataByActivityIdFallback = new Map();
-    const metadataByActivityNameFallback = new Map();
-    const pickLatest = (existing, incoming) => {
-      if (!existing) return incoming;
-      const existingDate = new Date(existing.date || "").getTime();
-      const incomingDate = new Date(incoming.date || "").getTime();
-      const shouldReplace = Number.isFinite(incomingDate) && (!Number.isFinite(existingDate) || incomingDate >= existingDate);
-      return shouldReplace ? incoming : existing;
-    };
-
-    remoteCostMetadataRows.forEach((row) => {
-      const projectKey = String(row.projectId || "").trim();
-      const activityRefKey = String(row.activityRefId || "").trim();
-      const activityNameKey = normalizeLookup(row.activityName);
-      if (activityRefKey) {
-        const byIdKey = `${projectKey}::${activityRefKey}`;
-        metadataByActivityId.set(byIdKey, pickLatest(metadataByActivityId.get(byIdKey), row));
-        metadataByActivityIdFallback.set(activityRefKey, pickLatest(metadataByActivityIdFallback.get(activityRefKey), row));
-      }
-      if (activityNameKey) {
-        const byNameKey = `${projectKey}::${activityNameKey}`;
-        metadataByActivityName.set(byNameKey, pickLatest(metadataByActivityName.get(byNameKey), row));
-        metadataByActivityNameFallback.set(activityNameKey, pickLatest(metadataByActivityNameFallback.get(activityNameKey), row));
-      }
-    });
-
-    saveCostActivityOverrides(costActivitiesState.map((activity) => {
-      const projectKey = String(activity.projectId || "").trim();
-      const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
-      const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
-      const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
-      const fallbackActivityNameKey = normalizeLookup(activity.name);
-      const metadata = metadataByActivityId.get(activityKey)
-        || metadataByActivityName.get(activityNameKey)
-        || metadataByActivityIdFallback.get(fallbackActivityRefKey)
-        || metadataByActivityNameFallback.get(fallbackActivityNameKey);
-      if (!metadata) return activity;
-      return normalizeCostActivity({
-        ...activity,
-        costId: String(metadata.costId || activity.costId || "").trim(),
-        plannedCost: parseBudgetValue(metadata.plannedCost) || parseBudgetValue(activity.plannedCost),
-      });
-    }));
-  }
+  if (remoteCostMetadataRows.length) applyCostMetadataRows(remoteCostMetadataRows);
 
   const activitiesForDisplay = loadCostActivities();
 
