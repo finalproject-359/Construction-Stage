@@ -21,6 +21,7 @@ const varianceBreakdownEl = document.querySelector(".breakdown-donut");
 const projectFilterEl = document.getElementById("projectFilter");
 const dateStartFilterEl = document.getElementById("dateStartFilter");
 const dateEndFilterEl = document.getElementById("dateEndFilter");
+const dateRangeFilterEl = document.getElementById("dateRangeFilter");
 const activeProjectCountEl = document.getElementById("activeProjectCount");
 const dashboardRiskLevelEl = document.getElementById("dashboardRiskLevel");
 
@@ -349,6 +350,41 @@ const normalizeDateOnly = (value) => {
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return "";
   return date.toISOString().split("T")[0];
+};
+
+const formatDateInputValue = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const updateDateRangeFilterValues = () => {
+  if (!dateStartFilterEl || !dateEndFilterEl || !dateRangeFilterEl) return;
+
+  const selectedRange = dateRangeFilterEl.value;
+  const today = new Date();
+  const startDate = new Date(today);
+  const endDate = new Date(today);
+
+  if (selectedRange === "all") {
+    dateStartFilterEl.value = "";
+    dateEndFilterEl.value = "";
+    return;
+  }
+
+  if (selectedRange === "week") {
+    const dayOfWeek = today.getDay();
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startDate.setDate(today.getDate() - daysSinceMonday);
+  } else if (selectedRange === "month") {
+    startDate.setDate(1);
+  } else if (selectedRange === "year") {
+    startDate.setMonth(0, 1);
+  }
+
+  dateStartFilterEl.value = formatDateInputValue(startDate);
+  dateEndFilterEl.value = formatDateInputValue(endDate);
 };
 
 const rowMatchesDateFilter = (row, startDate, endDate) => {
@@ -1303,6 +1339,13 @@ const setupServiceWorkerUpdates = async () => {
 };
 
 if (projectFilterEl) projectFilterEl.addEventListener("change", applyFiltersAndRender);
+if (dateRangeFilterEl) {
+  dateRangeFilterEl.addEventListener("change", () => {
+    updateDateRangeFilterValues();
+    applyFiltersAndRender();
+  });
+  updateDateRangeFilterValues();
+}
 if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", applyFiltersAndRender);
 if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", applyFiltersAndRender);
 
