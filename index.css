@@ -137,6 +137,14 @@ body.page-dashboard {
   margin-bottom: 14px;
 }
 
+.page-dashboard .dashboard-control-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
 .dashboard-filters {
   display: grid;
   grid-template-columns: repeat(2, minmax(240px, 1fr));
