@@ -28,16 +28,21 @@
       </nav>
     </aside>
     <main class="main-content">
-      <header class="topbar projects-topbar">
-        <div>
+      <header class="topbar projects-topbar page-hero" aria-labelledby="projectsPageTitle">
+        <div class="page-hero-copy">
           <p class="page-eyebrow">Construction portfolio</p>
-          <h1>Projects</h1>
+          <h1 id="projectsPageTitle">Projects</h1>
           <p class="projects-subtitle">Monitor project status, budget exposure, and schedule readiness from one professional workspace.</p>
+          <div class="page-hero-steps" aria-label="Projects workflow">
+            <span><strong>1</strong> Filter portfolio</span>
+            <span><strong>2</strong> Review status</span>
+            <span><strong>3</strong> Add project</span>
+          </div>
         </div>
-        <div class="projects-topbar-card" aria-label="Projects page guidance">
-          <span>Field-ready</span>
-          <strong>Project controls</strong>
-          <p>Use filters to isolate active sites, delayed works, and completed packages.</p>
+        <div class="projects-topbar-card page-hero-panel" aria-label="Projects page guidance">
+          <div><span>Field-ready</span><strong>Project controls</strong></div>
+          <div><span>Portfolio signal</span><strong>Status & schedule</strong></div>
+          <div><span>Cost handoff</span><strong>Budget exposure</strong></div>
         </div>
       </header>
       <section class="projects-kpis">
