@@ -1069,19 +1069,40 @@ const renderProjectPicker = () => {
       const iconTheme = PROJECT_CARD_ICON_THEMES[iconKey] || PROJECT_CARD_ICON_THEMES.general;
       const iconPaths = PROJECT_CARD_ICON_PATHS[iconKey] || PROJECT_CARD_ICON_PATHS.general;
 
+      const startDate = toDisplayDate(project.startDate);
+      const endDate = toDisplayDate(project.endDate);
+
       return `
         <button type="button" class="activities-project-picker-card" data-project-id="${encodeURIComponent(project.id || "")}" data-project="${encodeURIComponent(project.name)}">
-          <span class="activities-project-card-icon icon-${iconTheme}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none">${iconPaths}</svg></span>
-          <span class="activities-project-card-copy">
+          <span class="activities-project-card-topline" aria-hidden="true"></span>
+          <span class="activities-project-card-header">
+            <span class="activities-project-card-icon icon-${iconTheme}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none">${iconPaths}</svg></span>
             <span class="activities-project-card-code">${escapeHtml(project.code || project.id || "Project")}</span>
+          </span>
+          <span class="activities-project-card-copy">
             <span class="activities-project-card-title">${escapeHtml(project.name || "Untitled Project")}</span>
-            <span class="activities-project-card-location">${escapeHtml(project.location || "No location set")}</span>
+            <span class="activities-project-card-location">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s7-4.6 7-11a7 7 0 1 0-14 0c0 6.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+              ${escapeHtml(project.location || "No location set")}
+            </span>
+          </span>
+          <span class="activities-project-card-meta" aria-label="Project schedule">
+            <span>
+              <span class="activities-project-card-meta-label">Starts</span>
+              <span class="activities-project-card-meta-value">${escapeHtml(startDate)}</span>
+            </span>
+            <span>
+              <span class="activities-project-card-meta-label">Ends</span>
+              <span class="activities-project-card-meta-value">${escapeHtml(endDate)}</span>
+            </span>
           </span>
           <span class="activities-project-card-footer">
             <span class="activities-project-card-type">${escapeHtml(project.type || "General")}</span>
             <span class="activities-project-card-action-row">
               <span class="badge ${getProjectStatusBadgeClass(project.status)}">${escapeHtml(project.status || "Not Started")}</span>
-              <svg class="activities-project-card-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+              <span class="activities-project-card-open">Open activities
+                <svg class="activities-project-card-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+              </span>
             </span>
           </span>
         </button>

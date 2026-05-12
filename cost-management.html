@@ -43,27 +43,60 @@
         </div>
       </header>
 
-      <section class="cost-selection-filters cost-selection-filters-top" aria-label="Project filters">
-        <div class="filter-heading">
+      <section class="cost-selection-filters cost-selection-filters-top activities-project-selection-filters" aria-label="Project filters">
+        <div class="filter-heading activities-controls-header">
           <div>
             <p class="page-eyebrow">Project selection</p>
             <h2>Find a project</h2>
-            <p>Filter active project cost records by name, code, status, or working date range.</p>
           </div>
-          <button id="clearCostFilters" class="ghost-btn compact" type="button">Clear filters</button>
+          <p>Filter active project cost records by project type, delivery status, or planned date range.</p>
         </div>
-        <div class="toolbar-row" role="group" aria-label="Project selection filters">
-          <label class="search-box" for="costTopSearch">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-            <span class="field-label">Search</span>
-            <input id="costTopSearch" type="search" placeholder="Project name, code, or status" />
-          </label>
-          <label class="search-box date-range-box" for="costDateStart">
-            <span class="field-label">Date range</span>
-            <input id="costDateStart" type="date" aria-label="Start date filter" />
-            <span>to</span>
-            <input id="costDateEnd" type="date" aria-label="End date filter" />
-          </label>
+        <div class="activities-project-selection-toolbar" role="group" aria-label="Project selection filters">
+          <div class="activities-project-selection-toolbar-left cost-project-selection-toolbar-left">
+            <label class="activities-search-field activities-selection-search" for="costTopSearch">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input id="costTopSearch" type="search" placeholder="Search projects..." aria-label="Search projects" />
+            </label>
+
+            <label class="activities-select-field activities-selection-select" for="costProjectTypeFilter">
+              <select id="costProjectTypeFilter" aria-label="Filter by project type">
+                <option>All Project Types</option>
+              </select>
+            </label>
+
+            <label class="activities-select-field activities-selection-select" for="costProjectStatusFilter">
+              <select id="costProjectStatusFilter" aria-label="Filter by project status">
+                <option>All Statuses</option>
+              </select>
+            </label>
+
+            <div class="activities-date-filter cost-selection-date-filter">
+              <button id="costDateFilterBtn" class="activities-date-btn" type="button" aria-label="Select project date range" aria-expanded="false" aria-controls="costDateRangePanel">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"/></svg>
+                <span id="costDateFilterLabel">All Dates</span>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M20 9a8 8 0 0 0-14.7-2"/><path d="M4 15a8 8 0 0 0 14.7 2"/></svg>
+              </button>
+              <div id="costDateRangePanel" class="activities-date-range-panel hidden" role="dialog" aria-label="Choose project date range">
+                <label>
+                  Start date
+                  <input id="costDateStart" type="date" />
+                </label>
+                <label>
+                  End date
+                  <input id="costDateEnd" type="date" />
+                </label>
+                <div class="activities-date-range-actions">
+                  <button id="costDateClearBtn" type="button">Clear</button>
+                  <button id="costDateApplyBtn" type="button">Apply</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button id="clearCostFilters" class="activities-how-it-works-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M20 9a8 8 0 0 0-14.7-2"/><path d="M4 15a8 8 0 0 0 14.7 2"/></svg>
+            Clear filters
+          </button>
         </div>
       </section>
 
