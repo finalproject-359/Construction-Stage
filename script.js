@@ -341,12 +341,61 @@ const extractDashboardRows = (rawRows) =>
         (row.plannedCost !== 0 || row.actualCost !== 0 || row.ev !== 0 || row.percentComplete !== 0)
     );
 
-const normalizeDateOnly = (value) => {
+const buildLocalDate = (year, month, day) => {
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+};
+
+const parseDateParts = (value) => {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const excelEpoch = Date.UTC(1899, 11, 30);
+    const serialDate = new Date(excelEpoch + value * 24 * 60 * 60 * 1000);
+    if (Number.isNaN(serialDate.getTime())) return null;
+    return buildLocalDate(
+      serialDate.getUTCFullYear(),
+      serialDate.getUTCMonth() + 1,
+      serialDate.getUTCDate()
+    );
+  }
+
   const raw = normalize(value, "");
-  if (!raw) return "";
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().split("T")[0];
+  if (!raw) return null;
+
+  const isoMatch = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    return buildLocalDate(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]));
+  }
+
+  const delimitedMatch = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/);
+  if (delimitedMatch) {
+    const first = Number(delimitedMatch[1]);
+    const second = Number(delimitedMatch[2]);
+    const yearValue = Number(delimitedMatch[3]);
+    const year = yearValue < 100 ? 2000 + yearValue : yearValue;
+    const dayFirst = first > 12 && second <= 12;
+    const month = dayFirst ? second : first;
+    const day = dayFirst ? first : second;
+    return buildLocalDate(year, month, day);
+  }
+
+  const parsedDate = new Date(raw);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+};
+
+const normalizeDateOnly = (value) => {
+  const date = parseDateParts(value);
+  return date ? formatDateInputValue(date) : "";
 };
 
 const formatDateInputValue = (date) => {
@@ -362,9 +411,11 @@ const syncDateRangeInputConstraints = () => {
   const startDate = String(dateStartFilterEl.value || "").trim();
   const endDate = String(dateEndFilterEl.value || "").trim();
   dateEndFilterEl.min = startDate;
+  dateStartFilterEl.max = endDate;
 
   if (startDate && endDate && endDate < startDate) {
     dateEndFilterEl.value = startDate;
+    dateStartFilterEl.max = startDate;
   }
 };
 
