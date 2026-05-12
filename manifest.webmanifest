@@ -1,6 +1,6 @@
 {
-  "name": "FloodControl Dashboard",
-  "short_name": "FloodControl",
+  "name": "CosTrack Dashboard",
+  "short_name": "CosTrack",
   "description": "Financial dashboard for monitoring planned vs actual project costs.",
   "start_url": "./",
   "display": "standalone",
