@@ -22,6 +22,8 @@ const projectFilterEl = document.getElementById("projectFilter");
 const dateStartFilterEl = document.getElementById("dateStartFilter");
 const dateEndFilterEl = document.getElementById("dateEndFilter");
 const dateRangeFilterEl = document.getElementById("dateRangeFilter");
+const customDateRangeFieldsEl = document.getElementById("customDateRangeFields");
+const dateRangeSelectWrapEl = customDateRangeFieldsEl?.closest(".date-range-select-wrap");
 const activitySummarySortEl = document.getElementById("activitySummarySort");
 const activeProjectCountEl = document.getElementById("activeProjectCount");
 const dashboardRiskLevelEl = document.getElementById("dashboardRiskLevel");
@@ -47,7 +49,8 @@ const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
 const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
-const DASHBOARD_MIN_STABLE_ROW_RATIO = 0.5;
+const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
+let dashboardRefreshTimer = null;
 
 const getProjectFilterPrefill = () => {
   try {
@@ -405,6 +408,16 @@ const formatDateInputValue = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const setCustomDateRangeFieldsVisibility = () => {
+  if (!customDateRangeFieldsEl || !dateRangeFilterEl) return;
+
+  const shouldShowCustomFields = dateRangeFilterEl.value === "custom";
+  customDateRangeFieldsEl.hidden = !shouldShowCustomFields;
+  dateRangeSelectWrapEl?.classList.toggle("is-custom-range", shouldShowCustomFields);
+  dateStartFilterEl?.toggleAttribute("disabled", !shouldShowCustomFields);
+  dateEndFilterEl?.toggleAttribute("disabled", !shouldShowCustomFields);
+};
+
 const syncDateRangeInputConstraints = () => {
   if (!dateStartFilterEl || !dateEndFilterEl) return;
 
@@ -423,6 +436,7 @@ const updateDateRangeFilterValues = () => {
   if (!dateStartFilterEl || !dateEndFilterEl || !dateRangeFilterEl) return;
 
   const selectedRange = dateRangeFilterEl.value;
+  setCustomDateRangeFieldsVisibility();
   const today = new Date();
   const startDate = new Date(today);
   const endDate = new Date(today);
@@ -456,6 +470,7 @@ const updateDateRangeFilterValues = () => {
 
 const handleDateRangeInputChange = () => {
   if (dateRangeFilterEl) dateRangeFilterEl.value = "custom";
+  setCustomDateRangeFieldsVisibility();
   syncDateRangeInputConstraints();
   applyFiltersAndRender();
 };
@@ -836,6 +851,21 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
 
+const getDashboardErrorMessage = (error) => {
+  const rawMessage = String(error?.message || error || "Unknown error").trim();
+  if (/aborted|abort/i.test(rawMessage)) {
+    return "Live data source timed out before it responded.";
+  }
+  return rawMessage || "Unknown error";
+};
+
+const updateDashboardSyncedAt = () => {
+  const asOfEl = document.querySelector(".as-of-text");
+  if (asOfEl) {
+    asOfEl.textContent = `Synced ${new Date().toLocaleString()}`;
+  }
+};
+
 const rememberStableDashboardRows = (rows, sourceName = "dashboard data") => {
   lastStableDashboardRows = rows.slice();
   lastStableDashboardSavedAt = Date.now();
@@ -1083,20 +1113,16 @@ const processRows = (rawRows, sourceName = "web app") => {
     return;
   }
 
-  const previousRowCount = activitySummaryRows.length;
-  const droppedTooMuch =
-    previousRowCount > 2 && rows.length > 0 && rows.length < previousRowCount * DASHBOARD_MIN_STABLE_ROW_RATIO;
-  if (droppedTooMuch) {
-    showMessage(
-      `Live source returned only ${rows.length} parsed row(s), down from ${previousRowCount}. Keeping the last stable dashboard data until the next load.`,
-      true
-    );
-    return;
-  }
+  // Accept the latest successful live payload even when it contains fewer rows
+  // than the previous dashboard state. Projects, activities, or costs can be
+  // legitimately archived/deleted in the source sheet, and blocking smaller
+  // payloads keeps stale cache data visible instead of the real current data.
 
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
     rememberStableDashboardRows(rows, sourceName);
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, rows }));
+    updateDashboardSyncedAt();
     showMessage(`Dashboard data is already up to date from ${sourceName}.`);
     return;
   }
@@ -1108,10 +1134,7 @@ const processRows = (rawRows, sourceName = "web app") => {
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
 
-  const asOfEl = document.querySelector(".as-of-text");
-  if (asOfEl) {
-    asOfEl.textContent = `Synced ${new Date().toLocaleString()}`;
-  }
+  updateDashboardSyncedAt();
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
@@ -1142,17 +1165,26 @@ const loadRowsFromCostManagementLocalData = () => {
   if (!mergedActivities.length) return [];
   const dailyCosts = safeParseArray(localStorage.getItem(DAILY_COSTS_LOCAL_STORAGE_KEY));
 
-  const actualCostByCompositeKey = dailyCosts.reduce((map, item) => {
+  const createEmptyDailyTotals = () => ({ actualCost: 0, earnedValue: 0, progress: 0, count: 0 });
+  const addDailyTotals = (map, key, item) => {
+    if (!key || key === "::") return;
+    const existing = map.get(key) || createEmptyDailyTotals();
+    existing.actualCost += parseNumber(item?.actualCost || item?.actual_cost || item?.amount);
+    existing.earnedValue += parseNumber(item?.earnedValue || item?.earned_value || item?.ev);
+    existing.progress += normalizeProgressPercent(item?.progress || item?.progressPercent || item?.percentComplete);
+    existing.count += 1;
+    map.set(key, existing);
+  };
+
+  const dailyTotalsByCompositeKey = dailyCosts.reduce((map, item) => {
     const projectId = String(item?.projectId || item?.project_id || "").trim();
     const activityId = String(item?.activityId || item?.activity_id || "").trim();
     const costId = String(item?.costId || item?.cost_id || "").trim();
     const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
     const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
     if (!projectId || (!activityId && !costId)) return map;
-    map.set(compositeKey, (map.get(compositeKey) || 0) + parseNumber(item?.actualCost));
-    if (activityFallbackKey !== compositeKey) {
-      map.set(activityFallbackKey, (map.get(activityFallbackKey) || 0) + parseNumber(item?.actualCost));
-    }
+    addDailyTotals(map, compositeKey, item);
+    if (activityFallbackKey !== compositeKey) addDailyTotals(map, activityFallbackKey, item);
     return map;
   }, new Map());
 
@@ -1163,20 +1195,28 @@ const loadRowsFromCostManagementLocalData = () => {
     const projectName = String(activity?.projectName || activity?.project || "").trim();
     const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
     const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
-    const hasActualCost = actualCostByCompositeKey.has(compositeKey) || actualCostByCompositeKey.has(activityFallbackKey);
-    const actualCost = hasActualCost
-      ? actualCostByCompositeKey.get(compositeKey) || actualCostByCompositeKey.get(activityFallbackKey) || 0
-      : 0;
+    const dailyTotals = dailyTotalsByCompositeKey.get(compositeKey) || dailyTotalsByCompositeKey.get(activityFallbackKey) || createEmptyDailyTotals();
+    const plannedCost = parseNumber(activity?.plannedCost);
+    const durationDays = Math.max(0, parseNumber(activity?.durationDays || activity?.duration));
+    const plannedCostPerDay = plannedCost > 0 && durationDays > 0 ? plannedCost / durationDays : 0;
+    const progress = dailyTotals.count ? Math.min(100, dailyTotals.progress) : normalizeProgressPercent(activity?.progressPercent);
+    const earnedValueFromDailyProgress = plannedCostPerDay * (progress / 100);
+    const earnedValue = dailyTotals.count && dailyTotals.earnedValue
+      ? dailyTotals.earnedValue
+      : parseNumber(activity?.earnedValue) || (dailyTotals.count ? earnedValueFromDailyProgress : plannedCost * (progress / 100));
+
     return {
       "Project ID": projectId,
       "Project Name": projectName,
       "Activity ID": activityId,
       "Cost ID": costId,
       Activity: String(activity?.name || activity?.activity || (activityId ? `Activity ${activityId}` : costId ? `Cost ${costId}` : "Unnamed Activity")).trim(),
-      "Planned Cost": parseNumber(activity?.plannedCost),
-      "Actual Cost": actualCost,
-      "Progress": parseNumber(activity?.progressPercent),
-      __hasActualCost: hasActualCost,
+      "Planned Cost": plannedCost,
+      "Actual Cost": dailyTotals.count ? dailyTotals.actualCost : parseNumber(activity?.actualCost),
+      "Progress": progress,
+      "Earned Value": earnedValue,
+      __hasActualCost: dailyTotals.count > 0 || parseNumber(activity?.actualCost) > 0,
+      __hasDailyCostTotals: dailyTotals.count > 0,
     };
   });
 };
@@ -1212,11 +1252,16 @@ const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
 
     const remoteActualCost = parseNumber(firstNonEmptyCell(row, ["actual cost", "actualCost", "actual_cost", "actual cost/day", "total spent", "ac", "actual"], 0));
     const localActualCost = parseNumber(local?.["Actual Cost"]);
+    const localEarnedValue = parseNumber(local?.["Earned Value"]);
+    const localProgress = normalizeProgressPercent(local?.Progress);
     const localHasActualCost = Boolean(local?.__hasActualCost) || localActualCost > 0;
+    const localHasDailyTotals = Boolean(local?.__hasDailyCostTotals);
 
     return {
       ...row,
       "Actual Cost": localHasActualCost ? localActualCost : remoteActualCost,
+      "Progress": localHasDailyTotals ? localProgress : getCell(row, ["progress", "percent complete", "percentComplete", "progress %", "% complete"]),
+      "Earned Value": localHasDailyTotals && localEarnedValue ? localEarnedValue : getCell(row, ["earned value", "earnedValue", "earned_value", "ev"]),
       "Project ID": local?.["Project ID"] || projectId,
       "Project Name": local?.["Project Name"] || getCell(row, ["project name", "project", "project title"]) || "",
       "Activity ID": local?.["Activity ID"] || activityId,
@@ -1447,7 +1492,7 @@ const hydrateDashboardFromLocalCostData = () => {
   return true;
 };
 
-const warmStartDashboardData = () => hydrateDashboardFromCache() || hydrateDashboardFromLocalCostData();
+const warmStartDashboardData = () => hydrateDashboardFromLocalCostData() || hydrateDashboardFromCache();
 
 const refreshDashboardData = async ({ force = false } = {}) => {
   if (isDashboardFetchInFlight) return;
@@ -1515,17 +1560,20 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     }
   } catch (error) {
     const localRows = loadRowsFromCostManagementLocalData();
-    if (hasStableDashboardRows()) {
+    if (localRows.length) {
+      processRows(localRows, "Cost Management local storage");
+      showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
+    } else if (hasStableDashboardRows()) {
       const stableRows = getStableDashboardRows();
       activitySummaryRows = stableRows.slice();
       syncFilterOptionsFromRows(activitySummaryRows);
       applyFiltersAndRender();
-      showMessage(`Live source is temporarily unavailable (${error.message}). Keeping the last stable dashboard data visible.`, true);
-    } else if (localRows.length) {
-      processRows(localRows, "Cost Management local storage");
-      showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
+      const dashboardErrorMessage = getDashboardErrorMessage(error);
+      showMessage(
+        `Live source is still catching up (${dashboardErrorMessage}). Keeping the last stable dashboard data visible.`
+      );
     } else {
-      showMessage(`Error loading data source: ${error.message}`, true);
+      showMessage(`Error loading data source: ${getDashboardErrorMessage(error)}`, true);
     }
   } finally {
     isDashboardFetchInFlight = false;
@@ -1595,6 +1643,47 @@ if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", handleDateRa
 if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", handleDateRangeInputChange);
 if (activitySummarySortEl) activitySummarySortEl.addEventListener("change", applyFiltersAndRender);
 
+const refreshDashboardIfVisible = async ({ force = false } = {}) => {
+  if (!force && document.visibilityState === "hidden") return;
+  if (document.activeElement instanceof HTMLElement) {
+    const isTyping =
+      document.activeElement.matches("input, textarea")
+      || document.activeElement.isContentEditable;
+    if (isTyping) return;
+  }
+
+  await refreshDashboardData({ force });
+};
+
+const setupDashboardRealtimeSync = () => {
+  if (dashboardRefreshTimer) {
+    clearInterval(dashboardRefreshTimer);
+  }
+
+  dashboardRefreshTimer = setInterval(() => {
+    refreshDashboardIfVisible();
+  }, DASHBOARD_REFRESH_INTERVAL_MS);
+
+  window.addEventListener("focus", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("online", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("pageshow", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("cost-management:data-loaded", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("storage", (event) => {
+    const realtimeKeys = new Set([
+      COST_ACTIVITIES_LOCAL_STORAGE_KEY,
+      LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY,
+      DAILY_COSTS_LOCAL_STORAGE_KEY,
+    ]);
+    if (realtimeKeys.has(event.key)) refreshDashboardIfVisible({ force: true });
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshDashboardIfVisible({ force: true });
+    }
+  });
+};
+
 setupServiceWorkerUpdates();
 warmStartDashboardData();
-refreshDashboardData({ force: true });
+refreshDashboardIfVisible({ force: true });
+setupDashboardRealtimeSync();
