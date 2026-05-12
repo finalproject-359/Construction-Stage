@@ -2392,3 +2392,34 @@ tbody tr { transition: background-color .18s ease, box-shadow .18s ease; }
   .activity-field-grid { grid-template-columns: 1fr; }
   .brand-copy { min-width: 120px; }
 }
+
+.live-sync-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 0.35rem 0 0;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid rgba(47, 85, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(47, 85, 255, 0.08);
+  color: #1d3ed8;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.live-sync-status::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6);
+  animation: livePulse 1.8s infinite;
+}
+
+@keyframes livePulse {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}

@@ -5,7 +5,7 @@ This checklist captures likely reasons the dashboard may fail to present complet
 ## Data source and network
 - Invalid or unsupported data-source URL format can abort remote fetch.
 - Apps Script / Google Sheet endpoint may return non-OK HTTP status.
-- Fetch timeout (8s) can terminate slow responses.
+- Fetch timeout (20s) can terminate slow responses.
 - CORS or browser/network restrictions can block remote fetches.
 - Remote payload may not match expected shape (`rows`, `data`, `items`, or array).
 
@@ -22,8 +22,8 @@ This checklist captures likely reasons the dashboard may fail to present complet
 - Percent normalization treats values <=1 as fractions and >1 as percent numbers.
 
 ## Local cache and freshness
-- Dashboard warm-start cache can briefly show the last stable rows while the live source is verified immediately.
-- Visible dashboard sessions poll the live source every 10 seconds and also refresh on focus, reconnect, page show, visibility changes, and local cost-data storage updates.
+- Dashboard warm-start cache can briefly show the last stable rows while the live source is verified immediately; a successful empty live response clears the dashboard so deleted Google Sheet rows do not remain visible.
+- Visible dashboard sessions poll the live source every 5 seconds and also refresh on focus, reconnect, page show, visibility changes, and local cost-data storage updates.
 - In-flight request guard can delay visible updates when concurrent load triggers occur.
 - Cache/localStorage corruption or manual edits can cause inconsistent displays.
 
