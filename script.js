@@ -22,6 +22,8 @@ const projectFilterEl = document.getElementById("projectFilter");
 const dateStartFilterEl = document.getElementById("dateStartFilter");
 const dateEndFilterEl = document.getElementById("dateEndFilter");
 const dateRangeFilterEl = document.getElementById("dateRangeFilter");
+const customDateRangeFieldsEl = document.getElementById("customDateRangeFields");
+const dateRangeSelectWrapEl = customDateRangeFieldsEl?.closest(".date-range-select-wrap");
 const activitySummarySortEl = document.getElementById("activitySummarySort");
 const activeProjectCountEl = document.getElementById("activeProjectCount");
 const dashboardRiskLevelEl = document.getElementById("dashboardRiskLevel");
@@ -405,6 +407,16 @@ const formatDateInputValue = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const setCustomDateRangeFieldsVisibility = () => {
+  if (!customDateRangeFieldsEl || !dateRangeFilterEl) return;
+
+  const shouldShowCustomFields = dateRangeFilterEl.value === "custom";
+  customDateRangeFieldsEl.hidden = !shouldShowCustomFields;
+  dateRangeSelectWrapEl?.classList.toggle("is-custom-range", shouldShowCustomFields);
+  dateStartFilterEl?.toggleAttribute("disabled", !shouldShowCustomFields);
+  dateEndFilterEl?.toggleAttribute("disabled", !shouldShowCustomFields);
+};
+
 const syncDateRangeInputConstraints = () => {
   if (!dateStartFilterEl || !dateEndFilterEl) return;
 
@@ -423,6 +435,7 @@ const updateDateRangeFilterValues = () => {
   if (!dateStartFilterEl || !dateEndFilterEl || !dateRangeFilterEl) return;
 
   const selectedRange = dateRangeFilterEl.value;
+  setCustomDateRangeFieldsVisibility();
   const today = new Date();
   const startDate = new Date(today);
   const endDate = new Date(today);
@@ -456,6 +469,7 @@ const updateDateRangeFilterValues = () => {
 
 const handleDateRangeInputChange = () => {
   if (dateRangeFilterEl) dateRangeFilterEl.value = "custom";
+  setCustomDateRangeFieldsVisibility();
   syncDateRangeInputConstraints();
   applyFiltersAndRender();
 };

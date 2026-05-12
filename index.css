@@ -201,13 +201,17 @@ body.page-dashboard {
 
 .date-range-select-wrap {
   display: grid;
-  grid-template-columns: minmax(190px, 0.8fr) minmax(300px, 1.2fr);
+  grid-template-columns: minmax(190px, 1fr);
   overflow: hidden;
   border: 1px solid var(--dashboard-line);
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.03);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.date-range-select-wrap.is-custom-range {
+  grid-template-columns: minmax(190px, 0.8fr) minmax(300px, 1.2fr);
 }
 
 .date-range-select-wrap:focus-within {
@@ -262,6 +266,10 @@ body.page-dashboard {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   border-left: 1px solid var(--dashboard-line);
+}
+
+.date-range-fields[hidden] {
+  display: none;
 }
 
 .date-range-field {
