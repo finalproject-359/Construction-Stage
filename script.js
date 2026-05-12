@@ -587,10 +587,43 @@ const renderGapTable = (rows) => {
     }).join("");
 };
 
+// Total progress is a planned-cost weighted average of the row progress values,
+// so larger activities contribute proportionally to the summary percentage.
+const calculateWeightedPercentTotal = (rows, percentKey) => {
+  const weightedTotals = rows.reduce(
+    (acc, row) => {
+      const plannedCost = parseNumber(row.plannedCost);
+      const percentValue = parseNumber(row[percentKey]);
+
+      if (plannedCost > 0) {
+        acc.weightedPercent += plannedCost * percentValue;
+        acc.weight += plannedCost;
+      } else {
+        acc.unweightedPercent += percentValue;
+        acc.unweightedCount += 1;
+      }
+
+      return acc;
+    },
+    { weightedPercent: 0, weight: 0, unweightedPercent: 0, unweightedCount: 0 }
+  );
+
+  if (weightedTotals.weight > 0) return weightedTotals.weightedPercent / weightedTotals.weight;
+  return weightedTotals.unweightedCount > 0
+    ? weightedTotals.unweightedPercent / weightedTotals.unweightedCount
+    : 0;
+};
+
+// Total % Cost Used is the overall budget burn: total actual cost / total planned cost.
+const calculateAggregateCostUsedPercent = (rows, totals) => {
+  if (totals.planned) return (totals.actual / totals.planned) * 100;
+  return calculateWeightedPercentTotal(rows, "costUsedPercent");
+};
+
 const calculateActivitiesPerformanceTotals = (rows) => {
   const totals = calculateTotalsFromRows(rows);
-  const aggregateCompletePercent = totals.planned ? (totals.ev / totals.planned) * 100 : 0;
-  const aggregateCostUsedPercent = totals.planned ? (totals.actual / totals.planned) * 100 : 0;
+  const aggregateCompletePercent = calculateWeightedPercentTotal(rows, "percentComplete");
+  const aggregateCostUsedPercent = calculateAggregateCostUsedPercent(rows, totals);
   const aggregateCpi = totals.actual ? totals.ev / totals.actual : 0;
 
   return {
