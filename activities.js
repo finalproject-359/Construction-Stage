@@ -82,10 +82,39 @@ const PROGRESS_CLASS_BY_STATUS = {
 
 const getProjectStatusBadgeClass = (status) => {
   const normalized = String(status || "").trim().toLowerCase();
-  if (normalized === "completed") return "badge-completed";
+  if (["completed", "active"].includes(normalized)) return "badge-completed";
   if (normalized === "in progress") return "badge-in-progress";
-  if (normalized === "on hold") return "badge-delayed";
+  if (normalized === "on hold") return "badge-on-hold";
+  if (normalized === "delayed") return "badge-delayed";
   return "badge-not-started";
+};
+
+const PROJECT_CARD_ICON_PATHS = {
+  flood: '<path d="M5 20V7l4-2v15H5Z"/><path d="M11 20V4l5 3v13h-5Z"/><path d="M18 20v-8l2 1.5V20h-2Z"/><path d="M3 20h19"/>',
+  road: '<path d="M8 21 11 3h2l3 18"/><path d="M12 7v2"/><path d="M12 12v2"/><path d="M12 17v2"/><path d="M6 21h12"/>',
+  drainage: '<path d="M4 16h16"/><path d="M6 12v4"/><path d="M10 10v6"/><path d="M14 12v4"/><path d="M18 9v7"/><path d="M5 19h14"/><path d="M7 9c2 2 4 2 6 0s4-2 6 0"/>',
+  river: '<path d="M4 17c2-2 4-2 6 0s4 2 6 0 3-2 4-1"/><path d="M4 13c2-2 4-2 6 0s4 2 6 0 3-2 4-1"/><path d="M12 4v6"/><path d="M9 8h6"/><path d="M7 19h10"/>',
+  bridge: '<path d="M4 15h16"/><path d="M5 18V9"/><path d="M19 18V9"/><path d="M8 18v-3"/><path d="M12 18v-3"/><path d="M16 18v-3"/><path d="M4 11c4-4 12-4 16 0"/>',
+  general: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M8 13h8"/><path d="M8 16h5"/>',
+};
+
+const PROJECT_CARD_ICON_THEMES = {
+  flood: "blue",
+  road: "green",
+  drainage: "amber",
+  river: "violet",
+  bridge: "rose",
+  general: "slate",
+};
+
+const getProjectCardIconKey = (project = {}) => {
+  const signature = `${project.code || ""} ${project.name || ""} ${project.type || ""}`.toLowerCase();
+  if (/\b(fc|flood)\b|flood/.test(signature)) return "flood";
+  if (/\b(rd|road)\b|road|rehabilitation/.test(signature)) return "road";
+  if (/\b(dr|drain)\b|drainage|canal/.test(signature)) return "drainage";
+  if (/\b(rv|river)\b|river|dredg/.test(signature)) return "river";
+  if (/\b(br|bridge)\b|bridge/.test(signature)) return "bridge";
+  return "general";
 };
 
 const PAGE_SIZE = 8;
@@ -1035,24 +1064,29 @@ const renderProjectPicker = () => {
   }
 
   activitiesProjectPickerGrid.innerHTML = projects
-    .map(
-      (project) => `
+    .map((project) => {
+      const iconKey = getProjectCardIconKey(project);
+      const iconTheme = PROJECT_CARD_ICON_THEMES[iconKey] || PROJECT_CARD_ICON_THEMES.general;
+      const iconPaths = PROJECT_CARD_ICON_PATHS[iconKey] || PROJECT_CARD_ICON_PATHS.general;
+
+      return `
         <button type="button" class="activities-project-picker-card" data-project-id="${encodeURIComponent(project.id || "")}" data-project="${encodeURIComponent(project.name)}">
+          <span class="activities-project-card-icon icon-${iconTheme}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none">${iconPaths}</svg></span>
           <span class="activities-project-card-copy">
-            <span class="activities-project-card-title">${escapeHtml(formatProjectIdentityLabel(project.id || project.code, project.name))}</span>
-            <span class="activities-project-card-meta">
-              <span>${escapeHtml(project.location || "No location set")}</span>
-              <span>${escapeHtml(project.type || "General")}</span>
-            </span>
-            <span class="activities-project-card-tags">
+            <span class="activities-project-card-code">${escapeHtml(project.code || project.id || "Project")}</span>
+            <span class="activities-project-card-title">${escapeHtml(project.name || "Untitled Project")}</span>
+            <span class="activities-project-card-location">${escapeHtml(project.location || "No location set")}</span>
+          </span>
+          <span class="activities-project-card-footer">
+            <span class="activities-project-card-type">${escapeHtml(project.type || "General")}</span>
+            <span class="activities-project-card-action-row">
               <span class="badge ${getProjectStatusBadgeClass(project.status)}">${escapeHtml(project.status || "Not Started")}</span>
-              <span>${escapeHtml(project.startDate ? toDisplayDate(project.startDate) : "No start date")}</span>
+              <svg class="activities-project-card-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
             </span>
           </span>
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
         </button>
-      `
-    )
+      `;
+    })
     .join("");
 };
 
