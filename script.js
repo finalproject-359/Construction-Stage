@@ -22,6 +22,7 @@ const projectFilterEl = document.getElementById("projectFilter");
 const dateStartFilterEl = document.getElementById("dateStartFilter");
 const dateEndFilterEl = document.getElementById("dateEndFilter");
 const dateRangeFilterEl = document.getElementById("dateRangeFilter");
+const activitySummarySortEl = document.getElementById("activitySummarySort");
 const activeProjectCountEl = document.getElementById("activeProjectCount");
 const dashboardRiskLevelEl = document.getElementById("dashboardRiskLevel");
 
@@ -478,9 +479,54 @@ const renderDashboardFromRows = (rows, summaryRows = rows) => {
   generateCharts(rows);
 };
 
+const getActivitySummarySortValue = () => String(activitySummarySortEl?.value || "default");
+
+const getRowSortDateValue = (row) => {
+  const normalizedDate =
+    normalizeDateOnly(row.startDate) || normalizeDateOnly(row.finishDate) || normalizeDateOnly(row.date);
+  if (!normalizedDate) return null;
+  const timestamp = new Date(`${normalizedDate}T00:00:00`).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const sortActivitySummaryRows = (rows) => {
+  const sortValue = getActivitySummarySortValue();
+  if (sortValue === "default") return rows.slice();
+
+  const sortedRows = rows.map((row, index) => ({ row, index }));
+  const compareNumeric = (getValue, direction = "desc") => (a, b) => {
+    const left = getValue(a.row);
+    const right = getValue(b.row);
+    const comparison = direction === "asc" ? left - right : right - left;
+    return comparison || a.index - b.index;
+  };
+  const compareDates = (direction = "desc") => (a, b) => {
+    const left = getRowSortDateValue(a.row);
+    const right = getRowSortDateValue(b.row);
+    if (left === null && right === null) return a.index - b.index;
+    if (left === null) return 1;
+    if (right === null) return -1;
+    const comparison = direction === "asc" ? left - right : right - left;
+    return comparison || a.index - b.index;
+  };
+
+  if (sortValue === "actual-cost-desc") {
+    sortedRows.sort(compareNumeric((row) => parseNumber(row.actualCost), "desc"));
+  } else if (sortValue === "actual-cost-asc") {
+    sortedRows.sort(compareNumeric((row) => parseNumber(row.actualCost), "asc"));
+  } else if (sortValue === "date-desc") {
+    sortedRows.sort(compareDates("desc"));
+  } else if (sortValue === "date-asc") {
+    sortedRows.sort(compareDates("asc"));
+  }
+
+  return sortedRows.map((item) => item.row);
+};
+
 const applyFiltersAndRender = () => {
   const filteredRows = getFilteredRows(activitySummaryRows);
-  renderDashboardFromRows(filteredRows, filteredRows);
+  const sortedSummaryRows = sortActivitySummaryRows(filteredRows);
+  renderDashboardFromRows(filteredRows, sortedSummaryRows);
 };
 
 const calculateTotalsFromRows = (rows) => {
@@ -1419,28 +1465,9 @@ if (dateRangeFilterEl) {
   });
   updateDateRangeFilterValues();
 }
-const markDashboardDateFilterAsCustom = () => {
-  if (dateRangeFilterEl) dateRangeFilterEl.value = "custom";
-  if (dateStartFilterEl && dateEndFilterEl) {
-    dateEndFilterEl.min = dateStartFilterEl.value || "";
-    if (dateStartFilterEl.value && dateEndFilterEl.value && dateEndFilterEl.value < dateStartFilterEl.value) {
-      dateEndFilterEl.value = dateStartFilterEl.value;
-    }
-  }
-};
-
-if (dateStartFilterEl) {
-  dateStartFilterEl.addEventListener("change", () => {
-    markDashboardDateFilterAsCustom();
-    applyFiltersAndRender();
-  });
-}
-if (dateEndFilterEl) {
-  dateEndFilterEl.addEventListener("change", () => {
-    markDashboardDateFilterAsCustom();
-    applyFiltersAndRender();
-  });
-}
+if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", applyFiltersAndRender);
+if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", applyFiltersAndRender);
+if (activitySummarySortEl) activitySummarySortEl.addEventListener("change", applyFiltersAndRender);
 
 setupServiceWorkerUpdates();
 hydrateDashboardFromCache();

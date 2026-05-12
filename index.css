@@ -406,6 +406,36 @@ body.page-dashboard {
   line-height: 1.4;
 }
 
+.summary-sort-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: #475467;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.summary-sort-filter select {
+  min-width: 160px;
+  min-height: 36px;
+  border: 1px solid #d8e0ec;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0b132f;
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 34px 7px 12px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+}
+
+.summary-sort-filter select:focus {
+  border-color: var(--chart-blue);
+  box-shadow: 0 0 0 3px rgba(47, 85, 255, 0.14);
+  outline: none;
+}
+
 .page-dashboard .chart-card {
   position: relative;
   border: none;
@@ -604,6 +634,13 @@ body.page-dashboard {
   .date-range-fields { grid-template-columns: 1fr; }
   .page-dashboard .chart-canvas-wrap { height: 300px; }
   .chart-metric-chips { width: 100%; }
+  .summary-sort-filter {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-left: 0;
+    width: 100%;
+  }
+  .summary-sort-filter select { width: 100%; }
   .dashboard-hero { padding: 20px; border-radius: 22px; }
   .dashboard-hero h1 { letter-spacing: -0.035em; }
   .dashboard-control-panel,

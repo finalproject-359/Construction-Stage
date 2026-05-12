@@ -275,6 +275,16 @@
         <section class="table-panel">
           <div class="panel-header">
             <div><h3>Activities Performance Summary</h3><p>Earned value and cost performance by activity.</p></div>
+            <label class="summary-sort-filter" for="activitySummarySort">
+              <span>Sort by</span>
+              <select id="activitySummarySort" aria-label="Sort activities performance summary">
+                <option value="default">Default</option>
+                <option value="actual-cost-desc">Cost: High to Low</option>
+                <option value="actual-cost-asc">Cost: Low to High</option>
+                <option value="date-desc">Date: Newest First</option>
+                <option value="date-asc">Date: Oldest First</option>
+              </select>
+            </label>
           </div>
           <div class="table-wrap">
             <table>
