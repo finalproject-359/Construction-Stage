@@ -311,11 +311,7 @@ const extractDashboardRows = (rawRows) =>
       const hasProvidedEarnedValue =
         rawEarnedValue !== null && rawEarnedValue !== undefined && String(rawEarnedValue).trim() !== "";
       const ev = hasProvidedEarnedValue ? parseNumber(rawEarnedValue) : plannedCost * (percentComplete / 100);
-      const rawCv = firstNonEmptyCell(row, ["cost variance", "cv"]);
-      const hasProvidedCv =
-        rawCv !== null && rawCv !== undefined && String(rawCv).trim() !== "";
-      const providedCv = parseNumber(rawCv);
-      const cv = hasProvidedCv ? providedCv : ev - actualCost;
+      const cv = ev - actualCost;
 
       return {
         activityId: hasValidActivityId ? detectedActivityId : "",
@@ -438,7 +434,7 @@ const updateDashboardSummary = (rows, totals, progressMetrics) => {
   const uniqueProjects = new Set(rows.map((row) => normalize(row.project, "Unspecified"))).size;
   const overBudgetCount = rows.filter((row) => parseNumber(row.cv) < 0).length;
   const actualCost = parseNumber(totals?.actual);
-  const earnedValue = (parseNumber(totals?.planned) * parseNumber(progressMetrics?.physicalProgressPercent)) / 100;
+  const earnedValue = parseNumber(totals?.ev);
   const cpi = actualCost ? earnedValue / actualCost : 0;
 
   if (activeProjectCountEl) {
@@ -480,23 +476,23 @@ const applyFiltersAndRender = () => {
   renderDashboardFromRows(filteredRows, filteredRows);
 };
 
-const calculateTotalsFromRows = (rows) =>
-  rows.reduce(
+const calculateTotalsFromRows = (rows) => {
+  const totals = rows.reduce(
     (acc, row) => {
-      acc.planned += row.plannedCost;
-      acc.actual += row.actualCost;
-      acc.cv += row.cv;
+      acc.planned += parseNumber(row.plannedCost);
+      acc.actual += parseNumber(row.actualCost);
+      acc.ev += parseNumber(row.ev);
       return acc;
     },
-    { planned: 0, actual: 0, cv: 0 }
+    { planned: 0, actual: 0, ev: 0, cv: 0 }
   );
+  totals.cv = totals.ev - totals.actual;
+  return totals;
+};
 
 const calculateProgressMetrics = (rows, totals) => {
-  const weightedProgressValue = rows.reduce(
-    (acc, row) => acc + row.plannedCost * (row.percentComplete / 100),
-    0
-  );
-  const physicalProgressPercent = totals.planned ? (weightedProgressValue / totals.planned) * 100 : 0;
+  const earnedValue = parseNumber(totals?.ev);
+  const physicalProgressPercent = totals.planned ? (earnedValue / totals.planned) * 100 : 0;
   const costSpentPercent = totals.planned ? (totals.actual / totals.planned) * 100 : 0;
   const efficiencyGapPercent = physicalProgressPercent - costSpentPercent;
 
@@ -529,7 +525,7 @@ const renderKpis = (totals) => {
 };
 
 const renderProgressKpis = (metrics, totals) => {
-  const earnedValue = (parseNumber(totals?.planned) * parseNumber(metrics.physicalProgressPercent)) / 100;
+  const earnedValue = parseNumber(totals?.ev);
   const cpi = parseNumber(totals?.actual) ? earnedValue / parseNumber(totals?.actual) : 0;
 
   if (physicalProgressEl) physicalProgressEl.textContent = formatCurrency(earnedValue);
@@ -591,6 +587,20 @@ const renderGapTable = (rows) => {
     }).join("");
 };
 
+const calculateActivitiesPerformanceTotals = (rows) => {
+  const totals = calculateTotalsFromRows(rows);
+  const aggregateCompletePercent = totals.planned ? (totals.ev / totals.planned) * 100 : 0;
+  const aggregateCostUsedPercent = totals.planned ? (totals.actual / totals.planned) * 100 : 0;
+  const aggregateCpi = totals.actual ? totals.ev / totals.actual : 0;
+
+  return {
+    ...totals,
+    aggregateCompletePercent,
+    aggregateCostUsedPercent,
+    aggregateCpi,
+  };
+};
+
 const renderTable = (rows) => {
   if (!tableBodyEl) return;
 
@@ -619,19 +629,7 @@ const renderTable = (rows) => {
     )
     .join("") + `
       ${(() => {
-        const totals = rows.reduce(
-          (acc, row) => {
-            acc.planned += row.plannedCost;
-            acc.actual += row.actualCost;
-            acc.ev += row.ev;
-            acc.cv += row.cv;
-            return acc;
-          },
-          { planned: 0, actual: 0, ev: 0, cv: 0 }
-        );
-        const aggregateCompletePercent = totals.planned ? (totals.ev / totals.planned) * 100 : 0;
-        const aggregateCostUsedPercent = totals.planned ? (totals.actual / totals.planned) * 100 : 0;
-        const aggregateCpi = totals.actual ? totals.ev / totals.actual : 0;
+        const totals = calculateActivitiesPerformanceTotals(rows);
 
         return `<tr>
           <td></td>
@@ -639,10 +637,10 @@ const renderTable = (rows) => {
           <td><strong>${formatCurrency(totals.planned)}</strong></td>
           <td><strong>${formatCurrency(totals.actual)}</strong></td>
           <td><strong>${formatCurrency(totals.ev)}</strong></td>
-          <td><strong>${formatPercent(aggregateCompletePercent)}</strong></td>
-          <td><strong>${formatPercent(aggregateCostUsedPercent)}</strong></td>
+          <td><strong>${formatPercent(totals.aggregateCompletePercent)}</strong></td>
+          <td><strong>${formatPercent(totals.aggregateCostUsedPercent)}</strong></td>
           <td><strong>${formatCurrency(totals.cv)}</strong></td>
-          <td><strong>${aggregateCpi.toFixed(2)}</strong></td>
+          <td><strong>${totals.aggregateCpi.toFixed(2)}</strong></td>
           <td><span class="status-pill ${totals.cv >= 0 ? "ok" : "bad"}">${totals.cv >= 0 ? "On Track" : "Over Budget"}</span></td>
         </tr>`;
       })()}`;
