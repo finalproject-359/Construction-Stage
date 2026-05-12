@@ -70,12 +70,13 @@ const persistToLocalStorage = (key, value) => {
 let projectsState = loadFromLocalStorageArray(PROJECTS_LOCAL_STORAGE_KEY);
 let costActivitiesState = loadFromLocalStorageArray(COST_ACTIVITIES_LOCAL_STORAGE_KEY)
   .concat(loadFromLocalStorageArray(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY));
-let dailyCostsState = [];
+let dailyCostsState = loadFromLocalStorageArray(DAILY_COSTS_LOCAL_STORAGE_KEY);
 
 const loadProjects = () => projectsState.slice();
 const loadDailyCosts = () => dailyCostsState.slice();
 const saveDailyCosts = (items) => {
   dailyCostsState = Array.isArray(items) ? items.slice() : [];
+  persistToLocalStorage(DAILY_COSTS_LOCAL_STORAGE_KEY, dailyCostsState);
 };
 const postToDataSource = async (resource, action, payload) => {
   const endpoint = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
@@ -375,6 +376,40 @@ const getActivityRefId = (activity = {}) => String(activity.activityRefId || act
 const getCostActivityProjectKey = (activity = {}) => String(activity.projectId || activity.projectName || "").trim();
 const getCostActivityKey = (activity = {}) => `${getCostActivityProjectKey(activity)}::${getActivityRefId(activity)}`;
 
+const cleanupOrphanedDailyCosts = (activities = loadCostActivities()) => {
+  const normalizedActivities = activities.map(normalizeCostActivity);
+  if (!normalizedActivities.length) return;
+
+  const validActivityIds = new Set();
+  const validCostIds = new Set();
+  const validNames = new Set();
+  normalizedActivities.forEach((activity) => {
+    const projectKey = normalizeLookup(resolveActivityProjectId(activity));
+    const activityId = normalizeLookup(getActivityRefId(activity));
+    const costId = normalizeLookup(activity.costId);
+    const activityName = normalizeLookup(activity.name);
+    if (projectKey && activityId) validActivityIds.add(`${projectKey}::${activityId}`);
+    if (projectKey && costId) validCostIds.add(`${projectKey}::${costId}`);
+    if (projectKey && activityName) validNames.add(`${projectKey}::${activityName}`);
+  });
+
+  const lookups = buildProjectIdentityLookups(loadProjects());
+  const cleaned = loadDailyCosts()
+    .map((item) => normalizeDailyCostRecord(item, lookups))
+    .filter((item) => {
+      const projectKey = normalizeLookup(item.projectId);
+      if (!projectKey) return false;
+      const activityId = normalizeLookup(item.activityId);
+      const costId = normalizeLookup(item.costId);
+      const activityName = normalizeLookup(item.activity);
+      return (activityId && validActivityIds.has(`${projectKey}::${activityId}`))
+        || (costId && validCostIds.has(`${projectKey}::${costId}`))
+        || (activityName && validNames.has(`${projectKey}::${activityName}`));
+    });
+
+  if (JSON.stringify(cleaned) !== JSON.stringify(dailyCostsState)) saveDailyCosts(cleaned);
+};
+
 const loadCostActivities = () => costActivitiesState.slice();
 
 const normalizeRemoteActivity = (row = {}) => {
@@ -499,9 +534,36 @@ const resolveProjectIdFromDailyCost = (dailyCost = {}, lookups = buildProjectIde
   return candidateValues.find((entry) => entry.raw)?.raw || "";
 };
 
+const normalizeDailyCostRecord = (item = {}, lookups = buildProjectIdentityLookups(loadProjects())) => ({
+  projectId: resolveProjectIdFromDailyCost(item, lookups),
+  activityId: String(getValueByAliases(item, ["activityId", "activity_id", "activity id"]) || item.activityId || "").trim(),
+  activity: String(getValueByAliases(item, ["activity", "activityName", "activity_name", "name"]) || item.activity || "").trim(),
+  costId: String(getValueByAliases(item, ["costId", "cost_id", "cost id"]) || item.costId || "").trim(),
+  date: normalizeDateKey(getValueByAliases(item, ["date"]) || item.date),
+  actualCost: parseBudgetValue(getValueByAliases(item, ["actualCost", "actual_cost", "amount"]) ?? item.actualCost),
+  progress: clampPercent(getValueByAliases(item, ["progress", "percentComplete", "percent_complete", "% complete", "percent complete"]) ?? item.progress),
+  earnedValue: parseBudgetValue(getValueByAliases(item, ["earnedValue", "earned_value", "earned value", "ev"]) ?? item.earnedValue),
+});
+
+const getDailyCostRecordKey = (item = {}) => {
+  const projectId = String(item.projectId || "").trim();
+  const activityId = String(item.activityId || "").trim();
+  const costId = String(item.costId || "").trim();
+  const date = normalizeDateKey(item.date);
+  if (!projectId || !date || (!activityId && !costId)) return "";
+  return `${projectId}::${activityId}::${costId}::${date}`;
+};
+
+const dailyCostMatchesProjectFilter = (item = {}, projectFilter = {}) => {
+  const projectId = String(projectFilter?.projectId || "").trim();
+  const projectName = String(projectFilter?.projectName || "").trim().toLowerCase();
+  if (!projectId && !projectName) return true;
+  return isDailyCostForProject(item, projectId, projectName);
+};
+
 const loadRemoteDailyCosts = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
-  if (!dataSourceUrl) return [];
+  if (!dataSourceUrl) return null;
   const lookups = buildProjectIdentityLookups(loadProjects());
   try {
     const url = new URL(dataSourceUrl);
@@ -509,8 +571,9 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     if (projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
     url.searchParams.set("_ts", String(Date.now()));
     const response = await fetch(url.toString(), { cache: "no-store" });
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const payload = await response.json();
+    if (payload?.ok === false) return null;
     const rows = Array.isArray(payload?.dailyCosts) ? payload.dailyCosts : [];
     return rows.map((row) => ({
       projectId: resolveProjectIdFromDailyCost(row, lookups),
@@ -536,25 +599,23 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
 
   if (!Array.isArray(remoteDailyCosts)) return;
 
+  const lookups = buildProjectIdentityLookups(loadProjects());
   const dedupedDailyCosts = new Map();
-  remoteDailyCosts.forEach((item) => {
-    const projectId = String(item.projectId || "").trim();
-    const activityId = String(item.activityId || "").trim();
-    const costId = String(item.costId || "").trim();
-    const date = normalizeDateKey(item.date);
-    const key = `${projectId}::${activityId}::${costId}::${date}`;
-    if (!projectId || !date || (!activityId && !costId)) return;
-      dedupedDailyCosts.set(key, {
-        projectId: String(item.projectId || "").trim(),
-        activityId: String(item.activityId || "").trim(),
-        activity: String(item.activity || "").trim(),
-        costId: String(item.costId || "").trim(),
-        date: normalizeDateKey(item.date),
-        actualCost: parseBudgetValue(item.actualCost),
-        progress: clampPercent(item.progress),
-        earnedValue: parseBudgetValue(item.earnedValue),
-    });
-  });
+
+  // When syncing a single selected project, replace only that project slice with
+  // remote rows. This keeps unrelated locally cached projects available while
+  // still letting remote deletes remove stale rows for the active project.
+  loadDailyCosts()
+    .map((item) => normalizeDailyCostRecord(item, lookups))
+    .filter((item) => getDailyCostRecordKey(item))
+    .filter((item) => !dailyCostMatchesProjectFilter(item, projectFilter))
+    .forEach((item) => dedupedDailyCosts.set(getDailyCostRecordKey(item), item));
+
+  remoteDailyCosts
+    .map((item) => normalizeDailyCostRecord(item, lookups))
+    .filter((item) => getDailyCostRecordKey(item))
+    .forEach((item) => dedupedDailyCosts.set(getDailyCostRecordKey(item), item));
+
   saveDailyCosts(Array.from(dedupedDailyCosts.values()));
 };
 
@@ -1629,7 +1690,13 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
     loadRemoteDailyCosts(projectFilter),
     loadRemoteCostMetadata(projectFilter),
   ]);
-  const merged = [...remoteActivities];
+  // Merge cached local overrides first so user-maintained Cost ID / planned-cost
+  // metadata survives, then let fresh remote activity rows refresh schedule fields.
+  const localActivities = loadFromLocalStorageArray(COST_ACTIVITIES_LOCAL_STORAGE_KEY)
+    .concat(loadFromLocalStorageArray(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY))
+    .map(normalizeCostActivity)
+    .filter((item) => getCostActivityProjectKey(item) && getActivityRefId(item));
+  const merged = [...localActivities, ...remoteActivities];
   const deduped = new Map();
   merged.forEach((item) => {
     const key = `${String(item.projectId).trim()}::${String(getActivityRefId(item)).trim()}`;
@@ -1662,6 +1729,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
   saveCostActivityOverrides(allActivities);
 
   await syncDailyCostsFromSheet(projectFilter, remoteDailyCosts);
+  cleanupOrphanedDailyCosts(allActivities);
 
   if (remoteCostMetadataRows.length) applyCostMetadataRows(remoteCostMetadataRows);
 
