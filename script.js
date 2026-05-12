@@ -39,6 +39,8 @@ let varianceChart = null;
 let costChart = null;
 let isDashboardFetchInFlight = false;
 let latestDashboardSignature = "";
+let lastStableDashboardRows = [];
+let lastStableDashboardSavedAt = 0;
 
 const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
 const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
@@ -765,6 +767,16 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
 
+const rememberStableDashboardRows = (rows, sourceName = "dashboard data") => {
+  lastStableDashboardRows = rows.slice();
+  lastStableDashboardSavedAt = Date.now();
+};
+
+const hasStableDashboardRows = () => lastStableDashboardRows.length || activitySummaryRows.length;
+
+const getStableDashboardRows = () =>
+  lastStableDashboardRows.length ? lastStableDashboardRows : activitySummaryRows;
+
 
 const destroyCharts = () => {
   if (varianceChart) {
@@ -956,17 +968,24 @@ const generateCharts = (rows) => {
 
 const processRows = (rawRows, sourceName = "web app") => {
   if (!Array.isArray(rawRows) || !rawRows.length) {
-    if (activitySummaryRows.length) {
+    if (hasStableDashboardRows()) {
+      const stableRows = getStableDashboardRows();
+      activitySummaryRows = stableRows.slice();
+      syncFilterOptionsFromRows(activitySummaryRows);
+      applyFiltersAndRender();
       showMessage(
-        `Live source temporarily returned no rows from ${sourceName}. Retaining the last ${activitySummaryRows.length} activity row(s).`,
+        `Live source temporarily returned no rows from ${sourceName}. Keeping the last stable ${activitySummaryRows.length} activity row(s) visible.`,
         true
       );
       return;
     }
 
     activitySummaryRows = [];
+    lastStableDashboardRows = [];
+    latestDashboardSignature = "";
     renderKpis({ planned: 0, actual: 0, cv: 0 });
     renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
+    updateDashboardSummary([], { planned: 0, actual: 0, ev: 0, cv: 0 }, { physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
     renderTable([]);
     renderOverrunTable([]);
     renderGapTable([]);
@@ -978,11 +997,20 @@ const processRows = (rawRows, sourceName = "web app") => {
   }
 
   const rows = extractDashboardRows(rawRows);
-  if (!rows.length && activitySummaryRows.length) {
+  if (!rows.length && hasStableDashboardRows()) {
+    const stableRows = getStableDashboardRows();
+    activitySummaryRows = stableRows.slice();
+    syncFilterOptionsFromRows(activitySummaryRows);
+    applyFiltersAndRender();
     showMessage(
-      `Live source returned an empty parsed result from ${sourceName}. Keeping the last stable ${activitySummaryRows.length} activity row(s).`,
+      `Live source returned an empty parsed result from ${sourceName}. Keeping the last stable ${activitySummaryRows.length} activity row(s) visible.`,
       true
     );
+    return;
+  }
+
+  if (!rows.length) {
+    processRows([], sourceName);
     return;
   }
 
@@ -999,12 +1027,14 @@ const processRows = (rawRows, sourceName = "web app") => {
 
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
+    rememberStableDashboardRows(rows, sourceName);
     showMessage(`Dashboard data is already up to date from ${sourceName}.`);
     return;
   }
 
   latestDashboardSignature = nextSignature;
-  localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), rows }));
+  rememberStableDashboardRows(rows, sourceName);
+  localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, rows }));
   activitySummaryRows = rows;
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
@@ -1013,7 +1043,6 @@ const processRows = (rawRows, sourceName = "web app") => {
   if (asOfEl) {
     asOfEl.textContent = `Synced ${new Date().toLocaleString()}`;
   }
-
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
@@ -1306,16 +1335,19 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
 
 const hydrateDashboardFromCache = () => {
   const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-  if (!cached) return;
+  if (!cached) return false;
 
   try {
     const parsedCache = JSON.parse(cached);
     const rows = Array.isArray(parsedCache) ? parsedCache : parsedCache?.rows;
     const savedAt = Array.isArray(parsedCache) ? 0 : Number(parsedCache?.savedAt || 0);
-    if (!Array.isArray(rows) || !rows.length) return;
+    const sourceName = Array.isArray(parsedCache) ? "saved dashboard cache" : parsedCache?.sourceName || "saved dashboard cache";
+    if (!Array.isArray(rows) || !rows.length) return false;
     const cacheIsStale = savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS;
     latestDashboardSignature = JSON.stringify(rows);
-    activitySummaryRows = rows;
+    activitySummaryRows = rows.slice();
+    lastStableDashboardRows = rows.slice();
+      lastStableDashboardSavedAt = savedAt || Date.now();
     syncFilterOptionsFromRows(rows);
     applyFiltersAndRender();
     showMessage(
@@ -1323,10 +1355,30 @@ const hydrateDashboardFromCache = () => {
         ? `Showing the last saved ${rows.length} dashboard row(s) while refreshing live data...`
         : `Loaded ${rows.length} cached activity row(s). Verifying against live source now...`
     );
+    return true;
   } catch {
     localStorage.removeItem(DASHBOARD_CACHE_KEY);
+    return false;
   }
 };
+
+const hydrateDashboardFromLocalCostData = () => {
+  const localRows = loadRowsFromCostManagementLocalData();
+  if (!localRows.length) return false;
+
+  const rows = extractDashboardRows(localRows);
+  if (!rows.length) return false;
+
+  latestDashboardSignature = JSON.stringify(rows);
+  rememberStableDashboardRows(rows, "Cost Management local storage");
+  activitySummaryRows = rows.slice();
+  syncFilterOptionsFromRows(rows);
+  applyFiltersAndRender();
+  showMessage(`Showing ${rows.length} Cost Management row(s) while refreshing live data...`);
+  return true;
+};
+
+const warmStartDashboardData = () => hydrateDashboardFromCache() || hydrateDashboardFromLocalCostData();
 
 const refreshDashboardData = async ({ force = false } = {}) => {
   if (isDashboardFetchInFlight) return;
@@ -1357,7 +1409,8 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     }
 
     if (force) {
-      showMessage("Loading data source...");
+      const stableCount = getStableDashboardRows().length;
+      showMessage(stableCount ? "Refreshing data source while keeping current dashboard visible..." : "Loading data source...");
     }
 
     if (typeof window.DataBridge.fetchDashboardBundleFromSource === "function") {
@@ -1385,16 +1438,20 @@ const refreshDashboardData = async ({ force = false } = {}) => {
       return;
     }
 
-    if (localRows.length && !activitySummaryRows.length) {
+    if (localRows.length) {
       processRows(localRows, "Cost Management local storage");
-      showMessage("Live source returned no rows. Showing Cost Management local data.");
+      showMessage("Live source returned no rows. Showing Cost Management local data without clearing the dashboard.");
     } else {
       processRows([], sourceName);
     }
   } catch (error) {
     const localRows = loadRowsFromCostManagementLocalData();
-    if (activitySummaryRows.length) {
-      showMessage(`Live source is temporarily unavailable (${error.message}). Keeping the last stable dashboard data.`, true);
+    if (hasStableDashboardRows()) {
+      const stableRows = getStableDashboardRows();
+      activitySummaryRows = stableRows.slice();
+      syncFilterOptionsFromRows(activitySummaryRows);
+      applyFiltersAndRender();
+      showMessage(`Live source is temporarily unavailable (${error.message}). Keeping the last stable dashboard data visible.`, true);
     } else if (localRows.length) {
       processRows(localRows, "Cost Management local storage");
       showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
@@ -1470,5 +1527,5 @@ if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", applyFiltersAndR
 if (activitySummarySortEl) activitySummarySortEl.addEventListener("change", applyFiltersAndRender);
 
 setupServiceWorkerUpdates();
-hydrateDashboardFromCache();
+warmStartDashboardData();
 refreshDashboardData({ force: true });
