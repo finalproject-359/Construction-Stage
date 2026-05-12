@@ -1363,7 +1363,7 @@ const renderProjects = (query = "") => {
     row.type = "button";
     row.className = "project-row";
     const statusTone = getStatusTone(project.status);
-    row.innerHTML = `<div class="project-row-main"><span class="project-status-badge ${statusTone}">${escapeHtml(project.status || "Not Started")}</span><div class="project-meta"><strong>${escapeHtml(formatProjectIdentityLabel(project))}</strong><p>${escapeHtml(formatProjectTimeline(project))}</p></div></div><div class="project-cost-preview"><span>Approved budget</span><strong>${formatBudget(project.budget)}</strong></div><span class="project-row-action">Open cost review →</span>`;
+    row.innerHTML = `<div class="project-row-main"><span class="project-status-badge ${statusTone}">${escapeHtml(project.status || "Not Started")}</span><div class="project-meta"><strong>${escapeHtml(formatProjectIdentityLabel(project))}</strong><p>${escapeHtml(formatProjectTimeline(project))}</p></div></div><div class="project-cost-preview"><span>Approved budget</span><strong>${formatBudget(project.budget)}</strong></div>`;
     row.addEventListener("click", () => {
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.set("projectId", project.id);

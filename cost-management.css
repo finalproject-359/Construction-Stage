@@ -1023,7 +1023,7 @@ body.page-cost-management .details-tab-panel .table-panel td.actions-col {
 .project-row {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(170px, auto) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, auto);
   align-items: center;
   gap: 18px;
   padding: 16px;
@@ -1055,11 +1055,6 @@ body.page-cost-management .details-tab-panel .table-panel td.actions-col {
 .project-meta strong { color: #17264a; font-size: 1.02rem; }
 .project-cost-preview { text-align: right; }
 .project-cost-preview strong { color: #102858; font-size: 1.04rem; }
-.project-row-action {
-  color: #1f52e8;
-  font-weight: 800;
-  white-space: nowrap;
-}
 .details-tabs {
   display: inline-flex;
   gap: 6px;
