@@ -49,7 +49,9 @@ const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
 const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
+const DASHBOARD_REFRESH_INTERVAL_MS = 10 * 1000;
 const DASHBOARD_MIN_STABLE_ROW_RATIO = 0.5;
+let dashboardRefreshTimer = null;
 
 const getProjectFilterPrefill = () => {
   try {
@@ -850,6 +852,13 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
 
+const updateDashboardSyncedAt = () => {
+  const asOfEl = document.querySelector(".as-of-text");
+  if (asOfEl) {
+    asOfEl.textContent = `Synced ${new Date().toLocaleString()}`;
+  }
+};
+
 const rememberStableDashboardRows = (rows, sourceName = "dashboard data") => {
   lastStableDashboardRows = rows.slice();
   lastStableDashboardSavedAt = Date.now();
@@ -1111,6 +1120,8 @@ const processRows = (rawRows, sourceName = "web app") => {
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
     rememberStableDashboardRows(rows, sourceName);
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, rows }));
+    updateDashboardSyncedAt();
     showMessage(`Dashboard data is already up to date from ${sourceName}.`);
     return;
   }
@@ -1122,10 +1133,7 @@ const processRows = (rawRows, sourceName = "web app") => {
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
 
-  const asOfEl = document.querySelector(".as-of-text");
-  if (asOfEl) {
-    asOfEl.textContent = `Synced ${new Date().toLocaleString()}`;
-  }
+  updateDashboardSyncedAt();
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
@@ -1631,6 +1639,47 @@ if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", handleDateRa
 if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", handleDateRangeInputChange);
 if (activitySummarySortEl) activitySummarySortEl.addEventListener("change", applyFiltersAndRender);
 
+const refreshDashboardIfVisible = async ({ force = false } = {}) => {
+  if (!force && document.visibilityState === "hidden") return;
+  if (document.activeElement instanceof HTMLElement) {
+    const isTyping =
+      document.activeElement.matches("input, textarea")
+      || document.activeElement.isContentEditable;
+    if (isTyping) return;
+  }
+
+  await refreshDashboardData({ force });
+};
+
+const setupDashboardRealtimeSync = () => {
+  if (dashboardRefreshTimer) {
+    clearInterval(dashboardRefreshTimer);
+  }
+
+  dashboardRefreshTimer = setInterval(() => {
+    refreshDashboardIfVisible();
+  }, DASHBOARD_REFRESH_INTERVAL_MS);
+
+  window.addEventListener("focus", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("online", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("pageshow", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("cost-management:data-loaded", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("storage", (event) => {
+    const realtimeKeys = new Set([
+      COST_ACTIVITIES_LOCAL_STORAGE_KEY,
+      LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY,
+      DAILY_COSTS_LOCAL_STORAGE_KEY,
+    ]);
+    if (realtimeKeys.has(event.key)) refreshDashboardIfVisible({ force: true });
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      refreshDashboardIfVisible({ force: true });
+    }
+  });
+};
+
 setupServiceWorkerUpdates();
 warmStartDashboardData();
-refreshDashboardData({ force: true });
+refreshDashboardIfVisible({ force: true });
+setupDashboardRealtimeSync();

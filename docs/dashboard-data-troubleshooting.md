@@ -22,7 +22,8 @@ This checklist captures likely reasons the dashboard may fail to present complet
 - Percent normalization treats values <=1 as fractions and >1 as percent numbers.
 
 ## Local cache and freshness
-- Dashboard cache TTL can make UI appear stale until the next manual page load or refresh.
+- Dashboard warm-start cache can briefly show the last stable rows while the live source is verified immediately.
+- Visible dashboard sessions poll the live source every 10 seconds and also refresh on focus, reconnect, page show, visibility changes, and local cost-data storage updates.
 - In-flight request guard can delay visible updates when concurrent load triggers occur.
 - Cache/localStorage corruption or manual edits can cause inconsistent displays.
 
