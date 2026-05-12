@@ -1263,3 +1263,367 @@ body.page-cost-management .cost-table th:nth-child(2) {
     grid-column: 1 / -1;
   }
 }
+
+/* Costing record UX refresh */
+.cost-record-workspace {
+  display: grid;
+  gap: 16px;
+}
+
+.cost-record-head-enhanced {
+  align-items: flex-start;
+  padding: 18px;
+  border: 1px solid #dfe7f5;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(47, 85, 255, 0.09), rgba(56, 189, 248, 0.08)),
+    #fff;
+}
+
+.cost-record-head-enhanced .eyebrow {
+  margin-bottom: 6px;
+}
+
+.cost-record-head-enhanced h3 {
+  margin: 0;
+  color: #17264a;
+  font-size: clamp(1.35rem, 2vw, 1.75rem);
+}
+
+.cost-record-head-enhanced p {
+  max-width: 720px;
+  margin: 8px 0 0;
+  color: #536987;
+  line-height: 1.55;
+}
+
+.cost-record-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 250px;
+  padding: 10px 12px;
+  border: 1px solid #cfe0ff;
+  border-radius: 999px;
+  background: #f7faff;
+  color: #2f55ff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.cost-record-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cost-record-summary article {
+  padding: 16px;
+  border: 1px solid #e1e9f7;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.cost-record-summary span {
+  display: block;
+  margin-bottom: 6px;
+  color: #657692;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cost-record-summary strong {
+  color: #17264a;
+  font-size: clamp(1.15rem, 1.8vw, 1.55rem);
+}
+
+body.page-cost-management .details-tab-panel .panel.cost-record-table-panel {
+  margin-top: 0;
+  overflow: visible;
+}
+
+body.page-cost-management .cost-record-table-panel .cost-table {
+  min-width: 1080px;
+}
+
+body.page-cost-management .cost-record-table-panel th,
+body.page-cost-management .cost-record-table-panel td {
+  vertical-align: middle;
+}
+
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(1),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(1) { width: 9%; }
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(2),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(2) { width: 24%; }
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(3),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(3) { width: 9%; }
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(4),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(4) { width: 13%; }
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(5),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(5),
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(6),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(6),
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(7),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(7) { width: 13%; }
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(8),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(8) { width: 10%; text-align: left; }
+body.page-cost-management .details-tab-panel .cost-record-table-panel th:nth-child(9),
+body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-child(9) { width: 4%; text-align: center; }
+
+.cost-record-row td {
+  color: #2d3f5f;
+}
+
+.cost-activity-cell {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.cost-activity-cell strong {
+  color: #17264a;
+  overflow-wrap: anywhere;
+}
+
+.cost-activity-cell span,
+.cost-muted-value,
+.cost-variance-note {
+  color: #7181a0;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.cost-id-pill,
+.cost-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.cost-id-pill {
+  border: 1px solid #c9d8ff;
+  background: #eef4ff;
+  color: #244bd6;
+}
+
+.cost-id-pill.is-missing,
+.cost-status-badge.needs-setup {
+  border: 1px solid #f5d7a1;
+  background: #fff7e8;
+  color: #a96608;
+}
+
+.cost-status-badge.active {
+  border: 1px solid #bfe8cc;
+  background: #ecfff2;
+  color: #1b8d48;
+}
+
+.cost-status-badge.ready {
+  border: 1px solid #cfe0ff;
+  background: #f3f7ff;
+  color: #2f55ff;
+}
+
+.cost-progress-cell {
+  display: grid;
+  gap: 7px;
+  min-width: 120px;
+  color: #17264a;
+  font-weight: 800;
+}
+
+.cost-progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eef9;
+}
+
+.cost-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f55ff, #38bdf8);
+}
+
+.cost-money {
+  color: #17264a;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.cost-variance-note {
+  display: block;
+  margin-top: 4px;
+}
+
+.cost-actions-button {
+  border-radius: 12px;
+  background: #f6f9ff;
+}
+
+.cost-record-tip {
+  margin-top: 0;
+  border: 1px solid #dce7fb;
+  background: #f8fbff;
+}
+
+.empty-cell strong,
+.empty-cell span {
+  display: block;
+}
+
+.empty-cell span {
+  margin-top: 4px;
+}
+
+/* Add cost form refresh */
+.cost-meta-dialog {
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.28);
+}
+
+.cost-meta-head-enhanced {
+  align-items: flex-start;
+  padding: 28px 32px 14px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.15), transparent 36%),
+    linear-gradient(135deg, #f8fbff 0%, #eef4ff 100%);
+  border-bottom: 1px solid #e1e9f7;
+}
+
+.cost-meta-head-enhanced h3 {
+  margin: 0;
+  color: #17264a;
+  font-size: clamp(1.45rem, 2.5vw, 2rem);
+}
+
+.cost-meta-head-enhanced p {
+  margin: 8px 0 0;
+  color: #536987;
+  line-height: 1.5;
+}
+
+.cost-meta-activity-card {
+  margin: 18px 32px 2px;
+  padding: 16px;
+  border: 1px solid #dce7fb;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.cost-meta-activity-card span {
+  display: block;
+  margin-bottom: 6px;
+  color: #657692;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cost-meta-activity-card strong {
+  display: block;
+  color: #17264a;
+  font-size: 1.06rem;
+}
+
+.cost-meta-activity-card p {
+  margin: 6px 0 0;
+  color: #657692;
+  font-weight: 700;
+}
+
+.cost-meta-form {
+  gap: 16px;
+  padding: 18px 32px 30px;
+}
+
+.cost-meta-form .cost-meta-field {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #e1e9f7;
+  border-radius: 16px;
+  background: #fbfdff;
+}
+
+.cost-meta-form .cost-meta-field span {
+  color: #2f3f61;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.cost-meta-form .cost-meta-field span strong {
+  color: #ef5050;
+}
+
+.cost-meta-form .cost-meta-field input {
+  background: #fff;
+}
+
+.cost-meta-form .cost-meta-field small {
+  color: #6c7d99;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.cost-meta-save-note {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #cfe0ff;
+  border-radius: 14px;
+  background: #f4f8ff;
+  color: #536987;
+  line-height: 1.45;
+}
+
+.cost-meta-save-note strong {
+  flex: 0 0 auto;
+  color: #244bd6;
+}
+
+@media (max-width: 980px) {
+  .cost-record-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.page-cost-management .details-tab-panel .panel.cost-record-table-panel {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .cost-record-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .cost-meta-head-enhanced,
+  .cost-meta-form {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .cost-meta-activity-card {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+
+  .cost-meta-save-note,
+  .cost-meta-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
