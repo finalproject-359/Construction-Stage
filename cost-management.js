@@ -865,8 +865,7 @@ const buildDetailsMarkup = (project, rows) => {
       const progressValue = clampPercent(row.progressPercent);
       const progressCell = Number.isFinite(progressValue) ? `${progressValue.toFixed(2)}%` : "";
       const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "";
-      const hasEarnedValue = parseBudgetValue(row.earnedValue) > 0;
-      const earnedValueCell = hasEarnedValue ? formatBudget(row.earnedValue) : "";
+      const earnedValueCell = formatBudget(parseBudgetValue(row.earnedValue));
 
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "";
 
