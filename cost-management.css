@@ -1114,3 +1114,36 @@ body.page-cost-management .details-tab-panel .table-panel td.actions-col {
   .project-status-badge { min-width: 0; }
   .details-tabs { width: 100%; overflow-x: auto; }
 }
+
+.cost-project-selection-toolbar-left {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
+}
+
+.cost-selection-filters-top .activities-project-selection-toolbar {
+  align-items: stretch;
+}
+
+.cost-selection-filters-top .activities-how-it-works-btn {
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.cost-selection-filters-top .activities-date-range-panel {
+  width: min(100vw - 48px, 320px);
+}
+
+@media (max-width: 1100px) {
+  .cost-project-selection-toolbar-left {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .cost-project-selection-toolbar-left {
+    grid-template-columns: 1fr;
+  }
+
+  .cost-selection-filters-top .activities-how-it-works-btn {
+    width: 100%;
+  }
+}

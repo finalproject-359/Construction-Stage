@@ -1,8 +1,16 @@
 
 const topSearch = document.getElementById("costTopSearch");
 const projectsList = document.getElementById("costProjectsList");
+const projectTypeFilter = document.getElementById("costProjectTypeFilter");
+const projectStatusFilter = document.getElementById("costProjectStatusFilter");
+const costDateFilterWrap = document.querySelector(".cost-selection-date-filter");
+const costDateFilterBtn = document.getElementById("costDateFilterBtn");
+const costDateFilterLabel = document.getElementById("costDateFilterLabel");
+const costDateRangePanel = document.getElementById("costDateRangePanel");
 const dateStartInput = document.getElementById("costDateStart");
 const dateEndInput = document.getElementById("costDateEnd");
+const costDateClearBtn = document.getElementById("costDateClearBtn");
+const costDateApplyBtn = document.getElementById("costDateApplyBtn");
 const topFiltersSection = document.querySelector(".cost-selection-filters-top");
 const projectsEmpty = document.getElementById("costProjectsEmpty");
 const selectionView = document.getElementById("costSelectionView");
@@ -171,6 +179,7 @@ const normalizeProject = (project = {}) => ({
   id: String(getValueByAliases(project, ["id", "projectId", "project_id"]) || "").trim(),
   name: String(getValueByAliases(project, ["name", "project", "projectName", "project_name"]) || "Untitled Project").trim(),
   code: String(getValueByAliases(project, ["code", "projectCode", "project_code"]) || "-").trim(),
+  type: String(getValueByAliases(project, ["type", "projectType", "project_type"]) || "General").trim(),
   status: String(getValueByAliases(project, ["status", "projectStatus", "project_status"]) || "Not Started").trim(),
   startDate: normalizeProjectDateValue(getValueByAliases(project, ["startDate", "start_date", "plannedStart", "planned_start"])),
   finishDate: normalizeProjectDateValue(getValueByAliases(project, ["finishDate", "targetFinish", "target_finish", "endDate", "end_date", "plannedFinish", "planned_finish"])),
@@ -1332,6 +1341,68 @@ const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActi
   renderCostMetadataModal(projectId, activityRefId, target);
 };
 
+const uniqueSorted = (values) =>
+  Array.from(new Set(values.map((value) => String(value || "").trim()).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b));
+
+const populateSelect = (selectEl, values, defaultLabel) => {
+  if (!selectEl) return;
+  const previousValue = selectEl.value || defaultLabel;
+  selectEl.innerHTML = [defaultLabel, ...values]
+    .map((value) => `<option>${escapeHtml(value)}</option>`)
+    .join("");
+  selectEl.value = Array.from(selectEl.options).some((option) => option.value === previousValue)
+    ? previousValue
+    : defaultLabel;
+};
+
+const refreshProjectFilterOptions = (projects) => {
+  populateSelect(projectTypeFilter, uniqueSorted(projects.map((project) => project.type)), "All Project Types");
+  populateSelect(projectStatusFilter, uniqueSorted(projects.map((project) => project.status)), "All Statuses");
+};
+
+const parseDateFilterValue = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+};
+
+const formatCostDateFilterValue = (value) => {
+  const parsed = parseDateFilterValue(value);
+  if (!parsed) return "";
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const formatCostDateFilterLabel = () => {
+  const start = String(dateStartInput?.value || "").trim();
+  const end = String(dateEndInput?.value || "").trim();
+  if (!start && !end) return "All Dates";
+  if (start && end) return `${formatCostDateFilterValue(start)} - ${formatCostDateFilterValue(end)}`;
+  if (start) return `${formatCostDateFilterValue(start)} onwards`;
+  return `Until ${formatCostDateFilterValue(end)}`;
+};
+
+const syncCostDateFilterLabel = () => {
+  if (costDateFilterLabel) costDateFilterLabel.textContent = formatCostDateFilterLabel();
+};
+
+const closeCostDateRangePanel = () => {
+  if (!costDateRangePanel) return;
+  costDateRangePanel.classList.add("hidden");
+  costDateFilterWrap?.classList.remove("is-open");
+  costDateFilterBtn?.setAttribute("aria-expanded", "false");
+};
+
+const openCostDateRangePanel = () => {
+  if (!costDateRangePanel) return;
+  costDateRangePanel.classList.remove("hidden");
+  costDateFilterWrap?.classList.add("is-open");
+  costDateFilterBtn?.setAttribute("aria-expanded", "true");
+  window.setTimeout(() => dateStartInput?.focus(), 0);
+};
+
 const projectMatchesDateRange = (project, startDateFilter, endDateFilter) => {
   if (!startDateFilter && !endDateFilter) return true;
   const projectStart = project.startDate ? new Date(project.startDate) : null;
@@ -1350,9 +1421,21 @@ const projectMatchesDateRange = (project, startDateFilter, endDateFilter) => {
 
 const renderProjects = (query = "") => {
   const normalizedQuery = query.trim().toLowerCase();
+  const selectedType = projectTypeFilter?.value || "All Project Types";
+  const selectedStatus = projectStatusFilter?.value || "All Statuses";
   const startDateFilter = String(dateStartInput?.value || "").trim();
   const endDateFilter = String(dateEndInput?.value || "").trim();
-  const projects = loadProjects().map(normalizeProject).filter((project) => !isArchivedProject(project)).filter((project) => !normalizedQuery || [project.name, project.code, project.status].some((value) => value.toLowerCase().includes(normalizedQuery))).filter((project) => projectMatchesDateRange(project, startDateFilter, endDateFilter));
+  const allProjects = loadProjects().map(normalizeProject).filter((project) => !isArchivedProject(project));
+  refreshProjectFilterOptions(allProjects);
+  if (projectTypeFilter) projectTypeFilter.value = Array.from(projectTypeFilter.options).some((option) => option.value === selectedType) ? selectedType : "All Project Types";
+  if (projectStatusFilter) projectStatusFilter.value = Array.from(projectStatusFilter.options).some((option) => option.value === selectedStatus) ? selectedStatus : "All Statuses";
+  const activeType = projectTypeFilter?.value || "All Project Types";
+  const activeStatus = projectStatusFilter?.value || "All Statuses";
+  const projects = allProjects
+    .filter((project) => !normalizedQuery || [project.name, project.code, project.status, project.type].some((value) => String(value || "").toLowerCase().includes(normalizedQuery)))
+    .filter((project) => activeType === "All Project Types" || project.type === activeType)
+    .filter((project) => activeStatus === "All Statuses" || project.status === activeStatus)
+    .filter((project) => projectMatchesDateRange(project, startDateFilter, endDateFilter));
   projectsList.innerHTML = "";
   if (visibleProjectCount) visibleProjectCount.textContent = String(projects.length);
   if (visibleProjectBudget) visibleProjectBudget.textContent = formatBudget(projects.reduce((sum, project) => sum + parseBudgetValue(project.budget), 0));
@@ -1378,15 +1461,77 @@ const syncSearches = (value) => {
   renderProjects(value);
 };
 topSearch?.addEventListener("input", (event) => syncSearches(event.target.value));
-dateStartInput?.addEventListener("change", () => renderProjects(topSearch?.value || ""));
-dateEndInput?.addEventListener("change", () => renderProjects(topSearch?.value || ""));
+[projectTypeFilter, projectStatusFilter]
+  .filter(Boolean)
+  .forEach((el) => el.addEventListener("change", () => renderProjects(topSearch?.value || "")));
+
+costDateFilterBtn?.addEventListener("click", () => {
+  const isOpen = costDateRangePanel && !costDateRangePanel.classList.contains("hidden");
+  if (isOpen) {
+    closeCostDateRangePanel();
+    return;
+  }
+  openCostDateRangePanel();
+});
+
+dateStartInput?.addEventListener("change", () => {
+  if (dateEndInput) dateEndInput.min = dateStartInput.value || "";
+});
+
+costDateApplyBtn?.addEventListener("click", () => {
+  const start = parseDateFilterValue(dateStartInput?.value);
+  const end = parseDateFilterValue(dateEndInput?.value);
+  if (start && end && start > end) {
+    window.alert("End date must be on or after start date.");
+    return;
+  }
+  syncCostDateFilterLabel();
+  closeCostDateRangePanel();
+  renderProjects(topSearch?.value || "");
+});
+
+costDateClearBtn?.addEventListener("click", () => {
+  if (dateStartInput) dateStartInput.value = "";
+  if (dateEndInput) {
+    dateEndInput.value = "";
+    dateEndInput.min = "";
+  }
+  syncCostDateFilterLabel();
+  closeCostDateRangePanel();
+  renderProjects(topSearch?.value || "");
+});
+
 clearCostFiltersBtn?.addEventListener("click", () => {
   if (topSearch) topSearch.value = "";
+  if (projectTypeFilter) projectTypeFilter.value = "All Project Types";
+  if (projectStatusFilter) projectStatusFilter.value = "All Statuses";
   if (dateStartInput) dateStartInput.value = "";
-  if (dateEndInput) dateEndInput.value = "";
+  if (dateEndInput) {
+    dateEndInput.value = "";
+    dateEndInput.min = "";
+  }
+  syncCostDateFilterLabel();
+  closeCostDateRangePanel();
   renderProjects("");
   topSearch?.focus();
 });
+
+document.addEventListener("click", (event) => {
+  if (
+    costDateRangePanel &&
+    !costDateRangePanel.classList.contains("hidden") &&
+    costDateFilterWrap &&
+    !costDateFilterWrap.contains(event.target)
+  ) {
+    closeCostDateRangePanel();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeCostDateRangePanel();
+});
+
+syncCostDateFilterLabel();
 
 const getSelectedViewParams = () => {
   const params = new URLSearchParams(window.location.search);
