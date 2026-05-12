@@ -109,6 +109,7 @@
   };
 
   const LIVE_SOURCE_FETCH_TIMEOUT_MS = 20000;
+  const LIVE_SOURCE_RETRY_DELAYS_MS = [0, 750, 1500];
 
   const createLiveSourceTimeoutError = () =>
     new Error(`Live data source took longer than ${Math.round(LIVE_SOURCE_FETCH_TIMEOUT_MS / 1000)} seconds to respond.`);
@@ -126,32 +127,7 @@
       throw new Error("Invalid URL. Use a valid Google Sheet or Apps Script Web App URL.");
     }
 
-    const appendNoCacheParam = (urlValue) => {
-      const separator = urlValue.includes("?") ? "&" : "?";
-      return `${urlValue}${separator}_ts=${Date.now()}`;
-    };
-
-    const fetchWithTimeout = async (urlValue) => {
-      const controller = new AbortController();
-      let timedOut = false;
-      const timeout = setTimeout(() => {
-        timedOut = true;
-        controller.abort(createLiveSourceTimeoutError());
-      }, LIVE_SOURCE_FETCH_TIMEOUT_MS);
-      try {
-        return await fetch(appendNoCacheParam(urlValue), {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-      } catch (error) {
-        if (timedOut || isAbortError(error)) {
-          throw createLiveSourceTimeoutError();
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeout);
-      }
-    };
+    const fetchWithTimeout = (urlValue) => fetchLiveSource(urlValue);
 
     if (isWebAppSource) {
       const response = await fetchWithTimeout(trimmedUrl);
@@ -163,7 +139,8 @@
         if (payload?.error) throw new Error(payload.error);
         return {
           rows: extractRowsFromPayload(payload),
-          sourceName: `Apps Script Web App (${payload?.sheetName || "sheet"})`,
+          sourceName: `Apps Script Web App (${payload?.sheetName || payload?.resource || "sheet"})`,
+          generatedAt: payload?.generatedAt || "",
         };
       }
 
@@ -176,6 +153,7 @@
       return {
         rows,
         sourceName: `Apps Script Web App CSV "${firstSheetName}"`,
+        generatedAt: "",
       };
     }
 
@@ -192,7 +170,59 @@
     return {
       rows,
       sourceName: `Google Sheet "${firstSheetName}"`,
+      generatedAt: "",
     };
+  };
+
+  const appendNoCacheParam = (urlValue) => {
+    const parsed = new URL(urlValue, window.location.href);
+    parsed.searchParams.set("_ts", Date.now().toString());
+    parsed.searchParams.set("_nonce", Math.random().toString(36).slice(2));
+    return parsed.toString();
+  };
+
+  const wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs));
+
+  const fetchLiveSourceOnce = async (urlValue) => {
+    const controller = new AbortController();
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort(createLiveSourceTimeoutError());
+    }, LIVE_SOURCE_FETCH_TIMEOUT_MS);
+    try {
+      return await fetch(appendNoCacheParam(urlValue), {
+        cache: "no-store",
+        headers: {
+          Accept: "application/json, text/csv, text/plain;q=0.9, */*;q=0.8",
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (timedOut || isAbortError(error)) {
+        throw createLiveSourceTimeoutError();
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  const fetchLiveSource = async (urlValue) => {
+    let lastError;
+    for (const delay of LIVE_SOURCE_RETRY_DELAYS_MS) {
+      if (delay) await wait(delay);
+      try {
+        const response = await fetchLiveSourceOnce(urlValue);
+        if (response.ok || response.status < 500) return response;
+        lastError = new Error(`Live data source returned HTTP ${response.status}.`);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error("Unable to reach live data source.");
   };
 
   global.DataBridge = {
@@ -212,35 +242,21 @@
         return url.toString();
       })();
 
-      const controller = new AbortController();
-      let timedOut = false;
-      const timeout = setTimeout(() => {
-        timedOut = true;
-        controller.abort(createLiveSourceTimeoutError());
-      }, LIVE_SOURCE_FETCH_TIMEOUT_MS);
-      try {
-        const response = await fetch(withParams, { cache: "no-store", signal: controller.signal });
-        if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
-        const payload = await response.json();
-        if (payload?.error) throw new Error(payload.error);
+      const response = await fetchLiveSource(withParams);
+      if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
+      const payload = await response.json();
+      if (payload?.error) throw new Error(payload.error);
 
-        return {
-          activities: extractResourceRows(payload, "activities"),
-          costs: extractResourceRows(payload, "costs"),
-          dailyCosts: extractResourceRows(payload, "daily_costs").length
-            ? extractResourceRows(payload, "daily_costs")
-            : extractResourceRows(payload, "dailyCosts"),
-          dashboardRows: extractResourceRows(payload, "dashboard"),
-          sourceName: "Apps Script Web App (activities + costs + actual costs)",
-        };
-      } catch (error) {
-        if (timedOut || isAbortError(error)) {
-          throw createLiveSourceTimeoutError();
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeout);
-      }
+      return {
+        activities: extractResourceRows(payload, "activities"),
+        costs: extractResourceRows(payload, "costs"),
+        dailyCosts: extractResourceRows(payload, "daily_costs").length
+          ? extractResourceRows(payload, "daily_costs")
+          : extractResourceRows(payload, "dailyCosts"),
+        dashboardRows: extractResourceRows(payload, "dashboard"),
+        generatedAt: payload?.generatedAt || "",
+        sourceName: "Apps Script Web App (activities + costs + actual costs)",
+      };
     },
   };
 })(window);

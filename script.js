@@ -49,8 +49,9 @@ const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
 const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
-const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
+const DASHBOARD_REFRESH_INTERVAL_MS = 5 * 1000;
 let dashboardRefreshTimer = null;
+let pendingDashboardRefreshRequested = false;
 
 const getProjectFilterPrefill = () => {
   try {
@@ -859,11 +860,15 @@ const getDashboardErrorMessage = (error) => {
   return rawMessage || "Unknown error";
 };
 
-const updateDashboardSyncedAt = () => {
+const updateDashboardSyncedAt = (sourceTimestamp = "") => {
   const asOfEl = document.querySelector(".as-of-text");
-  if (asOfEl) {
-    asOfEl.textContent = `Synced ${new Date().toLocaleString()}`;
-  }
+  if (!asOfEl) return;
+
+  const sourceDate = sourceTimestamp ? new Date(sourceTimestamp) : null;
+  const sourceLabel = sourceDate && Number.isFinite(sourceDate.getTime())
+    ? ` · Source ${sourceDate.toLocaleTimeString()}`
+    : "";
+  asOfEl.textContent = `Live sync ${new Date().toLocaleTimeString()}${sourceLabel}`;
 };
 
 const rememberStableDashboardRows = (rows, sourceName = "dashboard data") => {
@@ -1065,8 +1070,31 @@ const generateCharts = (rows) => {
   });
 };
 
-const processRows = (rawRows, sourceName = "web app") => {
+const resetDashboardToEmptySource = (sourceName = "live source", generatedAt = "") => {
+  activitySummaryRows = [];
+  lastStableDashboardRows = [];
+  latestDashboardSignature = "";
+  localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), sourceName, generatedAt, rows: [] }));
+  renderKpis({ planned: 0, actual: 0, cv: 0 });
+  renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 }, { planned: 0, actual: 0, ev: 0, cv: 0 });
+  updateDashboardSummary([], { planned: 0, actual: 0, ev: 0, cv: 0 }, { physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
+  renderTable([]);
+  renderOverrunTable([]);
+  renderGapTable([]);
+  if (varianceDisplayEl) varianceDisplayEl.textContent = formatCurrency(0);
+  if (varianceStatusEl) varianceStatusEl.textContent = "Balanced";
+  destroyCharts();
+  updateDashboardSyncedAt(generatedAt);
+  showMessage(`Live source ${sourceName} currently has no dashboard rows. Dashboard cleared to match Google Sheets.`);
+};
+
+const processRows = (rawRows, sourceName = "web app", { acceptEmpty = false, generatedAt = "" } = {}) => {
   if (!Array.isArray(rawRows) || !rawRows.length) {
+    if (acceptEmpty) {
+      resetDashboardToEmptySource(sourceName, generatedAt);
+      return;
+    }
+
     if (hasStableDashboardRows()) {
       const stableRows = getStableDashboardRows();
       activitySummaryRows = stableRows.slice();
@@ -1096,19 +1124,24 @@ const processRows = (rawRows, sourceName = "web app") => {
   }
 
   const rows = extractDashboardRows(rawRows);
-  if (!rows.length && hasStableDashboardRows()) {
-    const stableRows = getStableDashboardRows();
-    activitySummaryRows = stableRows.slice();
-    syncFilterOptionsFromRows(activitySummaryRows);
-    applyFiltersAndRender();
-    showMessage(
-      `Live source returned an empty parsed result from ${sourceName}. Keeping the last stable ${activitySummaryRows.length} activity row(s) visible.`,
-      true
-    );
-    return;
-  }
-
   if (!rows.length) {
+    if (acceptEmpty) {
+      resetDashboardToEmptySource(sourceName, generatedAt);
+      return;
+    }
+
+    if (hasStableDashboardRows()) {
+      const stableRows = getStableDashboardRows();
+      activitySummaryRows = stableRows.slice();
+      syncFilterOptionsFromRows(activitySummaryRows);
+      applyFiltersAndRender();
+      showMessage(
+        `Live source returned an empty parsed result from ${sourceName}. Keeping the last stable ${activitySummaryRows.length} activity row(s) visible.`,
+        true
+      );
+      return;
+    }
+
     processRows([], sourceName);
     return;
   }
@@ -1121,20 +1154,20 @@ const processRows = (rawRows, sourceName = "web app") => {
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
     rememberStableDashboardRows(rows, sourceName);
-    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, rows }));
-    updateDashboardSyncedAt();
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, generatedAt, rows }));
+    updateDashboardSyncedAt(generatedAt);
     showMessage(`Dashboard data is already up to date from ${sourceName}.`);
     return;
   }
 
   latestDashboardSignature = nextSignature;
   rememberStableDashboardRows(rows, sourceName);
-  localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, rows }));
+  localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, generatedAt, rows }));
   activitySummaryRows = rows;
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
 
-  updateDashboardSyncedAt();
+  updateDashboardSyncedAt(generatedAt);
   showMessage(`Loaded ${rows.length} activity row(s) from ${sourceName}. Charts refreshed.`);
 };
 
@@ -1456,14 +1489,16 @@ const hydrateDashboardFromCache = () => {
     const rows = Array.isArray(parsedCache) ? parsedCache : parsedCache?.rows;
     const savedAt = Array.isArray(parsedCache) ? 0 : Number(parsedCache?.savedAt || 0);
     const sourceName = Array.isArray(parsedCache) ? "saved dashboard cache" : parsedCache?.sourceName || "saved dashboard cache";
+    const generatedAt = Array.isArray(parsedCache) ? "" : parsedCache?.generatedAt || "";
     if (!Array.isArray(rows) || !rows.length) return false;
     const cacheIsStale = savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS;
     latestDashboardSignature = JSON.stringify(rows);
     activitySummaryRows = rows.slice();
     lastStableDashboardRows = rows.slice();
-      lastStableDashboardSavedAt = savedAt || Date.now();
+    lastStableDashboardSavedAt = savedAt || Date.now();
     syncFilterOptionsFromRows(rows);
     applyFiltersAndRender();
+    updateDashboardSyncedAt(generatedAt || savedAt);
     showMessage(
       cacheIsStale
         ? `Showing the last saved ${rows.length} dashboard row(s) while refreshing live data...`
@@ -1495,7 +1530,10 @@ const hydrateDashboardFromLocalCostData = () => {
 const warmStartDashboardData = () => hydrateDashboardFromLocalCostData() || hydrateDashboardFromCache();
 
 const refreshDashboardData = async ({ force = false } = {}) => {
-  if (isDashboardFetchInFlight) return;
+  if (isDashboardFetchInFlight) {
+    pendingDashboardRefreshRequested = force || pendingDashboardRefreshRequested;
+    return;
+  }
 
   isDashboardFetchInFlight = true;
   try {
@@ -1529,14 +1567,16 @@ const refreshDashboardData = async ({ force = false } = {}) => {
 
     if (typeof window.DataBridge.fetchDashboardBundleFromSource === "function") {
       try {
-        const { activities, costs, dailyCosts, dashboardRows, sourceName } = await window.DataBridge.fetchDashboardBundleFromSource(
+        const { activities, costs, dailyCosts, dashboardRows, sourceName, generatedAt } = await window.DataBridge.fetchDashboardBundleFromSource(
           DATA_SOURCE_URL
         );
         const bundleRows = buildRowsFromActivitiesAndCosts(activities, costs, dailyCosts);
         const sourceRows = bundleRows.length ? bundleRows : dashboardRows;
-        if (sourceRows.length) {
-          const enrichedBundleRows = mergeRemoteRowsWithCostManagementActuals(sourceRows, localRows);
-          processRows(enrichedBundleRows, sourceName);
+        if (Array.isArray(sourceRows)) {
+          const enrichedBundleRows = sourceRows.length
+            ? mergeRemoteRowsWithCostManagementActuals(sourceRows, localRows)
+            : sourceRows;
+          processRows(enrichedBundleRows, sourceName, { acceptEmpty: true, generatedAt });
           return;
         }
       } catch (bundleError) {
@@ -1544,17 +1584,17 @@ const refreshDashboardData = async ({ force = false } = {}) => {
       }
     }
 
-    const { rows, sourceName } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
+    const { rows, sourceName, generatedAt } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
 
-    if (Array.isArray(rows) && rows.length) {
-      const enrichedRows = mergeRemoteRowsWithCostManagementActuals(rows, localRows);
-      processRows(enrichedRows, sourceName);
+    if (Array.isArray(rows)) {
+      const enrichedRows = rows.length ? mergeRemoteRowsWithCostManagementActuals(rows, localRows) : rows;
+      processRows(enrichedRows, sourceName, { acceptEmpty: true, generatedAt });
       return;
     }
 
     if (localRows.length) {
       processRows(localRows, "Cost Management local storage");
-      showMessage("Live source returned no rows. Showing Cost Management local data without clearing the dashboard.");
+      showMessage("Live source did not return a row array. Showing Cost Management local data without clearing the dashboard.");
     } else {
       processRows([], sourceName);
     }
@@ -1577,6 +1617,10 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     }
   } finally {
     isDashboardFetchInFlight = false;
+    if (pendingDashboardRefreshRequested) {
+      pendingDashboardRefreshRequested = false;
+      setTimeout(() => refreshDashboardData({ force: true }), 0);
+    }
   }
 };
 

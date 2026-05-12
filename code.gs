@@ -812,7 +812,9 @@ function handleRequest(payload) {
       ),
     };
 
+    SpreadsheetApp.flush();
     const allData = loadDataByResource(resource);
+    SpreadsheetApp.flush();
     const filtered = applyProjectFilter(allData, projectFilter);
 
     const payloadByResource = {
