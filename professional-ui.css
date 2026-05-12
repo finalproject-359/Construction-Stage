@@ -308,8 +308,9 @@ tbody tr:hover {
 }
 
 
-/* Dark construction hero treatment for the Activities project-selection page. */
-body.page-activities .activities-topbar.page-hero {
+/* Dark construction hero treatment for Activities and Projects page heroes. */
+body.page-activities .activities-topbar.page-hero,
+body.page-projects .projects-topbar.page-hero {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
@@ -325,7 +326,8 @@ body.page-activities .activities-topbar.page-hero {
   box-shadow: 0 22px 55px rgba(15, 23, 42, 0.16);
 }
 
-body.page-activities .activities-topbar.page-hero::after {
+body.page-activities .activities-topbar.page-hero::after,
+body.page-projects .projects-topbar.page-hero::after {
   content: "";
   position: absolute;
   inset: auto -90px -120px auto;
@@ -336,12 +338,15 @@ body.page-activities .activities-topbar.page-hero::after {
 }
 
 body.page-activities .activities-topbar.page-hero .page-hero-copy,
-body.page-activities .activities-topbar.page-hero .page-hero-panel {
+body.page-activities .activities-topbar.page-hero .page-hero-panel,
+body.page-projects .projects-topbar.page-hero .page-hero-copy,
+body.page-projects .projects-topbar.page-hero .page-hero-panel {
   position: relative;
   z-index: 1;
 }
 
-body.page-activities .activities-topbar.page-hero .page-eyebrow {
+body.page-activities .activities-topbar.page-hero .page-eyebrow,
+body.page-projects .projects-topbar.page-hero .page-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -354,12 +359,14 @@ body.page-activities .activities-topbar.page-hero .page-eyebrow {
   text-transform: uppercase;
 }
 
-body.page-activities .activities-topbar.page-hero .page-eyebrow::before {
+body.page-activities .activities-topbar.page-hero .page-eyebrow::before,
+body.page-projects .projects-topbar.page-hero .page-eyebrow::before {
   background: #fff;
   box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.14);
 }
 
-body.page-activities .activities-topbar.page-hero h1 {
+body.page-activities .activities-topbar.page-hero h1,
+body.page-projects .projects-topbar.page-hero h1 {
   margin: 0;
   color: #fff;
   font-size: clamp(2rem, 4vw, 3.25rem);
@@ -367,7 +374,8 @@ body.page-activities .activities-topbar.page-hero h1 {
   letter-spacing: -0.045em;
 }
 
-body.page-activities .activities-topbar.page-hero .activities-subtitle {
+body.page-activities .activities-topbar.page-hero .activities-subtitle,
+body.page-projects .projects-topbar.page-hero .projects-subtitle {
   max-width: 760px;
   margin: 12px 0 0;
   color: #e6edff;
@@ -375,14 +383,16 @@ body.page-activities .activities-topbar.page-hero .activities-subtitle {
   line-height: 1.65;
 }
 
-body.page-activities .activities-topbar.page-hero .page-hero-steps {
+body.page-activities .activities-topbar.page-hero .page-hero-steps,
+body.page-projects .projects-topbar.page-hero .page-hero-steps {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 22px;
 }
 
-body.page-activities .activities-topbar.page-hero .page-hero-steps span {
+body.page-activities .activities-topbar.page-hero .page-hero-steps span,
+body.page-projects .projects-topbar.page-hero .page-hero-steps span {
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -394,7 +404,8 @@ body.page-activities .activities-topbar.page-hero .page-hero-steps span {
   font-weight: 700;
 }
 
-body.page-activities .activities-topbar.page-hero .page-hero-steps strong {
+body.page-activities .activities-topbar.page-hero .page-hero-steps strong,
+body.page-projects .projects-topbar.page-hero .page-hero-steps strong {
   display: grid;
   place-items: center;
   width: 24px;
@@ -405,7 +416,8 @@ body.page-activities .activities-topbar.page-hero .page-hero-steps strong {
   font-size: 0.82rem;
 }
 
-body.page-activities .activities-topbar.page-hero .page-hero-panel {
+body.page-activities .activities-topbar.page-hero .page-hero-panel,
+body.page-projects .projects-topbar.page-hero .page-hero-panel {
   align-self: stretch;
   display: grid;
   gap: 12px;
@@ -419,13 +431,15 @@ body.page-activities .activities-topbar.page-hero .page-hero-panel {
   box-shadow: none;
 }
 
-body.page-activities .activities-topbar.page-hero .page-hero-panel div {
+body.page-activities .activities-topbar.page-hero .page-hero-panel div,
+body.page-projects .projects-topbar.page-hero .page-hero-panel div {
   padding: 14px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.12);
 }
 
-body.page-activities .activities-topbar.page-hero .page-hero-panel span {
+body.page-activities .activities-topbar.page-hero .page-hero-panel span,
+body.page-projects .projects-topbar.page-hero .page-hero-panel span {
   display: block;
   margin-bottom: 5px;
   color: #bfd0ff;
@@ -435,7 +449,8 @@ body.page-activities .activities-topbar.page-hero .page-hero-panel span {
   text-transform: uppercase;
 }
 
-body.page-activities .activities-topbar.page-hero .page-hero-panel strong {
+body.page-activities .activities-topbar.page-hero .page-hero-panel strong,
+body.page-projects .projects-topbar.page-hero .page-hero-panel strong {
   display: block;
   margin: 0;
   color: #fff;
@@ -443,13 +458,15 @@ body.page-activities .activities-topbar.page-hero .page-hero-panel strong {
 }
 
 @media (max-width: 900px) {
-  body.page-activities .activities-topbar.page-hero {
+  body.page-activities .activities-topbar.page-hero,
+  body.page-projects .projects-topbar.page-hero {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 640px) {
-  body.page-activities .activities-topbar.page-hero .page-hero-steps {
+  body.page-activities .activities-topbar.page-hero .page-hero-steps,
+  body.page-projects .projects-topbar.page-hero .page-hero-steps {
     display: grid;
   }
 }
