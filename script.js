@@ -29,8 +29,6 @@ const activeProjectCountEl = document.getElementById("activeProjectCount");
 const dashboardRiskLevelEl = document.getElementById("dashboardRiskLevel");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
-const USE_COST_MANAGEMENT_ONLY = false;
-
 const chartDependencyWarning =
   typeof window.Chart === "undefined"
     ? "Chart.js is not available. Graphs are disabled."
@@ -44,11 +42,6 @@ let latestDashboardSignature = "";
 let lastStableDashboardRows = [];
 let lastStableDashboardSavedAt = 0;
 
-const DASHBOARD_CACHE_KEY = "constructionStageDashboardRows";
-const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
-const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
-const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
-const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
 const DASHBOARD_REFRESH_INTERVAL_MS = 5 * 1000;
 let dashboardRefreshTimer = null;
 let pendingDashboardRefreshRequested = false;
@@ -1079,7 +1072,6 @@ const resetDashboardToEmptySource = (sourceName = "live source", generatedAt = "
   activitySummaryRows = [];
   lastStableDashboardRows = [];
   latestDashboardSignature = "";
-  localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), sourceName, generatedAt, rows: [] }));
   renderKpis({ planned: 0, actual: 0, cv: 0 });
   renderProgressKpis({ physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 }, { planned: 0, actual: 0, ev: 0, cv: 0 });
   updateDashboardSummary([], { planned: 0, actual: 0, ev: 0, cv: 0 }, { physicalProgressPercent: 0, costSpentPercent: 0, efficiencyGapPercent: 0 });
@@ -1151,15 +1143,14 @@ const processRows = (rawRows, sourceName = "web app", { acceptEmpty = false, gen
     return;
   }
 
-  // Accept the latest successful live payload even when it contains fewer rows
-  // than the previous dashboard state. Projects, activities, or costs can be
-  // legitimately archived/deleted in the source sheet, and blocking smaller
-  // payloads keeps stale cache data visible instead of the real current data.
+  // Accept the latest successful Google Sheets payload even when it contains
+  // fewer rows than the previous dashboard state. Projects, activities, or costs
+  // can be legitimately archived/deleted in the source sheet, and blocking
+  // smaller payloads would keep stale rows visible instead of current data.
 
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
     rememberStableDashboardRows(rows, sourceName);
-    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, generatedAt, rows }));
     updateDashboardSyncedAt(generatedAt);
     showMessage(`Dashboard data is already up to date from ${sourceName}.`);
     return;
@@ -1167,7 +1158,6 @@ const processRows = (rawRows, sourceName = "web app", { acceptEmpty = false, gen
 
   latestDashboardSignature = nextSignature;
   rememberStableDashboardRows(rows, sourceName);
-  localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({ savedAt: lastStableDashboardSavedAt, sourceName, generatedAt, rows }));
   activitySummaryRows = rows;
   syncFilterOptionsFromRows(rows);
   applyFiltersAndRender();
@@ -1185,127 +1175,6 @@ const processActivitySummaryRows = (rawRows) => {
 
   activitySummaryRows = extractDashboardRows(rawRows);
   applyFiltersAndRender();
-};
-
-const loadRowsFromCostManagementLocalData = () => {
-  const safeParseArray = (raw) => {
-    try {
-      const parsed = JSON.parse(raw || "[]");
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const activities = safeParseArray(localStorage.getItem(COST_ACTIVITIES_LOCAL_STORAGE_KEY));
-  const legacyActivities = safeParseArray(localStorage.getItem(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY));
-  const mergedActivities = activities.length ? activities : legacyActivities;
-  if (!mergedActivities.length) return [];
-  const dailyCosts = safeParseArray(localStorage.getItem(DAILY_COSTS_LOCAL_STORAGE_KEY));
-
-  const createEmptyDailyTotals = () => ({ actualCost: 0, earnedValue: 0, progress: 0, count: 0 });
-  const addDailyTotals = (map, key, item) => {
-    if (!key || key === "::") return;
-    const existing = map.get(key) || createEmptyDailyTotals();
-    existing.actualCost += parseNumber(item?.actualCost || item?.actual_cost || item?.amount);
-    existing.earnedValue += parseNumber(item?.earnedValue || item?.earned_value || item?.ev);
-    existing.progress += normalizeProgressPercent(item?.progress || item?.progressPercent || item?.percentComplete);
-    existing.count += 1;
-    map.set(key, existing);
-  };
-
-  const dailyTotalsByCompositeKey = dailyCosts.reduce((map, item) => {
-    const projectId = String(item?.projectId || item?.project_id || "").trim();
-    const activityId = String(item?.activityId || item?.activity_id || "").trim();
-    const costId = String(item?.costId || item?.cost_id || "").trim();
-    const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
-    const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
-    if (!projectId || (!activityId && !costId)) return map;
-    addDailyTotals(map, compositeKey, item);
-    if (activityFallbackKey !== compositeKey) addDailyTotals(map, activityFallbackKey, item);
-    return map;
-  }, new Map());
-
-  return mergedActivities.map((activity) => {
-    const activityId = String(activity?.activityRefId || activity?.activityId || activity?.id || "").trim();
-    const costId = String(activity?.costId || activity?.cost_id || "").trim();
-    const projectId = String(activity?.projectId || "").trim();
-    const projectName = String(activity?.projectName || activity?.project || "").trim();
-    const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
-    const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
-    const dailyTotals = dailyTotalsByCompositeKey.get(compositeKey) || dailyTotalsByCompositeKey.get(activityFallbackKey) || createEmptyDailyTotals();
-    const plannedCost = parseNumber(activity?.plannedCost);
-    const durationDays = Math.max(0, parseNumber(activity?.durationDays || activity?.duration));
-    const plannedCostPerDay = plannedCost > 0 && durationDays > 0 ? plannedCost / durationDays : 0;
-    const progress = dailyTotals.count ? Math.min(100, dailyTotals.progress) : normalizeProgressPercent(activity?.progressPercent);
-    const earnedValueFromDailyProgress = plannedCostPerDay * (progress / 100);
-    const earnedValue = dailyTotals.count && dailyTotals.earnedValue
-      ? dailyTotals.earnedValue
-      : parseNumber(activity?.earnedValue) || (dailyTotals.count ? earnedValueFromDailyProgress : plannedCost * (progress / 100));
-
-    return {
-      "Project ID": projectId,
-      "Project Name": projectName,
-      "Activity ID": activityId,
-      "Cost ID": costId,
-      Activity: String(activity?.name || activity?.activity || (activityId ? `Activity ${activityId}` : costId ? `Cost ${costId}` : "Unnamed Activity")).trim(),
-      "Planned Cost": plannedCost,
-      "Actual Cost": dailyTotals.count ? dailyTotals.actualCost : parseNumber(activity?.actualCost),
-      "Progress": progress,
-      "Earned Value": earnedValue,
-      __hasActualCost: dailyTotals.count > 0 || parseNumber(activity?.actualCost) > 0,
-      __hasDailyCostTotals: dailyTotals.count > 0,
-    };
-  });
-};
-
-const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
-  if (!Array.isArray(remoteRows) || !remoteRows.length) return [];
-  if (!Array.isArray(localRows) || !localRows.length) return remoteRows;
-
-  const localByCompositeKey = new Map();
-  const localByProjectActivityKey = new Map();
-  localRows.forEach((row) => {
-    const projectId = String(row?.["Project ID"] || "").trim();
-    const activityId = String(row?.["Activity ID"] || "").trim();
-    const costId = String(row?.["Cost ID"] || "").trim();
-    const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
-    const projectActivityKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
-    if (projectId && (activityId || costId)) localByCompositeKey.set(compositeKey, row);
-    if (projectId && activityId && !localByProjectActivityKey.has(projectActivityKey)) {
-      localByProjectActivityKey.set(projectActivityKey, row);
-    }
-  });
-
-  return remoteRows.map((row) => {
-    const projectId = String(getCell(row, ["project id", "project code", "projectid", "code"]) || "").trim();
-    const activityId = String(
-      getCell(row, ["activity id", "id", "activity code", "wbs", "task id"]) || ""
-    ).trim();
-    const costId = String(getCell(row, ["cost id", "cost code", "cost_id", "costid"]) || "").trim();
-    const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
-    const projectActivityKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
-    const local = localByCompositeKey.get(compositeKey) || localByProjectActivityKey.get(projectActivityKey);
-    if (!local) return row;
-
-    const remoteActualCost = parseNumber(firstNonEmptyCell(row, ["actual cost", "actualCost", "actual_cost", "actual cost/day", "total spent", "ac", "actual"], 0));
-    const localActualCost = parseNumber(local?.["Actual Cost"]);
-    const localEarnedValue = parseNumber(local?.["Earned Value"]);
-    const localProgress = normalizeProgressPercent(local?.Progress);
-    const localHasActualCost = Boolean(local?.__hasActualCost) || localActualCost > 0;
-    const localHasDailyTotals = Boolean(local?.__hasDailyCostTotals);
-
-    return {
-      ...row,
-      "Actual Cost": localHasActualCost ? localActualCost : remoteActualCost,
-      "Progress": localHasDailyTotals ? localProgress : getCell(row, ["progress", "percent complete", "percentComplete", "progress %", "% complete"]),
-      "Earned Value": localHasDailyTotals && localEarnedValue ? localEarnedValue : getCell(row, ["earned value", "earnedValue", "earned_value", "ev"]),
-      "Project ID": local?.["Project ID"] || projectId,
-      "Project Name": local?.["Project Name"] || getCell(row, ["project name", "project", "project title"]) || "",
-      "Activity ID": local?.["Activity ID"] || activityId,
-      "Cost ID": local?.["Cost ID"] || costId,
-    };
-  });
 };
 
 const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => {
@@ -1485,55 +1354,6 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
   return rows;
 };
 
-const hydrateDashboardFromCache = () => {
-  const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-  if (!cached) return false;
-
-  try {
-    const parsedCache = JSON.parse(cached);
-    const rows = Array.isArray(parsedCache) ? parsedCache : parsedCache?.rows;
-    const savedAt = Array.isArray(parsedCache) ? 0 : Number(parsedCache?.savedAt || 0);
-    const sourceName = Array.isArray(parsedCache) ? "saved dashboard cache" : parsedCache?.sourceName || "saved dashboard cache";
-    const generatedAt = Array.isArray(parsedCache) ? "" : parsedCache?.generatedAt || "";
-    if (!Array.isArray(rows) || !rows.length) return false;
-    const cacheIsStale = savedAt && Date.now() - savedAt > DASHBOARD_CACHE_TTL_MS;
-    latestDashboardSignature = JSON.stringify(rows);
-    activitySummaryRows = rows.slice();
-    lastStableDashboardRows = rows.slice();
-    lastStableDashboardSavedAt = savedAt || Date.now();
-    syncFilterOptionsFromRows(rows);
-    applyFiltersAndRender();
-    updateDashboardSyncedAt(generatedAt || savedAt);
-    showMessage(
-      cacheIsStale
-        ? `Showing the last saved ${rows.length} dashboard row(s) while refreshing live data...`
-        : `Loaded ${rows.length} cached activity row(s). Verifying against live source now...`
-    );
-    return true;
-  } catch {
-    localStorage.removeItem(DASHBOARD_CACHE_KEY);
-    return false;
-  }
-};
-
-const hydrateDashboardFromLocalCostData = () => {
-  const localRows = loadRowsFromCostManagementLocalData();
-  if (!localRows.length) return false;
-
-  const rows = extractDashboardRows(localRows);
-  if (!rows.length) return false;
-
-  latestDashboardSignature = JSON.stringify(rows);
-  rememberStableDashboardRows(rows, "Cost Management local storage");
-  activitySummaryRows = rows.slice();
-  syncFilterOptionsFromRows(rows);
-  applyFiltersAndRender();
-  showMessage(`Showing ${rows.length} Cost Management row(s) while refreshing live data...`);
-  return true;
-};
-
-const warmStartDashboardData = () => hydrateDashboardFromLocalCostData() || hydrateDashboardFromCache();
-
 const refreshDashboardData = async ({ force = false } = {}) => {
   if (isDashboardFetchInFlight) {
     pendingDashboardRefreshRequested = force || pendingDashboardRefreshRequested;
@@ -1542,26 +1362,9 @@ const refreshDashboardData = async ({ force = false } = {}) => {
 
   isDashboardFetchInFlight = true;
   try {
-    const localRows = loadRowsFromCostManagementLocalData();
-
-    if (USE_COST_MANAGEMENT_ONLY) {
-      if (localRows.length) {
-        processRows(localRows, "Cost Management local storage");
-        showMessage("Connected to Cost Management local data only.");
-      } else {
-        showMessage("No Cost Management local data found yet.", true);
-      }
-      return;
-    }
-
     if (!DATA_SOURCE_URL.trim()) {
-      if (localRows.length) {
-        processRows(localRows, "Cost Management local storage");
-        showMessage("Using Cost Management local data because no live data source URL is configured.");
-      } else {
-        processRows([], "local storage");
-        showMessage("No dashboard data source URL configured and no local Cost Management data found.", true);
-      }
+      processRows([], "Google Sheets");
+      showMessage("No Google Sheets data source URL configured. Dashboard is not connected to local data.", true);
       return;
     }
 
@@ -1578,10 +1381,7 @@ const refreshDashboardData = async ({ force = false } = {}) => {
         const bundleRows = buildRowsFromActivitiesAndCosts(activities, costs, dailyCosts);
         const sourceRows = bundleRows.length ? bundleRows : dashboardRows;
         if (Array.isArray(sourceRows)) {
-          const enrichedBundleRows = sourceRows.length
-            ? mergeRemoteRowsWithCostManagementActuals(sourceRows, localRows)
-            : sourceRows;
-          processRows(enrichedBundleRows, sourceName, { acceptEmpty: true, generatedAt });
+          processRows(sourceRows, sourceName, { acceptEmpty: true, generatedAt });
           return;
         }
       } catch (bundleError) {
@@ -1592,33 +1392,23 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     const { rows, sourceName, generatedAt } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
 
     if (Array.isArray(rows)) {
-      const enrichedRows = rows.length ? mergeRemoteRowsWithCostManagementActuals(rows, localRows) : rows;
-      processRows(enrichedRows, sourceName, { acceptEmpty: true, generatedAt });
+      processRows(rows, sourceName, { acceptEmpty: true, generatedAt });
       return;
     }
 
-    if (localRows.length) {
-      processRows(localRows, "Cost Management local storage");
-      showMessage("Live source did not return a row array. Showing Cost Management local data without clearing the dashboard.");
-    } else {
-      processRows([], sourceName);
-    }
+    processRows([], sourceName || "Google Sheets", { acceptEmpty: true, generatedAt });
   } catch (error) {
-    const localRows = loadRowsFromCostManagementLocalData();
-    if (localRows.length) {
-      processRows(localRows, "Cost Management local storage");
-      showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
-    } else if (hasStableDashboardRows()) {
+    if (hasStableDashboardRows()) {
       const stableRows = getStableDashboardRows();
       activitySummaryRows = stableRows.slice();
       syncFilterOptionsFromRows(activitySummaryRows);
       applyFiltersAndRender();
       const dashboardErrorMessage = getDashboardErrorMessage(error);
       showMessage(
-        `Live source is still catching up (${dashboardErrorMessage}). Keeping the last stable dashboard data visible.`
+        `Google Sheets is still catching up (${dashboardErrorMessage}). Keeping the last stable live dashboard data visible.`
       );
     } else {
-      showMessage(`Error loading data source: ${getDashboardErrorMessage(error)}`, true);
+      showMessage(`Error loading Google Sheets data source: ${getDashboardErrorMessage(error)}`, true);
     }
   } finally {
     isDashboardFetchInFlight = false;
@@ -1716,15 +1506,6 @@ const setupDashboardRealtimeSync = () => {
   window.addEventListener("focus", () => refreshDashboardIfVisible({ force: true }));
   window.addEventListener("online", () => refreshDashboardIfVisible({ force: true }));
   window.addEventListener("pageshow", () => refreshDashboardIfVisible({ force: true }));
-  window.addEventListener("cost-management:data-loaded", () => refreshDashboardIfVisible({ force: true }));
-  window.addEventListener("storage", (event) => {
-    const realtimeKeys = new Set([
-      COST_ACTIVITIES_LOCAL_STORAGE_KEY,
-      LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY,
-      DAILY_COSTS_LOCAL_STORAGE_KEY,
-    ]);
-    if (realtimeKeys.has(event.key)) refreshDashboardIfVisible({ force: true });
-  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       refreshDashboardIfVisible({ force: true });
@@ -1733,6 +1514,5 @@ const setupDashboardRealtimeSync = () => {
 };
 
 setupServiceWorkerUpdates();
-warmStartDashboardData();
 refreshDashboardIfVisible({ force: true });
 setupDashboardRealtimeSync();
