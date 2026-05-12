@@ -410,9 +410,25 @@ body.page-activities .activities-date-btn:hover {
 }
 
 .activities-project-card-type {
+  display: grid;
+  gap: 4px;
   color: #475467;
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+.activities-project-card-type-label {
+  color: #667085;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.activities-project-card-type-value {
+  color: #0d2f63;
+  font-size: 0.88rem;
+  font-weight: 900;
 }
 
 .activities-project-card-action-row {
@@ -451,6 +467,20 @@ body.page-activities .activities-date-btn:hover {
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+
+body.page-activities .activities-project-empty-advisory {
+  border-color: #dbe5f3;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(47, 85, 255, 0.06), transparent 38%),
+    #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+body.page-activities .activities-project-empty-advisory-icon {
+  color: #5b78ac;
+  background: #eef4ff;
 }
 
 body.page-activities .activities-kpi-card {

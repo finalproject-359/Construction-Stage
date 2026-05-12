@@ -200,18 +200,18 @@ const normalizeProject = (project = {}) => {
   const id = getValueByAliases(project, ["id", "projectId", "project_id", "code", "projectCode", "project_code"]);
   const name = getValueByAliases(project, ["name", "project", "projectName", "project_name"]);
   const code = getValueByAliases(project, ["code", "projectCode", "project_code"]);
-  const location = getValueByAliases(project, ["location", "site", "address"]);
+  const location = getValueByAliases(project, ["location", "projectLocation", "project_location", "site", "address"]);
   const type = getValueByAliases(project, ["type", "projectType", "project_type"]);
   const status = getValueByAliases(project, ["status", "projectStatus", "project_status"]);
-  const startDateRaw = getValueByAliases(project, ["startDate", "plannedStart", "planned_start"]);
-  const endDateRaw = getValueByAliases(project, ["endDate", "plannedFinish", "planned_finish"]);
+  const startDateRaw = getValueByAliases(project, ["startDate", "start_date", "plannedStart", "planned_start"]);
+  const endDateRaw = getValueByAliases(project, ["finishDate", "finish_date", "targetFinish", "target_finish", "endDate", "end_date", "plannedFinish", "planned_finish"]);
 
   return {
     id: String(id || code || name || "").trim(),
     name: name || "Untitled Project",
     code: code || "",
     location: location || "",
-    type: type || "General",
+    type: String(type || "").trim(),
     status: status || "Not Started",
     startDate: parseDateValue(startDateRaw),
     endDate: parseDateValue(endDateRaw),
@@ -869,10 +869,8 @@ const deriveProjectStatus = (projectActivities = []) => {
   return "Not Started";
 };
 
-const deriveProjectType = (projectActivities = []) => {
-  const firstType = projectActivities.find((item) => item.type && item.type !== "-")?.type;
-  return firstType || "General";
-};
+const getProjectTypeDisplay = (project = {}) =>
+  String(project.type || "").trim() || "Project type not set";
 
 const isArchivedProject = (project = {}) =>
   String(project.status || "").trim().toLowerCase() === "archived";
@@ -905,7 +903,7 @@ const buildProjectSummaries = () => {
         name: activity.project,
         code: "",
         location: "",
-        type: "General",
+        type: "",
         status: "Not Started",
         startDate: null,
         endDate: null,
@@ -929,7 +927,7 @@ const buildProjectSummaries = () => {
         name: summary.name,
         code: summary.code,
         location: summary.location,
-        type: projectActivities.length ? deriveProjectType(projectActivities) : summary.type,
+        type: summary.type,
         status: projectActivities.length ? deriveProjectStatus(projectActivities) : summary.status,
         startDate: activityStartDate || summary.startDate,
         endDate: activityEndDate || summary.endDate,
@@ -1071,6 +1069,7 @@ const renderProjectPicker = () => {
 
       const startDate = toDisplayDate(project.startDate);
       const endDate = toDisplayDate(project.endDate);
+      const projectType = getProjectTypeDisplay(project);
 
       return `
         <button type="button" class="activities-project-picker-card" data-project-id="${encodeURIComponent(project.id || "")}" data-project="${encodeURIComponent(project.name)}">
@@ -1097,7 +1096,10 @@ const renderProjectPicker = () => {
             </span>
           </span>
           <span class="activities-project-card-footer">
-            <span class="activities-project-card-type">${escapeHtml(project.type || "General")}</span>
+            <span class="activities-project-card-type">
+              <span class="activities-project-card-type-label">Project Type</span>
+              <span class="activities-project-card-type-value">${escapeHtml(projectType)}</span>
+            </span>
             <span class="activities-project-card-action-row">
               <span class="badge ${getProjectStatusBadgeClass(project.status)}">${escapeHtml(project.status || "Not Started")}</span>
               <span class="activities-project-card-open">Open activities
