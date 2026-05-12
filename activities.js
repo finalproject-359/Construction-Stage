@@ -1522,7 +1522,14 @@ if (activitiesProjectPickerGrid) {
 }
 
 const handleBackToProjects = () => {
-  window.location.href = "projects.html";
+  state.selectedProject = null;
+  state.selectedProjectId = null;
+  state.currentPage = 1;
+  closeActivityActionMenus();
+  updateActivitiesUrlParams({ project: null });
+  closeProjectDateRangePanel();
+  applyFilters();
+  activitiesProjectSelection?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
 if (activitiesBackToProjectsBtn) {
