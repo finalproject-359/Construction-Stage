@@ -1156,17 +1156,26 @@ const loadRowsFromCostManagementLocalData = () => {
   if (!mergedActivities.length) return [];
   const dailyCosts = safeParseArray(localStorage.getItem(DAILY_COSTS_LOCAL_STORAGE_KEY));
 
-  const actualCostByCompositeKey = dailyCosts.reduce((map, item) => {
+  const createEmptyDailyTotals = () => ({ actualCost: 0, earnedValue: 0, progress: 0, count: 0 });
+  const addDailyTotals = (map, key, item) => {
+    if (!key || key === "::") return;
+    const existing = map.get(key) || createEmptyDailyTotals();
+    existing.actualCost += parseNumber(item?.actualCost || item?.actual_cost || item?.amount);
+    existing.earnedValue += parseNumber(item?.earnedValue || item?.earned_value || item?.ev);
+    existing.progress += normalizeProgressPercent(item?.progress || item?.progressPercent || item?.percentComplete);
+    existing.count += 1;
+    map.set(key, existing);
+  };
+
+  const dailyTotalsByCompositeKey = dailyCosts.reduce((map, item) => {
     const projectId = String(item?.projectId || item?.project_id || "").trim();
     const activityId = String(item?.activityId || item?.activity_id || "").trim();
     const costId = String(item?.costId || item?.cost_id || "").trim();
     const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
     const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
     if (!projectId || (!activityId && !costId)) return map;
-    map.set(compositeKey, (map.get(compositeKey) || 0) + parseNumber(item?.actualCost));
-    if (activityFallbackKey !== compositeKey) {
-      map.set(activityFallbackKey, (map.get(activityFallbackKey) || 0) + parseNumber(item?.actualCost));
-    }
+    addDailyTotals(map, compositeKey, item);
+    if (activityFallbackKey !== compositeKey) addDailyTotals(map, activityFallbackKey, item);
     return map;
   }, new Map());
 
@@ -1177,20 +1186,28 @@ const loadRowsFromCostManagementLocalData = () => {
     const projectName = String(activity?.projectName || activity?.project || "").trim();
     const compositeKey = makeDashboardCompositeKey({ projectId, activityId, costId });
     const activityFallbackKey = makeDashboardCompositeKey({ projectId, activityId, costId: "" });
-    const hasActualCost = actualCostByCompositeKey.has(compositeKey) || actualCostByCompositeKey.has(activityFallbackKey);
-    const actualCost = hasActualCost
-      ? actualCostByCompositeKey.get(compositeKey) || actualCostByCompositeKey.get(activityFallbackKey) || 0
-      : 0;
+    const dailyTotals = dailyTotalsByCompositeKey.get(compositeKey) || dailyTotalsByCompositeKey.get(activityFallbackKey) || createEmptyDailyTotals();
+    const plannedCost = parseNumber(activity?.plannedCost);
+    const durationDays = Math.max(0, parseNumber(activity?.durationDays || activity?.duration));
+    const plannedCostPerDay = plannedCost > 0 && durationDays > 0 ? plannedCost / durationDays : 0;
+    const progress = dailyTotals.count ? Math.min(100, dailyTotals.progress) : normalizeProgressPercent(activity?.progressPercent);
+    const earnedValueFromDailyProgress = plannedCostPerDay * (progress / 100);
+    const earnedValue = dailyTotals.count && dailyTotals.earnedValue
+      ? dailyTotals.earnedValue
+      : parseNumber(activity?.earnedValue) || (dailyTotals.count ? earnedValueFromDailyProgress : plannedCost * (progress / 100));
+
     return {
       "Project ID": projectId,
       "Project Name": projectName,
       "Activity ID": activityId,
       "Cost ID": costId,
       Activity: String(activity?.name || activity?.activity || (activityId ? `Activity ${activityId}` : costId ? `Cost ${costId}` : "Unnamed Activity")).trim(),
-      "Planned Cost": parseNumber(activity?.plannedCost),
-      "Actual Cost": actualCost,
-      "Progress": parseNumber(activity?.progressPercent),
-      __hasActualCost: hasActualCost,
+      "Planned Cost": plannedCost,
+      "Actual Cost": dailyTotals.count ? dailyTotals.actualCost : parseNumber(activity?.actualCost),
+      "Progress": progress,
+      "Earned Value": earnedValue,
+      __hasActualCost: dailyTotals.count > 0 || parseNumber(activity?.actualCost) > 0,
+      __hasDailyCostTotals: dailyTotals.count > 0,
     };
   });
 };
@@ -1226,11 +1243,16 @@ const mergeRemoteRowsWithCostManagementActuals = (remoteRows, localRows) => {
 
     const remoteActualCost = parseNumber(firstNonEmptyCell(row, ["actual cost", "actualCost", "actual_cost", "actual cost/day", "total spent", "ac", "actual"], 0));
     const localActualCost = parseNumber(local?.["Actual Cost"]);
+    const localEarnedValue = parseNumber(local?.["Earned Value"]);
+    const localProgress = normalizeProgressPercent(local?.Progress);
     const localHasActualCost = Boolean(local?.__hasActualCost) || localActualCost > 0;
+    const localHasDailyTotals = Boolean(local?.__hasDailyCostTotals);
 
     return {
       ...row,
       "Actual Cost": localHasActualCost ? localActualCost : remoteActualCost,
+      "Progress": localHasDailyTotals ? localProgress : getCell(row, ["progress", "percent complete", "percentComplete", "progress %", "% complete"]),
+      "Earned Value": localHasDailyTotals && localEarnedValue ? localEarnedValue : getCell(row, ["earned value", "earnedValue", "earned_value", "ev"]),
       "Project ID": local?.["Project ID"] || projectId,
       "Project Name": local?.["Project Name"] || getCell(row, ["project name", "project", "project title"]) || "",
       "Activity ID": local?.["Activity ID"] || activityId,
