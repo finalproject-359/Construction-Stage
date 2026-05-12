@@ -1301,24 +1301,24 @@ function normalizeIncomingDailyCost(input) {
       : 0;
 
   return {
-    projectId: cleanText(source.projectId || source.project_id),
+    projectId: normalizeIdentifierCase(cleanText(source.projectId || source.project_id)),
     project: cleanText(
       source.project || source.projectName || source.project_name,
     ),
-    costId: cleanText(
+    costId: normalizeIdentifierCase(cleanText(
       source.costId ||
         source.cost_id ||
         source.id ||
         source.activityId ||
         source.activity_id,
-    ),
-    activityId: cleanText(
+    )),
+    activityId: normalizeIdentifierCase(cleanText(
       source.activityId ||
         source.activity_id ||
         source.sourceActivityId ||
         source.activityRefId ||
         source.activity_ref_id,
-    ),
+    )),
     activity: cleanText(source.activity || source.activityName),
     plannedCost: plannedCost,
     plannedCostPerDay: plannedCostPerDay,
@@ -1736,24 +1736,26 @@ function countDailyCostRecords(projectId, costId, activityId, activityName) {
 function normalizeIncomingCost(input) {
   const source = input || {};
   return {
-    costId: cleanText(source.costId || source.id),
-    projectId: cleanText(source.projectId || source.project_id),
+    costId: normalizeIdentifierCase(cleanText(source.costId || source.id)),
+    projectId: normalizeIdentifierCase(cleanText(source.projectId || source.project_id)),
     project: cleanText(
       source.project || source.projectName || source.project_name,
     ),
-    activityId: cleanText(
+    activityId: normalizeIdentifierCase(cleanText(
       source.activityId ||
         source.activity_id ||
         source.sourceActivityId ||
         source.activityRefId ||
         source.activity_ref_id,
-    ),
+    )),
     activity: cleanText(source.activity || source.activityName),
     duration: parseNumber(source.duration || source.durationDays),
     progress: parseNumber(source.progress || source.percentComplete || source.percent_complete),
     category:
-      cleanText(
-        source.category || source.costCategory || source.cost_category,
+      toTitleCase(
+        cleanText(
+          source.category || source.costCategory || source.cost_category,
+        ),
       ) || "General",
     date: normalizeDate(source.date),
     plannedCost: parseNumber(
@@ -2042,7 +2044,7 @@ function normalizeIncomingActivity(input) {
       : rawId;
 
   return {
-    id: normalizedId || Utilities.getUuid(),
+    id: normalizeIdentifierCase(normalizedId || Utilities.getUuid()),
     projectId: inferredProject.id,
     project: inferredProject.name,
     name: cleanText(
@@ -2051,7 +2053,7 @@ function normalizeIncomingActivity(input) {
         source.activityName ||
         source.activity_name,
     ),
-    status: cleanText(source.status) || "Not Started",
+    status: normalizeProjectStatus(cleanText(source.status) || "Not Started"),
     plannedStart: plannedStart,
     plannedFinish: plannedFinish,
     duration: duration,
@@ -3302,27 +3304,31 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
 function normalizeIncomingProject(input) {
   const source = input || {};
 
-  const id = cleanText(
-    source.id ||
-      source.projectId ||
-      source.project_id ||
-      source.projectCode ||
-      source.project_code,
+  const id = normalizeIdentifierCase(
+    cleanText(
+      source.id ||
+        source.projectId ||
+        source.project_id ||
+        source.projectCode ||
+        source.project_code,
+    ),
   );
-  const code = cleanText(
-    source.code ||
-      source.projectCode ||
-      source.project_code ||
-      source.projectId ||
-      source.project_id,
+  const code = normalizeIdentifierCase(
+    cleanText(
+      source.code ||
+        source.projectCode ||
+        source.project_code ||
+        source.projectId ||
+        source.project_id,
+    ),
   );
   const name = cleanText(
     source.name || source.project || source.projectName || source.project_name,
   );
   const type =
-    cleanText(source.type || source.projectType || source.project_type) ||
+    toTitleCase(cleanText(source.type || source.projectType || source.project_type)) ||
     "General";
-  let status = cleanText(source.status) || "Not Started";
+  let status = normalizeProjectStatus(cleanText(source.status) || "Not Started");
   let location = cleanText(source.location || source.site || source.address);
   let startDate = normalizeDate(
     source.startDate || source.start_date || source.plannedStart,
@@ -4275,6 +4281,30 @@ function normalizeHeader(value) {
 
 function compactHeader(value) {
   return normalizeHeader(value).replace(/\s+/g, "");
+}
+
+function normalizeIdentifierCase(value) {
+  return cleanText(value).toUpperCase();
+}
+
+function toTitleCase(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/\b\w/g, function (char) {
+      return char.toUpperCase();
+    });
+}
+
+function normalizeProjectStatus(value) {
+  var normalized = cleanText(value).toLowerCase();
+  var statusMap = {
+    "not started": "Not Started",
+    "in progress": "In Progress",
+    "on hold": "On Hold",
+    completed: "Completed",
+    archived: "Archived",
+  };
+  return statusMap[normalized] || toTitleCase(value);
 }
 
 function cleanText(value) {
