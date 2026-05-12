@@ -72,6 +72,17 @@ const CONFIG = {
   },
 };
 
+function hasExplicitValue(value) {
+  return value !== undefined && value !== null && value !== "";
+}
+
+function pickFirstExplicitValue(values) {
+  for (var i = 0; i < values.length; i += 1) {
+    if (hasExplicitValue(values[i])) return values[i];
+  }
+  return null;
+}
+
 function getSpreadsheetTodayDate() {
   var timeZone = Session.getScriptTimeZone();
   var isoDate = Utilities.formatDate(new Date(), timeZone, "yyyy-MM-dd");
@@ -403,6 +414,7 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
   var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : "";
   if (!projectId || !costId) return;
 
+  var rawProgress = columns.progress ? rowValues[columns.progress - 1] : null;
   var cost = {
     projectId: projectId,
     project: columns.project ? cleanText(rowValues[columns.project - 1]) : "",
@@ -419,12 +431,10 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
     earnedValue: columns.earnedValue
       ? parseNumber(rowValues[columns.earnedValue - 1])
       : 0,
-    progress: columns.progress
-      ? parseNumber(rowValues[columns.progress - 1])
-      : 0,
+    progress: hasExplicitValue(rawProgress) ? parseNumber(rawProgress) : null,
   };
 
-  syncActivityProgressFromCost(cost);
+  if (hasExplicitValue(rawProgress)) syncActivityProgressFromCost(cost);
 
   if (columns.earnedValue) {
     var computedEarnedValue = Number(computeEarnedValue(cost)) || 0;
@@ -673,6 +683,8 @@ function syncActivityProgressFromCost(cost) {
   ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
   var columns = getActivityColumnMap(activitiesSheet);
   if (!columns.percentComplete) return false;
+
+  if (!hasExplicitValue(cost && cost.progress)) return false;
 
   var values = activitiesSheet.getDataRange().getValues();
   var progress = roundTo(clampPercent(cost && cost.progress), 2);
@@ -1831,6 +1843,11 @@ function countDailyCostRecords(projectId, costId, activityId, activityName) {
 
 function normalizeIncomingCost(input) {
   const source = input || {};
+  const rawProgress = pickFirstExplicitValue([
+    source.progress,
+    source.percentComplete,
+    source.percent_complete,
+  ]);
   return {
     costId: cleanText(source.costId || source.id),
     projectId: cleanText(source.projectId || source.project_id),
@@ -1846,7 +1863,7 @@ function normalizeIncomingCost(input) {
     ),
     activity: cleanText(source.activity || source.activityName),
     duration: parseNumber(source.duration || source.durationDays),
-    progress: parseNumber(source.progress || source.percentComplete || source.percent_complete),
+    progress: hasExplicitValue(rawProgress) ? parseNumber(rawProgress) : null,
     category:
       cleanText(
         source.category || source.costCategory || source.cost_category,
@@ -1950,22 +1967,26 @@ function upsertCostRow(cost) {
   if (columns.activityId) rowValues[columns.activityId - 1] = cost.activityId;
   if (columns.activity) rowValues[columns.activity - 1] = cost.activity;
   if (columns.duration) rowValues[columns.duration - 1] = cost.duration;
-  if (columns.progress) rowValues[columns.progress - 1] = cost.progress;
-  syncActivityProgressFromCost({
-    projectId: columns.projectId
-      ? cleanText(rowValues[columns.projectId - 1])
-      : cleanText(cost.projectId),
-    project: columns.project
-      ? cleanText(rowValues[columns.project - 1])
-      : cleanText(cost.project),
-    activityId: columns.activityId
-      ? cleanText(rowValues[columns.activityId - 1])
-      : cleanText(cost.activityId),
-    activity: columns.activity
-      ? cleanText(rowValues[columns.activity - 1])
-      : cleanText(cost.activity),
-    progress: columns.progress ? rowValues[columns.progress - 1] : cost.progress,
-  });
+  if (columns.progress && hasExplicitValue(cost.progress)) {
+    rowValues[columns.progress - 1] = cost.progress;
+  }
+  if (hasExplicitValue(cost.progress)) {
+    syncActivityProgressFromCost({
+      projectId: columns.projectId
+        ? cleanText(rowValues[columns.projectId - 1])
+        : cleanText(cost.projectId),
+      project: columns.project
+        ? cleanText(rowValues[columns.project - 1])
+        : cleanText(cost.project),
+      activityId: columns.activityId
+        ? cleanText(rowValues[columns.activityId - 1])
+        : cleanText(cost.activityId),
+      activity: columns.activity
+        ? cleanText(rowValues[columns.activity - 1])
+        : cleanText(cost.activity),
+      progress: columns.progress ? rowValues[columns.progress - 1] : cost.progress,
+    });
+  }
   if (columns.plannedCost)
     rowValues[columns.plannedCost - 1] = cost.plannedCost;
   if (columns.plannedCostPerDay)
