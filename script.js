@@ -50,7 +50,6 @@ const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivitie
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
 const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
-const DASHBOARD_MIN_STABLE_ROW_RATIO = 0.5;
 let dashboardRefreshTimer = null;
 
 const getProjectFilterPrefill = () => {
@@ -1114,16 +1113,10 @@ const processRows = (rawRows, sourceName = "web app") => {
     return;
   }
 
-  const previousRowCount = activitySummaryRows.length;
-  const droppedTooMuch =
-    previousRowCount > 2 && rows.length > 0 && rows.length < previousRowCount * DASHBOARD_MIN_STABLE_ROW_RATIO;
-  if (droppedTooMuch) {
-    showMessage(
-      `Live source returned only ${rows.length} parsed row(s), down from ${previousRowCount}. Keeping the last stable dashboard data until the next load.`,
-      true
-    );
-    return;
-  }
+  // Accept the latest successful live payload even when it contains fewer rows
+  // than the previous dashboard state. Projects, activities, or costs can be
+  // legitimately archived/deleted in the source sheet, and blocking smaller
+  // payloads keeps stale cache data visible instead of the real current data.
 
   const nextSignature = JSON.stringify(rows);
   if (nextSignature === latestDashboardSignature) {
@@ -1499,7 +1492,7 @@ const hydrateDashboardFromLocalCostData = () => {
   return true;
 };
 
-const warmStartDashboardData = () => hydrateDashboardFromCache() || hydrateDashboardFromLocalCostData();
+const warmStartDashboardData = () => hydrateDashboardFromLocalCostData() || hydrateDashboardFromCache();
 
 const refreshDashboardData = async ({ force = false } = {}) => {
   if (isDashboardFetchInFlight) return;
@@ -1567,7 +1560,10 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     }
   } catch (error) {
     const localRows = loadRowsFromCostManagementLocalData();
-    if (hasStableDashboardRows()) {
+    if (localRows.length) {
+      processRows(localRows, "Cost Management local storage");
+      showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
+    } else if (hasStableDashboardRows()) {
       const stableRows = getStableDashboardRows();
       activitySummaryRows = stableRows.slice();
       syncFilterOptionsFromRows(activitySummaryRows);
@@ -1576,9 +1572,6 @@ const refreshDashboardData = async ({ force = false } = {}) => {
       showMessage(
         `Live source is still catching up (${dashboardErrorMessage}). Keeping the last stable dashboard data visible.`
       );
-    } else if (localRows.length) {
-      processRows(localRows, "Cost Management local storage");
-      showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
     } else {
       showMessage(`Error loading data source: ${getDashboardErrorMessage(error)}`, true);
     }
