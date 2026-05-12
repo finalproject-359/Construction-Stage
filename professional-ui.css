@@ -307,6 +307,162 @@ tbody tr:hover {
   box-shadow: none;
 }
 
+
+/* Shared dark construction hero treatment for project selection pages. */
+body.page-projects .projects-topbar.page-hero,
+body.page-activities .activities-topbar.page-hero,
+.page-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 18px;
+  overflow: hidden;
+  border: 1px solid #dbe5f6;
+  border-radius: 24px;
+  padding: clamp(22px, 3.6vw, 34px);
+  background:
+    linear-gradient(135deg, rgba(12, 31, 68, 0.94), rgba(31, 82, 232, 0.88)),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.09) 0 1px, transparent 1px 12px);
+  color: #fff;
+  box-shadow: 0 22px 55px rgba(15, 23, 42, 0.16);
+}
+
+.page-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -90px -120px auto;
+  width: 290px;
+  height: 290px;
+  border: 44px solid rgba(255, 255, 255, 0.09);
+  border-radius: 50%;
+}
+
+.page-hero-copy,
+.page-hero-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.page-hero .page-eyebrow,
+.page-hero .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 0 0 10px;
+  color: #bfd0ff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.page-hero .page-eyebrow::before {
+  background: #fff;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.14);
+}
+
+body.page-projects .projects-topbar.page-hero h1,
+body.page-activities .activities-topbar.page-hero h1,
+.page-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+}
+
+body.page-projects .projects-topbar.page-hero .projects-subtitle,
+body.page-activities .activities-topbar.page-hero .activities-subtitle,
+.page-hero p,
+.page-hero .projects-subtitle,
+.page-hero .activities-subtitle {
+  max-width: 760px;
+  margin: 12px 0 0;
+  color: #e6edff;
+  font-size: clamp(1rem, 1.8vw, 1.13rem);
+  line-height: 1.65;
+}
+
+.page-hero-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.page-hero-steps span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.11);
+  color: #f8fbff;
+  font-weight: 700;
+}
+
+.page-hero-steps strong {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  color: #1f52e8;
+  font-size: 0.82rem;
+}
+
+.page-hero-panel {
+  align-self: stretch;
+  display: grid;
+  gap: 12px;
+  width: auto;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  box-shadow: none;
+}
+
+.page-hero-panel div {
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.page-hero-panel span {
+  display: block;
+  margin-bottom: 5px;
+  color: #bfd0ff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-hero-panel strong {
+  display: block;
+  margin: 0;
+  color: #fff;
+  font-size: 1.05rem;
+}
+
+@media (max-width: 900px) {
+  .page-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-hero-steps {
+    display: grid;
+  }
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,

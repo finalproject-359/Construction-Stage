@@ -3,6 +3,7 @@ const activitiesSearchInput = document.getElementById("activitiesSearchInput");
 const activitiesStatusFilter = document.getElementById("activitiesStatusFilter");
 const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
 const activitiesSelectedProjectName = document.getElementById("activitiesSelectedProjectName");
+const activitiesPageHero = document.querySelector(".activities-topbar.page-hero");
 const activitiesBackToProjectsBtn = document.getElementById("activitiesBackToProjectsBtn");
 const activitiesDateFilterWrap = document.querySelector(".activities-date-filter");
 const activitiesDateFilterBtn = document.getElementById("activitiesDateFilterBtn");
@@ -1115,6 +1116,9 @@ const renderProjectPicker = () => {
 
 const syncWorkflowState = () => {
   const shouldShowProjectSelection = !hasSelectedProject();
+  if (activitiesPageHero) {
+    activitiesPageHero.hidden = !shouldShowProjectSelection;
+  }
   if (activitiesProjectSelectionFilters) {
     activitiesProjectSelectionFilters.hidden = !shouldShowProjectSelection;
   }
