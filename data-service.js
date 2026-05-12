@@ -193,10 +193,13 @@
     try {
       return await fetch(appendNoCacheParam(urlValue), {
         cache: "no-store",
+        // Keep this as a CORS-safelisted request. Apps Script Web Apps do not
+        // handle OPTIONS preflight requests, so custom request headers like
+        // Cache-Control or Pragma cause the browser to block dashboard loads
+        // before doGet can return the JSON payload. Cache busting is handled
+        // by appendNoCacheParam instead.
         headers: {
           Accept: "application/json, text/csv, text/plain;q=0.9, */*;q=0.8",
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
         },
         signal: controller.signal,
       });
