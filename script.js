@@ -630,9 +630,14 @@ const calculateTotalsFromRows = (rows) => {
 };
 
 const calculateProgressMetrics = (rows, totals) => {
-  const earnedValue = parseNumber(totals?.ev);
-  const physicalProgressPercent = totals.planned ? (earnedValue / totals.planned) * 100 : 0;
-  const costSpentPercent = totals.planned ? (totals.actual / totals.planned) * 100 : 0;
+  // The progress card is intended to compare field progress against budget burn.
+  // Use the explicit % complete/progress values instead of EV/planned so manually
+  // supplied earned values do not make the displayed progress look lower or higher
+  // than the activity progress data shown elsewhere on the dashboard.
+  const physicalProgressPercent = calculateWeightedPercentTotal(rows, "percentComplete");
+  const costSpentPercent = totals.planned
+    ? (totals.actual / totals.planned) * 100
+    : calculateWeightedPercentTotal(rows, "costUsedPercent");
   const efficiencyGapPercent = physicalProgressPercent - costSpentPercent;
 
   return { physicalProgressPercent, costSpentPercent, efficiencyGapPercent };
