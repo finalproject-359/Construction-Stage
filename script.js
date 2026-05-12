@@ -364,6 +364,12 @@ const updateDateRangeFilterValues = () => {
   if (selectedRange === "all") {
     dateStartFilterEl.value = "";
     dateEndFilterEl.value = "";
+    dateEndFilterEl.min = "";
+    return;
+  }
+
+  if (selectedRange === "custom") {
+    dateEndFilterEl.min = dateStartFilterEl.value || "";
     return;
   }
 
@@ -379,6 +385,7 @@ const updateDateRangeFilterValues = () => {
 
   dateStartFilterEl.value = formatDateInputValue(startDate);
   dateEndFilterEl.value = formatDateInputValue(endDate);
+  dateEndFilterEl.min = dateStartFilterEl.value;
 };
 
 const rowMatchesDateFilter = (row, startDate, endDate) => {
@@ -1412,8 +1419,28 @@ if (dateRangeFilterEl) {
   });
   updateDateRangeFilterValues();
 }
-if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", applyFiltersAndRender);
-if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", applyFiltersAndRender);
+const markDashboardDateFilterAsCustom = () => {
+  if (dateRangeFilterEl) dateRangeFilterEl.value = "custom";
+  if (dateStartFilterEl && dateEndFilterEl) {
+    dateEndFilterEl.min = dateStartFilterEl.value || "";
+    if (dateStartFilterEl.value && dateEndFilterEl.value && dateEndFilterEl.value < dateStartFilterEl.value) {
+      dateEndFilterEl.value = dateStartFilterEl.value;
+    }
+  }
+};
+
+if (dateStartFilterEl) {
+  dateStartFilterEl.addEventListener("change", () => {
+    markDashboardDateFilterAsCustom();
+    applyFiltersAndRender();
+  });
+}
+if (dateEndFilterEl) {
+  dateEndFilterEl.addEventListener("change", () => {
+    markDashboardDateFilterAsCustom();
+    applyFiltersAndRender();
+  });
+}
 
 setupServiceWorkerUpdates();
 hydrateDashboardFromCache();

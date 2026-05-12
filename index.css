@@ -147,9 +147,9 @@ body.page-dashboard {
 
 .dashboard-filters {
   display: grid;
-  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.2fr);
   gap: 26px;
-  max-width: 760px;
+  max-width: 860px;
 }
 
 .filter-item {
@@ -228,6 +228,27 @@ body.page-dashboard {
 .date-filter-icon { left: 14px; }
 
 .date-filter-action-icon { right: 14px; }
+
+.date-range-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.date-range-field {
+  display: grid;
+  gap: 6px;
+}
+
+.date-range-field span {
+  color: #5f6f89;
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+}
+
+.date-range-field input {
+  padding: 0 12px;
+}
 
 .dashboard-summary-strip {
   display: grid;
@@ -580,6 +601,7 @@ body.page-dashboard {
 }
 
 @media (max-width: 760px) {
+  .date-range-fields { grid-template-columns: 1fr; }
   .page-dashboard .chart-canvas-wrap { height: 300px; }
   .chart-metric-chips { width: 100%; }
   .dashboard-hero { padding: 20px; border-radius: 22px; }
