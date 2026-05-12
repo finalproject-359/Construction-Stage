@@ -108,6 +108,14 @@
     }
   };
 
+  const LIVE_SOURCE_FETCH_TIMEOUT_MS = 20000;
+
+  const createLiveSourceTimeoutError = () =>
+    new Error(`Live data source took longer than ${Math.round(LIVE_SOURCE_FETCH_TIMEOUT_MS / 1000)} seconds to respond.`);
+
+  const isAbortError = (error) =>
+    error?.name === "AbortError" || /aborted|abort/i.test(String(error?.message || error || ""));
+
   const fetchRowsFromSource = async (providedUrl = "") => {
     const rawUrl = providedUrl || DEFAULT_DATA_SOURCE_URL;
     const trimmedUrl = rawUrl.trim();
@@ -125,12 +133,21 @@
 
     const fetchWithTimeout = async (urlValue) => {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      let timedOut = false;
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort(createLiveSourceTimeoutError());
+      }, LIVE_SOURCE_FETCH_TIMEOUT_MS);
       try {
         return await fetch(appendNoCacheParam(urlValue), {
           cache: "no-store",
           signal: controller.signal,
         });
+      } catch (error) {
+        if (timedOut || isAbortError(error)) {
+          throw createLiveSourceTimeoutError();
+        }
+        throw error;
       } finally {
         clearTimeout(timeout);
       }
@@ -196,7 +213,11 @@
       })();
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      let timedOut = false;
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort(createLiveSourceTimeoutError());
+      }, LIVE_SOURCE_FETCH_TIMEOUT_MS);
       try {
         const response = await fetch(withParams, { cache: "no-store", signal: controller.signal });
         if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
@@ -212,6 +233,11 @@
           dashboardRows: extractResourceRows(payload, "dashboard"),
           sourceName: "Apps Script Web App (activities + costs + actual costs)",
         };
+      } catch (error) {
+        if (timedOut || isAbortError(error)) {
+          throw createLiveSourceTimeoutError();
+        }
+        throw error;
       } finally {
         clearTimeout(timeout);
       }

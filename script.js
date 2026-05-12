@@ -49,7 +49,7 @@ const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageActivities";
 const LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
 const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 const DASHBOARD_CACHE_TTL_MS = 30 * 60 * 1000;
-const DASHBOARD_REFRESH_INTERVAL_MS = 10 * 1000;
+const DASHBOARD_REFRESH_INTERVAL_MS = 15 * 1000;
 const DASHBOARD_MIN_STABLE_ROW_RATIO = 0.5;
 let dashboardRefreshTimer = null;
 
@@ -852,6 +852,14 @@ const showMessage = (text, isError = false) => {
   messageEl.style.color = isError ? "#dc2626" : "#667085";
 };
 
+const getDashboardErrorMessage = (error) => {
+  const rawMessage = String(error?.message || error || "Unknown error").trim();
+  if (/aborted|abort/i.test(rawMessage)) {
+    return "Live data source timed out before it responded.";
+  }
+  return rawMessage || "Unknown error";
+};
+
 const updateDashboardSyncedAt = () => {
   const asOfEl = document.querySelector(".as-of-text");
   if (asOfEl) {
@@ -1564,12 +1572,15 @@ const refreshDashboardData = async ({ force = false } = {}) => {
       activitySummaryRows = stableRows.slice();
       syncFilterOptionsFromRows(activitySummaryRows);
       applyFiltersAndRender();
-      showMessage(`Live source is temporarily unavailable (${error.message}). Keeping the last stable dashboard data visible.`, true);
+      const dashboardErrorMessage = getDashboardErrorMessage(error);
+      showMessage(
+        `Live source is still catching up (${dashboardErrorMessage}). Keeping the last stable dashboard data visible.`
+      );
     } else if (localRows.length) {
       processRows(localRows, "Cost Management local storage");
       showMessage("Connected to Cost Management local data. Live source is temporarily unavailable.");
     } else {
-      showMessage(`Error loading data source: ${error.message}`, true);
+      showMessage(`Error loading data source: ${getDashboardErrorMessage(error)}`, true);
     }
   } finally {
     isDashboardFetchInFlight = false;
