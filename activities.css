@@ -199,46 +199,99 @@ body.page-activities .activities-date-btn:hover {
 }
 
 .activities-project-picker-grid {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 360px));
+  gap: 20px;
 }
 
 .activities-project-picker-card {
   position: relative;
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
-  grid-template-rows: 1fr auto;
-  align-items: start;
-  gap: 14px 12px;
-  min-height: 162px;
-  padding: 22px 16px 18px;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  min-height: 254px;
+  padding: 18px;
   overflow: hidden;
   text-align: left;
-  border: 1px solid #dfe7f3;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+  border: 1px solid #dbe5f3;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(47, 85, 255, 0.11), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
 .activities-project-picker-card::before {
-  display: none;
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), transparent 48%);
+}
+
+.activities-project-picker-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 18px 0;
+  height: 4px;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(90deg, #2f55ff, #38bdf8, #f8b511);
+  opacity: 0.82;
+}
+
+.activities-project-picker-card:hover,
+.activities-project-picker-card:focus-visible {
+  border-color: #aebff8;
+  box-shadow: 0 22px 50px rgba(47, 85, 255, 0.16);
+}
+
+.activities-project-picker-card:focus-visible {
+  outline: 3px solid rgba(47, 85, 255, 0.22);
+  outline-offset: 3px;
+}
+
+.activities-project-card-topline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0d2f63, #2f55ff);
+}
+
+.activities-project-card-header,
+.activities-project-card-copy,
+.activities-project-card-meta,
+.activities-project-card-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.activities-project-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .activities-project-card-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  width: 50px;
+  height: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
 }
 
 .activities-project-card-icon svg {
-  width: 25px;
-  height: 25px;
+  width: 26px;
+  height: 26px;
 }
 
-.activities-project-card-icon svg path {
+.activities-project-card-icon svg path,
+.activities-project-card-location svg path,
+.activities-project-card-location svg circle {
   stroke: currentColor;
   stroke-width: 1.8;
   stroke-linecap: round;
@@ -251,12 +304,12 @@ body.page-activities .activities-date-btn:hover {
 }
 
 .activities-project-card-icon.icon-green {
-  color: #10b981;
+  color: #059669;
   background: #eafaf3;
 }
 
 .activities-project-card-icon.icon-amber {
-  color: #f59e0b;
+  color: #d97706;
   background: #fff4df;
 }
 
@@ -266,53 +319,100 @@ body.page-activities .activities-date-btn:hover {
 }
 
 .activities-project-card-icon.icon-rose {
-  color: #f43f5e;
+  color: #e11d48;
   background: #fff1f3;
 }
 
 .activities-project-card-icon.icon-slate {
-  color: #64748b;
+  color: #475569;
   background: #f1f5f9;
 }
 
 .activities-project-card-copy {
   display: grid;
   min-width: 0;
-  gap: 7px;
+  gap: 9px;
 }
 
 .activities-project-card-code {
-  color: #2563eb;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid #dbe7ff;
+  border-radius: 999px;
+  background: rgba(239, 246, 255, 0.9);
 }
 
 .activities-project-card-title {
-  color: #0f172a;
-  font-size: 0.9rem;
-  font-weight: 800;
-  line-height: 1.32;
+  color: #0b1f3f;
+  font-size: 1.02rem;
+  font-weight: 900;
+  line-height: 1.25;
 }
 
 .activities-project-card-location {
-  color: #0f172a;
-  font-size: 0.86rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #475467;
+  font-size: 0.84rem;
   font-weight: 700;
   line-height: 1.35;
 }
 
+.activities-project-card-location svg {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  color: #64748b;
+}
+
+.activities-project-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.activities-project-card-meta > span {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #e7edf7;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.activities-project-card-meta-label {
+  color: #667085;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.activities-project-card-meta-value {
+  color: #0f172a;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .activities-project-card-footer {
   display: grid;
-  grid-column: 1 / -1;
-  gap: 16px;
+  gap: 14px;
   align-self: end;
+  padding-top: 2px;
 }
 
 .activities-project-card-type {
   color: #475467;
   font-size: 0.84rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .activities-project-card-action-row {
@@ -324,16 +424,26 @@ body.page-activities .activities-date-btn:hover {
 
 .activities-project-card-action-row .badge {
   border: 0;
-  padding: 5px 10px;
-  font-size: 0.74rem;
-  font-weight: 800;
+  padding: 6px 11px;
+  font-size: 0.73rem;
+  font-weight: 900;
+}
+
+.activities-project-card-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #0d2f63;
+  font-size: 0.78rem;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .activities-project-card-chevron {
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  color: #0d2f63;
+  width: 17px;
+  height: 17px;
+  color: currentColor;
 }
 
 .activities-project-card-chevron path {
@@ -457,4 +567,19 @@ body.page-activities .activities-project-card-action-row .badge-not-started {
 body.page-activities .activities-project-card-action-row .badge-delayed {
   background: #fee2e2;
   color: #ef4444;
+}
+
+@media (max-width: 520px) {
+  .activities-project-picker-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .activities-project-card-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .activities-project-card-action-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
