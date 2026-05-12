@@ -1,0 +1,363 @@
+/* Professional construction UI layer loaded last on every page. */
+:root {
+  --construction-navy-900: #07162e;
+  --construction-navy-800: #0b2347;
+  --construction-navy-700: #123a68;
+  --construction-steel-700: #334155;
+  --construction-steel-500: #64748b;
+  --construction-steel-200: #d8e1ec;
+  --construction-steel-100: #eef3f8;
+  --construction-amber: #f4b000;
+  --construction-amber-dark: #b77900;
+  --construction-surface: rgba(255, 255, 255, 0.96);
+  --construction-surface-strong: #ffffff;
+  --construction-line: #d8e1ec;
+  --construction-line-strong: #bfccdc;
+  --construction-radius-xl: 24px;
+  --construction-radius-lg: 18px;
+  --construction-radius-md: 12px;
+  --construction-shadow: 0 18px 42px rgba(7, 22, 46, 0.10);
+  --construction-shadow-soft: 0 8px 22px rgba(7, 22, 46, 0.07);
+}
+
+body {
+  background:
+    linear-gradient(rgba(238, 243, 248, 0.92), rgba(238, 243, 248, 0.96)),
+    repeating-linear-gradient(90deg, rgba(7, 22, 46, 0.035) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(0deg, rgba(7, 22, 46, 0.025) 0 1px, transparent 1px 40px),
+    #eef3f8;
+}
+
+.app-shell {
+  grid-template-columns: 264px minmax(0, 1fr);
+}
+
+.sidebar {
+  border-right: 1px solid rgba(216, 225, 236, 0.18);
+  background:
+    linear-gradient(180deg, rgba(244, 176, 0, 0.10), transparent 22rem),
+    linear-gradient(180deg, var(--construction-navy-900), var(--construction-navy-800) 58%, #041024);
+}
+
+.brand {
+  min-height: 66px;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.brand h2 {
+  font-weight: 700;
+}
+
+.brand p {
+  color: #c2d0e2;
+  font-weight: 600;
+}
+
+.brand-logo {
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(244, 176, 0, 0.22), rgba(244, 176, 0, 0.10));
+  border-color: rgba(244, 176, 0, 0.55);
+  color: var(--construction-amber);
+}
+
+.menu a {
+  min-height: 46px;
+  color: #dbe6f4;
+  font-weight: 700;
+}
+
+.menu a.active,
+.menu a:hover {
+  border-color: rgba(244, 176, 0, 0.42);
+  background:
+    linear-gradient(90deg, rgba(244, 176, 0, 0.22), rgba(255, 255, 255, 0.075));
+  box-shadow: inset 3px 0 0 var(--construction-amber);
+}
+
+.main-content {
+  gap: 18px;
+  background:
+    radial-gradient(circle at 0 0, rgba(244, 176, 0, 0.08), transparent 26rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(238, 243, 248, 0.88));
+}
+
+.topbar:not(.dashboard-hero),
+.projects-topbar,
+.activities-topbar,
+.cost-hero,
+.dashboard-hero {
+  border: 1px solid rgba(191, 204, 220, 0.9);
+  border-radius: var(--construction-radius-xl);
+  box-shadow: var(--construction-shadow);
+}
+
+.topbar:not(.dashboard-hero),
+.projects-topbar,
+.activities-topbar {
+  background:
+    linear-gradient(90deg, var(--construction-navy-800) 0 6px, transparent 6px),
+    radial-gradient(circle at 100% 0, rgba(244, 176, 0, 0.16), transparent 18rem),
+    linear-gradient(135deg, #ffffff, #f7fafc 72%);
+}
+
+.dashboard-hero,
+.cost-hero {
+  background:
+    linear-gradient(135deg, rgba(7, 22, 46, 0.97), rgba(18, 58, 104, 0.94)),
+    repeating-linear-gradient(135deg, rgba(244, 176, 0, 0.14) 0 10px, transparent 10px 24px);
+}
+
+.topbar:not(.dashboard-hero) h1,
+.projects-topbar h1,
+.activities-topbar h1,
+.cost-hero h1,
+.dashboard-hero h1 {
+  font-weight: 700;
+  letter-spacing: -0.055em;
+}
+
+.page-eyebrow,
+.eyebrow {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.kpi-card,
+.project-kpi-card,
+.activities-kpi-card,
+.table-panel,
+.chart-panel,
+.cost-card,
+.cost-selection-filters,
+.panel,
+.selection-empty,
+.info-banner,
+.activities-selected-project-banner,
+.project-row {
+  border: 1px solid var(--construction-line);
+  border-radius: var(--construction-radius-lg);
+  background: var(--construction-surface);
+  box-shadow: var(--construction-shadow-soft);
+}
+
+.kpi-card,
+.project-kpi-card,
+.activities-kpi-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::before,
+.project-kpi-card::before,
+.activities-kpi-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, var(--construction-amber), var(--construction-navy-700));
+  opacity: 0.78;
+}
+
+.kpi-card h2,
+.project-kpi-card h2,
+.activities-kpi-card h2,
+.kpi-card h4 {
+  color: var(--construction-steel-700);
+  font-weight: 700;
+}
+
+.kpi-card p,
+.project-kpi-card p,
+.activities-kpi-card p {
+  color: #0b172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-control-panel,
+.projects-controls,
+.activities-project-selection-filters,
+.activities-controls,
+.cost-selection-filters-top {
+  border: 1px solid var(--construction-line);
+  border-radius: var(--construction-radius-lg);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--construction-shadow-soft);
+}
+
+.projects-input,
+.activities-search-field,
+.activities-select-field,
+.activities-date-btn,
+.search-box,
+.filter-item select,
+.filter-item input,
+.project-field input,
+.project-field select,
+.project-field textarea,
+.activity-field input,
+.activity-field textarea,
+.cost-meta-form input,
+.daily-cost-form input,
+.daily-cost-form select {
+  border-color: var(--construction-line-strong);
+  border-radius: var(--construction-radius-md);
+  background: #ffffff;
+  color: #102033;
+}
+
+.projects-input:focus-within,
+.activities-search-field:focus-within,
+.activities-select-field:focus-within,
+.search-box:focus-within,
+.filter-item select:focus,
+.filter-item input:focus,
+.project-field input:focus,
+.project-field select:focus,
+.project-field textarea:focus,
+.activity-field input:focus,
+.activity-field textarea:focus,
+.cost-meta-form input:focus,
+.daily-cost-form input:focus,
+.daily-cost-form select:focus {
+  border-color: var(--construction-navy-700);
+  box-shadow: 0 0 0 4px rgba(18, 58, 104, 0.14);
+}
+
+.primary-btn,
+.activities-add-btn,
+.hero-action.primary {
+  background: linear-gradient(135deg, var(--construction-navy-700), var(--construction-navy-900));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 12px 26px rgba(7, 22, 46, 0.22);
+}
+
+.primary-btn:hover,
+.activities-add-btn:hover,
+.hero-action.primary:hover {
+  background: linear-gradient(135deg, #174b84, var(--construction-navy-900));
+}
+
+.secondary-btn,
+.ghost-btn,
+.ghost-link,
+.activity-cancel-btn,
+.project-cancel-btn,
+.activities-how-it-works-btn {
+  border: 1px solid var(--construction-line-strong);
+  background: linear-gradient(180deg, #ffffff, #f7fafc);
+  color: var(--construction-navy-700);
+  font-weight: 700;
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th {
+  background: #f4f7fb;
+  color: #334155;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+td {
+  color: #1e293b;
+}
+
+tbody tr:hover {
+  background: #f6f9fd;
+  box-shadow: inset 4px 0 0 var(--construction-amber);
+}
+
+.badge,
+.project-status-badge {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  font-weight: 700;
+}
+
+.project-row {
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.project-row:hover,
+.project-row:focus-visible {
+  border-color: var(--construction-line-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(7, 22, 46, 0.10);
+}
+
+.cost-hero-panel,
+.projects-topbar-card {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.activities-project-selection-icon,
+.state-icon,
+.kpi-icon,
+.project-kpi-icon,
+.activities-kpi-icon,
+.panel-icon {
+  box-shadow: none;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(244, 176, 0, 0.44);
+  outline-offset: 2px;
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(216, 225, 236, 0.2);
+  }
+
+  .menu {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .menu a {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .main-content {
+    padding: 14px;
+  }
+
+  .topbar:not(.dashboard-hero),
+  .projects-topbar,
+  .activities-topbar,
+  .cost-hero,
+  .dashboard-hero {
+    border-radius: 18px;
+  }
+
+  .dashboard-filters,
+  .projects-toolbar,
+  .activities-project-selection-toolbar-left,
+  .activities-filter-row,
+  .toolbar-row,
+  .cost-summary-strip,
+  .dashboard-summary-strip {
+    grid-template-columns: 1fr !important;
+  }
+}
