@@ -49,6 +49,8 @@ const DATA_SOURCE_URL =
   window.DataBridge?.DEFAULT_DATA_SOURCE_URL ||
   "https://script.google.com/macros/s/AKfycbw-iOWnshHXBXROcFhI3emMKTXh7bAFrhVPyYkGHfg_MShakUWwYtCP86HUyLWBzL6a/exec";
 const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
+const COST_ACTIVITIES_LOCAL_STORAGE_KEY = "constructionStageCostActivities";
+const DAILY_COSTS_LOCAL_STORAGE_KEY = "constructionStageDailyCosts";
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -220,7 +222,7 @@ const normalizeProject = (project = {}) => {
 };
 
 const toPercent = (value) => {
-  const n = Number(value);
+  const n = Number(String(value ?? "").replace(/,/g, "").replace("%", ""));
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(100, Math.round(n)));
 };
@@ -244,7 +246,9 @@ const formatProjectIdentityLabel = (projectId, projectName) => {
 const normalizeActivity = (activity = {}) => {
   const id = getValueByAliases(activity, ["id", "activityId", "activity_id", "code", "activityCode", "activity_code"]);
   const name = getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]);
+  const projectId = getValueByAliases(activity, ["projectId", "project_id", "project id", "projectCode", "project_code"]);
   const project = getValueByAliases(activity, ["project", "projectName", "project_name", "projectId", "project_id"]);
+  const costId = getValueByAliases(activity, ["costId", "cost_id", "cost id"]);
   let type = getValueByAliases(activity, ["type", "activityType", "activity_type"]);
   let status = getValueByAliases(activity, ["status"]);
   let plannedStartRaw = getValueByAliases(activity, ["plannedStart", "planned_start", "startDate", "plannedStartDate"]);
@@ -311,6 +315,8 @@ const normalizeActivity = (activity = {}) => {
 
   return {
     id: id || "-",
+    projectId: String(projectId || "").trim(),
+    costId: String(costId || "").trim(),
     name: name || "Untitled Activity",
     project: project || "-",
     type: type || "-",
@@ -584,13 +590,20 @@ const showActivityPersistenceError = (actionLabel, error) => {
   window.alert(`Unable to ${actionLabel} activity in Google Sheets. No local copy was saved.${reason}`);
 };
 
-const readProjectsFromLocalStorage = () => {
+const readArrayFromLocalStorage = (storageKey) => {
   try {
-    const raw = localStorage.getItem(PROJECTS_LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeProject);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const readProjectsFromLocalStorage = () => {
+  try {
+    return readArrayFromLocalStorage(PROJECTS_LOCAL_STORAGE_KEY).map(normalizeProject);
   } catch {
     return [];
   }
@@ -611,6 +624,142 @@ const mergeActivities = (primary, secondary) => {
   });
 
   return merged;
+};
+
+
+const normalizeLookupValue = (value) => String(value || "").trim().toLowerCase();
+
+const getCostRecordActivityId = (record = {}) => String(getValueByAliases(record, [
+  "activityId",
+  "activity_id",
+  "activity id",
+  "activityRefId",
+  "activity_ref_id",
+  "sourceActivityId",
+  "source_activity_id",
+  "id",
+  "code",
+]) || "").trim();
+
+const getCostRecordActivityName = (record = {}) => String(getValueByAliases(record, [
+  "activity",
+  "activityName",
+  "activity_name",
+  "name",
+]) || "").trim();
+
+const getCostRecordCostId = (record = {}) => String(getValueByAliases(record, ["costId", "cost_id", "cost id"]) || "").trim();
+
+const getCostRecordProjectKeys = (record = {}) => [
+  getValueByAliases(record, ["projectId", "project_id", "project id", "projectCode", "project_code"]),
+  getValueByAliases(record, ["project", "projectName", "project_name", "project name"]),
+].map(normalizeLookupValue).filter(Boolean);
+
+const getCostRecordProgress = (record = {}) => toPercent(getValueByAliases(record, [
+  "progress",
+  "progressPercent",
+  "progress_percent",
+  "percentComplete",
+  "percent_complete",
+  "% complete",
+  "percent complete",
+]));
+
+const getCostRecordDateTime = (record = {}) => {
+  const rawDate = getValueByAliases(record, ["date", "updatedAt", "updated_at", "createdAt", "created_at"]);
+  const time = new Date(rawDate || "").getTime();
+  return Number.isFinite(time) ? time : 0;
+};
+
+const fetchOptionalSourceRows = async (resource, rowsKey) => {
+  try {
+    const payload = await fetchSourcePayload(resource);
+    const rows = Array.isArray(payload?.[rowsKey]) ? payload[rowsKey] : [];
+    return rows;
+  } catch (error) {
+    console.warn(`Unable to load optional ${resource} data for activity progress:`, error);
+    return [];
+  }
+};
+
+const getActivityIdentity = (activity = {}) => ({
+  projectKeys: [getActivityProjectId(activity), activity.projectId, activity.project].map(normalizeLookupValue).filter(Boolean),
+  activityId: normalizeLookupValue(activity.id),
+  activityName: normalizeLookupValue(activity.name),
+  costId: normalizeLookupValue(activity.costId),
+});
+
+const costRecordMatchesActivity = (record = {}, activityIdentity = {}) => {
+  const recordProjectKeys = getCostRecordProjectKeys(record);
+  const hasProjectMatch =
+    !recordProjectKeys.length ||
+    recordProjectKeys.some((key) => activityIdentity.projectKeys.includes(key));
+  if (!hasProjectMatch) return false;
+
+  const recordActivityId = normalizeLookupValue(getCostRecordActivityId(record));
+  const recordActivityName = normalizeLookupValue(getCostRecordActivityName(record));
+  const recordCostId = normalizeLookupValue(getCostRecordCostId(record));
+
+  return Boolean(
+    (recordActivityId && recordActivityId === activityIdentity.activityId) ||
+    (recordCostId && activityIdentity.costId && recordCostId === activityIdentity.costId) ||
+    (recordActivityName && recordActivityName === activityIdentity.activityName)
+  );
+};
+
+const dedupeDailyCostRecords = (records = []) => {
+  const deduped = new Map();
+  records.forEach((record) => {
+    const key = [
+      ...getCostRecordProjectKeys(record),
+      getCostRecordActivityId(record),
+      getCostRecordCostId(record),
+      getValueByAliases(record, ["date"]),
+    ].map(normalizeLookupValue).filter(Boolean).join("::");
+    if (!key) return;
+    deduped.set(key, record);
+  });
+  return Array.from(deduped.values());
+};
+
+
+const enrichActivitiesWithProjectIds = (activities = [], projects = []) => {
+  const projectIdByName = new Map();
+  projects.forEach((project) => {
+    const normalized = normalizeProject(project);
+    const id = String(normalized.id || normalized.code || "").trim();
+    const name = normalizeLookupValue(normalized.name);
+    if (id && name) projectIdByName.set(name, id);
+  });
+
+  return activities.map((activity) => {
+    if (activity.projectId) return activity;
+    const projectId = projectIdByName.get(normalizeLookupValue(activity.project));
+    return projectId ? { ...activity, projectId } : activity;
+  });
+};
+
+const applyCostingProgressToActivities = (activities = [], { costActivities = [], dailyCosts = [] } = {}) => {
+  const dedupedDailyCosts = dedupeDailyCostRecords(dailyCosts);
+
+  return activities.map((activity) => {
+    const identity = getActivityIdentity(activity);
+    const matchingDailyCosts = dedupedDailyCosts.filter((record) => costRecordMatchesActivity(record, identity));
+
+    if (matchingDailyCosts.length) {
+      const progress = toPercent(matchingDailyCosts.reduce((sum, record) => sum + getCostRecordProgress(record), 0));
+      return { ...activity, progress };
+    }
+
+    const matchingCostActivities = costActivities
+      .filter((record) => costRecordMatchesActivity(record, identity))
+      .sort((a, b) => getCostRecordDateTime(b) - getCostRecordDateTime(a));
+    const bestProgress = matchingCostActivities
+      .map(getCostRecordProgress)
+      .find((progress) => progress > 0);
+
+    return Number.isFinite(bestProgress) ? { ...activity, progress: bestProgress } : activity;
+  });
 };
 
 const mergeProjects = (primary, secondary) => {
@@ -754,9 +903,11 @@ const loadActivitiesAndProjectsFromSource = async () => {
   const localProjects = readProjectsFromLocalStorage();
 
   try {
-    const [activitiesPayload, projectsPayload] = await Promise.all([
+    const [activitiesPayload, projectsPayload, remoteCosts, remoteDailyCosts] = await Promise.all([
       fetchSourcePayload("activities"),
       fetchSourcePayload("projects"),
+      fetchOptionalSourceRows("costs", "costs"),
+      fetchOptionalSourceRows("daily_costs", "dailyCosts"),
     ]);
 
     const remoteActivities = Array.isArray(activitiesPayload?.activities)
@@ -765,7 +916,18 @@ const loadActivitiesAndProjectsFromSource = async () => {
     const remoteProjects = Array.isArray(projectsPayload?.projects)
       ? projectsPayload.projects.map(normalizeProject)
       : [];
-    const activeRemoteActivities = filterActivitiesForActiveProjects(remoteActivities, remoteProjects);
+    const costingProgressRows = [
+      ...readArrayFromLocalStorage(COST_ACTIVITIES_LOCAL_STORAGE_KEY),
+      ...remoteCosts,
+    ];
+    const dailyCostRows = [
+      ...readArrayFromLocalStorage(DAILY_COSTS_LOCAL_STORAGE_KEY),
+      ...remoteDailyCosts,
+    ];
+    const activeRemoteActivities = applyCostingProgressToActivities(
+      enrichActivitiesWithProjectIds(filterActivitiesForActiveProjects(remoteActivities, remoteProjects), remoteProjects),
+      { costActivities: costingProgressRows, dailyCosts: dailyCostRows }
+    );
 
     const computedKpis = {
       completed: 0,
@@ -800,7 +962,13 @@ const loadActivitiesAndProjectsFromSource = async () => {
       Array.isArray(window.activitiesProjectCatalog) ? window.activitiesProjectCatalog.map(normalizeProject) : [],
       localProjects
     );
-    const activeFallbackActivities = filterActivitiesForActiveProjects(fallbackActivities, fallbackProjects);
+    const activeFallbackActivities = applyCostingProgressToActivities(
+      enrichActivitiesWithProjectIds(filterActivitiesForActiveProjects(fallbackActivities, fallbackProjects), fallbackProjects),
+      {
+        costActivities: readArrayFromLocalStorage(COST_ACTIVITIES_LOCAL_STORAGE_KEY),
+        dailyCosts: readArrayFromLocalStorage(DAILY_COSTS_LOCAL_STORAGE_KEY),
+      }
+    );
 
     return {
       activities: activeFallbackActivities,
