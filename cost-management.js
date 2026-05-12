@@ -1,4 +1,5 @@
 
+const costPageHero = document.querySelector(".cost-hero.page-hero");
 const topSearch = document.getElementById("costTopSearch");
 const projectsList = document.getElementById("costProjectsList");
 const projectTypeFilter = document.getElementById("costProjectTypeFilter");
@@ -28,8 +29,10 @@ const hasProjectSelectionInUrl = (() => {
 if (hasProjectSelectionInUrl) {
   selectionView?.classList.add("hidden");
   detailsView?.classList.remove("hidden");
+  costPageHero?.classList.add("hidden");
   topFiltersSection?.classList.add("hidden");
 } else {
+  costPageHero?.classList.remove("hidden");
   topFiltersSection?.classList.remove("hidden");
 }
 
@@ -1202,6 +1205,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   if (!project || isArchivedProject(project) || !selectionView || !detailsView || !selectedProjectBannerHost) return false;
   selectionView.classList.add("hidden");
+  costPageHero?.classList.add("hidden");
   selectedProjectBannerHost.classList.remove("hidden");
   selectedProjectBannerHost.innerHTML = buildSelectedProjectBannerMarkup(project);
   detailsView.classList.remove("hidden");
@@ -1420,6 +1424,7 @@ const projectMatchesDateRange = (project, startDateFilter, endDateFilter) => {
 };
 
 const renderProjects = (query = "") => {
+  costPageHero?.classList.remove("hidden");
   const normalizedQuery = query.trim().toLowerCase();
   const selectedType = projectTypeFilter?.value || "All Project Types";
   const selectedStatus = projectStatusFilter?.value || "All Statuses";
