@@ -1,5 +1,6 @@
 const projectModal = document.getElementById("projectModal");
 const projectForm = document.getElementById("projectForm");
+const projectsPageHero = document.querySelector(".projects-topbar.page-hero");
 const projectModalClose = document.getElementById("projectModalClose");
 const projectModalBackdrop = document.getElementById("projectModalBackdrop");
 const projectFormCancel = document.getElementById("projectFormCancel");
@@ -49,12 +50,33 @@ const state = {
   allProjects: [],
   filteredProjects: [],
   editingProjectId: null,
+  selectedProjectId: (() => {
+    const query = new URLSearchParams(window.location.search);
+    return query.get("projectId") || query.get("project") || "";
+  })(),
 };
 
 let projectsRefreshTimer = null;
 let isProjectsSyncInFlight = false;
 let lastProjectsSignature = "";
 let isProjectFormSubmitting = false;
+
+const syncProjectsHeroState = () => {
+  if (projectsPageHero) {
+    projectsPageHero.hidden = Boolean(state.selectedProjectId);
+  }
+};
+
+const selectProjectRecord = (projectId) => {
+  const normalizedProjectId = String(projectId || "").trim();
+  if (!normalizedProjectId) return;
+  state.selectedProjectId = normalizedProjectId;
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set("projectId", normalizedProjectId);
+  window.history.replaceState({}, "", nextUrl.toString());
+  syncProjectsHeroState();
+};
+
 
 const getValueByAliases = (source, aliases = []) => {
   if (!source || typeof source !== "object") return undefined;
@@ -346,7 +368,7 @@ const renderProjects = (projects) => {
   projectsTableBody.innerHTML = projects
     .map(
       (project) => `
-      <tr>
+      <tr class="project-record-row" tabindex="0" data-project-row="${escapeHtml(project.id)}" aria-label="Select ${escapeHtml(project.name)}">
         <td>${escapeHtml(project.code || "-")}</td>
         <td>${escapeHtml(project.name)}</td>
         <td>${escapeHtml(project.type)}</td>
@@ -670,6 +692,12 @@ const toggleActionMenu = (projectId, triggerBtn) => {
 };
 
 projectsTableBody.addEventListener("click", async (event) => {
+  const row = event.target.closest("[data-project-row]");
+  if (row instanceof HTMLElement && !event.target.closest(".actions-col")) {
+    selectProjectRecord(row.dataset.projectRow);
+    return;
+  }
+
   const triggerBtn = event.target.closest("[data-project-actions]");
   if (triggerBtn instanceof HTMLElement) {
     const projectId = triggerBtn.dataset.projectActions;
@@ -701,6 +729,16 @@ projectsTableBody.addEventListener("click", async (event) => {
     }
   }
 });
+
+projectsTableBody.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const row = event.target.closest("[data-project-row]");
+  if (!(row instanceof HTMLElement) || event.target.closest(".actions-col")) return;
+  event.preventDefault();
+  selectProjectRecord(row.dataset.projectRow);
+});
+
+syncProjectsHeroState();
 
 document.addEventListener("click", (event) => {
   if (!(event.target instanceof Element)) return;

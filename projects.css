@@ -199,6 +199,16 @@ body.page-projects .project-kpi-card:hover {
   font-weight: 700;
 }
 
+
+.project-record-row {
+  cursor: pointer;
+}
+
+.project-record-row:focus-visible {
+  outline: 3px solid rgba(244, 176, 0, 0.44);
+  outline-offset: -3px;
+}
+
 .projects-table-footer {
   border-top: 1px solid #e5ebf4;
   padding-top: 12px;
