@@ -384,6 +384,8 @@ function handleCostsSheetEdit(sheet, range) {
   for (var row = firstRow; row <= lastRow; row += 1) {
     refreshCostRowMetrics(sheet, row, columns);
   }
+
+  syncAllProjectPlannedCostFromCosts();
 }
 
 function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
@@ -435,6 +437,93 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
   }
 
   syncCostActualFromDailyCost(projectId, costId, { syncProgress: false });
+  syncProjectPlannedCostFromCosts(projectId, cost.project);
+}
+
+function calculateProjectPlannedCostFromCosts(projectId, projectName) {
+  var costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+  ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+  var columns = getCostColumnMap(costsSheet);
+  if (!columns.plannedCost || (!columns.projectId && !columns.project)) {
+    return null;
+  }
+
+  var targetProjectCandidates = getIdentityCandidates(projectId, projectName);
+  if (!targetProjectCandidates.length) return null;
+
+  var values = costsSheet.getDataRange().getValues();
+  var totalPlannedCost = 0;
+  for (var i = 1; i < values.length; i += 1) {
+    var rowProjectId = columns.projectId
+      ? cleanText(values[i][columns.projectId - 1])
+      : "";
+    var rowProjectName = columns.project
+      ? cleanText(values[i][columns.project - 1])
+      : "";
+    var rowProjectCandidates = getIdentityCandidates(rowProjectId, rowProjectName);
+    if (!identityCandidatesMatch(rowProjectCandidates, targetProjectCandidates)) {
+      continue;
+    }
+
+    totalPlannedCost += parseNumber(values[i][columns.plannedCost - 1]);
+  }
+
+  return roundTo(totalPlannedCost, 2);
+}
+
+function syncProjectPlannedCostFromCosts(projectId, projectName) {
+  var projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+  ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
+  var projectColumns = getProjectColumnMap(projectsSheet);
+  if (!projectColumns.budget || (!projectColumns.id && !projectColumns.name)) {
+    return null;
+  }
+
+  var targetProjectCandidates = getIdentityCandidates(projectId, projectName);
+  if (!targetProjectCandidates.length) return null;
+
+  var values = projectsSheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    var rowProjectId = projectColumns.id
+      ? cleanText(values[i][projectColumns.id - 1])
+      : "";
+    var rowProjectName = projectColumns.name
+      ? cleanText(values[i][projectColumns.name - 1])
+      : "";
+    var rowProjectCandidates = getIdentityCandidates(rowProjectId, rowProjectName);
+    if (!identityCandidatesMatch(rowProjectCandidates, targetProjectCandidates)) {
+      continue;
+    }
+
+    var plannedCost = calculateProjectPlannedCostFromCosts(
+      rowProjectId,
+      rowProjectName,
+    );
+    if (plannedCost === null) return null;
+
+    projectsSheet.getRange(i + 1, projectColumns.budget).setValue(plannedCost);
+    projectsSheet
+      .getRange(i + 1, projectColumns.budget)
+      .setNumberFormat("#,##0.00");
+    return plannedCost;
+  }
+
+  return null;
+}
+
+function syncAllProjectPlannedCostFromCosts() {
+  var projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+  ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
+  var columns = getProjectColumnMap(projectsSheet);
+  if (!columns.budget || (!columns.id && !columns.name)) return;
+
+  var values = projectsSheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    syncProjectPlannedCostFromCosts(
+      columns.id ? cleanText(values[i][columns.id - 1]) : "",
+      columns.name ? cleanText(values[i][columns.name - 1]) : "",
+    );
+  }
 }
 
 function calculateProjectProgressFromActivities(projectId, projectName) {
@@ -789,6 +878,7 @@ function loadDataByResource(resource) {
     resource === "all"
   ) {
     syncAllProjectProgressFromActivities();
+    syncAllProjectPlannedCostFromCosts();
   }
 
   const readResource = function (
@@ -1083,6 +1173,10 @@ function handleActivityMutation(action, payload) {
       activity.project,
     );
     syncProjectProgressFromActivities(
+      deleteResult.projectId || activity.projectId,
+      deleteResult.project || activity.project,
+    );
+    syncProjectPlannedCostFromCosts(
       deleteResult.projectId || activity.projectId,
       deleteResult.project || activity.project,
     );
@@ -1897,6 +1991,14 @@ function upsertCostRow(cost) {
     rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
   applyCostRowFormats(sheet, targetRow, columns);
+  syncProjectPlannedCostFromCosts(
+    columns.projectId
+      ? cleanText(rowValues[columns.projectId - 1])
+      : cleanText(cost.projectId),
+    columns.project
+      ? cleanText(rowValues[columns.project - 1])
+      : cleanText(cost.project),
+  );
 }
 
 function applyCostRowFormats(sheet, rowNumber, columns) {
@@ -1932,7 +2034,14 @@ function updateProjectRow(project) {
   rowValues[lookup.columns.location - 1] = project.location;
   rowValues[lookup.columns.startDate - 1] = project.startDate;
   rowValues[lookup.columns.finishDate - 1] = project.finishDate;
-  rowValues[lookup.columns.budget - 1] = project.budget;
+  if (lookup.columns.budget) {
+    const computedPlannedCost = calculateProjectPlannedCostFromCosts(
+      project.id,
+      project.name,
+    );
+    rowValues[lookup.columns.budget - 1] =
+      computedPlannedCost === null ? project.budget : computedPlannedCost;
+  }
   if (lookup.columns.progress) {
     const computedProgress = calculateProjectProgressFromActivities(
       project.id,
