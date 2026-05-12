@@ -356,6 +356,18 @@ const formatDateInputValue = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const syncDateRangeInputConstraints = () => {
+  if (!dateStartFilterEl || !dateEndFilterEl) return;
+
+  const startDate = String(dateStartFilterEl.value || "").trim();
+  const endDate = String(dateEndFilterEl.value || "").trim();
+  dateEndFilterEl.min = startDate;
+
+  if (startDate && endDate && endDate < startDate) {
+    dateEndFilterEl.value = startDate;
+  }
+};
+
 const updateDateRangeFilterValues = () => {
   if (!dateStartFilterEl || !dateEndFilterEl || !dateRangeFilterEl) return;
 
@@ -367,12 +379,12 @@ const updateDateRangeFilterValues = () => {
   if (selectedRange === "all") {
     dateStartFilterEl.value = "";
     dateEndFilterEl.value = "";
-    dateEndFilterEl.min = "";
+    syncDateRangeInputConstraints();
     return;
   }
 
   if (selectedRange === "custom") {
-    dateEndFilterEl.min = dateStartFilterEl.value || "";
+    syncDateRangeInputConstraints();
     return;
   }
 
@@ -388,7 +400,13 @@ const updateDateRangeFilterValues = () => {
 
   dateStartFilterEl.value = formatDateInputValue(startDate);
   dateEndFilterEl.value = formatDateInputValue(endDate);
-  dateEndFilterEl.min = dateStartFilterEl.value;
+  syncDateRangeInputConstraints();
+};
+
+const handleDateRangeInputChange = () => {
+  if (dateRangeFilterEl) dateRangeFilterEl.value = "custom";
+  syncDateRangeInputConstraints();
+  applyFiltersAndRender();
 };
 
 const rowMatchesDateFilter = (row, startDate, endDate) => {
@@ -1522,8 +1540,8 @@ if (dateRangeFilterEl) {
   });
   updateDateRangeFilterValues();
 }
-if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", applyFiltersAndRender);
-if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", applyFiltersAndRender);
+if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", handleDateRangeInputChange);
+if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", handleDateRangeInputChange);
 if (activitySummarySortEl) activitySummarySortEl.addEventListener("change", applyFiltersAndRender);
 
 setupServiceWorkerUpdates();

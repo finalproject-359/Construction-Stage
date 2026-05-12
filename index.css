@@ -147,9 +147,9 @@ body.page-dashboard {
 
 .dashboard-filters {
   display: grid;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.2fr);
+  grid-template-columns: minmax(240px, 0.7fr) minmax(540px, 1.3fr);
   gap: 26px;
-  max-width: 860px;
+  max-width: 1020px;
 }
 
 .filter-item {
@@ -200,7 +200,36 @@ body.page-dashboard {
 }
 
 .date-range-select-wrap {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(300px, 1.2fr);
+  overflow: hidden;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.03);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.date-range-select-wrap:focus-within {
+  border-color: #b9c9e6;
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.08);
+}
+
+.date-range-preset-control {
   position: relative;
+  min-width: 0;
+}
+
+.date-range-select-wrap select,
+.date-range-select-wrap input {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.date-range-select-wrap select:focus,
+.date-range-select-wrap input:focus {
+  box-shadow: none;
 }
 
 .date-range-select-wrap select {
@@ -232,22 +261,30 @@ body.page-dashboard {
 .date-range-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  border-left: 1px solid var(--dashboard-line);
 }
 
 .date-range-field {
   display: grid;
-  gap: 6px;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  padding: 7px 10px 6px;
+}
+
+.date-range-field + .date-range-field {
+  border-left: 1px solid var(--dashboard-line);
 }
 
 .date-range-field span {
   color: #5f6f89;
-  font-size: 0.58rem;
+  font-size: 0.55rem;
   letter-spacing: 0.05em;
 }
 
 .date-range-field input {
-  padding: 0 12px;
+  height: 24px;
+  padding: 0;
+  font-size: 0.78rem;
 }
 
 .dashboard-summary-strip {
@@ -631,7 +668,10 @@ body.page-dashboard {
 }
 
 @media (max-width: 760px) {
+  .date-range-select-wrap,
   .date-range-fields { grid-template-columns: 1fr; }
+  .date-range-fields { border-left: 0; border-top: 1px solid var(--dashboard-line); }
+  .date-range-field + .date-range-field { border-left: 0; border-top: 1px solid var(--dashboard-line); }
   .page-dashboard .chart-canvas-wrap { height: 300px; }
   .chart-metric-chips { width: 100%; }
   .summary-sort-filter {

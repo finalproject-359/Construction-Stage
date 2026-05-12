@@ -84,30 +84,32 @@
           <div class="filter-item date-filter-item" role="group" aria-labelledby="dateFilterHeading">
             <span id="dateFilterHeading">Date Range</span>
             <div class="date-range-select-wrap">
-              <svg class="date-filter-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M7 3v3m10-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/>
-              </svg>
-              <select id="dateRangeFilter" aria-label="Date range">
-                <option value="all">All Dates</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="year">This Year</option>
-                <option value="custom">Custom Range</option>
-              </select>
-              <svg class="date-filter-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/>
-              </svg>
-            </div>
-            <div class="date-range-fields" aria-label="Custom date range">
-              <label class="date-range-field" for="dateStartFilter">
-                <span>Start date</span>
-                <input id="dateStartFilter" type="date" />
-              </label>
-              <label class="date-range-field" for="dateEndFilter">
-                <span>End date</span>
-                <input id="dateEndFilter" type="date" />
-              </label>
+              <div class="date-range-preset-control">
+                <svg class="date-filter-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M7 3v3m10-3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/>
+                </svg>
+                <select id="dateRangeFilter" aria-label="Date range preset">
+                  <option value="all">All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="year">This Year</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+                <svg class="date-filter-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/>
+                </svg>
+              </div>
+              <div class="date-range-fields" aria-label="Custom date range">
+                <label class="date-range-field" for="dateStartFilter">
+                  <span>Start date</span>
+                  <input id="dateStartFilter" type="date" aria-label="Start date" />
+                </label>
+                <label class="date-range-field" for="dateEndFilter">
+                  <span>End date</span>
+                  <input id="dateEndFilter" type="date" aria-label="End date" />
+                </label>
+              </div>
             </div>
           </div>
         </div>
