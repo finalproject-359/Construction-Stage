@@ -42,7 +42,7 @@ if (!projectModal || !projectForm || !projectsTableBody) {
 
 const LOCAL_STORAGE_KEY = "constructionStageProjects";
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
-const PROJECTS_REFRESH_INTERVAL_MS = 10 * 1000;
+const PROJECTS_REFRESH_INTERVAL_MS = 30 * 1000;
 
 const RELATED_LOCAL_STORAGE_KEYS = {
   activities: "constructionStageActivities",

@@ -74,6 +74,10 @@ const CONFIG = {
     versionKey: "version",
     updatedAtKey: "updatedAt",
   },
+  cache: {
+    readTtlSeconds: 30,
+    keyPrefix: "construction-stage-read:",
+  },
 };
 
 function hasExplicitValue(value) {
@@ -855,6 +859,41 @@ function syncAllActivityProgressFromCosts() {
   }
 }
 
+function buildReadCacheKey(resource, projectFilter, version) {
+  var filterKey = [
+    cleanText(projectFilter && projectFilter.id).toLowerCase(),
+    cleanText(projectFilter && projectFilter.name).toLowerCase(),
+  ].join("|");
+  return [
+    CONFIG.cache.keyPrefix,
+    cleanText(resource || "dashboard"),
+    cleanText(version || "noversion"),
+    Utilities.base64EncodeWebSafe(filterKey).slice(0, 80),
+  ].join(":");
+}
+
+function readCachedPayload(cacheKey) {
+  try {
+    var raw = CacheService.getScriptCache().get(cacheKey);
+    return raw ? safeParseJson(raw) : null;
+  } catch (error) {
+    Logger.log("Unable to read response cache: " + error);
+    return null;
+  }
+}
+
+function writeCachedPayload(cacheKey, payload) {
+  try {
+    CacheService.getScriptCache().put(
+      cacheKey,
+      JSON.stringify(payload),
+      CONFIG.cache.readTtlSeconds,
+    );
+  } catch (error) {
+    Logger.log("Unable to write response cache: " + error);
+  }
+}
+
 function handleRequest(payload) {
   try {
     const source = payload || {};
@@ -900,9 +939,15 @@ function handleRequest(payload) {
       ),
     };
 
-    SpreadsheetApp.flush();
+    const realtime = readRealtimeMetadata();
+    const cacheKey = buildReadCacheKey(resource, projectFilter, realtime.version);
+    const cachedPayload = readCachedPayload(cacheKey);
+    if (cachedPayload) {
+      cachedPayload.cached = true;
+      return jsonResponse(cachedPayload);
+    }
+
     const allData = loadDataByResource(resource);
-    SpreadsheetApp.flush();
     const filtered = applyProjectFilter(allData, projectFilter);
 
     const payloadByResource = {
@@ -919,9 +964,7 @@ function handleRequest(payload) {
 
     const responsePayload =
       payloadByResource[resource] || payloadByResource.dashboard;
-    const realtime = readRealtimeMetadata();
-
-    return jsonResponse({
+    const finalPayload = {
       ok: true,
       resource: resource,
       filter: projectFilter,
@@ -929,7 +972,10 @@ function handleRequest(payload) {
       version: realtime.version,
       realtime: realtime,
       ...responsePayload,
-    });
+    };
+
+    writeCachedPayload(cacheKey, finalPayload);
+    return jsonResponse(finalPayload);
   } catch (error) {
     return jsonResponse({
       ok: false,
@@ -956,23 +1002,9 @@ function loadDataByResource(resource) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const bundle = createEmptyDataBundle();
 
-  if (
-    resource !== "projects" &&
-    resource !== "costs" &&
-    resource !== "daily_costs"
-  ) {
-    syncAllActivityProgressFromCosts();
-  }
-
-  if (
-    resource === "projects" ||
-    resource === "dashboard" ||
-    resource === "reports" ||
-    resource === "all"
-  ) {
-    syncAllProjectProgressFromActivities();
-    syncAllProjectPlannedCostFromCosts();
-  }
+  // Keep read requests fast and side-effect free. Sheet-derived progress and
+  // budget values are updated by mutations/onEdit handlers instead of being
+  // recalculated and written on every dashboard fetch.
 
   const readResource = function (
     targetKey,

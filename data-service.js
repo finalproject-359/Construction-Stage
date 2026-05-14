@@ -108,10 +108,14 @@
     }
   };
 
-  const LIVE_SOURCE_FETCH_TIMEOUT_MS = 20000;
-  const LIVE_SOURCE_RETRY_DELAYS_MS = [0, 750, 1500];
-  const DEFAULT_REALTIME_POLL_MS = 2000;
-  const HIDDEN_REALTIME_POLL_MS = 10000;
+  const LIVE_SOURCE_FETCH_TIMEOUT_MS = 12000;
+  const LIVE_SOURCE_RETRY_DELAYS_MS = [0, 500];
+  const DEFAULT_REALTIME_POLL_MS = 15000;
+  const HIDDEN_REALTIME_POLL_MS = 60000;
+  const DATA_CACHE_TTL_MS = 30000;
+  const DATA_CACHE_STALE_TTL_MS = 10 * 60 * 1000;
+  const DATA_CACHE_PREFIX = "constructionStageDataCache:";
+  const inFlightDataFetches = new Map();
   const REALTIME_CHANNEL_NAME = "construction-stage-google-sheet-sync";
   const REALTIME_STORAGE_KEY = "constructionStageGoogleSheetVersion";
 
@@ -121,7 +125,78 @@
   const isAbortError = (error) =>
     error?.name === "AbortError" || /aborted|abort/i.test(String(error?.message || error || ""));
 
-  const fetchRowsFromSource = async (providedUrl = "") => {
+  const getDataCacheKey = (kind, urlValue) => `${DATA_CACHE_PREFIX}${kind}:${urlValue}`;
+
+  const readDataCache = (kind, urlValue, { allowStale = false } = {}) => {
+    try {
+      const raw = global.localStorage?.getItem(getDataCacheKey(kind, urlValue));
+      if (!raw) return null;
+      const cached = JSON.parse(raw);
+      const age = Date.now() - Number(cached.savedAt || 0);
+      const maxAge = allowStale ? DATA_CACHE_STALE_TTL_MS : DATA_CACHE_TTL_MS;
+      if (!Number.isFinite(age) || age > maxAge) return null;
+      return cached.payload || null;
+    } catch (error) {
+      console.warn("Unable to read cached Google Sheet data:", error);
+      return null;
+    }
+  };
+
+  const writeDataCache = (kind, urlValue, payload) => {
+    try {
+      global.localStorage?.setItem(
+        getDataCacheKey(kind, urlValue),
+        JSON.stringify({ savedAt: Date.now(), payload })
+      );
+    } catch (error) {
+      console.warn("Unable to cache Google Sheet data:", error);
+    }
+  };
+
+  const clearDataCaches = () => {
+    try {
+      const storage = global.localStorage;
+      if (!storage) return;
+      for (let index = storage.length - 1; index >= 0; index -= 1) {
+        const key = storage.key(index);
+        if (key?.startsWith(DATA_CACHE_PREFIX)) storage.removeItem(key);
+      }
+    } catch (error) {
+      console.warn("Unable to clear cached Google Sheet data:", error);
+    }
+  };
+
+  const withDataCache = async (kind, urlValue, loader, { bypassCache = false } = {}) => {
+    if (!bypassCache) {
+      const cached = readDataCache(kind, urlValue);
+      if (cached) return { ...cached, fromCache: true };
+    }
+
+    const fetchKey = getDataCacheKey(kind, urlValue);
+    if (inFlightDataFetches.has(fetchKey)) return inFlightDataFetches.get(fetchKey);
+
+    const request = (async () => {
+      try {
+        const payload = await loader();
+        writeDataCache(kind, urlValue, payload);
+        return payload;
+      } catch (error) {
+        const stale = readDataCache(kind, urlValue, { allowStale: true });
+        if (stale) {
+          console.warn("Using stale cached Google Sheet data after live fetch failed:", error);
+          return { ...stale, fromCache: true, stale: true };
+        }
+        throw error;
+      } finally {
+        inFlightDataFetches.delete(fetchKey);
+      }
+    })();
+
+    inFlightDataFetches.set(fetchKey, request);
+    return request;
+  };
+
+  const fetchRowsFromSource = async (providedUrl = "", options = {}) => {
     const rawUrl = providedUrl || DEFAULT_DATA_SOURCE_URL;
     const trimmedUrl = rawUrl.trim();
     const isWebAppSource = isAppsScriptWebAppUrl(trimmedUrl);
@@ -131,52 +206,54 @@
       throw new Error("Invalid URL. Use a valid Google Sheet or Apps Script Web App URL.");
     }
 
-    const fetchWithTimeout = (urlValue) => fetchLiveSource(urlValue);
+    return withDataCache("rows", trimmedUrl, async () => {
+      const fetchWithTimeout = (urlValue) => fetchLiveSource(urlValue);
 
-    if (isWebAppSource) {
-      const response = await fetchWithTimeout(trimmedUrl);
-      if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
+      if (isWebAppSource) {
+        const response = await fetchWithTimeout(trimmedUrl);
+        if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
 
-      const contentType = response.headers.get("content-type") || "";
-      if (contentType.toLowerCase().includes("application/json")) {
-        const payload = await response.json();
-        if (payload?.error) throw new Error(payload.error);
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.toLowerCase().includes("application/json")) {
+          const payload = await response.json();
+          if (payload?.error) throw new Error(payload.error);
+          return {
+            rows: extractRowsFromPayload(payload),
+            sourceName: `Apps Script Web App (${payload?.sheetName || payload?.resource || "sheet"})`,
+            generatedAt: payload?.generatedAt || "",
+            version: payload?.version || payload?.realtime?.version || "",
+          };
+        }
+
+        const rawText = await response.text();
+        const workbook = XLSX.read(rawText, { type: "string" });
+        const firstSheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[firstSheetName];
+        const headerRowIndex = findHeaderRowIndex(sheet);
+        const rows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "", range: headerRowIndex });
         return {
-          rows: extractRowsFromPayload(payload),
-          sourceName: `Apps Script Web App (${payload?.sheetName || payload?.resource || "sheet"})`,
-          generatedAt: payload?.generatedAt || "",
-          version: payload?.version || payload?.realtime?.version || "",
+          rows,
+          sourceName: `Apps Script Web App CSV "${firstSheetName}"`,
+          generatedAt: "",
         };
       }
 
-      const rawText = await response.text();
-      const workbook = XLSX.read(rawText, { type: "string" });
+      const response = await fetchWithTimeout(csvUrl);
+      if (!response.ok) throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
+
+      const csvText = await response.text();
+      const workbook = XLSX.read(csvText, { type: "string" });
       const firstSheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[firstSheetName];
       const headerRowIndex = findHeaderRowIndex(sheet);
       const rows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "", range: headerRowIndex });
+
       return {
         rows,
-        sourceName: `Apps Script Web App CSV "${firstSheetName}"`,
+        sourceName: `Google Sheet "${firstSheetName}"`,
         generatedAt: "",
       };
-    }
-
-    const response = await fetchWithTimeout(csvUrl);
-    if (!response.ok) throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
-
-    const csvText = await response.text();
-    const workbook = XLSX.read(csvText, { type: "string" });
-    const firstSheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[firstSheetName];
-    const headerRowIndex = findHeaderRowIndex(sheet);
-    const rows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "", range: headerRowIndex });
-
-    return {
-      rows,
-      sourceName: `Google Sheet "${firstSheetName}"`,
-      generatedAt: "",
-    };
+    }, options);
   };
 
   const appendNoCacheParam = (urlValue) => {
@@ -291,6 +368,7 @@
       const previousVersion = lastVersion;
       lastVersion = versionInfo.version;
       const changed = Boolean(previousVersion && previousVersion !== versionInfo.version);
+      if (changed) clearDataCaches();
       if (changed && emit) broadcastChange(versionInfo);
       return changed;
     };
@@ -321,6 +399,7 @@
       const detail = event?.data || event?.detail || null;
       if (!detail?.version || detail.version === lastVersion) return;
       lastVersion = detail.version;
+      clearDataCaches();
       global.dispatchEvent(new CustomEvent("google-sheet:changed", { detail }));
     };
 
@@ -378,37 +457,40 @@
     startRealtimeSync: realtimeSyncController.start,
     stopRealtimeSync: realtimeSyncController.stop,
     pollRealtimeSync: realtimeSyncController.pollNow,
-    fetchDashboardBundleFromSource: async (providedUrl = "") => {
+    fetchDashboardBundleFromSource: async (providedUrl = "", options = {}) => {
       const rawUrl = providedUrl || DEFAULT_DATA_SOURCE_URL;
       const trimmedUrl = rawUrl.trim();
       if (!isAppsScriptWebAppUrl(trimmedUrl)) {
         throw new Error("Dashboard bundle fetch requires an Apps Script Web App URL.");
       }
 
-      const withParams = (() => {
-        const url = new URL(trimmedUrl);
-        url.searchParams.set("resource", "all");
-        url.searchParams.set("_ts", Date.now().toString());
-        return url.toString();
-      })();
+      return withDataCache("bundle", trimmedUrl, async () => {
+        const withParams = (() => {
+          const url = new URL(trimmedUrl);
+          url.searchParams.set("resource", "all");
+          url.searchParams.set("_ts", Date.now().toString());
+          return url.toString();
+        })();
 
-      const response = await fetchLiveSource(withParams);
-      if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
-      const payload = await response.json();
-      if (payload?.error) throw new Error(payload.error);
+        const response = await fetchLiveSource(withParams);
+        if (!response.ok) throw new Error(`Unable to fetch Apps Script Web App (HTTP ${response.status})`);
+        const payload = await response.json();
+        if (payload?.error) throw new Error(payload.error);
 
-      return {
-        activities: extractResourceRows(payload, "activities"),
-        costs: extractResourceRows(payload, "costs"),
-        dailyCosts: extractResourceRows(payload, "daily_costs").length
-          ? extractResourceRows(payload, "daily_costs")
-          : extractResourceRows(payload, "dailyCosts"),
-        dashboardRows: extractResourceRows(payload, "dashboard"),
-        generatedAt: payload?.generatedAt || "",
-        version: payload?.version || payload?.realtime?.version || "",
-        sourceName: "Apps Script Web App (activities + costs + actual costs)",
-      };
+        return {
+          activities: extractResourceRows(payload, "activities"),
+          costs: extractResourceRows(payload, "costs"),
+          dailyCosts: extractResourceRows(payload, "daily_costs").length
+            ? extractResourceRows(payload, "daily_costs")
+            : extractResourceRows(payload, "dailyCosts"),
+          dashboardRows: extractResourceRows(payload, "dashboard"),
+          generatedAt: payload?.generatedAt || "",
+          version: payload?.version || payload?.realtime?.version || "",
+          sourceName: "Apps Script Web App (activities + costs + actual costs)",
+        };
+      }, options);
     },
+
   };
 
   realtimeSyncController.start();

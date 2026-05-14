@@ -42,7 +42,7 @@ let latestDashboardSignature = "";
 let lastStableDashboardRows = [];
 let lastStableDashboardSavedAt = 0;
 
-const DASHBOARD_REFRESH_INTERVAL_MS = 5 * 1000;
+const DASHBOARD_REFRESH_INTERVAL_MS = 30 * 1000;
 let dashboardRefreshTimer = null;
 let pendingDashboardRefreshRequested = false;
 
@@ -1376,7 +1376,8 @@ const refreshDashboardData = async ({ force = false } = {}) => {
     if (typeof window.DataBridge.fetchDashboardBundleFromSource === "function") {
       try {
         const { activities, costs, dailyCosts, dashboardRows, sourceName, generatedAt } = await window.DataBridge.fetchDashboardBundleFromSource(
-          DATA_SOURCE_URL
+          DATA_SOURCE_URL,
+          { bypassCache: force && hasStableDashboardRows() }
         );
         const bundleRows = buildRowsFromActivitiesAndCosts(activities, costs, dailyCosts);
         const sourceRows = bundleRows.length ? bundleRows : dashboardRows;
@@ -1389,7 +1390,9 @@ const refreshDashboardData = async ({ force = false } = {}) => {
       }
     }
 
-    const { rows, sourceName, generatedAt } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL);
+    const { rows, sourceName, generatedAt } = await window.DataBridge.fetchRowsFromSource(DATA_SOURCE_URL, {
+      bypassCache: force && hasStableDashboardRows(),
+    });
 
     if (Array.isArray(rows)) {
       processRows(rows, sourceName, { acceptEmpty: true, generatedAt });
