@@ -211,6 +211,31 @@ const formatProjectTimeline = (project) => {
   const finish = project.finishDate ? formatHumanDate(project.finishDate) : "Finish not set";
   return `${start} — ${finish}`;
 };
+const setFormSavingState = (form, isSaving, savingText = "Saving…") => {
+  if (!(form instanceof HTMLFormElement)) return;
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (isSaving) {
+    if (submitButton instanceof HTMLButtonElement && !submitButton.dataset.defaultLabel) {
+      submitButton.dataset.defaultLabel = submitButton.textContent.trim();
+    }
+    form.classList.add("is-saving");
+    form.setAttribute("aria-busy", "true");
+  } else {
+    form.classList.remove("is-saving");
+    form.removeAttribute("aria-busy");
+  }
+  form.querySelectorAll("input, select, textarea, button").forEach((control) => {
+    if (control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement || control instanceof HTMLButtonElement) {
+      control.disabled = isSaving;
+    }
+  });
+  if (submitButton instanceof HTMLButtonElement) {
+    submitButton.innerHTML = isSaving
+      ? `<span class="btn-spinner" aria-hidden="true"></span><span>${escapeHtml(savingText)}</span>`
+      : escapeHtml(submitButton.dataset.defaultLabel || "Save");
+  }
+};
+
 const getStatusTone = (status = "") => {
   const normalized = String(status).toLowerCase();
   if (/complete|done|finished/.test(normalized)) return "complete";
@@ -381,6 +406,25 @@ const getActivityRefId = (activity = {}) => String(activity.activityRefId || act
 const getCostActivityProjectKey = (activity = {}) => String(activity.projectId || activity.projectName || "").trim();
 const getCostActivityKey = (activity = {}) => `${getCostActivityProjectKey(activity)}::${getActivityRefId(activity)}`;
 
+const dedupeCostActivities = (items = []) => {
+  const deduped = new Map();
+  (Array.isArray(items) ? items : []).map(normalizeCostActivity).forEach((item) => {
+    const scopedActivityKey = getCostActivityKey(item);
+    const fallbackNameKey = `${String(item.projectId || item.projectName || "").trim()}::${String(item.name || "").trim().toLowerCase()}`;
+    const key = scopedActivityKey && scopedActivityKey !== "::" ? scopedActivityKey : fallbackNameKey;
+    if (!key || key === "::") return;
+    const existing = deduped.get(key);
+    deduped.set(key, {
+      ...(existing || {}),
+      ...item,
+      costId: item.costId || existing?.costId || "",
+      plannedCost: parseBudgetValue(item.plannedCost) || parseBudgetValue(existing?.plannedCost),
+      earnedValue: parseBudgetValue(item.earnedValue) || parseBudgetValue(existing?.earnedValue),
+    });
+  });
+  return Array.from(deduped.values());
+};
+
 const cleanupOrphanedDailyCosts = (activities = loadCostActivities()) => {
   const normalizedActivities = activities.map(normalizeCostActivity);
   if (!normalizedActivities.length) return;
@@ -415,7 +459,7 @@ const cleanupOrphanedDailyCosts = (activities = loadCostActivities()) => {
   if (JSON.stringify(cleaned) !== JSON.stringify(dailyCostsState)) saveDailyCosts(cleaned);
 };
 
-const loadCostActivities = () => costActivitiesState.slice();
+const loadCostActivities = () => dedupeCostActivities(costActivitiesState).slice();
 
 const normalizeRemoteActivity = (row = {}) => {
   const normalizedId = String(getValueByAliases(row, ["id", "activityId", "activity_id", "activity id", "code"]) || "").trim();
@@ -1143,7 +1187,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     : '<tr><td colspan="6" class="empty-cell">No daily costs recorded yet.</td></tr>';
   modal.classList.remove("hidden");
   modal.innerHTML = `<div class="daily-cost-dialog panel" role="dialog" aria-modal="true" aria-labelledby="dailyCostTitle"><div class="daily-cost-head"><h3 id="dailyCostTitle">${escapeHtml(activity.name)} Daily Cost</h3><button type="button" class="daily-cost-close" id="closeDailyModalBtn" aria-label="Close">×</button></div><p class="daily-cost-range">📅 ${escapeHtml(formatLongHumanDate(activity.startDate))} to ${escapeHtml(formatLongHumanDate(activity.finishDate))}</p>
-    <section class="daily-cost-section"><h4>Add Daily Cost</h4><p class="daily-cost-note">Flow: 1) Add entry, 2) Save to Google Sheet, 3) Daily Cost Records refresh from sheet.</p><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><select name="date" required ${hasAvailableDates ? "" : "disabled"}>${dateOptions}</select></label><label><span>Progress/Day (%)</span><input name="progress" type="number" min="0" max="100" step="0.01" placeholder="Enter progress" required ${hasAvailableDates ? "" : "disabled"}></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required ${hasAvailableDates ? "" : "disabled"}></label><button class="primary-btn" type="submit" ${hasAvailableDates ? "" : "disabled"}>Add</button></form></section>
+    <section class="daily-cost-section"><h4>Add Daily Cost</h4><p class="daily-cost-note">Flow: 1) Add entry, 2) Save to Google Sheet, 3) Daily Cost Records refresh from sheet.</p><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><select name="date" required ${hasAvailableDates ? "" : "disabled"}>${dateOptions}</select></label><label><span>Progress/Day (%)</span><input name="progress" type="number" min="0" max="100" step="0.01" placeholder="Enter progress" required ${hasAvailableDates ? "" : "disabled"}></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required ${hasAvailableDates ? "" : "disabled"}></label><button class="primary-btn" type="submit" ${hasAvailableDates ? "" : "disabled"}>Add Daily Cost</button></form><p class="daily-cost-duplicate-hint" id="dailyCostDuplicateHint" hidden></p></section>
     <section class="daily-cost-section"><h4>Daily Cost Records</h4><div class="daily-cost-table-wrap"><table><thead><tr><th>Date</th><th>Progress/Day</th><th>Planned Cost/Day (₱)</th><th>Actual Cost/Day (₱)</th><th>Earned Value/Day (₱)</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></section>
     <div class="daily-cost-footer"><button type="button" class="ghost-btn" id="closeDailyModalBtnFooter">Close</button></div></div>`;
 
@@ -1171,13 +1215,33 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     renderDailyCostModal(projectId, activityId);
   }));
   const dateSelect = modal.querySelector("#dailyCostForm select[name=\"date\"]");
+  const dailyCostForm = modal.querySelector("#dailyCostForm");
+  const updateDailyCostSubmitMode = () => {
+    const submitButton = dailyCostForm?.querySelector('button[type="submit"]');
+    const hint = modal.querySelector("#dailyCostDuplicateHint");
+    if (!(submitButton instanceof HTMLButtonElement) || !dateSelect) return;
+    const selectedDate = normalizeDateKey(dateSelect.value);
+    const hasExistingEntry = entries.some((entry) => normalizeDateKey(entry.date) === selectedDate);
+    submitButton.textContent = hasExistingEntry ? "Update Daily Cost" : "Add Daily Cost";
+    submitButton.dataset.defaultLabel = submitButton.textContent;
+    if (hint instanceof HTMLElement) {
+      hint.hidden = !hasExistingEntry;
+      hint.textContent = hasExistingEntry
+        ? "A record already exists for this date, so saving will update it instead of creating a duplicate."
+        : "";
+    }
+  };
   if (dateSelect) {
     const todayIso = new Date().toISOString().slice(0, 10);
     if ([...dateSelect.options].some((option) => option.value === todayIso)) dateSelect.value = todayIso;
+    dateSelect.addEventListener("change", updateDailyCostSubmitMode);
+    updateDailyCostSubmitMode();
   }
 
-  modal.querySelector("#dailyCostForm")?.addEventListener("submit", async (event) => {
+  dailyCostForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    if (form.classList.contains("is-saving")) return;
     const formData = new FormData(event.currentTarget);
     const date = normalizeDateKey(formData.get("date"));
     const rawProgress = String(formData.get("progress") || "").trim();
@@ -1247,6 +1311,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         return;
       }
     }
+    setFormSavingState(form, true, existingIndex >= 0 ? "Updating…" : "Adding…");
     try {
       const dailyCostAction = existingIndex >= 0 ? "update" : "create";
       await postToDataSource("daily_costs", dailyCostAction, {
@@ -1270,10 +1335,14 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       applyCostMetadataRows(refreshedMetadataRows);
     } catch (error) {
       console.warn("Unable to save daily cost to Google Sheets:", error);
+      setFormSavingState(form, false);
       alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
       return;
     }
 
+    if (typeof window.notify === "function") {
+      window.notify(existingIndex >= 0 ? "Daily cost updated successfully." : "Daily cost added successfully.", "success");
+    }
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
@@ -1383,7 +1452,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
 };
 
 const saveCostActivityOverrides = (items = []) => {
-  costActivitiesState = Array.isArray(items) ? items.slice() : [];
+  costActivitiesState = dedupeCostActivities(items);
   persistToLocalStorage(COST_ACTIVITIES_LOCAL_STORAGE_KEY, costActivitiesState);
 };
 const renderCostMetadataModal = (projectId, activityRefId, target) => {
@@ -1404,7 +1473,9 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
 
   modal.querySelector("#costMetaForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    if (form.classList.contains("is-saving")) return;
+    const formData = new FormData(form);
     const resolvedProjectId = String(projectId || target.projectId || "").trim();
     if (!resolvedProjectId) {
       alert("Unable to save cost because Project ID is missing.");
@@ -1412,6 +1483,10 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     }
     const nextCostId = String(formData.get("costId") || "").trim();
     const nextPlannedCost = parseBudgetValue(formData.get("plannedCost"));
+    if (!nextCostId || nextPlannedCost <= 0) {
+      alert("Please enter a Cost ID and a planned cost greater than 0.");
+      return;
+    }
     const existingOverrides = loadCostActivities().map(normalizeCostActivity);
     const nextOverrides = existingOverrides.filter((item) => !(String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId));
     nextOverrides.push(normalizeCostActivity({
@@ -1421,6 +1496,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
       activityRefId,
     }));
     saveCostActivityOverrides(nextOverrides);
+    setFormSavingState(form, true, hasExistingCost ? "Updating…" : "Saving…");
     try {
       const durationDays = Number(target.durationDays) || 0;
       const plannedCostPerDay = durationDays > 0 ? nextPlannedCost / durationDays : 0;
@@ -1450,8 +1526,12 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     } catch (error) {
       console.warn("Unable to save cost record to Google Sheets:", error);
       saveCostActivityOverrides(existingOverrides);
+      setFormSavingState(form, false);
       alert(`Unable to save cost record to Google Sheets. ${error?.message || "Please verify your Apps Script deployment settings and try again."}`);
       return;
+    }
+    if (typeof window.notify === "function") {
+      window.notify(hasExistingCost ? "Cost details updated successfully." : "Cost details saved successfully.", "success");
     }
     closeModal();
     showProjectDetails(projectId, "costing", loadCostActivities());

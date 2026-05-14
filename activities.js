@@ -1342,9 +1342,13 @@ const handleDeleteActivity = async (activityKey) => {
   }
 
   const activity = state.allActivities[index];
-  const shouldDelete = window.confirm(
-    `Delete activity "${activity.name}" and all costs related to it?`,
-  );
+  const shouldDelete = typeof window.confirmAction === "function"
+    ? await window.confirmAction(`Delete activity "${activity.name}" and all costs related to it?`, {
+      title: "Delete activity",
+      confirmText: "Delete activity",
+      type: "error",
+    })
+    : window.confirm(`Delete activity "${activity.name}" and all costs related to it?`);
   if (!shouldDelete) return;
 
   let deletePayload = null;

@@ -917,7 +917,13 @@ projectsTableBody.addEventListener("click", async (event) => {
     const projectToDelete = state.allProjects.find((project) => project.id === projectId);
     if (!projectToDelete) return;
     closeAllActionMenus();
-    const isConfirmed = window.confirm(`Archive "${projectToDelete.name}"? It will move to Archived Projects and can still be restored or permanently deleted later.`);
+    const isConfirmed = typeof window.confirmAction === "function"
+      ? await window.confirmAction(`Archive "${projectToDelete.name}"? It will move to Archived Projects and can still be restored or permanently deleted later.`, {
+        title: "Archive project",
+        confirmText: "Archive project",
+        type: "warning",
+      })
+      : window.confirm(`Archive "${projectToDelete.name}"? It will move to Archived Projects and can still be restored or permanently deleted later.`);
     if (!isConfirmed) return;
     try {
       await archiveProject(projectId);
@@ -1011,7 +1017,13 @@ archivedProjectsTableBody?.addEventListener("click", async (event) => {
     const projectId = deleteBtn.dataset.archivedDelete;
     const projectToDelete = state.allProjects.find((project) => project.id === projectId);
     if (!projectToDelete) return;
-    const isConfirmed = window.confirm(`Permanently delete "${projectToDelete.name}" from Google Sheets? This hard delete erases the project, its activities, cost records, and daily cost entries. This action cannot be undone.`);
+    const isConfirmed = typeof window.confirmAction === "function"
+      ? await window.confirmAction(`Permanently delete "${projectToDelete.name}" from Google Sheets? This hard delete erases the project, its activities, cost records, and daily cost entries. This action cannot be undone.`, {
+        title: "Permanently delete project",
+        confirmText: "Delete permanently",
+        type: "error",
+      })
+      : window.confirm(`Permanently delete "${projectToDelete.name}" from Google Sheets? This hard delete erases the project, its activities, cost records, and daily cost entries. This action cannot be undone.`);
     if (!isConfirmed) return;
     try {
       const deletePayload = await deleteProject(projectId);
