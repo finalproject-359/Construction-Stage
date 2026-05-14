@@ -1414,8 +1414,29 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
   }));
 
   const closeCostActionMenus = () => {
-    detailsView.querySelectorAll("[data-cost-menu]").forEach((menu) => menu.classList.add("hidden"));
+    detailsView.querySelectorAll("[data-cost-menu]").forEach((menu) => {
+      menu.classList.add("hidden");
+      menu.classList.remove("open-up");
+    });
+    detailsView.querySelectorAll(".cost-record-row.menu-open").forEach((row) => row.classList.remove("menu-open"));
     detailsView.querySelectorAll("[data-cost-actions]").forEach((trigger) => trigger.setAttribute("aria-expanded", "false"));
+  };
+
+  const positionCostActionMenu = (menu) => {
+    if (!(menu instanceof HTMLElement)) return;
+
+    menu.classList.remove("open-up");
+
+    const menuRect = menu.getBoundingClientRect();
+    const tablePanelRect = menu.closest(".cost-record-table-panel")?.getBoundingClientRect();
+    const lowerBoundary = Math.min(
+      window.innerHeight - 16,
+      tablePanelRect ? tablePanelRect.bottom - 8 : window.innerHeight - 16,
+    );
+
+    if (menuRect.bottom > lowerBoundary) {
+      menu.classList.add("open-up");
+    }
   };
 
   detailsView.querySelectorAll("[data-cost-actions]").forEach((trigger) => {
@@ -1427,7 +1448,9 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
       closeCostActionMenus();
       if (!isOpen) {
         menu.classList.remove("hidden");
+        trigger.closest(".cost-record-row")?.classList.add("menu-open");
         trigger.setAttribute("aria-expanded", "true");
+        positionCostActionMenu(menu);
       }
       event.stopPropagation();
     });

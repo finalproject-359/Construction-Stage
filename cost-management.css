@@ -1467,6 +1467,26 @@ body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-chi
   margin-top: 4px;
 }
 
+.cost-record-row.menu-open {
+  position: relative;
+  z-index: 4;
+}
+
+.cost-record-row.menu-open td.actions-col {
+  z-index: 5;
+}
+
+body.page-cost-management .details-tab-panel td.actions-col .project-actions-menu[data-cost-menu] {
+  min-width: 180px;
+  width: max-content;
+  max-width: min(220px, calc(100vw - 42px));
+  z-index: 60;
+}
+
+body.page-cost-management .details-tab-panel td.actions-col .project-actions-menu[data-cost-menu] .project-action-btn {
+  white-space: nowrap;
+}
+
 .cost-actions-button {
   border-radius: 12px;
   background: #f6f9ff;
