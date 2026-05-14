@@ -71,7 +71,6 @@ const CONFIG = {
     ],
   },
   realtime: {
-    sheetName: "RealtimeMeta",
     versionKey: "version",
     updatedAtKey: "updatedAt",
   },
@@ -95,47 +94,23 @@ function getSpreadsheetTodayDate() {
 }
 
 
-function getRealtimeMetadataSheet() {
-  const sheet = getOrCreateSheet(CONFIG.realtime.sheetName);
-  const headers = ["Key", "Value"];
-  const existingHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
-  var needsHeaders = false;
-  for (var i = 0; i < headers.length; i += 1) {
-    if (cleanText(existingHeaders[i]) !== headers[i]) needsHeaders = true;
-  }
-  if (needsHeaders) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  return sheet;
+function getRealtimeMetadataProperties() {
+  return PropertiesService.getDocumentProperties();
 }
 
 function readRealtimeMetadata() {
-  const sheet = getRealtimeMetadataSheet();
-  const values = sheet.getDataRange().getValues();
-  const metadata = {};
-  for (var i = 1; i < values.length; i += 1) {
-    var key = cleanText(values[i][0]);
-    if (!key) continue;
-    metadata[key] = values[i][1];
-  }
+  const properties = getRealtimeMetadataProperties();
+  const version = cleanText(properties.getProperty(CONFIG.realtime.versionKey));
+  const updatedAt = cleanText(properties.getProperty(CONFIG.realtime.updatedAtKey));
 
-  if (!metadata[CONFIG.realtime.versionKey]) {
+  if (!version) {
     return markRealtimeDataChanged("initialized");
   }
 
   return {
-    version: cleanText(metadata[CONFIG.realtime.versionKey]),
-    updatedAt: cleanText(metadata[CONFIG.realtime.updatedAtKey]),
+    version: version,
+    updatedAt: updatedAt,
   };
-}
-
-function setRealtimeMetadataValue(sheet, key, value) {
-  const values = sheet.getDataRange().getValues();
-  for (var i = 1; i < values.length; i += 1) {
-    if (cleanText(values[i][0]) === key) {
-      sheet.getRange(i + 1, 2).setValue(value);
-      return;
-    }
-  }
-  sheet.appendRow([key, value]);
 }
 
 function markRealtimeDataChanged(reason) {
@@ -147,13 +122,19 @@ function markRealtimeDataChanged(reason) {
   }
 
   try {
-    const sheet = getRealtimeMetadataSheet();
     const now = new Date();
-    const version = [now.getTime(), Math.floor(Math.random() * 1000000), cleanText(reason || "sheet")].join("-");
-    setRealtimeMetadataValue(sheet, CONFIG.realtime.versionKey, version);
-    setRealtimeMetadataValue(sheet, CONFIG.realtime.updatedAtKey, now.toISOString());
+    const version = [
+      now.getTime(),
+      Math.floor(Math.random() * 1000000),
+      cleanText(reason || "sheet"),
+    ].join("-");
+    const updatedAt = now.toISOString();
+    getRealtimeMetadataProperties().setProperties({
+      [CONFIG.realtime.versionKey]: version,
+      [CONFIG.realtime.updatedAtKey]: updatedAt,
+    });
     SpreadsheetApp.flush();
-    return { version: version, updatedAt: now.toISOString() };
+    return { version: version, updatedAt: updatedAt };
   } finally {
     try {
       lock.releaseLock();
