@@ -433,7 +433,7 @@ body.page-projects .project-kpi-card:hover {
 .archived-projects-controls {
   padding: 16px 26px;
   display: grid;
-  grid-template-columns: minmax(250px, 1.3fr) minmax(180px, .75fr) minmax(150px, .6fr) auto;
+  grid-template-columns: minmax(250px, 1.2fr) minmax(170px, .72fr) minmax(150px, .58fr) minmax(190px, auto);
   gap: 12px;
   align-items: center;
   border-bottom: 1px solid #eef2f7;
@@ -513,7 +513,9 @@ body.page-projects .project-kpi-card:hover {
 }
 
 .archived-projects-table {
-  min-width: 940px;
+  width: 100%;
+  min-width: 760px;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -522,7 +524,7 @@ body.page-projects .project-kpi-card:hover {
   position: sticky;
   top: 0;
   z-index: 2;
-  padding: 13px 24px;
+  padding: 13px 18px;
   background: #fbfcff;
   border-bottom: 1px solid #e2e8f2;
   color: #31405a;
@@ -532,8 +534,27 @@ body.page-projects .project-kpi-card:hover {
   text-transform: uppercase;
 }
 
+
+.archived-projects-table th:nth-child(1),
+.archived-projects-table td:nth-child(1) { width: 32%; }
+
+.archived-projects-table th:nth-child(2),
+.archived-projects-table td:nth-child(2) { width: 16%; }
+
+.archived-projects-table th:nth-child(3),
+.archived-projects-table td:nth-child(3) { width: 18%; }
+
+.archived-projects-table th:nth-child(4),
+.archived-projects-table td:nth-child(4) { width: 22%; }
+
+.archived-projects-table th:nth-child(5),
+.archived-projects-table td:nth-child(5) {
+  width: 12%;
+  text-align: center;
+}
+
 .archived-projects-table tbody td {
-  padding: 14px 24px;
+  padding: 14px 18px;
   border-bottom: 1px solid #edf1f7;
   color: #263650;
   font-size: 0.9rem;
@@ -552,7 +573,7 @@ body.page-projects .project-kpi-card:hover {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 260px;
+  min-width: 0;
 }
 
 .archived-project-avatar {
@@ -608,8 +629,8 @@ body.page-projects .project-kpi-card:hover {
 .archived-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
   white-space: nowrap;
 }
 
@@ -617,6 +638,7 @@ body.page-projects .project-kpi-card:hover {
 .archived-delete-btn {
   border: 1px solid transparent;
   border-radius: 9px;
+  width: 38px;
   min-height: 38px;
   font: inherit;
   font-size: 0.84rem;
@@ -630,14 +652,14 @@ body.page-projects .project-kpi-card:hover {
 }
 
 .archived-restore-btn {
-  padding: 0 14px;
+  padding: 0;
   color: #0f56d9;
   background: #ffffff;
   border-color: #b9cdf7;
 }
 
 .archived-delete-btn {
-  width: 38px;
+  padding: 0;
   color: #ef4444;
   background: #fff1f2;
 }

@@ -592,6 +592,8 @@ const applyFilters = () => {
   const typeValue = projectsTypeFilter?.value || "All Project Types";
 
   state.filteredProjects = state.allProjects.filter((project) => {
+    if (isProjectArchived(project)) return false;
+
     const matchesSearch =
       !searchTerm ||
       project.name.toLowerCase().includes(searchTerm) ||
@@ -612,12 +614,12 @@ const applyFilters = () => {
 const hydrateFilters = () => {
   populateFilterSelect(
     projectsStatusFilter,
-    state.allProjects.map((project) => project.status),
+    state.allProjects.filter((project) => !isProjectArchived(project)).map((project) => project.status),
     "All Statuses"
   );
   populateFilterSelect(
     projectsTypeFilter,
-    state.allProjects.map((project) => project.type),
+    state.allProjects.filter((project) => !isProjectArchived(project)).map((project) => project.type),
     "All Project Types"
   );
 };
@@ -712,12 +714,11 @@ const renderArchivedProjects = () => {
           <td>${escapeHtml(reason)}</td>
           <td>
             <div class="archived-actions">
-              <button type="button" class="archived-restore-btn" data-archived-restore="${escapeHtml(project.id)}">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 0 2.34-5.66M4 4v6h6"/></svg>
-                Restore
+              <button type="button" class="archived-restore-btn" data-archived-restore="${escapeHtml(project.id)}" aria-label="Restore ${escapeHtml(project.name)}" title="Restore">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.34-5.66M4 4v6h6"/></svg>
               </button>
-              <button type="button" class="archived-delete-btn" data-archived-delete="${escapeHtml(project.id)}" aria-label="Delete ${escapeHtml(project.name)}">
-                <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>
+              <button type="button" class="archived-delete-btn" data-archived-delete="${escapeHtml(project.id)}" aria-label="Delete ${escapeHtml(project.name)}" title="Delete">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>
               </button>
             </div>
           </td>
