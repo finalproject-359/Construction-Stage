@@ -148,6 +148,7 @@ const postToDataSource = async (resource, action, payload) => {
 
   if (!response.ok) throw new Error(`Google Sheets sync failed (HTTP ${response.status}).`);
   if (body?.ok === false || body?.error) throw new Error(String(body.error || "Google Sheets sync failed."));
+  window.DataBridge?.pollRealtimeSync?.();
   return body;
 };
 
@@ -1806,6 +1807,7 @@ const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
 
 window.addEventListener("focus", () => refreshSelectedProjectCostView({ force: true }));
 window.addEventListener("pageshow", () => refreshSelectedProjectCostView({ force: true }));
+window.addEventListener("google-sheet:changed", () => refreshSelectedProjectCostView({ force: true }));
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refreshSelectedProjectCostView({ force: true });
 });

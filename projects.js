@@ -511,6 +511,8 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   if (payload?.ok === false) {
     throw new Error(payload.error || "Unable to save to Google Sheet.");
   }
+
+  window.DataBridge?.pollRealtimeSync?.();
 };
 
 const showProjectPersistenceError = (actionLabel, error) => {
@@ -931,6 +933,7 @@ const setupProjectsRealtimeSync = () => {
 
   window.addEventListener("focus", () => refreshProjectsIfVisible({ force: true }));
   window.addEventListener("online", () => refreshProjectsIfVisible({ force: true }));
+  window.addEventListener("google-sheet:changed", () => refreshProjectsIfVisible({ force: true }));
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       refreshProjectsIfVisible({ force: true });
