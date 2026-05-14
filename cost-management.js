@@ -441,17 +441,22 @@ const normalizeRemoteActivity = (row = {}) => {
 };
 const loadRemoteCostActivities = async (projectFilter = {}) => {
   const resourceRows = await loadActivitiesFromResourceEndpoint(projectFilter);
-  if (resourceRows.length) return resourceRows;
+  if (Array.isArray(resourceRows)) {
+    return { rows: resourceRows, authoritative: true };
+  }
 
-  if (!window.DataBridge?.fetchRowsFromSource) return [];
+  if (!window.DataBridge?.fetchRowsFromSource) return { rows: [], authoritative: false };
   try {
     const { rows } = await window.DataBridge.fetchRowsFromSource(window.DataBridge.DEFAULT_DATA_SOURCE_URL);
-    return (rows || [])
-      .map(normalizeRemoteActivity)
-      .filter((item) => getCostActivityProjectKey(item) && item.id);
+    return {
+      rows: (rows || [])
+        .map(normalizeRemoteActivity)
+        .filter((item) => getCostActivityProjectKey(item) && item.id),
+      authoritative: true,
+    };
   } catch (error) {
     console.warn("Unable to load cost activities from Google Sheets:", error);
-    return [];
+    return { rows: [], authoritative: false };
   }
 };
 
@@ -499,15 +504,16 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
     }
     url.searchParams.set("_ts", String(Date.now()));
     const response = await fetch(url.toString(), { cache: "no-store" });
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const payload = await response.json();
+    if (payload?.ok === false) return null;
     const rows = Array.isArray(payload?.activities) ? payload.activities : [];
     return rows
       .map(normalizeRemoteActivity)
       .filter((item) => getCostActivityProjectKey(item) && item.id);
   } catch (error) {
     console.warn("Unable to load cost activities from activities resource endpoint:", error);
-    return [];
+    return null;
   }
 };
 
@@ -1720,10 +1726,13 @@ const applyCostMetadataRows = (rows = [], projectFilter = {}) => {
     const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
     const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
     const fallbackActivityNameKey = normalizeLookup(activity.name);
-    const metadata = metadataByActivityId.get(activityKey)
-      || metadataByActivityName.get(activityNameKey)
-      || metadataByActivityIdFallback.get(fallbackActivityRefKey)
-      || metadataByActivityNameFallback.get(fallbackActivityNameKey);
+    const scopedMetadata = metadataByActivityId.get(activityKey)
+      || metadataByActivityName.get(activityNameKey);
+    const fallbackMetadata = shouldResetProjectMetadata
+      ? null
+      : (metadataByActivityIdFallback.get(fallbackActivityRefKey)
+        || metadataByActivityNameFallback.get(fallbackActivityNameKey));
+    const metadata = scopedMetadata || fallbackMetadata;
     if (!metadata) return activity;
     return normalizeCostActivity({
       ...activity,
@@ -1749,17 +1758,30 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
     || (selectedProjectName && project.name === selectedProjectName)
   );
   const projectFilter = getSelectedProjectFilter(selectedProjectAfterBootstrap);
-  const [remoteActivities, remoteDailyCosts, remoteCostMetadataRows] = await Promise.all([
+  const [remoteActivityResult, remoteDailyCosts, remoteCostMetadataRows] = await Promise.all([
     loadRemoteCostActivities(projectFilter),
     loadRemoteDailyCosts(projectFilter),
     loadRemoteCostMetadata(projectFilter),
   ]);
+  const remoteActivities = Array.isArray(remoteActivityResult?.rows) ? remoteActivityResult.rows : [];
+  const hasAuthoritativeActivitySheet = Boolean(remoteActivityResult?.authoritative);
+  const selectedProjectHasFilter = Boolean(projectFilter?.projectId || projectFilter?.projectName);
+  const remoteActivityKeys = new Set(remoteActivities.map((item) => getCostActivityKey(item)));
   // Merge cached local overrides first so user-maintained Cost ID / planned-cost
-  // metadata survives, then let fresh remote activity rows refresh schedule fields.
+  // metadata survives for matching sheet activities, then let fresh remote rows
+  // refresh schedule fields. When the sheet was read successfully for the
+  // selected project, do not keep local-only activities; otherwise deleted or
+  // unrelated browser-cache rows can appear as costing records that are no
+  // longer present in Google Sheets.
   const localActivities = loadFromLocalStorageArray(COST_ACTIVITIES_LOCAL_STORAGE_KEY)
     .concat(loadFromLocalStorageArray(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY))
     .map(removeInferredProjectBudgetCostMetadata)
-    .filter((item) => getCostActivityProjectKey(item) && getActivityRefId(item));
+    .filter((item) => getCostActivityProjectKey(item) && getActivityRefId(item))
+    .filter((item) => {
+      if (!hasAuthoritativeActivitySheet || !selectedProjectHasFilter) return true;
+      if (!isActivityForProject(item, projectFilter.projectId, projectFilter.projectName)) return true;
+      return remoteActivityKeys.has(getCostActivityKey(item));
+    });
   const merged = [...localActivities, ...remoteActivities];
   const deduped = new Map();
   merged.forEach((item) => {
