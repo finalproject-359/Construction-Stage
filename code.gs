@@ -1273,6 +1273,7 @@ function handleActivityMutation(action, payload) {
       );
     }
     validateActivityForMutation(activity, action);
+    assertActivityForeignKeys(activity);
 
     const sheet = getOrCreateSheet(CONFIG.sheetNames.activities);
     ensureSheetHeaders(sheet, CONFIG.headers.activities);
@@ -1318,6 +1319,7 @@ function handleActivityMutation(action, payload) {
     const activity = normalizeIncomingActivity(payload.activity || payload);
     if (!activity.id) throw new Error("Activity ID is required for update.");
     validateActivityForMutation(activity, action);
+    assertActivityForeignKeys(activity);
 
     const updateResult = updateActivityRow(activity);
     syncProjectProgressFromActivities(updateResult.projectId, updateResult.project);
@@ -1365,10 +1367,7 @@ function handleCostMutation(action, payload) {
     if (!cost.projectId || !cost.costId) {
       throw new Error("Project ID and Cost ID are required.");
     }
-    assertProjectExists(cost.projectId);
-    if (cost.activityId) {
-      assertActivityExists(cost.projectId, cost.activityId);
-    }
+    assertCostForeignKeys(cost);
 
     if (action === "create" && costExists(cost.projectId, cost.costId, cost.activityId)) {
       throw new Error(
@@ -1387,7 +1386,9 @@ function handleCostMutation(action, payload) {
     // DailyCosts should be written only by the daily_costs resource after the
     // user explicitly enters a Progress/Day and Actual Cost/Day value.
     if (payload.createDailyCost === true && !payload.skipDailyCostSync && !payload.summaryOnly) {
-      upsertDailyCostRow(buildDailyCostFromCost(cost));
+      const generatedDailyCost = buildDailyCostFromCost(cost);
+      assertDailyCostForeignKeys(generatedDailyCost);
+      upsertDailyCostRow(generatedDailyCost);
     }
     return jsonResponse({
       ok: true,
@@ -1411,8 +1412,7 @@ function handleDailyCostMutation(action, payload) {
     if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.date) {
       throw new Error("Project ID, Cost ID, and Date are required.");
     }
-    assertProjectExists(dailyCost.projectId);
-    assertCostExists(dailyCost.projectId, dailyCost.costId, dailyCost.activityId);
+    assertDailyCostForeignKeys(dailyCost);
     upsertDailyCostRow(dailyCost);
     syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId, {
       activityId: dailyCost.activityId,
@@ -1432,8 +1432,7 @@ function handleDailyCostMutation(action, payload) {
     if (!dailyCost.projectId || !dailyCost.costId || !dailyCost.date) {
       throw new Error("Project ID, Cost ID, and Date are required for delete.");
     }
-    assertProjectExists(dailyCost.projectId);
-    assertCostExists(dailyCost.projectId, dailyCost.costId, dailyCost.activityId);
+    assertDailyCostForeignKeys(dailyCost);
     deleteDailyCostRow(dailyCost);
     syncCostActualFromDailyCost(dailyCost.projectId, dailyCost.costId, {
       activityId: dailyCost.activityId,
@@ -1458,6 +1457,17 @@ function assertProjectExists(projectId) {
       "Project not found. Create the project first before adding related records.",
     );
   }
+}
+
+function assertActivityForeignKeys(activity) {
+  var normalizedProjectId = cleanText(activity && activity.projectId);
+  if (!normalizedProjectId) {
+    throw new Error(
+      "Activity must reference an existing project through Project ID before it can be saved.",
+    );
+  }
+
+  assertProjectExists(normalizedProjectId);
 }
 
 function assertActivityExists(projectId, activityId) {
@@ -1520,6 +1530,36 @@ function assertCostExists(projectId, costId, activityId) {
       "Cost record not found for the given Project ID, Activity ID, and Cost ID. Create the cost first.",
     );
   }
+}
+
+function assertCostForeignKeys(cost) {
+  var normalizedProjectId = cleanText(cost && cost.projectId);
+  var normalizedActivityId = cleanText(cost && cost.activityId);
+
+  if (!normalizedProjectId || !normalizedActivityId) {
+    throw new Error(
+      "Cost must reference an existing project and activity through Project ID and Activity ID before it can be saved.",
+    );
+  }
+
+  assertProjectExists(normalizedProjectId);
+  assertActivityExists(normalizedProjectId, normalizedActivityId);
+}
+
+function assertDailyCostForeignKeys(dailyCost) {
+  var normalizedProjectId = cleanText(dailyCost && dailyCost.projectId);
+  var normalizedActivityId = cleanText(dailyCost && dailyCost.activityId);
+  var normalizedCostId = cleanText(dailyCost && dailyCost.costId);
+
+  if (!normalizedProjectId || !normalizedActivityId || !normalizedCostId) {
+    throw new Error(
+      "Daily cost must reference an existing project, activity, and cost through Project ID, Activity ID, and Cost ID before it can be saved.",
+    );
+  }
+
+  assertProjectExists(normalizedProjectId);
+  assertActivityExists(normalizedProjectId, normalizedActivityId);
+  assertCostExists(normalizedProjectId, normalizedCostId, normalizedActivityId);
 }
 
 function normalizeIncomingDailyCost(input) {
