@@ -1217,16 +1217,39 @@ function handleProjectMutation(action, payload) {
   }
 
   if (action === "delete") {
-    const projectId = cleanText(payload.projectId || payload.id);
-    if (!projectId) {
-      throw new Error("Project ID is required for delete.");
+    const sourceProject = payload.project || {};
+    const projectId = cleanText(
+      payload.projectId ||
+        payload.project_id ||
+        payload.id ||
+        sourceProject.id ||
+        sourceProject.projectId ||
+        sourceProject.project_id ||
+        sourceProject.code ||
+        sourceProject.projectCode ||
+        sourceProject.project_code,
+    );
+    const projectName = cleanText(
+      payload.projectName ||
+        payload.project_name ||
+        payload.project ||
+        payload.name ||
+        sourceProject.name ||
+        sourceProject.project ||
+        sourceProject.projectName ||
+        sourceProject.project_name,
+    );
+    if (!projectId && !projectName) {
+      throw new Error("Project ID or project name is required for delete.");
     }
 
-    const deleteResult = deleteProjectRow(projectId);
+    const deleteResult = deleteProjectRow(projectId, projectName);
     return jsonResponse({
       ok: true,
       message: "Project and related records deleted successfully.",
       projectId: projectId,
+      projectName: projectName,
+      deletedProject: deleteResult.deletedProject,
       deletedActivities: deleteResult.deletedActivities,
       deletedCosts: deleteResult.deletedCosts,
       deletedDailyCosts: deleteResult.deletedDailyCosts,
@@ -2227,20 +2250,22 @@ function archiveProjectRow(projectId) {
     .setValues([rowValues]);
 }
 
-function deleteProjectRow(projectId) {
+function deleteProjectRow(projectId, projectNameInput) {
   const normalizedProjectId = cleanText(projectId);
-  const lookup = findProjectSheetRow(normalizedProjectId);
-  if (!lookup) {
-    throw new Error("Project not found.");
-  }
+  const providedProjectName = cleanText(projectNameInput);
+  const lookup = findProjectSheetRow(normalizedProjectId, providedProjectName);
 
-  const projectName = lookup.columns.name
+  const projectName = lookup && lookup.columns.name
     ? cleanText(
         lookup.sheet
           .getRange(lookup.rowNumber, lookup.columns.name)
           .getValue(),
-      )
-    : "";
+      ) || providedProjectName
+    : providedProjectName;
+
+  if (!lookup && !normalizedProjectId && !projectName) {
+    throw new Error("Project not found.");
+  }
 
   const deletedDailyCosts = deleteRowsByProjectIdentity(
     CONFIG.sheetNames.dailyCosts,
@@ -2261,8 +2286,12 @@ function deleteProjectRow(projectId) {
     projectName,
   );
 
-  lookup.sheet.deleteRow(lookup.rowNumber);
+  if (lookup) {
+    lookup.sheet.deleteRow(lookup.rowNumber);
+  }
+
   return {
+    deletedProject: Boolean(lookup),
     deletedActivities: deletedActivities,
     deletedCosts: deletedCosts,
     deletedDailyCosts: deletedDailyCosts,
@@ -2765,7 +2794,7 @@ function isCostKeyRelatedRow(row, columns, costKeys) {
   return false;
 }
 
-function findProjectSheetRow(projectId) {
+function findProjectSheetRow(projectId, projectName) {
   const sheet = getOrCreateSheet(CONFIG.sheetNames.projects);
   ensureSheetHeaders(sheet, CONFIG.headers.projects);
 
@@ -2802,9 +2831,23 @@ function findProjectSheetRow(projectId) {
     throw new Error("Project ID column is missing.");
   }
 
+  const normalizedProjectId = cleanText(projectId).toLowerCase();
+  const normalizedProjectName = cleanText(projectName).toLowerCase();
+
   var rowNumber = 0;
   for (var rowIdx = 1; rowIdx < values.length; rowIdx += 1) {
-    if (cleanText(values[rowIdx][columns.id - 1]) === projectId) {
+    const rowProjectId = cleanText(values[rowIdx][columns.id - 1]).toLowerCase();
+    const rowProjectName = columns.name
+      ? cleanText(values[rowIdx][columns.name - 1]).toLowerCase()
+      : "";
+    const matchesProjectId =
+      normalizedProjectId &&
+      (rowProjectId === normalizedProjectId || rowProjectName === normalizedProjectId);
+    const matchesProjectName =
+      normalizedProjectName &&
+      (rowProjectName === normalizedProjectName || rowProjectId === normalizedProjectName);
+
+    if (matchesProjectId || matchesProjectName) {
       rowNumber = rowIdx + 1;
       break;
     }
