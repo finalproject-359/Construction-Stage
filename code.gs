@@ -1414,11 +1414,7 @@ function normalizeIncomingDailyCost(input) {
       source.project || source.projectName || source.project_name,
     ),
     costId: cleanText(
-      source.costId ||
-        source.cost_id ||
-        source.id ||
-        source.activityId ||
-        source.activity_id,
+      source.costId || source.cost_id || source.costCode || source.cost_code,
     ),
     activityId: cleanText(
       source.activityId ||
@@ -1849,7 +1845,7 @@ function normalizeIncomingCost(input) {
     source.percent_complete,
   ]);
   return {
-    costId: cleanText(source.costId || source.id),
+    costId: cleanText(source.costId || source.cost_id || source.costCode || source.cost_code),
     projectId: cleanText(source.projectId || source.project_id),
     project: cleanText(
       source.project || source.projectName || source.project_name,
@@ -3879,7 +3875,7 @@ function normalizeActivityRecord(row) {
       getCell(row, ["created at", "created_at", "timestamp", "date created"]),
     ),
     plannedValue: parseNumber(
-      getCell(row, ["planned value", "planned cost", "budget"]),
+      getCell(row, ["planned value", "planned cost"]),
     ),
     actualCost: parseNumber(getCell(row, ["actual cost", "ac", "actual"])),
     earnedValue: parseNumber(getCell(row, ["earned value", "ev"])),
@@ -3892,8 +3888,8 @@ function normalizeCostRecord(row) {
   const projectId = cleanText(getCell(row, ["project id", "projectid"]));
 
   return {
-    id: cleanText(getCell(row, ["cost id", "id"])),
-    costId: cleanText(getCell(row, ["cost id", "id"])),
+    id: cleanText(getCell(row, ["cost id"])),
+    costId: cleanText(getCell(row, ["cost id"])),
     projectId: projectId,
     projectCode: projectId,
     project: cleanText(getCell(row, ["project", "project name"])),
@@ -3949,7 +3945,7 @@ function normalizeDailyCostRecord(row) {
         row["project"] ||
         row["projectName"],
     ),
-    costId: cleanText(row["Cost ID"] || row["costId"] || row["cost_id"]),
+    costId: cleanText(row["Cost ID"] || row["costId"] || row["cost_id"] || row["costCode"] || row["cost_code"]),
     activityId: cleanText(
       row["Activity ID"] ||
         row["activityId"] ||
