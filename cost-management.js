@@ -71,6 +71,8 @@ let projectsState = loadFromLocalStorageArray(PROJECTS_LOCAL_STORAGE_KEY);
 let costActivitiesState = loadFromLocalStorageArray(COST_ACTIVITIES_LOCAL_STORAGE_KEY)
   .concat(loadFromLocalStorageArray(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY));
 let dailyCostsState = loadFromLocalStorageArray(DAILY_COSTS_LOCAL_STORAGE_KEY);
+let hasWarnedAboutCachedProjects = false;
+let hasWarnedAboutCachedDailyCosts = false;
 
 const loadProjects = () => projectsState.slice();
 const loadDailyCosts = () => dailyCostsState.slice();
@@ -514,20 +516,33 @@ const normalizeRemoteProject = (row = {}) => normalizeProject({
   budget: getValueByAliases(row, ["budget", "plannedCost", "planned_cost", "plannedValue", "planned value"]),
 });
 
+const loadRemoteProjectsFromBundle = async () => {
+  if (!window.DataBridge?.fetchDashboardBundleFromSource || !window.DataBridge?.DEFAULT_DATA_SOURCE_URL) return null;
+  try {
+    const bundle = await window.DataBridge.fetchDashboardBundleFromSource(window.DataBridge.DEFAULT_DATA_SOURCE_URL, { bypassCache: true });
+    if (!Array.isArray(bundle?.projects)) return null;
+    return bundle.projects.map(normalizeRemoteProject).filter((item) => item.id);
+  } catch (error) {
+    console.warn("Unable to load projects from bundled Google Sheets payload:", error);
+    return null;
+  }
+};
+
 const loadRemoteProjects = async () => {
-  if (!window.DataBridge?.DEFAULT_DATA_SOURCE_URL) return [];
+  if (!window.DataBridge?.DEFAULT_DATA_SOURCE_URL) return null;
   try {
     const url = new URL(window.DataBridge.DEFAULT_DATA_SOURCE_URL);
     url.searchParams.set("resource", "projects");
     url.searchParams.set("_ts", String(Date.now()));
     const response = await fetch(url.toString(), { cache: "no-store" });
-    if (!response.ok) return [];
+    if (!response.ok) throw new Error(`Projects fetch failed (HTTP ${response.status}).`);
     const payload = await response.json();
+    if (payload?.ok === false || payload?.error) throw new Error(String(payload.error || "Projects fetch failed."));
     const rows = Array.isArray(payload?.projects) ? payload.projects : [];
     return rows.map(normalizeRemoteProject).filter((item) => item.id);
   } catch (error) {
     console.warn("Unable to load projects from resource endpoint:", error);
-    return [];
+    return loadRemoteProjectsFromBundle();
   }
 };
 
@@ -652,7 +667,14 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
     ? prefetchedDailyCosts
     : await loadRemoteDailyCosts(projectFilter);
 
-  if (!Array.isArray(remoteDailyCosts)) return;
+  if (!Array.isArray(remoteDailyCosts)) {
+    if (!hasWarnedAboutCachedDailyCosts && typeof window.notify === "function") {
+      hasWarnedAboutCachedDailyCosts = true;
+      window.notify("Using cached daily costs because Google Sheets could not be reached.", "warning");
+    }
+    return false;
+  }
+  hasWarnedAboutCachedDailyCosts = false;
 
   const lookups = buildProjectIdentityLookups(loadProjects());
   const dedupedDailyCosts = new Map();
@@ -672,6 +694,7 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
     .forEach((item) => dedupedDailyCosts.set(getDailyCostRecordKey(item), item));
 
   saveDailyCosts(Array.from(dedupedDailyCosts.values()));
+  return true;
 };
 
 const extractActivityRefIdFromCostRow = (row = {}) => {
@@ -1884,11 +1907,23 @@ const applyCostMetadataRows = (rows = [], projectFilter = {}) => {
 };
 
 const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
-  const remoteProjects = (await loadRemoteProjects()).map(normalizeProject).filter((project) => project.id);
-  projectsState = remoteProjects.length
+  const remoteProjectsResult = await loadRemoteProjects();
+  const hasAuthoritativeProjectSheet = Array.isArray(remoteProjectsResult);
+  const remoteProjects = hasAuthoritativeProjectSheet
+    ? remoteProjectsResult.map(normalizeProject).filter((project) => project.id)
+    : [];
+  projectsState = hasAuthoritativeProjectSheet
     ? remoteProjects
     : loadFromLocalStorageArray(PROJECTS_LOCAL_STORAGE_KEY).map(normalizeProject).filter((project) => project.id);
+  // Local storage is now a warm-start cache only. An authoritative empty remote
+  // project list clears stale browser data instead of resurrecting deleted rows.
   persistToLocalStorage(PROJECTS_LOCAL_STORAGE_KEY, projectsState);
+  if (!hasAuthoritativeProjectSheet && !hasWarnedAboutCachedProjects && typeof window.notify === "function") {
+    hasWarnedAboutCachedProjects = true;
+    window.notify("Using cached projects because Google Sheets could not be reached.", "warning");
+  } else if (hasAuthoritativeProjectSheet) {
+    hasWarnedAboutCachedProjects = false;
+  }
 
   const { selectedProjectId, selectedProjectName, selectedTab } = getSelectedViewParams();
   const resolvedSelectedTab = preferredTab === "costing" ? "costing" : selectedTab;
