@@ -1451,6 +1451,10 @@ function assertCostExists(projectId, costId, activityId) {
 
 function normalizeIncomingDailyCost(input) {
   var source = input || {};
+  var inferredProject = resolveProjectIdentity(
+    cleanText(source.projectId || source.project_id),
+    cleanText(source.project || source.projectName || source.project_name),
+  );
   var hasExplicitValue = function (value) {
     return value !== undefined && value !== null && value !== "";
   };
@@ -1491,10 +1495,8 @@ function normalizeIncomingDailyCost(input) {
       : 0;
 
   return {
-    projectId: cleanText(source.projectId || source.project_id),
-    project: cleanText(
-      source.project || source.projectName || source.project_name,
-    ),
+    projectId: inferredProject.id,
+    project: inferredProject.name,
     costId: cleanText(
       source.costId || source.cost_id || source.costCode || source.cost_code,
     ),
@@ -1921,6 +1923,10 @@ function countDailyCostRecords(projectId, costId, activityId, activityName) {
 
 function normalizeIncomingCost(input) {
   const source = input || {};
+  const inferredProject = resolveProjectIdentity(
+    cleanText(source.projectId || source.project_id),
+    cleanText(source.project || source.projectName || source.project_name),
+  );
   const rawProgress = pickFirstExplicitValue([
     source.progress,
     source.percentComplete,
@@ -1928,10 +1934,8 @@ function normalizeIncomingCost(input) {
   ]);
   return {
     costId: cleanText(source.costId || source.cost_id || source.costCode || source.cost_code),
-    projectId: cleanText(source.projectId || source.project_id),
-    project: cleanText(
-      source.project || source.projectName || source.project_name,
-    ),
+    projectId: inferredProject.id,
+    project: inferredProject.name,
     activityId: cleanText(
       source.activityId ||
         source.activity_id ||
