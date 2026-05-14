@@ -1,14 +1,29 @@
-const CACHE_VERSION = "floodcontrol-v8";
+const CACHE_VERSION = "floodcontrol-v9";
 const APP_SHELL_FILES = [
   "./",
   "./index.html",
   "./projects.html",
   "./activities.html",
+  "./add-activity.html",
   "./cost-management.html",
   "./style.css",
+  "./index.css",
+  "./projects.css",
+  "./activities.css",
+  "./cost-management.css",
+  "./professional-ui.css",
+  "./ui-feedback.js",
+  "./data-service.js",
   "./script.js",
+  "./projects.js",
+  "./activities.js",
+  "./add-activity.js",
+  "./cost-management.js",
+  "./page-loader.js",
   "./manifest.webmanifest"
 ];
+
+const STATIC_ASSET_DESTINATIONS = new Set(["style", "script", "manifest", "image", "font"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -26,6 +41,22 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+const cacheFreshResponse = async (request, response) => {
+  if (
+    response &&
+    response.status === 200 &&
+    response.type !== "opaque" &&
+    !response.redirected
+  ) {
+    const responseClone = response.clone();
+    const cache = await caches.open(CACHE_VERSION);
+    await cache.put(request, responseClone);
+  }
+  return response;
+};
+
+const getCachedResponse = (request) => caches.match(request, { ignoreSearch: true });
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const requestUrl = new URL(request.url);
@@ -38,19 +69,14 @@ self.addEventListener("fetch", (event) => {
   }
 
   const isNavigationRequest = request.mode === "navigate" || request.destination === "document";
+  const isStaticAsset = STATIC_ASSET_DESTINATIONS.has(request.destination);
 
   if (isNavigationRequest) {
     event.respondWith(
-      fetch(request, { cache: "no-store" })
-        .then((response) => {
-          if (response && response.ok && !response.redirected) {
-            const responseClone = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
-          }
-          return response;
-        })
+      fetch(request, { cache: "no-cache" })
+        .then((response) => cacheFreshResponse(request, response))
         .catch(async () => {
-          const cachedPage = await caches.match(request, { ignoreSearch: true });
+          const cachedPage = await getCachedResponse(request);
           if (cachedPage) return cachedPage;
           return caches.match("./index.html");
         })
@@ -58,24 +84,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (isStaticAsset) {
+    event.respondWith(
+      (async () => {
+        const cachedResponse = await getCachedResponse(request);
+        const networkFetch = fetch(request, { cache: "no-cache" })
+          .then((response) => cacheFreshResponse(request, response))
+          .catch(() => cachedResponse);
+
+        return cachedResponse || networkFetch;
+      })()
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(request, { cache: "no-store" })
-      .then((networkResponse) => {
-        if (
-          networkResponse &&
-          networkResponse.status === 200 &&
-          networkResponse.type !== "opaque" &&
-          !networkResponse.redirected
-        ) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
-        }
-        return networkResponse;
-      })
-      .catch(async () => {
-        const cachedResponse = await caches.match(request, { ignoreSearch: true });
-        return cachedResponse;
-      })
+    fetch(request, { cache: "no-cache" })
+      .then((networkResponse) => cacheFreshResponse(request, networkResponse))
+      .catch(() => getCachedResponse(request))
   );
 });
 

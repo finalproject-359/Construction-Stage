@@ -2423,3 +2423,102 @@ tbody tr { transition: background-color .18s ease, box-shadow .18s ease; }
   70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
   100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
 }
+
+/* Performance and small-screen rendering improvements. */
+.kpi-grid,
+.chart-grid,
+.table-split-grid,
+.projects-table-panel,
+.activities-project-selection-panel,
+.activities-list-panel,
+.cost-management-grid,
+.cost-table-panel {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 520px;
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    padding: clamp(12px, 3vw, 18px);
+  }
+
+  .kpi-grid,
+  .projects-kpis,
+  .chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chart-canvas-wrap {
+    height: clamp(220px, 42vw, 280px);
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    min-height: 100svh;
+  }
+
+  .sidebar {
+    padding: 10px 8px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .menu a {
+    min-height: 42px;
+    padding: 9px 11px;
+    font-size: 0.9rem;
+  }
+
+  .main-content {
+    padding: 12px;
+  }
+
+  .topbar h1,
+  .dashboard-hero h1 {
+    font-size: clamp(1.75rem, 9vw, 2.35rem);
+    line-height: 1.05;
+  }
+
+  .kpi-grid,
+  .projects-kpis,
+  .chart-grid,
+  .table-split-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-card,
+  .project-kpi-card,
+  .table-panel,
+  .chart-panel {
+    border-radius: 12px;
+  }
+
+  .chart-panel,
+  .table-panel {
+    padding: 12px;
+  }
+
+  .chart-canvas-wrap {
+    height: 220px;
+  }
+
+  .table-wrap,
+  .projects-table-wrap,
+  .daily-cost-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  th,
+  td {
+    padding: 9px 8px;
+    font-size: 0.86rem;
+  }
+}

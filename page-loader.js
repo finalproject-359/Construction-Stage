@@ -1,5 +1,6 @@
 (() => {
-  const MIN_VISIBLE_MS = 220;
+  const MIN_VISIBLE_MS = 80;
+  const MAX_WAIT_MS = 8000;
   const pageStart = performance.now();
   const isCostManagementPage = document.body.classList.contains("page-cost-management");
 
@@ -13,11 +14,11 @@
         position: absolute;
         inset: 0;
         z-index: 80;
-        background: rgba(15, 23, 42, 0.18);
-        backdrop-filter: blur(3px);
+        background: rgba(15, 23, 42, 0.12);
+        backdrop-filter: blur(2px);
         display: grid;
         place-items: center;
-        transition: opacity .24s ease, visibility .24s ease;
+        transition: opacity .16s ease, visibility .16s ease;
       }
 
       .page-loader-overlay.is-hiding {
@@ -42,7 +43,7 @@
         border: 6px solid #d9dfed;
         border-top-color: #3b6ff8;
         margin: 0 auto 16px;
-        animation: page-loader-spin 0.95s linear infinite;
+        animation: page-loader-spin 0.8s linear infinite;
       }
 
       .page-loader-card h2 { margin: 0; font-size: 1.5rem; font-weight: 700; color: #0f2547; }
@@ -92,6 +93,7 @@
 
     const onLoaded = () => removeLoader();
     window.addEventListener("cost-management:data-loaded", onLoaded, { once: true });
+    window.setTimeout(removeLoader, MAX_WAIT_MS);
   };
 
   if (document.readyState === "loading") {
