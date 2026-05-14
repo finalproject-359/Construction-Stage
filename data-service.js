@@ -478,6 +478,7 @@
         if (payload?.error) throw new Error(payload.error);
 
         return {
+          projects: extractResourceRows(payload, "projects"),
           activities: extractResourceRows(payload, "activities"),
           costs: extractResourceRows(payload, "costs"),
           dailyCosts: extractResourceRows(payload, "daily_costs").length

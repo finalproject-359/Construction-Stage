@@ -25,15 +25,15 @@ This checklist captures likely reasons the dashboard may fail to present complet
 - Dashboard warm-start cache can briefly show the last stable rows while the live source is verified immediately; a successful empty live response clears the dashboard so deleted Google Sheet rows do not remain visible.
 - Visible dashboard sessions poll the live source every 5 seconds and also refresh on focus, reconnect, page show, visibility changes, and local cost-data storage updates.
 - In-flight request guard can delay visible updates when concurrent load triggers occur.
-- Cache/localStorage corruption or manual edits can cause inconsistent displays.
+- Cache/localStorage corruption or manual edits can cause inconsistent fallback displays when Google Sheets is unavailable.
 
 ## Cross-page/local-storage dependency
-- Some pages rely on local storage already being hydrated by other pages.
-- If users land directly on a page without prior sync, required local data can be missing.
-- Daily costs are local-only in cost management; cross-device/browser data may not appear.
+- Cost Management now fetches projects and daily costs directly from Apps Script on direct page entry.
+- Browser local storage is a warm-start/error fallback cache; if Google Sheets cannot be reached, cached project or daily-cost rows may still appear with a warning.
+- Daily costs are remotely persisted through the Apps Script `daily_costs` resource, so cross-device/browser data should appear after sync.
 
 ## Merge/conflict behavior
-- Remote-first merge precedence can hide newer unsynced local edits.
+- Remote-first merge precedence can hide newer unsynced local metadata, although Cost Management retains matching local Cost ID/planned-cost overrides while the sheet refreshes.
 - Legacy fallback keys can introduce old or duplicate-looking rows if cleanup is absent.
 - Orphaned entries (activity/project renamed/removed) may remain in storage.
 

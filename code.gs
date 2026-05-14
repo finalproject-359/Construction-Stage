@@ -905,31 +905,49 @@ function handleRequest(payload) {
     }
 
     if (action) {
-      var mutationResponse = null;
-      if (resource === "projects") {
-        const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
-        ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
-        mutationResponse = handleProjectMutation(action, source);
-      } else if (resource === "activities") {
-        const activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
-        ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
-        mutationResponse = handleActivityMutation(action, source);
-      } else if (resource === "costs") {
-        const costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
-        ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
-        mutationResponse = handleCostMutation(action, source);
-      } else if (resource === "daily_costs") {
-        const dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
-        ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
-        mutationResponse = handleDailyCostMutation(action, source);
-      } else {
+      var mutationLock = LockService.getDocumentLock();
+      try {
+        mutationLock.waitLock(10000);
+      } catch (lockError) {
         throw new Error(
-          'Only "projects", "activities", "costs", and "daily_costs" are supported for mutations.',
+          "Data is currently being saved by another request. Please retry in a few seconds.",
         );
       }
 
-      markRealtimeDataChanged(resource + "-" + action);
-      return mutationResponse;
+      try {
+        var mutationResponse = null;
+        if (resource === "projects") {
+          const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
+          ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
+          mutationResponse = handleProjectMutation(action, source);
+        } else if (resource === "activities") {
+          const activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
+          ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
+          mutationResponse = handleActivityMutation(action, source);
+        } else if (resource === "costs") {
+          const costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
+          ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
+          mutationResponse = handleCostMutation(action, source);
+        } else if (resource === "daily_costs") {
+          const dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+          ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
+          mutationResponse = handleDailyCostMutation(action, source);
+        } else {
+          throw new Error(
+            'Only "projects", "activities", "costs", and "daily_costs" are supported for mutations.',
+          );
+        }
+
+        SpreadsheetApp.flush();
+        markRealtimeDataChanged(resource + "-" + action);
+        return mutationResponse;
+      } finally {
+        try {
+          mutationLock.releaseLock();
+        } catch (releaseError) {
+          // Ignore lock release failures.
+        }
+      }
     }
 
     const projectFilter = {
