@@ -432,7 +432,7 @@ const renderProjects = (projects) => {
           <button type="button" class="action-menu-trigger" data-project-actions="${escapeHtml(project.id)}" aria-label="Open project actions" aria-expanded="false">⋮</button>
           <div class="project-actions-menu hidden" data-project-menu="${escapeHtml(project.id)}" role="menu" aria-label="Project actions">
             <button type="button" class="project-action-btn" data-project-edit="${escapeHtml(project.id)}" role="menuitem">Edit</button>
-            <button type="button" class="project-action-btn danger" data-project-delete="${escapeHtml(project.id)}" role="menuitem">Delete</button>
+            <button type="button" class="project-action-btn danger" data-project-delete="${escapeHtml(project.id)}" role="menuitem">Archive</button>
           </div>
         </td>
       </tr>
@@ -552,6 +552,7 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
   }
 
   window.DataBridge?.pollRealtimeSync?.();
+  return payload;
 };
 
 const showProjectPersistenceError = (actionLabel, error) => {
@@ -717,7 +718,7 @@ const renderArchivedProjects = () => {
               <button type="button" class="archived-restore-btn" data-archived-restore="${escapeHtml(project.id)}" aria-label="Restore ${escapeHtml(project.name)}" title="Restore">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.34-5.66M4 4v6h6"/></svg>
               </button>
-              <button type="button" class="archived-delete-btn" data-archived-delete="${escapeHtml(project.id)}" aria-label="Delete ${escapeHtml(project.name)}" title="Delete">
+              <button type="button" class="archived-delete-btn" data-archived-delete="${escapeHtml(project.id)}" aria-label="Delete ${escapeHtml(project.name)}" title="Hard delete">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>
               </button>
             </div>
@@ -815,9 +816,31 @@ const removeRelatedProjectDataFromLocalStorage = (projectToDelete) => {
   localStorage.setItem(RELATED_LOCAL_STORAGE_KEYS.dailyCosts, JSON.stringify(nextDailyCosts));
 };
 
+const archiveProject = async (projectId) => {
+  const projectToArchive = state.allProjects.find((project) => project.id === projectId);
+  if (!projectToArchive) return;
+
+  await syncProjectWithGoogleSheet({ action: "archive", projectId });
+  state.allProjects = state.allProjects.map((project) =>
+    project.id === projectId
+      ? normalizeProject({
+          ...project,
+          status: "Archived",
+          archivedDate: new Date().toISOString(),
+          archiveReason: project.archiveReason || "Archived from active projects",
+        })
+      : project
+  );
+  saveToLocalStorage(state.allProjects);
+  hydrateFilters();
+  hydrateArchivedProjectFilters();
+  applyFilters();
+  renderArchivedProjects();
+};
+
 const deleteProject = async (projectId) => {
   const projectToDelete = state.allProjects.find((project) => project.id === projectId);
-  await syncProjectWithGoogleSheet({ action: "delete", projectId });
+  const payload = await syncProjectWithGoogleSheet({ action: "delete", projectId });
   removeRelatedProjectDataFromLocalStorage(projectToDelete);
   state.allProjects = state.allProjects.filter((project) => project.id !== projectId);
   saveToLocalStorage(state.allProjects);
@@ -825,6 +848,7 @@ const deleteProject = async (projectId) => {
   hydrateArchivedProjectFilters();
   applyFilters();
   renderArchivedProjects();
+  return payload;
 };
 
 const closeAllActionMenus = () => {
@@ -889,13 +913,16 @@ projectsTableBody.addEventListener("click", async (event) => {
     const projectToDelete = state.allProjects.find((project) => project.id === projectId);
     if (!projectToDelete) return;
     closeAllActionMenus();
-    const isConfirmed = window.confirm(`Delete "${projectToDelete.name}"? This will also delete all related activities and costing records. This action cannot be undone.`);
+    const isConfirmed = window.confirm(`Archive "${projectToDelete.name}"? It will move to Archived Projects and can still be restored or permanently deleted later.`);
     if (!isConfirmed) return;
     try {
-      await deleteProject(projectId);
+      await archiveProject(projectId);
+      if (archivedProjectsModal && !archivedProjectsModal.classList.contains("hidden")) {
+        renderArchivedProjects();
+      }
     } catch (error) {
       console.warn(error);
-      showProjectPersistenceError("delete", error);
+      showProjectPersistenceError("archive", error);
     }
   }
 });
@@ -980,10 +1007,16 @@ archivedProjectsTableBody?.addEventListener("click", async (event) => {
     const projectId = deleteBtn.dataset.archivedDelete;
     const projectToDelete = state.allProjects.find((project) => project.id === projectId);
     if (!projectToDelete) return;
-    const isConfirmed = window.confirm(`Permanently delete "${projectToDelete.name}" from archived projects? This action cannot be undone.`);
+    const isConfirmed = window.confirm(`Permanently delete "${projectToDelete.name}" from Google Sheets? This hard delete erases the project, its activities, cost records, and daily cost entries. This action cannot be undone.`);
     if (!isConfirmed) return;
     try {
-      await deleteProject(projectId);
+      const deletePayload = await deleteProject(projectId);
+      const deletedActivities = Number(deletePayload?.deletedActivities) || 0;
+      const deletedCosts = Number(deletePayload?.deletedCosts) || 0;
+      const deletedDailyCosts = Number(deletePayload?.deletedDailyCosts) || 0;
+      window.alert(
+        `Project permanently deleted from Google Sheets. Removed ${deletedActivities} activit${deletedActivities === 1 ? "y" : "ies"}, ${deletedCosts} cost record(s), and ${deletedDailyCosts} daily cost entr${deletedDailyCosts === 1 ? "y" : "ies"}.`
+      );
     } catch (error) {
       console.warn(error);
       showProjectPersistenceError("delete", error);

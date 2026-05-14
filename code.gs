@@ -1201,22 +1201,40 @@ function handleProjectMutation(action, payload) {
     });
   }
 
+  if (action === "archive") {
+    const projectId = cleanText(payload.projectId || payload.id);
+    if (!projectId) {
+      throw new Error("Project ID is required for archive.");
+    }
+
+    archiveProjectRow(projectId);
+    return jsonResponse({
+      ok: true,
+      message: "Project archived successfully.",
+      projectId: projectId,
+      generatedAt: new Date().toISOString(),
+    });
+  }
+
   if (action === "delete") {
     const projectId = cleanText(payload.projectId || payload.id);
     if (!projectId) {
       throw new Error("Project ID is required for delete.");
     }
 
-    deleteProjectRow(projectId);
+    const deleteResult = deleteProjectRow(projectId);
     return jsonResponse({
       ok: true,
-      message: "Project deleted successfully.",
+      message: "Project and related records deleted successfully.",
       projectId: projectId,
+      deletedActivities: deleteResult.deletedActivities,
+      deletedCosts: deleteResult.deletedCosts,
+      deletedDailyCosts: deleteResult.deletedDailyCosts,
       generatedAt: new Date().toISOString(),
     });
   }
 
-  throw new Error("Unsupported action. Use action=create|update|delete.");
+  throw new Error("Unsupported action. Use action=create|update|archive|delete.");
 }
 
 function handleActivityMutation(action, payload) {
@@ -2193,7 +2211,7 @@ function updateProjectRow(project) {
   return project;
 }
 
-function deleteProjectRow(projectId) {
+function archiveProjectRow(projectId) {
   const normalizedProjectId = cleanText(projectId);
   const lookup = findProjectSheetRow(normalizedProjectId);
   if (!lookup) {
@@ -2209,14 +2227,57 @@ function deleteProjectRow(projectId) {
     .setValues([rowValues]);
 }
 
-function deleteRowsByProjectId(
+function deleteProjectRow(projectId) {
+  const normalizedProjectId = cleanText(projectId);
+  const lookup = findProjectSheetRow(normalizedProjectId);
+  if (!lookup) {
+    throw new Error("Project not found.");
+  }
+
+  const projectName = lookup.columns.name
+    ? cleanText(
+        lookup.sheet
+          .getRange(lookup.rowNumber, lookup.columns.name)
+          .getValue(),
+      )
+    : "";
+
+  const deletedDailyCosts = deleteRowsByProjectIdentity(
+    CONFIG.sheetNames.dailyCosts,
+    getDailyCostColumnMap,
+    normalizedProjectId,
+    projectName,
+  );
+  const deletedCosts = deleteRowsByProjectIdentity(
+    CONFIG.sheetNames.costs,
+    getCostColumnMap,
+    normalizedProjectId,
+    projectName,
+  );
+  const deletedActivities = deleteRowsByProjectIdentity(
+    CONFIG.sheetNames.activities,
+    getActivityColumnMap,
+    normalizedProjectId,
+    projectName,
+  );
+
+  lookup.sheet.deleteRow(lookup.rowNumber);
+  return {
+    deletedActivities: deletedActivities,
+    deletedCosts: deletedCosts,
+    deletedDailyCosts: deletedDailyCosts,
+  };
+}
+
+function deleteRowsByProjectIdentity(
   sheetName,
   getColumnMap,
-  projectColumnKey,
   projectId,
+  projectName,
 ) {
-  const normalizedProjectId = cleanText(projectId);
-  if (!normalizedProjectId) return;
+  const normalizedProjectId = cleanText(projectId).toLowerCase();
+  const normalizedProjectName = cleanText(projectName).toLowerCase();
+  if (!normalizedProjectId && !normalizedProjectName) return 0;
 
   const sheet = getOrCreateSheet(sheetName);
   const expectedHeadersBySheet = {
@@ -2227,16 +2288,33 @@ function deleteRowsByProjectId(
 
   ensureSheetHeaders(sheet, expectedHeadersBySheet[sheetName] || []);
   const columns = getColumnMap(sheet);
-  const projectColumn =
-    columns && columns[projectColumnKey] ? columns[projectColumnKey] : 0;
-  if (!projectColumn) return;
+  const projectIdColumn = columns && columns.projectId ? columns.projectId : 0;
+  const projectNameColumn = columns && columns.project ? columns.project : 0;
+  if (!projectIdColumn && !projectNameColumn) return 0;
 
+  var deletedRows = 0;
   const values = sheet.getDataRange().getValues();
   for (var rowIdx = values.length - 1; rowIdx >= 1; rowIdx -= 1) {
-    if (cleanText(values[rowIdx][projectColumn - 1]) === normalizedProjectId) {
+    const rowProjectId = projectIdColumn
+      ? cleanText(values[rowIdx][projectIdColumn - 1]).toLowerCase()
+      : "";
+    const rowProjectName = projectNameColumn
+      ? cleanText(values[rowIdx][projectNameColumn - 1]).toLowerCase()
+      : "";
+    const matchesProjectId =
+      normalizedProjectId &&
+      (rowProjectId === normalizedProjectId || rowProjectName === normalizedProjectId);
+    const matchesProjectName =
+      normalizedProjectName &&
+      (rowProjectName === normalizedProjectName || rowProjectId === normalizedProjectName);
+
+    if (matchesProjectId || matchesProjectName) {
       sheet.deleteRow(rowIdx + 1);
+      deletedRows += 1;
     }
   }
+
+  return deletedRows;
 }
 
 function normalizeIncomingActivity(input) {
