@@ -1506,6 +1506,7 @@ const setupDashboardRealtimeSync = () => {
   window.addEventListener("focus", () => refreshDashboardIfVisible({ force: true }));
   window.addEventListener("online", () => refreshDashboardIfVisible({ force: true }));
   window.addEventListener("pageshow", () => refreshDashboardIfVisible({ force: true }));
+  window.addEventListener("google-sheet:changed", () => refreshDashboardIfVisible({ force: true }));
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       refreshDashboardIfVisible({ force: true });

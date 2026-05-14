@@ -747,6 +747,7 @@ const mutateActivityInSource = async ({ action, activity }) => {
     throw new Error(payload.error || `Unable to ${action} activity`);
   }
 
+  window.DataBridge?.pollRealtimeSync?.();
   return payload;
 };
 
@@ -1905,6 +1906,7 @@ const setupActivitiesRealtimeSync = () => {
 
   window.addEventListener("focus", () => refreshActivitiesIfVisible({ force: true }));
   window.addEventListener("online", () => refreshActivitiesIfVisible({ force: true }));
+  window.addEventListener("google-sheet:changed", () => refreshActivitiesIfVisible({ force: true }));
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       refreshActivitiesIfVisible({ force: true });

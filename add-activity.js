@@ -113,6 +113,7 @@ const createActivityInSource = async (activity) => {
     throw new Error(payload.error || "Unable to save activity");
   }
 
+  window.DataBridge?.pollRealtimeSync?.();
   return payload;
 };
 

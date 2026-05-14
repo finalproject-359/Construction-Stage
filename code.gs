@@ -70,6 +70,11 @@ const CONFIG = {
       "Created At",
     ],
   },
+  realtime: {
+    sheetName: "RealtimeMeta",
+    versionKey: "version",
+    updatedAtKey: "updatedAt",
+  },
 };
 
 function hasExplicitValue(value) {
@@ -87,6 +92,86 @@ function getSpreadsheetTodayDate() {
   var timeZone = Session.getScriptTimeZone();
   var isoDate = Utilities.formatDate(new Date(), timeZone, "yyyy-MM-dd");
   return new Date(isoDate + "T12:00:00");
+}
+
+
+function getRealtimeMetadataSheet() {
+  const sheet = getOrCreateSheet(CONFIG.realtime.sheetName);
+  const headers = ["Key", "Value"];
+  const existingHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  var needsHeaders = false;
+  for (var i = 0; i < headers.length; i += 1) {
+    if (cleanText(existingHeaders[i]) !== headers[i]) needsHeaders = true;
+  }
+  if (needsHeaders) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  return sheet;
+}
+
+function readRealtimeMetadata() {
+  const sheet = getRealtimeMetadataSheet();
+  const values = sheet.getDataRange().getValues();
+  const metadata = {};
+  for (var i = 1; i < values.length; i += 1) {
+    var key = cleanText(values[i][0]);
+    if (!key) continue;
+    metadata[key] = values[i][1];
+  }
+
+  if (!metadata[CONFIG.realtime.versionKey]) {
+    return markRealtimeDataChanged("initialized");
+  }
+
+  return {
+    version: cleanText(metadata[CONFIG.realtime.versionKey]),
+    updatedAt: cleanText(metadata[CONFIG.realtime.updatedAtKey]),
+  };
+}
+
+function setRealtimeMetadataValue(sheet, key, value) {
+  const values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i += 1) {
+    if (cleanText(values[i][0]) === key) {
+      sheet.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  sheet.appendRow([key, value]);
+}
+
+function markRealtimeDataChanged(reason) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(3000);
+  } catch (error) {
+    Logger.log("Unable to lock realtime metadata: " + error);
+  }
+
+  try {
+    const sheet = getRealtimeMetadataSheet();
+    const now = new Date();
+    const version = [now.getTime(), Math.floor(Math.random() * 1000000), cleanText(reason || "sheet")].join("-");
+    setRealtimeMetadataValue(sheet, CONFIG.realtime.versionKey, version);
+    setRealtimeMetadataValue(sheet, CONFIG.realtime.updatedAtKey, now.toISOString());
+    SpreadsheetApp.flush();
+    return { version: version, updatedAt: now.toISOString() };
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (error) {
+      // Ignore lock release failures.
+    }
+  }
+}
+
+function buildRealtimeVersionPayload() {
+  const realtime = readRealtimeMetadata();
+  return {
+    ok: true,
+    resource: "version",
+    version: realtime.version,
+    realtime: realtime,
+    generatedAt: new Date().toISOString(),
+  };
 }
 
 function doGet(e) {
@@ -118,16 +203,24 @@ function onEdit(e) {
 
     if (sheetName === cleanText(CONFIG.sheetNames.dailyCosts)) {
       handleDailyCostsSheetEdit(sheet, range);
+      markRealtimeDataChanged("daily-costs-edit");
       return;
     }
 
     if (sheetName === cleanText(CONFIG.sheetNames.activities)) {
       handleActivitiesSheetEdit(sheet, range);
+      markRealtimeDataChanged("activities-edit");
       return;
     }
 
     if (sheetName === cleanText(CONFIG.sheetNames.costs)) {
       handleCostsSheetEdit(sheet, range);
+      markRealtimeDataChanged("costs-edit");
+      return;
+    }
+
+    if (sheetName === cleanText(CONFIG.sheetNames.projects)) {
+      markRealtimeDataChanged("projects-edit");
     }
   } catch (error) {
     Logger.log(
@@ -787,34 +880,36 @@ function handleRequest(payload) {
     const resource = normalizeResource(source.resource || "dashboard");
     const action = cleanText(source.action).toLowerCase();
 
+    if (resource === "version") {
+      return jsonResponse(buildRealtimeVersionPayload());
+    }
+
     if (action) {
+      var mutationResponse = null;
       if (resource === "projects") {
         const projectsSheet = getOrCreateSheet(CONFIG.sheetNames.projects);
         ensureSheetHeaders(projectsSheet, CONFIG.headers.projects);
-        return handleProjectMutation(action, source);
-      }
-
-      if (resource === "activities") {
+        mutationResponse = handleProjectMutation(action, source);
+      } else if (resource === "activities") {
         const activitiesSheet = getOrCreateSheet(CONFIG.sheetNames.activities);
         ensureSheetHeaders(activitiesSheet, CONFIG.headers.activities);
-        return handleActivityMutation(action, source);
-      }
-
-      if (resource === "costs") {
+        mutationResponse = handleActivityMutation(action, source);
+      } else if (resource === "costs") {
         const costsSheet = getOrCreateSheet(CONFIG.sheetNames.costs);
         ensureSheetHeaders(costsSheet, CONFIG.headers.costs);
-        return handleCostMutation(action, source);
-      }
-
-      if (resource === "daily_costs") {
+        mutationResponse = handleCostMutation(action, source);
+      } else if (resource === "daily_costs") {
         const dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
         ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
-        return handleDailyCostMutation(action, source);
+        mutationResponse = handleDailyCostMutation(action, source);
+      } else {
+        throw new Error(
+          'Only "projects", "activities", "costs", and "daily_costs" are supported for mutations.',
+        );
       }
 
-      throw new Error(
-        'Only "projects", "activities", "costs", and "daily_costs" are supported for mutations.',
-      );
+      markRealtimeDataChanged(resource + "-" + action);
+      return mutationResponse;
     }
 
     const projectFilter = {
@@ -843,12 +938,15 @@ function handleRequest(payload) {
 
     const responsePayload =
       payloadByResource[resource] || payloadByResource.dashboard;
+    const realtime = readRealtimeMetadata();
 
     return jsonResponse({
       ok: true,
       resource: resource,
       filter: projectFilter,
       generatedAt: new Date().toISOString(),
+      version: realtime.version,
+      realtime: realtime,
       ...responsePayload,
     });
   } catch (error) {
@@ -2635,6 +2733,7 @@ function normalizeResource(value) {
     "costs",
     "daily_costs",
     "all",
+    "version",
   ];
   const normalized = cleanText(value).toLowerCase();
   if (

@@ -110,6 +110,10 @@
 
   const LIVE_SOURCE_FETCH_TIMEOUT_MS = 20000;
   const LIVE_SOURCE_RETRY_DELAYS_MS = [0, 750, 1500];
+  const DEFAULT_REALTIME_POLL_MS = 2000;
+  const HIDDEN_REALTIME_POLL_MS = 10000;
+  const REALTIME_CHANNEL_NAME = "construction-stage-google-sheet-sync";
+  const REALTIME_STORAGE_KEY = "constructionStageGoogleSheetVersion";
 
   const createLiveSourceTimeoutError = () =>
     new Error(`Live data source took longer than ${Math.round(LIVE_SOURCE_FETCH_TIMEOUT_MS / 1000)} seconds to respond.`);
@@ -141,6 +145,7 @@
           rows: extractRowsFromPayload(payload),
           sourceName: `Apps Script Web App (${payload?.sheetName || payload?.resource || "sheet"})`,
           generatedAt: payload?.generatedAt || "",
+          version: payload?.version || payload?.realtime?.version || "",
         };
       }
 
@@ -228,9 +233,151 @@
     throw lastError || new Error("Unable to reach live data source.");
   };
 
+  const buildAppsScriptUrl = (baseUrl, params = {}) => {
+    const parsed = new URL(baseUrl);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        parsed.searchParams.set(key, String(value));
+      }
+    });
+    return parsed.toString();
+  };
+
+  const normalizeSourceVersion = (payload = {}) => {
+    const version = String(payload.version || payload.realtime?.version || payload.generatedAt || "").trim();
+    return {
+      ok: payload.ok !== false,
+      version,
+      generatedAt: payload.generatedAt || payload.realtime?.updatedAt || "",
+      resource: payload.resource || "version",
+    };
+  };
+
+  const fetchSourceVersion = async (providedUrl = "") => {
+    const rawUrl = providedUrl || DEFAULT_DATA_SOURCE_URL;
+    const trimmedUrl = rawUrl.trim();
+    if (!isAppsScriptWebAppUrl(trimmedUrl)) return null;
+
+    const response = await fetchLiveSource(buildAppsScriptUrl(trimmedUrl, { resource: "version" }));
+    if (!response.ok) throw new Error(`Unable to fetch Google Sheet version (HTTP ${response.status})`);
+    const payload = await response.json();
+    if (payload?.error) throw new Error(payload.error);
+    return normalizeSourceVersion(payload);
+  };
+
+  const createRealtimeSyncController = () => {
+    let timer = null;
+    let inFlight = false;
+    let lastVersion = "";
+    let started = false;
+    let channel = null;
+
+    const broadcastChange = (detail) => {
+      global.dispatchEvent(new CustomEvent("google-sheet:changed", { detail }));
+      try {
+        global.localStorage?.setItem(REALTIME_STORAGE_KEY, JSON.stringify(detail));
+      } catch (error) {
+        console.warn("Unable to store Google Sheet realtime version:", error);
+      }
+      try {
+        channel?.postMessage(detail);
+      } catch (error) {
+        console.warn("Unable to broadcast Google Sheet realtime version:", error);
+      }
+    };
+
+    const rememberVersion = (versionInfo, { emit = true } = {}) => {
+      if (!versionInfo?.version) return false;
+      const previousVersion = lastVersion;
+      lastVersion = versionInfo.version;
+      const changed = Boolean(previousVersion && previousVersion !== versionInfo.version);
+      if (changed && emit) broadcastChange(versionInfo);
+      return changed;
+    };
+
+    const schedule = (delayMs) => {
+      if (!started) return;
+      clearTimeout(timer);
+      timer = setTimeout(poll, delayMs);
+    };
+
+    const getNextDelay = () => (document.visibilityState === "hidden" ? HIDDEN_REALTIME_POLL_MS : DEFAULT_REALTIME_POLL_MS);
+
+    const poll = async ({ emit = true } = {}) => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const versionInfo = await fetchSourceVersion(DEFAULT_DATA_SOURCE_URL);
+        rememberVersion(versionInfo, { emit });
+      } catch (error) {
+        console.warn("Google Sheet realtime version check failed:", error);
+      } finally {
+        inFlight = false;
+        schedule(getNextDelay());
+      }
+    };
+
+    const handleRemoteMessage = (event) => {
+      const detail = event?.data || event?.detail || null;
+      if (!detail?.version || detail.version === lastVersion) return;
+      lastVersion = detail.version;
+      global.dispatchEvent(new CustomEvent("google-sheet:changed", { detail }));
+    };
+
+    return {
+      start() {
+        if (started || !isAppsScriptWebAppUrl(DEFAULT_DATA_SOURCE_URL)) return;
+        started = true;
+        try {
+          channel = "BroadcastChannel" in global ? new BroadcastChannel(REALTIME_CHANNEL_NAME) : null;
+          channel?.addEventListener("message", handleRemoteMessage);
+        } catch (error) {
+          console.warn("Google Sheet realtime BroadcastChannel setup failed:", error);
+        }
+        global.addEventListener("storage", (event) => {
+          if (event.key !== REALTIME_STORAGE_KEY || !event.newValue) return;
+          try {
+            handleRemoteMessage({ data: JSON.parse(event.newValue) });
+          } catch {
+            // Ignore malformed cross-tab payloads.
+          }
+        });
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") poll({ emit: true });
+        });
+        global.addEventListener("online", () => poll({ emit: true }));
+        global.addEventListener("focus", () => poll({ emit: true }));
+        poll({ emit: false });
+      },
+      stop() {
+        started = false;
+        clearTimeout(timer);
+        try {
+          channel?.close();
+        } catch {
+          // Ignore channel close failures.
+        }
+        channel = null;
+      },
+      pollNow() {
+        return poll({ emit: true });
+      },
+      getLastVersion() {
+        return lastVersion;
+      },
+    };
+  };
+
+  const realtimeSyncController = createRealtimeSyncController();
+
   global.DataBridge = {
     DEFAULT_DATA_SOURCE_URL,
+    DEFAULT_REALTIME_POLL_MS,
     fetchRowsFromSource,
+    fetchSourceVersion,
+    startRealtimeSync: realtimeSyncController.start,
+    stopRealtimeSync: realtimeSyncController.stop,
+    pollRealtimeSync: realtimeSyncController.pollNow,
     fetchDashboardBundleFromSource: async (providedUrl = "") => {
       const rawUrl = providedUrl || DEFAULT_DATA_SOURCE_URL;
       const trimmedUrl = rawUrl.trim();
@@ -258,8 +405,11 @@
           : extractResourceRows(payload, "dailyCosts"),
         dashboardRows: extractResourceRows(payload, "dashboard"),
         generatedAt: payload?.generatedAt || "",
+        version: payload?.version || payload?.realtime?.version || "",
         sourceName: "Apps Script Web App (activities + costs + actual costs)",
       };
     },
   };
+
+  realtimeSyncController.start();
 })(window);
