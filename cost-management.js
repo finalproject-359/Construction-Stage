@@ -174,6 +174,7 @@ const getValueByAliases = (source, aliases = []) => {
   return undefined;
 };
 const parseBudgetValue = (value) => Number(String(value ?? "0").replace(/[^\d.-]/g, "")) || 0;
+const hasPositiveActualCost = (item = {}) => parseBudgetValue(item.actualCost) > 0;
 const normalizeProjectDateValue = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "";
@@ -587,7 +588,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
       progress: clampPercent(getValueByAliases(row, ["progress", "percentComplete", "percent_complete", "% complete", "percent complete"])),
       earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
-    })).filter((r) => r.projectId && r.date);
+    })).filter((r) => r.projectId && r.date && hasPositiveActualCost(r));
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
     return null;
@@ -817,7 +818,9 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   const activities = allActivities
     .filter((item) => isActivityForProject(item, projectId, normalizedProjectName))
     .sort(compareActivitiesByStartPriority);
-  const daily = loadDailyCosts().filter((item) => isDailyCostForProject(item, projectId, normalizedProjectName));
+  const daily = loadDailyCosts()
+    .filter((item) => isDailyCostForProject(item, projectId, normalizedProjectName))
+    .filter(hasPositiveActualCost);
   const rawRows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
     const rowCostId = String(activity.costId || "").trim();
@@ -1395,11 +1398,11 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
         },
       };
       try {
-        await postToDataSource("costs", "create", payload);
+        await postToDataSource("costs", "create", { ...payload, skipDailyCostSync: true });
       } catch (error) {
         const shouldUpdateExisting = /already exists|use update instead of create/i.test(String(error?.message || ""));
         if (!shouldUpdateExisting) throw error;
-        await postToDataSource("costs", "update", payload);
+        await postToDataSource("costs", "update", { ...payload, skipDailyCostSync: true });
       }
     } catch (error) {
       console.warn("Unable to save cost record to Google Sheets:", error);
