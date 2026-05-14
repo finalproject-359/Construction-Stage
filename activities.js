@@ -119,7 +119,7 @@ const getProjectCardIconKey = (project = {}) => {
 };
 
 const PAGE_SIZE = 8;
-const ACTIVITIES_REFRESH_INTERVAL_MS = 10 * 1000;
+const ACTIVITIES_REFRESH_INTERVAL_MS = 30 * 1000;
 
 let activitiesRefreshTimer = null;
 let isActivitiesSyncInFlight = false;
