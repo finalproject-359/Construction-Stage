@@ -840,7 +840,11 @@ const archiveProject = async (projectId) => {
 
 const deleteProject = async (projectId) => {
   const projectToDelete = state.allProjects.find((project) => project.id === projectId);
-  const payload = await syncProjectWithGoogleSheet({ action: "delete", projectId });
+  const payload = await syncProjectWithGoogleSheet({
+    action: "delete",
+    projectId,
+    project: projectToDelete,
+  });
   removeRelatedProjectDataFromLocalStorage(projectToDelete);
   state.allProjects = state.allProjects.filter((project) => project.id !== projectId);
   saveToLocalStorage(state.allProjects);
