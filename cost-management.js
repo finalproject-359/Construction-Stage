@@ -66,6 +66,30 @@ const persistToLocalStorage = (key, value) => {
   }
 };
 
+const COST_SYNC_TIMEOUT_MS = 15000;
+
+const fetchWithTimeout = async (url, options = {}, timeoutMs = COST_SYNC_TIMEOUT_MS) => {
+  if (typeof AbortController !== "function") return fetch(url, options);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("The cost data request timed out. Please check the Google Sheets connection and try again.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
+const getCssEscapedValue = (value = "") => {
+  const raw = String(value || "");
+  if (window.CSS?.escape) return window.CSS.escape(raw);
+  return raw.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+};
 
 let projectsState = loadFromLocalStorageArray(PROJECTS_LOCAL_STORAGE_KEY);
 let costActivitiesState = loadFromLocalStorageArray(COST_ACTIVITIES_LOCAL_STORAGE_KEY)
@@ -95,7 +119,7 @@ const postToDataSource = async (resource, action, payload) => {
   };
 
   const postWithFormat = async (format) =>
-    fetch(endpoint, {
+    fetchWithTimeout(endpoint, {
       method: "POST",
       headers: format === "json" ? { "Content-Type": "application/json" } : undefined,
       body:
@@ -110,7 +134,7 @@ const postToDataSource = async (resource, action, payload) => {
   const sendViaGet = async () => {
     const url = new URL(endpoint);
     url.searchParams.set("payload", JSON.stringify(requestPayload));
-    response = await fetch(url.toString(), { cache: "no-store" });
+    response = await fetchWithTimeout(url.toString(), { cache: "no-store" });
     body = await parseResponsePayload(response);
   };
 
@@ -534,7 +558,7 @@ const loadRemoteProjects = async () => {
     const url = new URL(window.DataBridge.DEFAULT_DATA_SOURCE_URL);
     url.searchParams.set("resource", "projects");
     url.searchParams.set("_ts", String(Date.now()));
-    const response = await fetch(url.toString(), { cache: "no-store" });
+    const response = await fetchWithTimeout(url.toString(), { cache: "no-store" });
     if (!response.ok) throw new Error(`Projects fetch failed (HTTP ${response.status}).`);
     const payload = await response.json();
     if (payload?.ok === false || payload?.error) throw new Error(String(payload.error || "Projects fetch failed."));
@@ -562,7 +586,7 @@ const loadActivitiesFromResourceEndpoint = async (projectFilter = {}) => {
       url.searchParams.set("project", projectNameFilter);
     }
     url.searchParams.set("_ts", String(Date.now()));
-    const response = await fetch(url.toString(), { cache: "no-store" });
+    const response = await fetchWithTimeout(url.toString(), { cache: "no-store" });
     if (!response.ok) return null;
     const payload = await response.json();
     if (payload?.ok === false) return null;
@@ -640,7 +664,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
     url.searchParams.set("resource", "daily_costs");
     if (projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
     url.searchParams.set("_ts", String(Date.now()));
-    const response = await fetch(url.toString(), { cache: "no-store" });
+    const response = await fetchWithTimeout(url.toString(), { cache: "no-store" });
     if (!response.ok) return null;
     const payload = await response.json();
     if (payload?.ok === false) return null;
@@ -742,7 +766,7 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
       url.searchParams.set("resource", "costs");
       if (includeProjectId && projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
       url.searchParams.set("_ts", String(Date.now()));
-      const response = await fetch(url.toString(), { cache: "no-store" });
+      const response = await fetchWithTimeout(url.toString(), { cache: "no-store" });
       if (!response.ok) return null;
       const payload = await response.json();
       if (payload?.ok === false) return null;
@@ -1373,6 +1397,8 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   });
 };
 
+let detailViewListenerController = null;
+
 const syncCostSummaryToSheet = async ({ projectId, projectName, activity }) => {
   const resolvedProjectId = String(projectId || activity?.projectId || "").trim();
   const resolvedProjectName = String(projectName || activity?.projectName || activity?.project || "").trim();
@@ -1420,6 +1446,9 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
   detailsView.classList.remove("hidden");
   const { rows } = getProjectCostData(projectId, allActivities);
   detailsView.innerHTML = buildDetailsMarkup(project, rows);
+  detailViewListenerController?.abort();
+  detailViewListenerController = typeof AbortController === "function" ? new AbortController() : null;
+  const listenerOptions = detailViewListenerController ? { signal: detailViewListenerController.signal } : undefined;
 
   const applyActiveTab = (target = "overview") => {
     detailsView.querySelectorAll(".tab-btn").forEach((item) => item.classList.toggle("active", item.dataset.tab === target));
@@ -1434,7 +1463,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
     nextUrl.searchParams.set("tab", target);
     window.history.replaceState({}, "", nextUrl.toString());
     applyActiveTab(target);
-  }));
+  }, listenerOptions));
 
   const closeCostActionMenus = () => {
     detailsView.querySelectorAll("[data-cost-menu]").forEach((menu) => {
@@ -1465,7 +1494,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
   detailsView.querySelectorAll("[data-cost-actions]").forEach((trigger) => {
     trigger.addEventListener("click", (event) => {
       const activityId = trigger.dataset.costActions;
-      const menu = detailsView.querySelector(`[data-cost-menu="${CSS.escape(activityId || "")}"]`);
+      const menu = detailsView.querySelector(`[data-cost-menu="${getCssEscapedValue(activityId)}"]`);
       if (!menu) return;
       const isOpen = !menu.classList.contains("hidden");
       closeCostActionMenus();
@@ -1476,7 +1505,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
         positionCostActionMenu(menu);
       }
       event.stopPropagation();
-    });
+    }, listenerOptions);
   });
 
   detailsView.addEventListener("click", (event) => {
@@ -1492,7 +1521,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
       return;
     }
     if (!event.target.closest(".actions-col")) closeCostActionMenus();
-  });
+  }, listenerOptions);
 
   return true;
 };
@@ -2019,6 +2048,21 @@ const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
   isCostManagementSyncInFlight = true;
   try {
     await bootstrapCostManagement({ preferredTab: getActiveDetailsTabFromUi() });
+  } catch (error) {
+    console.warn("Unable to refresh cost management data:", error);
+    if (typeof window.notify === "function") {
+      window.notify(error?.message || "Unable to refresh cost data. Showing the latest cached values.", "warning");
+    }
+    const { selectedProjectId, selectedProjectName, selectedTab } = getSelectedViewParams();
+    const fallbackProject = loadProjects().map(normalizeProject).find((project) =>
+      (selectedProjectId && project.id === selectedProjectId)
+      || (selectedProjectName && project.name === selectedProjectName)
+    );
+    if (fallbackProject) {
+      showProjectDetails(fallbackProject.id, getActiveDetailsTabFromUi() || selectedTab, loadCostActivities());
+    } else {
+      renderProjects(topSearch?.value || "");
+    }
   } finally {
     isCostManagementSyncInFlight = false;
     window.dispatchEvent(new CustomEvent("cost-management:data-loaded"));
