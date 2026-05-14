@@ -1627,3 +1627,91 @@ body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-chi
     align-items: stretch;
   }
 }
+
+.daily-cost-modal:not(.hidden),
+.cost-meta-modal:not(.hidden) {
+  animation: cost-overlay-in 180ms ease;
+}
+
+.daily-cost-modal:not(.hidden) .daily-cost-dialog,
+.cost-meta-modal:not(.hidden) .cost-meta-dialog {
+  animation: cost-dialog-in 240ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.daily-cost-form .primary-btn,
+.cost-meta-form .primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.daily-cost-form .primary-btn:not(:disabled):hover,
+.cost-meta-form .primary-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(13, 47, 99, 0.22);
+}
+
+.daily-cost-form.is-saving,
+.cost-meta-form.is-saving {
+  position: relative;
+}
+
+.daily-cost-form.is-saving input,
+.daily-cost-form.is-saving select,
+.cost-meta-form.is-saving input {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.daily-cost-form.is-saving .primary-btn,
+.cost-meta-form.is-saving .primary-btn {
+  cursor: wait;
+  opacity: .9;
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: cost-spin 700ms linear infinite;
+}
+
+.daily-cost-duplicate-hint {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: .9rem;
+  font-weight: 700;
+}
+
+.daily-cost-table-wrap tbody tr,
+.cost-table tbody tr {
+  animation: cost-row-in 220ms ease both;
+}
+
+@keyframes cost-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cost-dialog-in {
+  from { opacity: 0; transform: translateY(18px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cost-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes cost-row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
