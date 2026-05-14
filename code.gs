@@ -1231,7 +1231,10 @@ function handleCostMutation(action, payload) {
     }
 
     upsertCostRow(cost);
-    if (!payload.skipDailyCostSync && !payload.summaryOnly) {
+    // Saving planned cost metadata must not create a daily actual-cost row.
+    // DailyCosts should be written only by the daily_costs resource after the
+    // user explicitly enters a Progress/Day and Actual Cost/Day value.
+    if (payload.createDailyCost === true && !payload.skipDailyCostSync && !payload.summaryOnly) {
       upsertDailyCostRow(buildDailyCostFromCost(cost));
     }
     return jsonResponse({
