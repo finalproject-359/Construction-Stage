@@ -434,9 +434,9 @@ const normalizeRemoteActivity = (row = {}) => {
     startDate,
     finishDate,
     durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
-    plannedCost: getValueByAliases(row, COST_METADATA_PLANNED_COST_ALIASES),
+    plannedCost: 0,
     progressPercent: getValueByAliases(row, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]),
-    earnedValue: getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "earned value (ev)", "ev"]),
+    earnedValue: 0,
   });
 };
 const loadRemoteCostActivities = async (projectFilter = {}) => {
@@ -643,7 +643,7 @@ const extractCostRowsFromPayload = (payload = {}) => {
 
 const loadRemoteCostMetadata = async (projectFilter = {}) => {
   const dataSourceUrl = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
-  if (!dataSourceUrl) return [];
+  if (!dataSourceUrl) return null;
   const lookups = buildProjectIdentityLookups(loadProjects());
 
   const parseCostRows = (payload = {}) => extractCostRowsFromPayload(payload)
@@ -670,15 +670,18 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
       if (includeProjectId && projectFilter?.projectId) url.searchParams.set("projectId", String(projectFilter.projectId));
       url.searchParams.set("_ts", String(Date.now()));
       const response = await fetch(url.toString(), { cache: "no-store" });
-      if (!response.ok) return [];
+      if (!response.ok) return null;
       const payload = await response.json();
+      if (payload?.ok === false) return null;
       return parseCostRows(payload);
     };
 
     const filteredRows = await fetchRows(true);
+    if (!Array.isArray(filteredRows)) return null;
     if (filteredRows.length || !projectFilter?.projectId) return filteredRows;
 
     const allRows = await fetchRows(false);
+    if (!Array.isArray(allRows)) return null;
     const selectedProjectId = normalizeLookup(projectFilter?.projectId || "");
     const selectedProjectName = normalizeLookup(projectFilter?.projectName || "");
     return allRows.filter((row) => {
@@ -697,7 +700,7 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
     });
   } catch (error) {
     console.warn("Unable to load cost metadata from resource endpoint:", error);
-    return [];
+    return null;
   }
 };
 
@@ -1660,7 +1663,28 @@ const removeInferredProjectBudgetCostMetadata = (activity = {}) => {
   };
 };
 
-const applyCostMetadataRows = (rows = []) => {
+const applyCostMetadataRows = (rows = [], projectFilter = {}) => {
+  if (!Array.isArray(rows)) return;
+  const selectedProjectId = String(projectFilter?.projectId || "").trim();
+  const selectedProjectName = String(projectFilter?.projectName || "").trim();
+  const shouldResetProjectMetadata = Boolean(selectedProjectId || selectedProjectName);
+
+  // Treat a successful Costs resource response as authoritative for the selected
+  // project. If the sheet has no rows, clear cached Cost ID / planned-cost values
+  // that may be left in localStorage from earlier sessions so blank Sheets stay
+  // blank in the costing table until the user explicitly adds cost details.
+  if (shouldResetProjectMetadata) {
+    saveCostActivityOverrides(costActivitiesState.map((activity) => {
+      if (!isActivityForProject(activity, selectedProjectId, selectedProjectName)) return activity;
+      return normalizeCostActivity({
+        ...activity,
+        costId: "",
+        plannedCost: 0,
+        earnedValue: 0,
+      });
+    }));
+  }
+
   if (!rows.length) return;
   const metadataByActivityId = new Map();
   const metadataByActivityName = new Map();
@@ -1771,7 +1795,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
   await syncDailyCostsFromSheet(projectFilter, remoteDailyCosts);
   cleanupOrphanedDailyCosts(allActivities);
 
-  if (remoteCostMetadataRows.length) applyCostMetadataRows(remoteCostMetadataRows);
+  if (Array.isArray(remoteCostMetadataRows)) applyCostMetadataRows(remoteCostMetadataRows, projectFilter);
 
   const activitiesForDisplay = loadCostActivities();
 
