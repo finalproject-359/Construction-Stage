@@ -62,10 +62,14 @@
           <h2><span class="project-kpi-icon hold"><svg viewBox="0 0 24 24" fill="none"><path d="M10 8v8M14 8v8M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z"/></svg></span>On Hold Projects</h2>
           <p id="kpiOnHoldProjects">0</p>
         </article>
-        <article class="project-kpi-card">
-          <h2><span class="project-kpi-icon archived"><svg viewBox="0 0 24 24" fill="none"><path d="M5 8h14v11H5V8Zm2 0V5h10v3"/></svg></span>Archived Projects</h2>
-          <p id="kpiArchivedProjects">0</p>
-        </article>
+        <button id="openArchivedProjectsModalBtn" type="button" class="project-kpi-card archived-projects-trigger" aria-haspopup="dialog" aria-controls="archivedProjectsModal">
+          <span class="archived-projects-trigger-copy">
+            <span class="project-kpi-icon archived"><svg viewBox="0 0 24 24" fill="none"><path d="M5 8h14v11H5V8Zm2 0V5h10v3"/></svg></span>
+            <span>Archived Projects</span>
+          </span>
+          <span class="archived-projects-trigger-value" id="kpiArchivedProjects">0</span>
+          <span class="archived-projects-trigger-arrow" aria-hidden="true">›</span>
+        </button>
       </section>
 
       <section class="table-panel projects-controls">
@@ -205,6 +209,7 @@
               <option>In Progress</option>
               <option>On Hold</option>
               <option>Completed</option>
+              <option>Archived</option>
             </select>
           </label>
 
@@ -228,6 +233,85 @@
         </footer>
       </form>
     </div>
+  </div>
+
+  <div id="archivedProjectsModal" class="project-modal archived-projects-modal hidden" role="dialog" aria-modal="true" aria-labelledby="archivedProjectsModalTitle">
+    <div id="archivedProjectsBackdrop" class="project-modal-backdrop archived-projects-backdrop"></div>
+    <section class="archived-projects-card" aria-describedby="archivedProjectsModalSubtitle">
+      <header class="archived-projects-header">
+        <div class="archived-projects-title-group">
+          <span class="archived-projects-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16l-1.2 12H5.2L4 7Zm3-3h10l1 3H6l1-3Zm3 8h4"/></svg>
+          </span>
+          <div>
+            <h2 id="archivedProjectsModalTitle">Archived Projects</h2>
+            <p id="archivedProjectsModalSubtitle">View and manage all your archived projects.</p>
+          </div>
+        </div>
+        <button id="archivedProjectsClose" class="archived-projects-close" type="button" aria-label="Close archived projects modal">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+
+      <div class="archived-projects-controls" aria-label="Archived projects controls">
+        <label class="archived-control archived-search">
+          <span class="sr-only">Search archived projects</span>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m21 21-4.4-4.4M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg>
+          <input id="archivedProjectsSearch" type="search" placeholder="Search archived projects..." />
+        </label>
+        <label class="archived-control archived-select">
+          <span class="sr-only">Project Type</span>
+          <select id="archivedProjectsTypeFilter" aria-label="Project Type">
+            <option>All Project Types</option>
+          </select>
+        </label>
+        <label class="archived-control archived-select">
+          <span class="sr-only">Time Range</span>
+          <select id="archivedProjectsTimeFilter" aria-label="Time Range">
+            <option>All Time</option>
+            <option>Last 30 Days</option>
+            <option>Last 90 Days</option>
+            <option>This Year</option>
+          </select>
+        </label>
+        <button id="archivedProjectsSort" class="archived-sort-btn" type="button" aria-label="Sort archived projects by archived date">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h12M4 12h8M4 17h4M18 5v14m0 0 3-3m-3 3-3-3"/></svg>
+          Sort by: Archived Date
+        </button>
+      </div>
+
+      <div class="archived-projects-table-wrap">
+        <table class="archived-projects-table" aria-label="Archived projects list">
+          <thead>
+            <tr>
+              <th>Project Name</th>
+              <th>Project Type</th>
+              <th>Archived Date</th>
+              <th>Reason</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="archivedProjectsTableBody"></tbody>
+        </table>
+        <div id="archivedProjectsEmpty" class="archived-projects-empty hidden">
+          <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16l-1.2 12H5.2L4 7Zm3-3h10l1 3H6l1-3Zm3 8h4"/></svg></span>
+          <h3>No archived projects found</h3>
+          <p>Archived projects will appear here when records are moved out of your active portfolio.</p>
+        </div>
+      </div>
+
+      <footer class="archived-projects-footer">
+        <p id="archivedProjectsSummary">Showing 0 to 0 of 0 archived projects</p>
+        <div class="archived-projects-footer-actions">
+          <nav class="projects-pagination archived-pagination" aria-label="Archived projects pagination">
+            <button type="button" aria-label="Previous archived projects page">‹</button>
+            <span>1</span>
+            <button type="button" aria-label="Next archived projects page">›</button>
+          </nav>
+          <button id="archivedProjectsFooterClose" class="archived-footer-close" type="button">Close</button>
+        </div>
+      </footer>
+    </section>
   </div>
   <script defer src="ui-feedback.js"></script>
   <script defer src="data-service.js"></script>
