@@ -805,6 +805,70 @@ const isActivityForProject = (activity, projectId, projectName = "") => {
   return false;
 };
 
+const findResolvedCostActivity = (projectId, activityRefId, allActivities = loadCostActivities()) => {
+  const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
+  const projectName = String(project?.name || "").trim();
+  const normalizedProjectName = projectName.toLowerCase();
+  const requestedActivityRefId = String(activityRefId || "").trim();
+  const projectActivities = allActivities.filter((item) => isActivityForProject(item, projectId, normalizedProjectName));
+  const baseActivity = projectActivities.find((item) => getActivityRefId(item) === requestedActivityRefId);
+  const normalizedActivityName = String(baseActivity?.name || "").trim().toLowerCase();
+  const projectRows = getProjectCostData(projectId, allActivities).rows;
+  const rowFallback = projectRows.find((row) => String(getActivityRefId(row) || "").trim() === requestedActivityRefId)
+    || (normalizedActivityName
+      ? projectRows.find((row) => String(row.name || "").trim().toLowerCase() === normalizedActivityName)
+      : null)
+    || projectRows.find((row) => String(row.costId || "").trim() && String(getActivityRefId(row) || "").trim() === requestedActivityRefId);
+  const resolvedName = String(baseActivity?.name || rowFallback?.name || "").trim();
+  const resolvedNameLookup = resolvedName.toLowerCase();
+  const relatedActivities = projectActivities.filter((item) => {
+    const itemRefId = String(getActivityRefId(item) || "").trim();
+    const itemName = String(item.name || "").trim().toLowerCase();
+    return itemRefId === requestedActivityRefId || (resolvedNameLookup && itemName === resolvedNameLookup);
+  });
+  const relatedRows = projectRows.filter((row) => {
+    const rowRefId = String(getActivityRefId(row) || "").trim();
+    const rowName = String(row.name || "").trim().toLowerCase();
+    return rowRefId === requestedActivityRefId || (resolvedNameLookup && rowName === resolvedNameLookup);
+  });
+  const costId = String(
+    baseActivity?.costId
+    || relatedActivities.find((item) => String(item.costId || "").trim())?.costId
+    || rowFallback?.costId
+    || relatedRows.find((row) => String(row.costId || "").trim())?.costId
+    || "",
+  ).trim();
+  const plannedCost = Math.max(
+    parseBudgetValue(baseActivity?.plannedCost),
+    ...relatedActivities.map((item) => parseBudgetValue(item.plannedCost)),
+    parseBudgetValue(rowFallback?.plannedCost),
+    ...relatedRows.map((row) => parseBudgetValue(row.plannedCost)),
+  );
+  const durationDays = Math.max(
+    Number(baseActivity?.durationDays) || 0,
+    Number(rowFallback?.durationDays) || 0,
+    ...relatedActivities.map((item) => Number(item.durationDays) || 0),
+    ...relatedRows.map((row) => Number(row.durationDays) || 0),
+  );
+
+  if (!baseActivity && !rowFallback) return null;
+
+  return normalizeCostActivity({
+    ...(baseActivity || {}),
+    ...(rowFallback || {}),
+    id: getActivityRefId(baseActivity || rowFallback || {}) || requestedActivityRefId,
+    activityRefId: getActivityRefId(baseActivity || rowFallback || {}) || requestedActivityRefId,
+    projectId: projectId || baseActivity?.projectId || rowFallback?.projectId || "",
+    projectName: projectName || baseActivity?.projectName || rowFallback?.projectName || "",
+    name: resolvedName || baseActivity?.name || rowFallback?.name || "Untitled Activity",
+    costId,
+    plannedCost,
+    durationDays,
+    startDate: baseActivity?.startDate || rowFallback?.startDate || "",
+    finishDate: baseActivity?.finishDate || rowFallback?.finishDate || "",
+  });
+};
+
 const getProjectCostData = (projectId, allActivities = loadCostActivities()) => {
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   const projectName = String(project?.name || "").trim();
@@ -1036,45 +1100,14 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const normalizedProjectName = projectName.toLowerCase();
   const activities = allActivities;
   const dailyCosts = loadDailyCosts();
-  const activity = activities.find((item) => getActivityRefId(item) === activityId && isActivityForProject(item, projectId, normalizedProjectName));
+  const activity = findResolvedCostActivity(projectId, activityId, activities);
   if (!modal || !activity) return;
 
-  const projectRows = getProjectCostData(projectId, allActivities).rows;
   const normalizedActivityName = String(activity.name || "").trim().toLowerCase();
-  const matchingActivityRecords = allActivities.filter((item) => {
-    if (!isActivityForProject(item, projectId, normalizedProjectName)) return false;
-    const itemActivityId = String(getActivityRefId(item) || "").trim();
-    const itemName = String(item.name || "").trim().toLowerCase();
-    return itemActivityId === activityId || itemName === normalizedActivityName;
-  });
-  const rowFallback = projectRows.find((row) => String(getActivityRefId(row) || "").trim() === activityId)
-    || projectRows.find((row) => String(row.name || "").trim().toLowerCase() === normalizedActivityName)
-    || projectRows.find((row) => String(row.costId || "").trim() && String(row.name || "").trim().toLowerCase() === normalizedActivityName);
-  const relatedRows = projectRows.filter((row) => {
-    const rowActivityId = String(getActivityRefId(row) || "").trim();
-    const rowName = String(row.name || "").trim().toLowerCase();
-    return rowActivityId === activityId || rowName === normalizedActivityName;
-  });
-
-  const activityCostId = String(
-    activity.costId
-    || matchingActivityRecords.find((item) => String(item.costId || "").trim())?.costId
-    || rowFallback?.costId
-    || relatedRows.find((row) => String(row.costId || "").trim())?.costId
-    || "",
-  ).trim();
-  const activityName = String(activity.name || rowFallback?.name || relatedRows.find((row) => String(row.name || "").trim())?.name || "").trim();
-  const activityPlannedCost = Math.max(
-    parseBudgetValue(activity.plannedCost),
-    ...matchingActivityRecords.map((item) => parseBudgetValue(item.plannedCost)),
-    parseBudgetValue(rowFallback?.plannedCost),
-    ...relatedRows.map((row) => parseBudgetValue(row.plannedCost)),
-  );
-  const activityDurationDays = Math.max(
-    Number(activity.durationDays) || 0,
-    Number(rowFallback?.durationDays) || 0,
-    ...relatedRows.map((row) => Number(row.durationDays) || 0),
-  );
+  const activityCostId = String(activity.costId || "").trim();
+  const activityName = String(activity.name || "").trim();
+  const activityPlannedCost = parseBudgetValue(activity.plannedCost);
+  const activityDurationDays = Number(activity.durationDays) || 0;
   const activityPlannedCostPerDay = activityDurationDays > 0 ? (activityPlannedCost / activityDurationDays) : 0;
   if (!activityCostId || activityPlannedCost <= 0) {
     alert("Please add Cost ID and Planned Cost first before adding daily costs for this activity.");
@@ -1426,7 +1459,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
 };
 
 const editCostMetadata = (projectId, activityRefId, allActivities = loadCostActivities()) => {
-  const target = allActivities.find((item) => String(item.projectId || "").trim() === String(projectId).trim() && getActivityRefId(item) === activityRefId);
+  const target = findResolvedCostActivity(projectId, activityRefId, allActivities);
   if (!target) return;
   renderCostMetadataModal(projectId, activityRefId, target);
 };
@@ -1705,7 +1738,10 @@ const applyCostMetadataRows = (rows = [], projectFilter = {}) => {
   };
 
   rows.forEach((row) => {
-    const projectKey = String(row.projectId || "").trim();
+    const projectKey = normalizeLookup(resolveActivityProjectId({
+      projectId: row.projectId,
+      projectName: row.projectName || selectedProjectName,
+    }));
     const activityRefKey = String(row.activityRefId || "").trim();
     const activityNameKey = normalizeLookup(row.activityName);
     if (activityRefKey) {
@@ -1721,7 +1757,7 @@ const applyCostMetadataRows = (rows = [], projectFilter = {}) => {
   });
 
   saveCostActivityOverrides(costActivitiesState.map((activity) => {
-    const projectKey = String(activity.projectId || "").trim();
+    const projectKey = normalizeLookup(resolveActivityProjectId(activity));
     const activityKey = `${projectKey}::${String(getActivityRefId(activity) || "").trim()}`;
     const activityNameKey = `${projectKey}::${normalizeLookup(activity.name)}`;
     const fallbackActivityRefKey = String(getActivityRefId(activity) || "").trim();
