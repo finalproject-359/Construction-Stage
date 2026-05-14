@@ -15,6 +15,18 @@ const projectsTypeFilter = document.getElementById("projectsTypeFilter");
 const projectModalTitle = document.getElementById("projectModalTitle");
 const projectModalSubtitle = document.querySelector(".project-modal-header p");
 const projectSubmitButton = projectForm?.querySelector('button[type="submit"]');
+const openArchivedProjectsModalBtn = document.getElementById("openArchivedProjectsModalBtn");
+const archivedProjectsModal = document.getElementById("archivedProjectsModal");
+const archivedProjectsBackdrop = document.getElementById("archivedProjectsBackdrop");
+const archivedProjectsClose = document.getElementById("archivedProjectsClose");
+const archivedProjectsFooterClose = document.getElementById("archivedProjectsFooterClose");
+const archivedProjectsSearch = document.getElementById("archivedProjectsSearch");
+const archivedProjectsTypeFilter = document.getElementById("archivedProjectsTypeFilter");
+const archivedProjectsTimeFilter = document.getElementById("archivedProjectsTimeFilter");
+const archivedProjectsSort = document.getElementById("archivedProjectsSort");
+const archivedProjectsTableBody = document.getElementById("archivedProjectsTableBody");
+const archivedProjectsEmpty = document.getElementById("archivedProjectsEmpty");
+const archivedProjectsSummary = document.getElementById("archivedProjectsSummary");
 
 const kpiEls = {
   total: document.getElementById("kpiTotalProjects"),
@@ -143,6 +155,13 @@ const formatDate = (value) => {
   return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
+const formatTime = (value) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+};
+
 const normalizeProject = (project = {}) => {
   const idRaw = getValueByAliases(project, ["id", "projectId", "project_id"]);
   const codeRaw = getValueByAliases(project, ["code", "projectCode", "project_code"]);
@@ -154,6 +173,8 @@ const normalizeProject = (project = {}) => {
   let finishDateRaw = getValueByAliases(project, ["finishDate", "targetFinish", "target_finish", "endDate", "end_date", "plannedFinish", "planned_finish"]);
   let budgetRaw = getValueByAliases(project, ["budget", "plannedValue", "planned_value", "plannedCost", "planned_cost"]);
   let descriptionRaw = getValueByAliases(project, ["description", "notes"]);
+  const archivedDateRaw = getValueByAliases(project, ["archivedDate", "archived_date", "dateArchived", "date_archived"]);
+  const archiveReasonRaw = getValueByAliases(project, ["archiveReason", "archive_reason", "reason", "archivedReason", "archived_reason"]);
   const createdAtRaw = getValueByAliases(project, ["createdAt", "created_at", "timestamp", "dateCreated"]);
 
   const isKnownStatus = (value) =>
@@ -212,6 +233,8 @@ const normalizeProject = (project = {}) => {
         ? Math.max(0, Math.min(100, Number(getValueByAliases(project, ["progress", "percentComplete", "percent_complete"]))))
         : progressByStatus[normalizedStatus] ?? 0,
     description: String(descriptionRaw || "").trim(),
+    archivedDate: archivedDateRaw || finishDate || createdAtRaw || "",
+    archiveReason: String(archiveReasonRaw || descriptionRaw || "Project completed").trim(),
   };
 };
 
@@ -222,6 +245,22 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+
+const isProjectArchived = (project = {}) =>
+  String(project.status || "").trim().toLowerCase() === "archived";
+
+const closeArchivedProjectsModal = () => {
+  archivedProjectsModal?.classList.add("hidden");
+  document.body.style.overflow = "";
+};
+
+const openArchivedProjectsModal = () => {
+  hydrateArchivedProjectFilters();
+  renderArchivedProjects();
+  archivedProjectsModal?.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  archivedProjectsSearch?.focus({ preventScroll: true });
+};
 
 const closeProjectModal = () => {
   projectModal.classList.add("hidden");
@@ -583,6 +622,119 @@ const hydrateFilters = () => {
   );
 };
 
+const getArchivedProjectTypeClass = (type) => {
+  const normalized = String(type || "").toLowerCase();
+  if (normalized.includes("residential")) return "residential";
+  if (normalized.includes("infrastructure")) return "infrastructure";
+  if (normalized.includes("industrial")) return "industrial";
+  if (normalized.includes("institutional") || normalized.includes("school")) return "institutional";
+  return "commercial";
+};
+
+const getArchivedProjects = () =>
+  state.allProjects
+    .filter(isProjectArchived)
+    .slice()
+    .sort((a, b) => new Date(b.archivedDate || b.finishDate || 0) - new Date(a.archivedDate || a.finishDate || 0));
+
+const hydrateArchivedProjectFilters = () => {
+  populateFilterSelect(
+    archivedProjectsTypeFilter,
+    getArchivedProjects().map((project) => project.type),
+    "All Project Types"
+  );
+};
+
+const matchesArchivedTimeRange = (project, timeRange) => {
+  if (!timeRange || timeRange === "All Time") return true;
+  const archivedDate = new Date(project.archivedDate || project.finishDate || "");
+  if (Number.isNaN(archivedDate.getTime())) return true;
+
+  const now = new Date();
+  if (timeRange === "Last 30 Days") {
+    const threshold = new Date(now);
+    threshold.setDate(now.getDate() - 30);
+    return archivedDate >= threshold;
+  }
+  if (timeRange === "Last 90 Days") {
+    const threshold = new Date(now);
+    threshold.setDate(now.getDate() - 90);
+    return archivedDate >= threshold;
+  }
+  if (timeRange === "This Year") {
+    return archivedDate.getFullYear() === now.getFullYear();
+  }
+  return true;
+};
+
+const getFilteredArchivedProjects = () => {
+  const searchTerm = String(archivedProjectsSearch?.value || "").toLowerCase().trim();
+  const typeValue = archivedProjectsTypeFilter?.value || "All Project Types";
+  const timeRange = archivedProjectsTimeFilter?.value || "All Time";
+
+  return getArchivedProjects().filter((project) => {
+    const reason = project.archiveReason || project.description || "Project completed";
+    const matchesSearch =
+      !searchTerm ||
+      project.name.toLowerCase().includes(searchTerm) ||
+      project.code.toLowerCase().includes(searchTerm) ||
+      project.type.toLowerCase().includes(searchTerm) ||
+      reason.toLowerCase().includes(searchTerm);
+    const matchesType = typeValue === "All Project Types" || project.type === typeValue;
+    return matchesSearch && matchesType && matchesArchivedTimeRange(project, timeRange);
+  });
+};
+
+const renderArchivedProjects = () => {
+  if (!archivedProjectsTableBody) return;
+
+  const archivedProjects = getFilteredArchivedProjects();
+  archivedProjectsTableBody.innerHTML = archivedProjects
+    .map((project) => {
+      const typeClass = getArchivedProjectTypeClass(project.type);
+      const archivedDate = project.archivedDate || project.finishDate || project.startDate;
+      const reason = project.archiveReason || project.description || "Project completed";
+      return `
+        <tr>
+          <td>
+            <div class="archived-project-identity">
+              <span class="archived-project-avatar ${typeClass}" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 21V8l8-5 8 5v13M9 21v-7h6v7M8 10h.01M16 10h.01"/></svg>
+              </span>
+              <span>
+                <span class="archived-project-name">${escapeHtml(project.name)}</span>
+                <span class="archived-project-id">${escapeHtml(project.code || project.id || "—")}</span>
+              </span>
+            </div>
+          </td>
+          <td>${escapeHtml(project.type)}</td>
+          <td><span class="archived-date-main">${escapeHtml(formatDate(archivedDate))}</span><span class="archived-date-time">${escapeHtml(formatTime(archivedDate) || "09:00 AM")}</span></td>
+          <td>${escapeHtml(reason)}</td>
+          <td>
+            <div class="archived-actions">
+              <button type="button" class="archived-restore-btn" data-archived-restore="${escapeHtml(project.id)}">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 0 2.34-5.66M4 4v6h6"/></svg>
+                Restore
+              </button>
+              <button type="button" class="archived-delete-btn" data-archived-delete="${escapeHtml(project.id)}" aria-label="Delete ${escapeHtml(project.name)}">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>`;
+    })
+    .join("");
+
+  archivedProjectsEmpty?.classList.toggle("hidden", archivedProjects.length > 0);
+  if (archivedProjectsSummary) {
+    archivedProjectsSummary.textContent = archivedProjects.length
+      ? `Showing 1 to ${Math.min(5, archivedProjects.length)} of ${archivedProjects.length} archived projects`
+      : "Showing 0 to 0 of 0 archived projects";
+  }
+};
+
+
+
 const addProject = async (project) => {
   await syncProjectWithGoogleSheet({ action: "create", project });
   state.allProjects = [project, ...state.allProjects];
@@ -605,7 +757,20 @@ const updateProject = async (updatedProject) => {
   );
   saveToLocalStorage(state.allProjects);
   hydrateFilters();
+  hydrateArchivedProjectFilters();
   applyFilters();
+  renderArchivedProjects();
+};
+
+const restoreArchivedProject = async (projectId) => {
+  const projectToRestore = state.allProjects.find((project) => project.id === projectId);
+  if (!projectToRestore) return;
+  await updateProject({
+    ...projectToRestore,
+    status: "Not Started",
+    progress: 0,
+    archiveReason: "",
+  });
 };
 
 const removeRelatedProjectDataFromLocalStorage = (projectToDelete) => {
@@ -656,7 +821,9 @@ const deleteProject = async (projectId) => {
   state.allProjects = state.allProjects.filter((project) => project.id !== projectId);
   saveToLocalStorage(state.allProjects);
   hydrateFilters();
+  hydrateArchivedProjectFilters();
   applyFilters();
+  renderArchivedProjects();
 };
 
 const closeAllActionMenus = () => {
@@ -786,6 +953,42 @@ openAddProjectModalEmptyBtn?.addEventListener("click", openProjectModal);
 projectModalClose?.addEventListener("click", closeProjectModal);
 projectFormCancel?.addEventListener("click", closeProjectModal);
 projectModalBackdrop?.addEventListener("click", closeProjectModal);
+openArchivedProjectsModalBtn?.addEventListener("click", openArchivedProjectsModal);
+archivedProjectsClose?.addEventListener("click", closeArchivedProjectsModal);
+archivedProjectsFooterClose?.addEventListener("click", closeArchivedProjectsModal);
+archivedProjectsBackdrop?.addEventListener("click", closeArchivedProjectsModal);
+archivedProjectsSearch?.addEventListener("input", renderArchivedProjects);
+archivedProjectsTypeFilter?.addEventListener("change", renderArchivedProjects);
+archivedProjectsTimeFilter?.addEventListener("change", renderArchivedProjects);
+archivedProjectsSort?.addEventListener("click", renderArchivedProjects);
+archivedProjectsTableBody?.addEventListener("click", async (event) => {
+  if (!(event.target instanceof Element)) return;
+  const restoreBtn = event.target.closest("[data-archived-restore]");
+  if (restoreBtn instanceof HTMLElement) {
+    try {
+      await restoreArchivedProject(restoreBtn.dataset.archivedRestore);
+    } catch (error) {
+      console.warn(error);
+      showProjectPersistenceError("restore", error);
+    }
+    return;
+  }
+
+  const deleteBtn = event.target.closest("[data-archived-delete]");
+  if (deleteBtn instanceof HTMLElement) {
+    const projectId = deleteBtn.dataset.archivedDelete;
+    const projectToDelete = state.allProjects.find((project) => project.id === projectId);
+    if (!projectToDelete) return;
+    const isConfirmed = window.confirm(`Permanently delete "${projectToDelete.name}" from archived projects? This action cannot be undone.`);
+    if (!isConfirmed) return;
+    try {
+      await deleteProject(projectId);
+    } catch (error) {
+      console.warn(error);
+      showProjectPersistenceError("delete", error);
+    }
+  }
+});
 
 projectModal.addEventListener("click", (event) => {
   if (event.target === projectModal) {
@@ -800,6 +1003,10 @@ document.addEventListener("keydown", (event) => {
 
   if (event.key === "Escape" && !projectModal.classList.contains("hidden")) {
     closeProjectModal();
+  }
+
+  if (event.key === "Escape" && archivedProjectsModal && !archivedProjectsModal.classList.contains("hidden")) {
+    closeArchivedProjectsModal();
   }
 });
 
@@ -907,6 +1114,7 @@ const refreshProjectsIfVisible = async ({ force = false } = {}) => {
   if (isProjectsSyncInFlight) return;
   if (!force && document.visibilityState === "hidden") return;
   if (projectModal && !projectModal.classList.contains("hidden")) return;
+  if (archivedProjectsModal && !archivedProjectsModal.classList.contains("hidden")) return;
   if (document.activeElement instanceof HTMLElement) {
     const isTyping =
       document.activeElement.matches("input, textarea, select")
