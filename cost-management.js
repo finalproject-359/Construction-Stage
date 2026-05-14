@@ -1265,7 +1265,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         },
       });
       await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
-      await syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity });
+      await syncCostSummaryToSheet({ projectId, projectName, activity });
       const refreshedMetadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
       applyCostMetadataRows(refreshedMetadataRows);
     } catch (error) {
