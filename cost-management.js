@@ -191,6 +191,9 @@ const normalizeProject = (project = {}) => ({
 });
 const escapeHtml = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 const formatBudget = (value) => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", minimumFractionDigits: 2 }).format(value || 0);
+const ACTIVITY_PLANNED_COST_ALIASES = ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value"];
+const COST_METADATA_PLANNED_COST_ALIASES = ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value"];
+const COST_METADATA_COST_ID_ALIASES = ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"];
 const formatHumanDate = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value || "-");
@@ -345,7 +348,7 @@ const normalizeCostActivity = (activity = {}) => {
   const finishDate = toDateInputValue(getValueByAliases(activity, ["finishDate", "plannedFinish", "planned_finish"]));
   const explicitDuration = Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0;
   const progressPercent = clampPercent(getValueByAliases(activity, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]));
-  const plannedCost = parseBudgetValue(getValueByAliases(activity, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]));
+  const plannedCost = parseBudgetValue(getValueByAliases(activity, ACTIVITY_PLANNED_COST_ALIASES));
   const plannedCostPerDay = plannedCost > 0 && Number(computeDurationDays(startDate, finishDate, explicitDuration)) > 0
     ? plannedCost / Number(computeDurationDays(startDate, finishDate, explicitDuration))
     : 0;
@@ -358,7 +361,7 @@ const normalizeCostActivity = (activity = {}) => {
 
   return {
     id: String(getValueByAliases(activity, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id", "source activity id", "code", "id"]) || "").trim(),
-    costId: String(getValueByAliases(activity, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
+    costId: String(getValueByAliases(activity, COST_METADATA_COST_ID_ALIASES) || "").trim(),
     activityRefId: String(getValueByAliases(activity, ["activityRefId", "activity_ref_id", "activity ref id", "sourceActivityId", "source_activity_id", "source activity id", "activityId", "activity_id", "activity id", "id", "code"]) || "").trim(),
     projectId: String(getValueByAliases(activity, ["projectId", "project_id", "project id", "project", "projectName", "project_name", "project name"]) || "").trim(),
     projectName: String(getValueByAliases(activity, ["project", "projectName", "project_name", "project name"]) || "").trim(),
@@ -425,11 +428,11 @@ const normalizeRemoteActivity = (row = {}) => {
     projectId,
     projectName: getValueByAliases(row, ["project", "projectName", "project_name", "project name"]),
     name: getValueByAliases(row, ["name", "activity", "activityName", "activity_name"]),
-    costId: getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]),
+    costId: "",
     startDate,
     finishDate,
     durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
-    plannedCost: getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"]),
+    plannedCost: getValueByAliases(row, COST_METADATA_PLANNED_COST_ALIASES),
     progressPercent: getValueByAliases(row, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]),
     earnedValue: getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "earned value (ev)", "ev"]),
   });
@@ -649,14 +652,14 @@ const loadRemoteCostMetadata = async (projectFilter = {}) => {
       }, lookups),
       activityRefId: extractActivityRefIdFromCostRow(row),
       activityName: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
-      costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id", "costCode", "cost_code", "cost code"]) || "").trim(),
-      plannedCost: parseBudgetValue(getValueByAliases(row, ["plannedCost", "planned_cost", "planned cost", "plannedValue", "planned_value", "planned value", "budget"])),
+      costId: String(getValueByAliases(row, COST_METADATA_COST_ID_ALIASES) || "").trim(),
+      plannedCost: parseBudgetValue(getValueByAliases(row, COST_METADATA_PLANNED_COST_ALIASES)),
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
       progressPercent: clampPercent(getValueByAliases(row, ["progress", "progressPercent", "progress_percent", "percentComplete", "percent_complete", "% complete", "percent complete"])),
       earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
       date: String(getValueByAliases(row, ["date", "createdAt", "created_at"]) || "").trim(),
     }))
-    .filter((row) => row.projectId && (row.activityRefId || row.activityName));
+    .filter((row) => row.projectId && (row.activityRefId || row.activityName) && (row.costId || parseBudgetValue(row.plannedCost) > 0));
 
   try {
     const fetchRows = async (includeProjectId) => {
@@ -1629,6 +1632,30 @@ const getActiveDetailsTabFromUi = () => {
   return activeTab === "costing" ? "costing" : "overview";
 };
 
+const removeInferredProjectBudgetCostMetadata = (activity = {}) => {
+  const normalized = normalizeCostActivity(activity);
+  const plannedCost = parseBudgetValue(normalized.plannedCost);
+  if (plannedCost <= 0) return normalized;
+
+  const activityProjectId = normalizeLookup(resolveActivityProjectId(normalized));
+  const activityProjectName = normalizeLookup(normalized.projectName);
+  const project = loadProjects().map(normalizeProject).find((item) => {
+    const projectId = normalizeLookup(item.id);
+    const projectName = normalizeLookup(item.name);
+    return (activityProjectId && projectId === activityProjectId)
+      || (activityProjectName && projectName === activityProjectName);
+  });
+  const projectBudget = parseBudgetValue(project?.budget);
+  if (projectBudget <= 0 || plannedCost !== projectBudget) return normalized;
+
+  return {
+    ...normalized,
+    costId: "",
+    plannedCost: 0,
+    earnedValue: 0,
+  };
+};
+
 const applyCostMetadataRows = (rows = []) => {
   if (!rows.length) return;
   const metadataByActivityId = new Map();
@@ -1672,8 +1699,8 @@ const applyCostMetadataRows = (rows = []) => {
     if (!metadata) return activity;
     return normalizeCostActivity({
       ...activity,
-      costId: String(metadata.costId || activity.costId || "").trim(),
-      plannedCost: parseBudgetValue(metadata.plannedCost) || parseBudgetValue(activity.plannedCost),
+      costId: String(metadata.costId || "").trim(),
+      plannedCost: parseBudgetValue(metadata.plannedCost),
       progressPercent: clampPercent(metadata.progressPercent),
       earnedValue: parseBudgetValue(metadata.earnedValue),
     });
@@ -1703,7 +1730,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
   // metadata survives, then let fresh remote activity rows refresh schedule fields.
   const localActivities = loadFromLocalStorageArray(COST_ACTIVITIES_LOCAL_STORAGE_KEY)
     .concat(loadFromLocalStorageArray(LEGACY_COST_ACTIVITIES_LOCAL_STORAGE_KEY))
-    .map(normalizeCostActivity)
+    .map(removeInferredProjectBudgetCostMetadata)
     .filter((item) => getCostActivityProjectKey(item) && getActivityRefId(item));
   const merged = [...localActivities, ...remoteActivities];
   const deduped = new Map();
