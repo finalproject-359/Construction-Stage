@@ -532,16 +532,6 @@ body.page-activities .activities-table-panel tbody tr:hover {
   font-weight: 600;
 }
 
-body.page-activities .activity-row-actions .project-action-btn {
-  border: 1px solid #d8deea;
-  background: #fff;
-  font-weight: 700;
-}
-
-body.page-activities .activity-row-actions .project-action-btn:hover {
-  border-color: #b8c5f4;
-}
-
 @media (max-width: 900px) {
   .activities-controls-header {
     flex-direction: column;
