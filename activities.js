@@ -255,6 +255,26 @@ const deriveActivityDisplayStatus = ({ status, plannedFinishDate, progress, dura
   return normalizedStatus;
 };
 
+const getActivityScheduleDetails = (activity = {}) => {
+  const plannedFinishDate = activity.plannedFinishDate;
+  const actualFinishDate = activity.actualFinishDate;
+  const hasPlannedFinish = plannedFinishDate instanceof Date && !Number.isNaN(plannedFinishDate.getTime());
+  const hasActualFinish = actualFinishDate instanceof Date && !Number.isNaN(actualFinishDate.getTime());
+
+  if (!hasActualFinish) {
+    return { finishNote: "", durationNote: "" };
+  }
+
+  const extraDays = hasPlannedFinish
+    ? Math.max(0, Math.floor((actualFinishDate.getTime() - plannedFinishDate.getTime()) / 86400000))
+    : 0;
+
+  return {
+    finishNote: `Actual finish: ${toDisplayDate(actualFinishDate)}`,
+    durationNote: extraDays > 0 ? `+${extraDays} day${extraDays === 1 ? "" : "s"} added` : "",
+  };
+};
+
 const escapeHtml = (value) =>
   String(value)
     .replaceAll("&", "&amp;")
@@ -279,6 +299,16 @@ const normalizeActivity = (activity = {}) => {
   let status = getValueByAliases(activity, ["status"]);
   let plannedStartRaw = getValueByAliases(activity, ["plannedStart", "planned_start", "startDate", "plannedStartDate"]);
   let plannedFinishRaw = getValueByAliases(activity, ["plannedFinish", "planned_finish", "finishDate", "plannedFinishDate"]);
+  const actualFinishRaw = getValueByAliases(activity, [
+    "actualFinish",
+    "actual_finish",
+    "actualFinishDate",
+    "actual_finish_date",
+    "actualEnd",
+    "actual_end",
+    "actualEndDate",
+    "actual_end_date",
+  ]);
   const durationRaw = getValueByAliases(activity, ["duration", "durationDays", "duration_days"]);
   let progressRaw = getValueByAliases(activity, ["progress", "percentComplete", "percent_complete"]);
   let durationStatus = getValueByAliases(activity, [
@@ -338,6 +368,7 @@ const normalizeActivity = (activity = {}) => {
   const progress = toPercent(progressRaw ?? (status === "Completed" ? 100 : 0));
   const plannedStartDate = parseDateValue(plannedStartRaw);
   const plannedFinishDate = parseDateValue(plannedFinishRaw);
+  const actualFinishDate = parseDateValue(actualFinishRaw);
   const displayStatus = deriveActivityDisplayStatus({
     status,
     plannedFinishDate,
@@ -353,8 +384,10 @@ const normalizeActivity = (activity = {}) => {
     status: displayStatus,
     plannedStart: toDisplayDate(plannedStartRaw),
     plannedFinish: toDisplayDate(plannedFinishRaw),
+    actualFinish: toDisplayDate(actualFinishRaw),
     plannedStartDate,
     plannedFinishDate,
+    actualFinishDate,
     duration: toDurationLabel(durationRaw, plannedStartDate, plannedFinishDate),
     progress,
     durationStatus,
@@ -509,8 +542,9 @@ const toDurationLabel = (durationRaw, plannedStartDate, plannedFinishDate) => {
 const buildActivityRowHtml = (activity) => {
   const progressClass = PROGRESS_CLASS_BY_STATUS[activity.status] || "";
   const rowKey = createActivityKey(activity);
+  const scheduleDetails = getActivityScheduleDetails(activity);
   return `
-    <tr>
+    <tr class="${activity.status === "Delayed" ? "activity-row-delayed" : ""}">
       <td>${escapeHtml(activity.id)}</td>
       <td>
         <div class="activity-name-cell">
@@ -519,8 +553,18 @@ const buildActivityRowHtml = (activity) => {
         </div>
       </td>
       <td>${escapeHtml(activity.plannedStart)}</td>
-      <td>${escapeHtml(activity.plannedFinish)}</td>
-      <td>${escapeHtml(activity.duration)}</td>
+      <td>
+        <div class="activity-schedule-cell">
+          <strong>${escapeHtml(activity.plannedFinish)}</strong>
+          ${scheduleDetails.finishNote ? `<span class="activity-schedule-note ${activity.status === "Delayed" ? "is-delayed" : ""}">${escapeHtml(scheduleDetails.finishNote)}</span>` : ""}
+        </div>
+      </td>
+      <td>
+        <div class="activity-schedule-cell">
+          <strong>${escapeHtml(activity.duration)}</strong>
+          ${scheduleDetails.durationNote ? `<span class="activity-schedule-note ${activity.status === "Delayed" ? "is-delayed" : ""}">${escapeHtml(scheduleDetails.durationNote)}</span>` : ""}
+        </div>
+      </td>
       <td><span class="badge ${BADGE_CLASS_BY_STATUS[activity.status] || "badge-not-started"}">${escapeHtml(activity.status)}</span></td>
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
