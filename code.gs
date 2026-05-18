@@ -65,6 +65,7 @@ const CONFIG = {
       "Planned Cost",
       "Planned Cost/Day",
       "Date",
+      "Status",
       "Actual Cost/Day",
       "Earned Value/Day",
       "Created At",
@@ -228,6 +229,7 @@ function handleDailyCostsSheetEdit(sheet, range) {
     columns.progress,
     columns.actualCost,
     columns.date,
+    columns.status,
   ];
   if (relevant.indexOf(editedColumn) < 0) return;
 
@@ -1582,6 +1584,21 @@ function assertDailyCostForeignKeys(dailyCost) {
   assertCostExists(normalizedProjectId, normalizedCostId, normalizedActivityId);
 }
 
+function normalizeDailyCostStatus(value, isDelayed) {
+  var explicitStatus = cleanText(value);
+  if (explicitStatus) return explicitStatus;
+
+  var delayedText = cleanText(isDelayed).toLowerCase();
+  var delayed =
+    isDelayed === true ||
+    delayedText === "true" ||
+    delayedText === "delayed" ||
+    delayedText === "yes" ||
+    delayedText === "1";
+
+  return delayed ? "Delayed" : "On Schedule";
+}
+
 function normalizeIncomingDailyCost(input) {
   var source = input || {};
   var inferredProject = resolveProjectIdentity(
@@ -1645,6 +1662,16 @@ function normalizeIncomingDailyCost(input) {
     plannedCostPerDay: plannedCostPerDay,
     progress: progress,
     date: normalizeDate(source.date),
+    status: normalizeDailyCostStatus(
+      pickFirstDefined([
+        source.status,
+        source.dailyStatus,
+        source.daily_status,
+        source.scheduleStatus,
+        source.schedule_status,
+      ]),
+      source.isDelayed || source.is_delayed,
+    ),
     actualCost: parseNumber(
       source.actualCost || source.actual_cost || source.amount,
     ),
@@ -1725,6 +1752,7 @@ function upsertDailyCostRow(dailyCost) {
   if (columns.progress && dailyCost.progress !== null)
     row[columns.progress - 1] = dailyCost.progress;
   if (columns.date) row[columns.date - 1] = dailyCost.date;
+  if (columns.status) row[columns.status - 1] = dailyCost.status;
   if (columns.actualCost) row[columns.actualCost - 1] = dailyCost.actualCost;
   if (columns.earnedValue) row[columns.earnedValue - 1] = dailyCost.earnedValue;
   if (columns.createdAt) {
@@ -2131,6 +2159,14 @@ function buildDailyCostFromCost(cost) {
     plannedCostPerDay: plannedCostPerDay,
     progress: progress >= 0 ? progress : 0,
     date: dailyCostDate,
+    status: normalizeDailyCostStatus(
+      cost.status ||
+        cost.dailyStatus ||
+        cost.daily_status ||
+        cost.scheduleStatus ||
+        cost.schedule_status,
+      cost.isDelayed || cost.is_delayed,
+    ),
     actualCost: parseNumber(cost.actualCost),
   };
 }
@@ -3191,7 +3227,8 @@ function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
 
       // Target layout:
       // [Project ID, Project Name, Cost ID, Activity ID, Activity, Progress/Day,
-      //  Planned Cost, Planned Cost/Day, Date, Actual Cost/Day, Earned Value/Day, Created At]
+      //  Planned Cost, Planned Cost/Day, Date, Status, Actual Cost/Day,
+      //  Earned Value/Day, Created At]
       return [
         projectId,
         "",
@@ -3202,6 +3239,7 @@ function migrateLegacyDailyCostsLayoutIfNeeded(sheet) {
         plannedCost,
         plannedCostPerDay,
         date,
+        "",
         actualCost,
         earnedValue,
         createdAt,
@@ -3307,6 +3345,7 @@ function normalizeDailyCostsColumnsIfNeeded(sheet) {
   });
   const headerAliases = {
     "progress day": ["progress day", "progress"],
+    status: ["status", "daily status", "schedule status"],
     "actual cost day": ["actual cost day", "actual cost"],
     "earned value day": ["earned value day", "earned value", "ev"],
   };
@@ -3982,6 +4021,7 @@ function getDailyCostColumnMap(sheet) {
       "Planned Cost Per Day",
     ]),
     date: indexOfHeader(["Date"]),
+    status: indexOfHeader(["Status", "Daily Status", "Schedule Status"]),
     actualCost: indexOfHeader([
       "Actual Cost/Day",
       "Actual Cost",
@@ -4305,6 +4345,17 @@ function normalizeDailyCostRecord(row) {
         row["planned_cost_per_day"],
     ),
     date: normalizeDate(row["Date"] || row["date"]),
+    status: normalizeDailyCostStatus(
+      row["Status"] ||
+        row["status"] ||
+        row["Daily Status"] ||
+        row["dailyStatus"] ||
+        row["daily_status"] ||
+        row["Schedule Status"] ||
+        row["scheduleStatus"] ||
+        row["schedule_status"],
+      row["Is Delayed"] || row["isDelayed"] || row["is_delayed"],
+    ),
     actualCost: parseNumber(
       row["Actual Cost/Day"] ||
         row["Actual Cost"] ||

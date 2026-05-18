@@ -628,12 +628,31 @@ const resolveProjectIdFromDailyCost = (dailyCost = {}, lookups = buildProjectIde
   return candidateValues.find((entry) => entry.raw)?.raw || "";
 };
 
+const deriveDailyCostStatus = (item = {}, activity = null) => {
+  const explicitStatus = String(
+    getValueByAliases(item, ["status", "dailyStatus", "daily_status", "scheduleStatus", "schedule_status"]) || "",
+  ).trim();
+  if (explicitStatus) return explicitStatus;
+
+  const delayedValue = getValueByAliases(item, ["isDelayed", "is_delayed", "delayed"]);
+  const delayedText = String(delayedValue || "").trim().toLowerCase();
+  const isExplicitlyDelayed = delayedValue === true || ["true", "delayed", "yes", "1"].includes(delayedText);
+  const isDateDelayed = Boolean(
+    activity &&
+      item?.date &&
+      ((activity.startDate && item.date < activity.startDate) ||
+        (activity.finishDate && item.date > activity.finishDate)),
+  );
+  return isExplicitlyDelayed || isDateDelayed ? "Delayed" : "On Schedule";
+};
+
 const normalizeDailyCostRecord = (item = {}, lookups = buildProjectIdentityLookups(loadProjects())) => ({
   projectId: resolveProjectIdFromDailyCost(item, lookups),
   activityId: String(getValueByAliases(item, ["activityId", "activity_id", "activity id"]) || item.activityId || "").trim(),
   activity: String(getValueByAliases(item, ["activity", "activityName", "activity_name", "name"]) || item.activity || "").trim(),
   costId: String(getValueByAliases(item, ["costId", "cost_id", "cost id"]) || item.costId || "").trim(),
   date: normalizeDateKey(getValueByAliases(item, ["date"]) || item.date),
+  status: deriveDailyCostStatus(item),
   actualCost: parseBudgetValue(getValueByAliases(item, ["actualCost", "actual_cost", "amount"]) ?? item.actualCost),
   progress: clampPercent(getValueByAliases(item, ["progress", "percentComplete", "percent_complete", "% complete", "percent complete"]) ?? item.progress),
   earnedValue: parseBudgetValue(getValueByAliases(item, ["earnedValue", "earned_value", "earned value", "ev"]) ?? item.earnedValue),
@@ -675,6 +694,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
       activity: String(getValueByAliases(row, ["activity", "activityName", "activity_name", "name"]) || "").trim(),
       costId: String(getValueByAliases(row, ["costId", "cost_id", "cost id"]) || "").trim(),
       date: normalizeDateKey(getValueByAliases(row, ["date"])),
+      status: deriveDailyCostStatus(row),
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
       progress: clampPercent(getValueByAliases(row, ["progress", "percentComplete", "percent_complete", "% complete", "percent complete"])),
       earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
@@ -1257,8 +1277,9 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       const earnedValue = hasManualProgress ? activityPlannedCostPerDay * (progressValue / 100) : Number.NaN;
       const progressLabel = hasManualProgress ? `${progressValue.toFixed(2)}%` : "—";
       const earnedValueLabel = Number.isFinite(earnedValue) ? formatBudget(earnedValue) : "—";
-      const isDelayed = String(entry.isDelayed).toLowerCase() === "true" || Boolean((activity.startDate && entry.date < activity.startDate) || (activity.finishDate && entry.date > activity.finishDate));
-      const statusMarkup = isDelayed ? '<span class="cost-status-badge risk">Delayed</span>' : '<span class="cost-status-badge complete">On Schedule</span>';
+      const status = deriveDailyCostStatus(entry, activity);
+      const isDelayed = status.toLowerCase() === "delayed";
+      const statusMarkup = isDelayed ? '<span class="cost-status-badge risk">Delayed</span>' : `<span class="cost-status-badge complete">${escapeHtml(status)}</span>`;
       return `<tr><td>${formatHumanDate(entry.date)}</td><td>${statusMarkup}</td><td>${progressLabel}</td><td>${formatBudget(activityPlannedCostPerDay)}</td><td>${formatBudget(entry.actualCost)}</td><td>${earnedValueLabel}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`;
     }).join("")
     : '<tr><td colspan="7" class="empty-cell">No daily costs recorded yet.</td></tr>';
@@ -1362,6 +1383,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       return;
     }
     const isDelayed = Boolean((activityStartDate && date < activityStartDate) || (activityFinishDate && date > activityFinishDate));
+    const status = isDelayed ? "Delayed" : "On Schedule";
     const existingIndex = currentDailyCosts.findIndex((item) => {
       if (!isDailyCostForProject(item, projectId, normalizedProjectName)) return false;
       const itemDate = String(item.date || "");
@@ -1386,10 +1408,12 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       const existingProgress = Number(existingDailyCost.progress);
       const existingActualCost = Number(existingDailyCost.actualCost);
       const existingEarnedValue = Number(existingDailyCost.earnedValue);
+      const existingStatus = deriveDailyCostStatus(existingDailyCost, activity);
       const isSameProgress = Number.isFinite(existingProgress) && Math.abs(existingProgress - progress) < 0.0001;
       const isSameActualCost = Number.isFinite(existingActualCost) && Math.abs(existingActualCost - actualCost) < 0.0001;
       const isSameEarnedValue = Number.isFinite(existingEarnedValue) && Math.abs(existingEarnedValue - earnedValue) < 0.0001;
-      if (isSameProgress && isSameActualCost && isSameEarnedValue) {
+      const isSameStatus = existingStatus === status;
+      if (isSameProgress && isSameActualCost && isSameEarnedValue && isSameStatus) {
         alert("No changes detected for this date. Existing daily cost record is already up to date.");
         return;
       }
@@ -1408,6 +1432,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
           plannedCostPerDay: activityPlannedCostPerDay,
           progress,
           date,
+          status,
           actualCost,
           earnedValue,
           isDelayed,
