@@ -1315,6 +1315,8 @@ function handleActivityMutation(action, payload) {
       rowValues[columns.plannedStart - 1] = activity.plannedStart;
     if (columns.plannedFinish)
       rowValues[columns.plannedFinish - 1] = activity.plannedFinish;
+    if (columns.actualFinish && activity.actualFinish)
+      rowValues[columns.actualFinish - 1] = activity.actualFinish;
     if (columns.duration) rowValues[columns.duration - 1] = activity.duration;
     if (columns.percentComplete)
       rowValues[columns.percentComplete - 1] = activity.percentComplete;
@@ -2428,6 +2430,14 @@ function normalizeIncomingActivity(input) {
       source.finishDate ||
       source.finish_date,
   );
+  const actualFinish = normalizeDate(
+    source.actualFinish ||
+      source.actual_finish ||
+      source.actualFinishDate ||
+      source.actual_finish_date ||
+      source.actualEnd ||
+      source.actual_end,
+  );
   const duration =
     cleanText(source.duration || source.durationDays || source.duration_days) ||
     calculateDurationDays(plannedStart, plannedFinish);
@@ -2465,6 +2475,7 @@ function normalizeIncomingActivity(input) {
     status: cleanText(source.status) || "Not Started",
     plannedStart: plannedStart,
     plannedFinish: plannedFinish,
+    actualFinish: actualFinish,
     duration: duration,
     percentComplete: percentComplete,
     notes: cleanText(source.notes || source.note || source.remarks),
@@ -2563,6 +2574,12 @@ function getActivityColumnMap(sheet) {
     name: indexOfHeader(["Activity", "Activity Name", "Name"]),
     plannedStart: indexOfHeader(["Planned Start", "Start Date"]),
     plannedFinish: indexOfHeader(["Planned Finish", "Finish Date"]),
+    actualFinish: indexOfHeader([
+      "Actual Finish",
+      "Actual Finish Date",
+      "Actual End",
+      "Actual End Date",
+    ]),
     duration: indexOfHeader(["Duration", "Duration Days"]),
     status: indexOfHeader(["Status"]),
     percentComplete: indexOfHeader([
@@ -2639,6 +2656,8 @@ function updateActivityRow(activity) {
     rowValues[lookup.columns.plannedStart - 1] = activity.plannedStart;
   if (lookup.columns.plannedFinish)
     rowValues[lookup.columns.plannedFinish - 1] = activity.plannedFinish;
+  if (lookup.columns.actualFinish && activity.actualFinish)
+    rowValues[lookup.columns.actualFinish - 1] = activity.actualFinish;
   if (lookup.columns.duration)
     rowValues[lookup.columns.duration - 1] = activity.duration;
   if (lookup.columns.status)
@@ -4162,6 +4181,16 @@ function normalizeActivityRecord(row) {
     ),
     plannedFinish: normalizeDate(
       getCell(row, ["planned finish", "finish date", "planned_finish"]),
+    ),
+    actualFinish: normalizeDate(
+      getCell(row, [
+        "actual finish",
+        "actual finish date",
+        "actual_finish",
+        "actual_finish_date",
+        "actual end",
+        "actual end date",
+      ]),
     ),
     duration: cleanText(
       getCell(row, ["duration", "duration days", "duration_days"]),
