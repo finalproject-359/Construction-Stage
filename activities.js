@@ -491,8 +491,11 @@ const buildActivityRowHtml = (activity) => {
       </td>
       <td class="actions-col">
         <div class="activity-row-actions">
-          <button type="button" class="project-action-btn" data-action="edit" data-activity-key="${escapeHtml(rowKey)}">Edit</button>
-          <button type="button" class="project-action-btn danger" data-action="delete" data-activity-key="${escapeHtml(rowKey)}">Delete</button>
+          <button type="button" class="action-menu-trigger" data-activity-actions="${escapeHtml(rowKey)}" aria-label="Open activity actions" aria-expanded="false">⋮</button>
+          <div class="project-actions-menu hidden" data-activity-menu="${escapeHtml(rowKey)}" role="menu" aria-label="Activity actions">
+            <button type="button" class="project-action-btn" data-action="edit" data-activity-key="${escapeHtml(rowKey)}" role="menuitem">Edit</button>
+            <button type="button" class="project-action-btn danger" data-action="delete" data-activity-key="${escapeHtml(rowKey)}" role="menuitem">Delete</button>
+          </div>
         </div>
       </td>
     </tr>
@@ -557,6 +560,32 @@ const state = {
 
 const closeActivityActionMenus = () => {
   state.openActivityMenuKey = null;
+  activitiesTableBody.querySelectorAll("[data-activity-menu]").forEach((menu) => {
+    menu.classList.add("hidden");
+    menu.classList.remove("open-up");
+  });
+  activitiesTableBody.querySelectorAll("[data-activity-actions]").forEach((trigger) => {
+    trigger.setAttribute("aria-expanded", "false");
+  });
+};
+
+const toggleActivityActionMenu = (activityKey, triggerBtn) => {
+  if (!activityKey || !(triggerBtn instanceof HTMLElement)) return;
+  const targetMenu = activitiesTableBody.querySelector(`[data-activity-menu="${CSS.escape(activityKey)}"]`);
+  if (!(targetMenu instanceof HTMLElement)) return;
+  const isClosed = targetMenu.classList.contains("hidden");
+  closeActivityActionMenus();
+  if (!isClosed) return;
+
+  targetMenu.classList.remove("hidden");
+  targetMenu.classList.remove("open-up");
+  state.openActivityMenuKey = activityKey;
+  triggerBtn.setAttribute("aria-expanded", "true");
+
+  const menuRect = targetMenu.getBoundingClientRect();
+  if (menuRect.bottom > window.innerHeight - 16) {
+    targetMenu.classList.add("open-up");
+  }
 };
 
 const updateActivitiesUrlParams = ({ project = state.selectedProject, projectId = state.selectedProjectId || "", keepAddedFlag = false } = {}) => {
@@ -1575,8 +1604,15 @@ activitiesTableBody.addEventListener("click", (event) => {
     return;
   }
 
+  const triggerBtn = event.target.closest("[data-activity-actions]");
+  if (triggerBtn instanceof HTMLElement) {
+    toggleActivityActionMenu(triggerBtn.dataset.activityActions || "", triggerBtn);
+    return;
+  }
+
   const actionButton = event.target.closest("[data-action][data-activity-key]");
   if (!actionButton) return;
+  closeActivityActionMenus();
 
   const action = actionButton.dataset.action;
   const activityKey = actionButton.dataset.activityKey || "";
