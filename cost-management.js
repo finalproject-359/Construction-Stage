@@ -1233,9 +1233,11 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   }
   const availableDates = buildDateRangeOptions(activity.startDate, activity.finishDate);
   const hasAvailableDates = availableDates.length > 0;
-  const dateOptions = hasAvailableDates
-    ? availableDates.map((dateValue) => `<option value="${dateValue}">${formatLongHumanDate(dateValue)}</option>`).join("")
-    : `<option value="" selected disabled>No working days in this date range.</option>`;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const fallbackDate = hasAvailableDates ? (availableDates.includes(todayIso) ? todayIso : availableDates[0]) : todayIso;
+  const dateOptions = availableDates
+    .map((dateValue) => `<option value="${dateValue}">${formatLongHumanDate(dateValue)}</option>`)
+    .join("");
 
   const entries = dailyCosts
     .filter((item) => {
@@ -1255,13 +1257,15 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       const earnedValue = hasManualProgress ? activityPlannedCostPerDay * (progressValue / 100) : Number.NaN;
       const progressLabel = hasManualProgress ? `${progressValue.toFixed(2)}%` : "—";
       const earnedValueLabel = Number.isFinite(earnedValue) ? formatBudget(earnedValue) : "—";
-      return `<tr><td>${formatHumanDate(entry.date)}</td><td>${progressLabel}</td><td>${formatBudget(activityPlannedCostPerDay)}</td><td>${formatBudget(entry.actualCost)}</td><td>${earnedValueLabel}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`;
+      const isDelayed = String(entry.isDelayed).toLowerCase() === "true" || Boolean((activity.startDate && entry.date < activity.startDate) || (activity.finishDate && entry.date > activity.finishDate));
+      const statusMarkup = isDelayed ? '<span class="cost-status-badge risk">Delayed</span>' : '<span class="cost-status-badge complete">On Schedule</span>';
+      return `<tr><td>${formatHumanDate(entry.date)}</td><td>${statusMarkup}</td><td>${progressLabel}</td><td>${formatBudget(activityPlannedCostPerDay)}</td><td>${formatBudget(entry.actualCost)}</td><td>${earnedValueLabel}</td><td><button type="button" class="daily-cost-delete-btn" data-delete-date="${entry.date}">Delete</button></td></tr>`;
     }).join("")
-    : '<tr><td colspan="6" class="empty-cell">No daily costs recorded yet.</td></tr>';
+    : '<tr><td colspan="7" class="empty-cell">No daily costs recorded yet.</td></tr>';
   modal.classList.remove("hidden");
   modal.innerHTML = `<div class="daily-cost-dialog panel" role="dialog" aria-modal="true" aria-labelledby="dailyCostTitle"><div class="daily-cost-head"><h3 id="dailyCostTitle">${escapeHtml(activity.name)} Daily Cost</h3><button type="button" class="daily-cost-close" id="closeDailyModalBtn" aria-label="Close">×</button></div><p class="daily-cost-range">📅 ${escapeHtml(formatLongHumanDate(activity.startDate))} to ${escapeHtml(formatLongHumanDate(activity.finishDate))}</p>
-    <section class="daily-cost-section"><h4>Add Daily Cost</h4><p class="daily-cost-note">Flow: 1) Add entry, 2) Save to Google Sheet, 3) Daily Cost Records refresh from sheet.</p><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><select name="date" required ${hasAvailableDates ? "" : "disabled"}>${dateOptions}</select></label><label><span>Progress/Day (%)</span><input name="progress" type="number" min="0" max="100" step="0.01" placeholder="Enter progress" required ${hasAvailableDates ? "" : "disabled"}></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required ${hasAvailableDates ? "" : "disabled"}></label><button class="primary-btn" type="submit" ${hasAvailableDates ? "" : "disabled"}>Add Daily Cost</button></form><p class="daily-cost-duplicate-hint" id="dailyCostDuplicateHint" hidden></p></section>
-    <section class="daily-cost-section"><h4>Daily Cost Records</h4><div class="daily-cost-table-wrap"><table><thead><tr><th>Date</th><th>Progress/Day</th><th>Planned Cost/Day (₱)</th><th>Actual Cost/Day (₱)</th><th>Earned Value/Day (₱)</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></section>
+    <section class="daily-cost-section"><h4>Add Daily Cost</h4><p class="daily-cost-note">Flow: 1) Add entry, 2) Save to Google Sheet, 3) Daily Cost Records refresh from sheet.</p><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><select name="datePreset" required><option value="" disabled ${hasAvailableDates ? "" : "selected"}>${hasAvailableDates ? "Choose date" : "No in-range working dates available"}</option>${dateOptions}<option value="__custom__">+ Add Date</option></select></label><label id="customDateField" class="hidden"><span>Add Date</span><input name="customDate" type="date" value="${escapeHtml(fallbackDate)}"></label><label><span>Progress/Day (%)</span><input name="progress" type="number" min="0" max="100" step="0.01" placeholder="Enter progress" required></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required></label><button class="primary-btn" type="submit">Add Daily Cost</button></form><p class="daily-cost-duplicate-hint" id="dailyCostDuplicateHint" hidden></p></section>
+    <section class="daily-cost-section"><h4>Daily Cost Records</h4><div class="daily-cost-table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Progress/Day</th><th>Planned Cost/Day (₱)</th><th>Actual Cost/Day (₱)</th><th>Earned Value/Day (₱)</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></section>
     <div class="daily-cost-footer"><button type="button" class="ghost-btn" id="closeDailyModalBtnFooter">Close</button></div></div>`;
 
   modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", () => modal.classList.add("hidden"));
@@ -1287,13 +1291,20 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     showProjectDetails(projectId, activeTab, nextActivities);
     renderDailyCostModal(projectId, resolvedActivityRefId);
   }));
-  const dateSelect = modal.querySelector("#dailyCostForm select[name=\"date\"]");
+  const datePresetSelect = modal.querySelector("#dailyCostForm select[name=\"datePreset\"]");
+  const customDateField = modal.querySelector("#customDateField");
+  const customDateInput = modal.querySelector("#dailyCostForm input[name=\"customDate\"]");
   const dailyCostForm = modal.querySelector("#dailyCostForm");
+  const resolveSelectedDate = () => {
+    if (!datePresetSelect) return "";
+    if (datePresetSelect.value === "__custom__") return normalizeDateKey(customDateInput?.value || "");
+    return normalizeDateKey(datePresetSelect.value || "");
+  };
   const updateDailyCostSubmitMode = () => {
     const submitButton = dailyCostForm?.querySelector('button[type="submit"]');
     const hint = modal.querySelector("#dailyCostDuplicateHint");
-    if (!(submitButton instanceof HTMLButtonElement) || !dateSelect) return;
-    const selectedDate = normalizeDateKey(dateSelect.value);
+    if (!(submitButton instanceof HTMLButtonElement)) return;
+    const selectedDate = resolveSelectedDate();
     const hasExistingEntry = entries.some((entry) => normalizeDateKey(entry.date) === selectedDate);
     submitButton.textContent = hasExistingEntry ? "Update Daily Cost" : "Add Daily Cost";
     submitButton.dataset.defaultLabel = submitButton.textContent;
@@ -1304,27 +1315,33 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         : "";
     }
   };
-  if (dateSelect) {
-    const todayIso = new Date().toISOString().slice(0, 10);
-    if ([...dateSelect.options].some((option) => option.value === todayIso)) dateSelect.value = todayIso;
-    dateSelect.addEventListener("change", updateDailyCostSubmitMode);
-    updateDailyCostSubmitMode();
+  if (datePresetSelect) {
+    if (hasAvailableDates) {
+      datePresetSelect.value = fallbackDate;
+    } else {
+      datePresetSelect.value = "__custom__";
+    }
+    datePresetSelect.addEventListener("change", () => {
+      const isCustom = datePresetSelect.value === "__custom__";
+      customDateField?.classList.toggle("hidden", !isCustom);
+      if (customDateInput) customDateInput.required = isCustom;
+      updateDailyCostSubmitMode();
+    });
+    customDateField?.classList.toggle("hidden", datePresetSelect.value !== "__custom__");
   }
+  customDateInput?.addEventListener("change", updateDailyCostSubmitMode);
+  updateDailyCostSubmitMode();
 
   dailyCostForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     if (form.classList.contains("is-saving")) return;
     const formData = new FormData(event.currentTarget);
-    const date = normalizeDateKey(formData.get("date"));
+    const date = resolveSelectedDate();
     const rawProgress = String(formData.get("progress") || "").trim();
     const actualCost = parseBudgetValue(formData.get("actualCost"));
     const progress = rawProgress === "" ? Number.NaN : Number(rawProgress);
     const currentDailyCosts = loadDailyCosts();
-    if (!hasAvailableDates) {
-      alert("No valid working dates are available for this activity range.");
-      return;
-    }
     if (!date) {
       alert("Please select a date.");
       return;
@@ -1339,19 +1356,12 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     }
     const activityStartDate = String(activity.startDate || "");
     const activityFinishDate = String(activity.finishDate || "");
-    if (activityStartDate && date < activityStartDate) {
-      alert(`Date must be on or after ${activityStartDate}.`);
+    const selectedDate = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(selectedDate.getTime())) {
+      alert("Please provide a valid date.");
       return;
     }
-    if (activityFinishDate && date > activityFinishDate) {
-      alert(`Date must be on or before ${activityFinishDate}.`);
-      return;
-    }
-    const selectedDate = new Date(date);
-    if (Number.isNaN(selectedDate.getTime()) || !isWorkingDate(selectedDate)) {
-      alert("Selected date must be a working day (Monday to Friday and not a holiday).");
-      return;
-    }
+    const isDelayed = Boolean((activityStartDate && date < activityStartDate) || (activityFinishDate && date > activityFinishDate));
     const existingIndex = currentDailyCosts.findIndex((item) => {
       if (!isDailyCostForProject(item, projectId, normalizedProjectName)) return false;
       const itemDate = String(item.date || "");
@@ -1400,6 +1410,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
           date,
           actualCost,
           earnedValue,
+          isDelayed,
         },
       });
       await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
