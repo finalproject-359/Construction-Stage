@@ -225,6 +225,36 @@ const toPercent = (value) => {
   return Math.max(0, Math.min(100, Math.round(n)));
 };
 
+const normalizeActivityStatusText = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "completed" || normalized === "complete") return "Completed";
+  if (["in progress", "in-progress", "ongoing"].includes(normalized)) return "In Progress";
+  if (["not started", "not-started", "pending"].includes(normalized)) return "Not Started";
+  if (["delayed", "delay", "behind schedule", "behind-schedule", "late", "overdue"].includes(normalized)) return "Delayed";
+  return String(status || "Not Started").trim() || "Not Started";
+};
+
+const getTodayAtLocalMidnight = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const deriveActivityDisplayStatus = ({ status, plannedFinishDate, progress, durationStatus }) => {
+  const normalizedStatus = normalizeActivityStatusText(status);
+  if (normalizedStatus === "Completed" || progress >= 100) return "Completed";
+
+  const normalizedDurationStatus = String(durationStatus || "").trim().toLowerCase();
+  const isDurationDelayed = ["delayed", "behind schedule", "late", "overdue"].includes(normalizedDurationStatus);
+  const isPastPlannedFinish =
+    plannedFinishDate instanceof Date &&
+    !Number.isNaN(plannedFinishDate.getTime()) &&
+    plannedFinishDate < getTodayAtLocalMidnight();
+
+  if (normalizedStatus === "Delayed" || isDurationDelayed || isPastPlannedFinish) return "Delayed";
+  return normalizedStatus;
+};
+
 const escapeHtml = (value) =>
   String(value)
     .replaceAll("&", "&amp;")
@@ -303,24 +333,30 @@ const normalizeActivity = (activity = {}) => {
     type = "-";
   }
 
-  status = status || "Not Started";
+  status = normalizeActivityStatusText(status || "Not Started");
   durationStatus = durationStatus || "-";
-  const progress = progressRaw ?? (status === "Completed" ? 100 : 0);
+  const progress = toPercent(progressRaw ?? (status === "Completed" ? 100 : 0));
   const plannedStartDate = parseDateValue(plannedStartRaw);
   const plannedFinishDate = parseDateValue(plannedFinishRaw);
+  const displayStatus = deriveActivityDisplayStatus({
+    status,
+    plannedFinishDate,
+    progress,
+    durationStatus,
+  });
 
   return {
     id: id || "-",
     name: name || "Untitled Activity",
     project: project || "-",
     type: type || "-",
-    status,
+    status: displayStatus,
     plannedStart: toDisplayDate(plannedStartRaw),
     plannedFinish: toDisplayDate(plannedFinishRaw),
     plannedStartDate,
     plannedFinishDate,
     duration: toDurationLabel(durationRaw, plannedStartDate, plannedFinishDate),
-    progress: toPercent(progress),
+    progress,
     durationStatus,
   };
 };
