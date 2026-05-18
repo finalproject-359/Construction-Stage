@@ -391,6 +391,70 @@ const getDerivedBudgetForProject = (project = {}) => {
   );
 };
 
+const safeParseLocalArray = (rawValue) => {
+  try {
+    const parsed = JSON.parse(rawValue || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const buildActivityProgressByProjectKey = () => {
+  const activities = safeParseLocalArray(localStorage.getItem(RELATED_LOCAL_STORAGE_KEYS.activities));
+  if (!activities.length) return new Map();
+
+  const accumulator = new Map();
+  activities.forEach((activity) => {
+    const progressRaw = getValueByAliases(activity, ["progress", "percentComplete", "percent_complete"]);
+    const progress = Number(progressRaw);
+    if (!Number.isFinite(progress)) return;
+
+    const projectId = String(getValueByAliases(activity, ["projectId", "project_id", "project code", "projectCode"]) || "").trim();
+    const projectLabel = String(getValueByAliases(activity, ["project", "projectName", "project_name"]) || "").trim();
+    const keys = [projectId, projectLabel, projectLabel.toLowerCase()].filter(Boolean);
+    if (!keys.length) return;
+
+    keys.forEach((key) => {
+      const current = accumulator.get(key) || { total: 0, count: 0 };
+      current.total += progress;
+      current.count += 1;
+      accumulator.set(key, current);
+    });
+  });
+
+  const averages = new Map();
+  accumulator.forEach((value, key) => {
+    if (!value.count) return;
+    averages.set(key, Math.max(0, Math.min(100, value.total / value.count)));
+  });
+  return averages;
+};
+
+const applyAutoProjectProgressAndStatus = (projects = []) => {
+  const progressByProject = buildActivityProgressByProjectKey();
+  if (!progressByProject.size) return projects;
+
+  return projects.map((project) => {
+    const status = String(project.status || "").trim();
+    if (status.toLowerCase() === "archived") return project;
+
+    const keys = [
+      String(project.id || "").trim(),
+      String(project.code || "").trim(),
+      String(project.name || "").trim(),
+      String(project.name || "").trim().toLowerCase(),
+    ].filter(Boolean);
+    const matchedProgress = keys.find((key) => progressByProject.has(key));
+    if (!matchedProgress) return project;
+
+    const progress = Number(progressByProject.get(matchedProgress));
+    const autoStatus = progress >= 100 ? "Completed" : progress > 0 ? "In Progress" : "Not Started";
+    const nextStatus = status.toLowerCase() === "on hold" ? status : autoStatus;
+    return normalizeProject({ ...project, progress, status: nextStatus });
+  });
+};
+
 const renderProjects = (projects) => {
   if (!projects.length) {
     projectsTableBody.innerHTML = "";
@@ -1150,12 +1214,13 @@ projectsTypeFilter?.addEventListener("change", applyFilters);
 
 const bootstrapProjectsPage = async () => {
   const projects = await loadProjectsFromSource();
-  const normalizedProjects = Array.isArray(projects) ? projects : [];
+  const normalizedProjects = applyAutoProjectProgressAndStatus(Array.isArray(projects) ? projects : []);
   const nextSignature = JSON.stringify(normalizedProjects);
   if (nextSignature === lastProjectsSignature) return;
   lastProjectsSignature = nextSignature;
 
   state.allProjects = normalizedProjects;
+  saveToLocalStorage(state.allProjects);
   hydrateFilters();
   applyFilters();
 };
@@ -1192,6 +1257,11 @@ const setupProjectsRealtimeSync = () => {
   window.addEventListener("focus", () => refreshProjectsIfVisible({ force: true }));
   window.addEventListener("online", () => refreshProjectsIfVisible({ force: true }));
   window.addEventListener("google-sheet:changed", () => refreshProjectsIfVisible({ force: true }));
+  window.addEventListener("storage", (event) => {
+    if (event.key === RELATED_LOCAL_STORAGE_KEYS.activities) {
+      refreshProjectsIfVisible({ force: true });
+    }
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       refreshProjectsIfVisible({ force: true });
