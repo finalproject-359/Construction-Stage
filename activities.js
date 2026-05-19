@@ -268,13 +268,18 @@ const getActivityScheduleDetails = (activity = {}) => {
     return { finishNote: "", durationNote: "", extraDays: 0 };
   }
 
-  const extraDays = hasPlannedFinish
+  const dateDifferenceDays = hasPlannedFinish
     ? Math.max(0, Math.floor((delayReferenceDate.getTime() - plannedFinishDate.getTime()) / 86400000))
     : 0;
+  const delayedDayCount = Number(activity.delayedDayCount);
+  const extraDays = Number.isFinite(delayedDayCount) && delayedDayCount > 0 ? delayedDayCount : dateDifferenceDays;
 
+  const hasLateCompletion = activity.status === "Completed" && extraDays > 0;
   return {
     finishNote: hasActualFinish ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
+    adjustedFinishNote: extraDays > 0 ? `Adjusted finish: ${toDisplayDate(delayReferenceDate)}` : "",
     durationNote: extraDays > 0 ? `+${extraDays} day${extraDays === 1 ? "" : "s"} added` : "",
+    completionNote: hasLateCompletion ? `Completed late (+${extraDays} day${extraDays === 1 ? "" : "s"})` : "",
     extraDays,
   };
 };
@@ -284,7 +289,8 @@ const normalizeDailyCostEntry = (entry = {}) => {
   const activityId = String(getValueByAliases(entry, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id"]) || "").trim();
   const date = parseDateValue(getValueByAliases(entry, ["date", "entryDate", "entry_date"]));
   const progressValue = Number(getValueByAliases(entry, ["progress", "percentComplete", "percent_complete"])) || 0;
-  return { projectId, activityId, date, progressValue: Math.max(0, Math.min(100, progressValue)) };
+  const status = String(getValueByAliases(entry, ["status", "scheduleStatus", "schedule_status"]) || "").trim();
+  return { projectId, activityId, date, progressValue: Math.max(0, Math.min(100, progressValue)), status };
 };
 
 const inferActualFinishFromDailyCosts = (activity = {}, dailyCosts = []) => {
@@ -306,6 +312,16 @@ const inferActualFinishFromDailyCosts = (activity = {}, dailyCosts = []) => {
 
   if (!matchingEntries.length) return activity;
   const latestDailyDate = matchingEntries[matchingEntries.length - 1]?.date || null;
+  const delayedDayCount = matchingEntries.filter((entry) => {
+    const normalizedStatus = String(entry.status || "").trim().toLowerCase();
+    if (["delayed", "behind schedule", "late", "overdue"].includes(normalizedStatus)) return true;
+    return (
+      activity.plannedFinishDate instanceof Date &&
+      !Number.isNaN(activity.plannedFinishDate.getTime()) &&
+      entry.date instanceof Date &&
+      entry.date.getTime() > activity.plannedFinishDate.getTime()
+    );
+  }).length;
 
   let cumulativeProgress = 0;
   let inferredFinishDate = null;
@@ -328,6 +344,7 @@ const inferActualFinishFromDailyCosts = (activity = {}, dailyCosts = []) => {
   return {
     ...activity,
     latestDailyDate,
+    delayedDayCount,
     actualFinishDate: hasExplicitActualFinish
       ? activity.actualFinishDate
       : inferredFinishDate instanceof Date
@@ -624,6 +641,7 @@ const buildActivityRowHtml = (activity) => {
       <td>
         <div class="activity-schedule-cell">
           <strong>${escapeHtml(activity.plannedFinish)}</strong>
+          ${scheduleDetails.adjustedFinishNote ? `<span class="activity-schedule-note is-delayed">${escapeHtml(scheduleDetails.adjustedFinishNote)}</span>` : ""}
           ${scheduleDetails.finishNote ? `<span class="activity-schedule-note ${activity.status === "Delayed" ? "is-delayed" : ""}">${escapeHtml(scheduleDetails.finishNote)}</span>` : ""}
         </div>
       </td>
@@ -633,7 +651,12 @@ const buildActivityRowHtml = (activity) => {
           ${scheduleDetails.durationNote ? `<span class="activity-schedule-note ${activity.status === "Delayed" ? "is-delayed" : ""}">${escapeHtml(scheduleDetails.durationNote)}</span>` : ""}
         </div>
       </td>
-      <td><span class="badge ${BADGE_CLASS_BY_STATUS[activity.status] || "badge-not-started"}">${escapeHtml(activity.status)}</span></td>
+      <td>
+        <div class="activity-status-cell">
+          <span class="badge ${BADGE_CLASS_BY_STATUS[activity.status] || "badge-not-started"}">${escapeHtml(activity.status)}</span>
+          ${scheduleDetails.completionNote ? `<span class="activity-schedule-note">${escapeHtml(scheduleDetails.completionNote)}</span>` : ""}
+        </div>
+      </td>
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>
