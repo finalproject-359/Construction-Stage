@@ -380,19 +380,12 @@ const computeDurationDays = (startDate, finishDate, fallback = 0) => {
 };
 const computeEffectiveDurationDays = (activity = {}, startDate = "", finishDate = "", fallback = 0) => {
   const baseDuration = computeDurationDays(startDate, finishDate, fallback);
-  // Costing math should keep the original planned/base duration.
-  // Added days are displayed separately as a note in the Duration column.
-  return baseDuration;
-};
-const computeAddedDurationDays = (activity = {}, startDate = "", finishDate = "") => {
   const delayedDayCount = Number(String(getValueByAliases(activity, ["delayedDayCount", "delayed_day_count"]) || "0").replace(/[^\d.-]/g, ""));
-  if (Number.isFinite(delayedDayCount) && delayedDayCount > 0) return Math.round(delayedDayCount);
+  if (Number.isFinite(delayedDayCount) && delayedDayCount > 0) return baseDuration + Math.round(delayedDayCount);
 
-  const plannedDuration = computeDurationDays(startDate, finishDate, 0);
   const actualFinishDate = toDateInputValue(getValueByAliases(activity, ["actualFinish", "actual_finish", "actualFinishDate", "actual_finish_date"]));
-  const actualDuration = actualFinishDate ? computeDurationDays(startDate, actualFinishDate, 0) : 0;
-  if (plannedDuration > 0 && actualDuration > plannedDuration) return actualDuration - plannedDuration;
-  return 0;
+  if (!startDate || !actualFinishDate) return baseDuration;
+  return Math.max(baseDuration, computeDurationDays(startDate, actualFinishDate, 0));
 };
 const clampPercent = (value) => {
   const parsed = Number(String(value ?? "").replace(/[^\d.-]/g, ""));
@@ -438,8 +431,6 @@ const normalizeCostActivity = (activity = {}) => {
     name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
     startDate,
     finishDate,
-    actualFinishDate: toDateInputValue(getValueByAliases(activity, ["actualFinish", "actual_finish", "actualFinishDate", "actual_finish_date"])),
-    addedDurationDays: computeAddedDurationDays(activity, startDate, finishDate),
     durationDays: effectiveDurationDays,
     progressPercent,
     plannedCost,
