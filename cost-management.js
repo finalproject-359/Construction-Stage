@@ -1452,45 +1452,48 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     setFormSavingState(form, true, existingIndex >= 0 ? "Updating…" : "Adding…");
     let saveVerifiedAfterTransportError = false;
     try {
-      const dailyCostAction = existingIndex >= 0 ? "update" : "create";
-      await postToDataSource("daily_costs", dailyCostAction, { dailyCost: dailyCostPayload });
-    } catch (error) {
-      console.warn("Daily cost POST returned an error; checking whether Google Sheets saved it anyway:", error);
-      const syncedAfterError = await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
-      saveVerifiedAfterTransportError = Boolean(
-        syncedAfterError && loadDailyCosts().some((item) => isSavedDailyCostMatch(item, dailyCostPayload)),
-      );
-      if (!saveVerifiedAfterTransportError) {
-        setFormSavingState(form, false);
-        alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
-        return;
+      try {
+        const dailyCostAction = existingIndex >= 0 ? "update" : "create";
+        await postToDataSource("daily_costs", dailyCostAction, { dailyCost: dailyCostPayload });
+      } catch (error) {
+        console.warn("Daily cost POST returned an error; checking whether Google Sheets saved it anyway:", error);
+        const syncedAfterError = await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
+        saveVerifiedAfterTransportError = Boolean(
+          syncedAfterError && loadDailyCosts().some((item) => isSavedDailyCostMatch(item, dailyCostPayload)),
+        );
+        if (!saveVerifiedAfterTransportError) {
+          alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
+          return;
+        }
       }
-    }
 
-    try {
-      await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
-      await syncCostSummaryToSheet({ projectId, projectName, activity });
-      const refreshedMetadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
-      applyCostMetadataRows(refreshedMetadataRows);
-    } catch (error) {
-      console.warn("Daily cost was saved, but the follow-up refresh/summary sync failed:", error);
+      try {
+        await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
+        await syncCostSummaryToSheet({ projectId, projectName, activity });
+        const refreshedMetadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
+        applyCostMetadataRows(refreshedMetadataRows);
+      } catch (error) {
+        console.warn("Daily cost was saved, but the follow-up refresh/summary sync failed:", error);
+        if (typeof window.notify === "function") {
+          window.notify("Daily cost saved. Refresh the page if the latest totals do not appear yet.", "warning");
+        }
+      }
+
       if (typeof window.notify === "function") {
-        window.notify("Daily cost saved. Refresh the page if the latest totals do not appear yet.", "warning");
+        window.notify(
+          saveVerifiedAfterTransportError
+            ? "Daily cost saved in Google Sheets. The Apps Script response could not be read, but the saved row was verified."
+            : existingIndex >= 0 ? "Daily cost updated successfully." : "Daily cost added successfully.",
+          "success",
+        );
       }
+      const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
+      const nextActivities = loadCostActivities();
+      showProjectDetails(projectId, activeTab, nextActivities);
+      renderDailyCostModal(projectId, resolvedActivityRefId);
+    } finally {
+      if (form.isConnected) setFormSavingState(form, false);
     }
-
-    if (typeof window.notify === "function") {
-      window.notify(
-        saveVerifiedAfterTransportError
-          ? "Daily cost saved in Google Sheets. The Apps Script response could not be read, but the saved row was verified."
-          : existingIndex >= 0 ? "Daily cost updated successfully." : "Daily cost added successfully.",
-        "success",
-      );
-    }
-    const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
-    const nextActivities = loadCostActivities();
-    showProjectDetails(projectId, activeTab, nextActivities);
-    renderDailyCostModal(projectId, resolvedActivityRefId);
   });
 };
 
