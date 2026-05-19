@@ -378,6 +378,15 @@ const computeDurationDays = (startDate, finishDate, fallback = 0) => {
   }
   return 0;
 };
+const computeEffectiveDurationDays = (activity = {}, startDate = "", finishDate = "", fallback = 0) => {
+  const baseDuration = computeDurationDays(startDate, finishDate, fallback);
+  const delayedDayCount = Number(String(getValueByAliases(activity, ["delayedDayCount", "delayed_day_count"]) || "0").replace(/[^\d.-]/g, ""));
+  if (Number.isFinite(delayedDayCount) && delayedDayCount > 0) return baseDuration + Math.round(delayedDayCount);
+
+  const actualFinishDate = toDateInputValue(getValueByAliases(activity, ["actualFinish", "actual_finish", "actualFinishDate", "actual_finish_date"]));
+  if (!startDate || !actualFinishDate) return baseDuration;
+  return Math.max(baseDuration, computeDurationDays(startDate, actualFinishDate, 0));
+};
 const clampPercent = (value) => {
   const parsed = Number(String(value ?? "").replace(/[^\d.-]/g, ""));
   if (!Number.isFinite(parsed)) return 0;
@@ -402,8 +411,9 @@ const normalizeCostActivity = (activity = {}) => {
   const explicitDuration = Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0;
   const progressPercent = clampPercent(getValueByAliases(activity, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]));
   const plannedCost = parseBudgetValue(getValueByAliases(activity, ACTIVITY_PLANNED_COST_ALIASES));
-  const plannedCostPerDay = plannedCost > 0 && Number(computeDurationDays(startDate, finishDate, explicitDuration)) > 0
-    ? plannedCost / Number(computeDurationDays(startDate, finishDate, explicitDuration))
+  const effectiveDurationDays = computeEffectiveDurationDays(activity, startDate, finishDate, explicitDuration);
+  const plannedCostPerDay = plannedCost > 0 && Number(effectiveDurationDays) > 0
+    ? plannedCost / Number(effectiveDurationDays)
     : 0;
   const earnedValue = computeEarnedValue(
     plannedCostPerDay,
@@ -421,7 +431,7 @@ const normalizeCostActivity = (activity = {}) => {
     name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
     startDate,
     finishDate,
-    durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
+    durationDays: effectiveDurationDays,
     progressPercent,
     plannedCost,
     earnedValue,
@@ -503,7 +513,7 @@ const normalizeRemoteActivity = (row = {}) => {
     costId: "",
     startDate,
     finishDate,
-    durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
+    durationDays: computeEffectiveDurationDays(row, startDate, finishDate, explicitDuration),
     plannedCost: 0,
     progressPercent: getValueByAliases(row, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]),
     earnedValue: 0,
