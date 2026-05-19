@@ -1926,19 +1926,25 @@ if (activityModalForm) {
       return;
     }
 
+    const isEditing = Boolean(state.editingActivityKey);
+    const editingIndex = isEditing ? findActivityIndexByKey(state.editingActivityKey) : -1;
+    const existingActivity = editingIndex >= 0 ? state.allActivities[editingIndex] : null;
+
     const nextActivity = normalizeActivity({
       id: String(formData.get("activityId") || "").trim(),
       name: String(formData.get("activityName") || "").trim(),
       project: getSelectedProjectSummary()?.name || state.selectedProject,
-      type: "-",
-      status: "Not Started",
+      type: existingActivity?.type || "-",
+      status: existingActivity?.status || "Not Started",
       plannedStart,
       plannedFinish,
-      progress: 0,
-      durationStatus: "-",
+      progress: existingActivity?.progress ?? 0,
+      durationStatus: existingActivity?.durationStatus || "-",
+      actualStart: existingActivity?.actualStartDate || existingActivity?.actualStart || "",
+      actualFinish: existingActivity?.actualFinishDate || existingActivity?.actualFinish || "",
+      latestDailyDate: existingActivity?.latestDailyDate || "",
     });
 
-    const isEditing = Boolean(state.editingActivityKey);
     const nextActivityPayload = {
       id: nextActivity.id,
       project: nextActivity.project,
@@ -1960,7 +1966,7 @@ if (activityModalForm) {
     }
 
     if (isEditing) {
-      const index = findActivityIndexByKey(state.editingActivityKey);
+      const index = editingIndex;
       if (index < 0) {
         window.alert("Unable to update. Activity no longer exists.");
         isActivityModalSubmitting = false;
