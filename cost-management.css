@@ -1396,6 +1396,17 @@ body.page-cost-management .details-tab-panel .cost-record-table-panel td:nth-chi
   font-weight: 700;
 }
 
+.cost-duration-cell {
+  display: grid;
+  gap: 4px;
+}
+
+.cost-schedule-note {
+  color: #7181a0;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
 .cost-id-pill,
 .cost-status-badge {
   display: inline-flex;

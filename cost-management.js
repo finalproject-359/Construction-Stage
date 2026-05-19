@@ -378,6 +378,22 @@ const computeDurationDays = (startDate, finishDate, fallback = 0) => {
   }
   return 0;
 };
+const computeEffectiveDurationDays = (activity = {}, startDate = "", finishDate = "", fallback = 0) => {
+  const baseDuration = computeDurationDays(startDate, finishDate, fallback);
+  // Costing math should keep the original planned/base duration.
+  // Added days are displayed separately as a note in the Duration column.
+  return baseDuration;
+};
+const computeAddedDurationDays = (activity = {}, startDate = "", finishDate = "") => {
+  const delayedDayCount = Number(String(getValueByAliases(activity, ["delayedDayCount", "delayed_day_count"]) || "0").replace(/[^\d.-]/g, ""));
+  if (Number.isFinite(delayedDayCount) && delayedDayCount > 0) return Math.round(delayedDayCount);
+
+  const plannedDuration = computeDurationDays(startDate, finishDate, 0);
+  const actualFinishDate = toDateInputValue(getValueByAliases(activity, ["actualFinish", "actual_finish", "actualFinishDate", "actual_finish_date"]));
+  const actualDuration = actualFinishDate ? computeDurationDays(startDate, actualFinishDate, 0) : 0;
+  if (plannedDuration > 0 && actualDuration > plannedDuration) return actualDuration - plannedDuration;
+  return 0;
+};
 const clampPercent = (value) => {
   const parsed = Number(String(value ?? "").replace(/[^\d.-]/g, ""));
   if (!Number.isFinite(parsed)) return 0;
@@ -402,8 +418,9 @@ const normalizeCostActivity = (activity = {}) => {
   const explicitDuration = Number(String(getValueByAliases(activity, ["durationDays", "duration_days", "duration"]) || "0").replace(/[^\d.-]/g, "")) || 0;
   const progressPercent = clampPercent(getValueByAliases(activity, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]));
   const plannedCost = parseBudgetValue(getValueByAliases(activity, ACTIVITY_PLANNED_COST_ALIASES));
-  const plannedCostPerDay = plannedCost > 0 && Number(computeDurationDays(startDate, finishDate, explicitDuration)) > 0
-    ? plannedCost / Number(computeDurationDays(startDate, finishDate, explicitDuration))
+  const effectiveDurationDays = computeEffectiveDurationDays(activity, startDate, finishDate, explicitDuration);
+  const plannedCostPerDay = plannedCost > 0 && Number(effectiveDurationDays) > 0
+    ? plannedCost / Number(effectiveDurationDays)
     : 0;
   const earnedValue = computeEarnedValue(
     plannedCostPerDay,
@@ -421,7 +438,9 @@ const normalizeCostActivity = (activity = {}) => {
     name: String(getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]) || "Untitled Activity").trim(),
     startDate,
     finishDate,
-    durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
+    actualFinishDate: toDateInputValue(getValueByAliases(activity, ["actualFinish", "actual_finish", "actualFinishDate", "actual_finish_date"])),
+    addedDurationDays: computeAddedDurationDays(activity, startDate, finishDate),
+    durationDays: effectiveDurationDays,
     progressPercent,
     plannedCost,
     earnedValue,
@@ -503,7 +522,7 @@ const normalizeRemoteActivity = (row = {}) => {
     costId: "",
     startDate,
     finishDate,
-    durationDays: computeDurationDays(startDate, finishDate, explicitDuration),
+    durationDays: computeEffectiveDurationDays(row, startDate, finishDate, explicitDuration),
     plannedCost: 0,
     progressPercent: getValueByAliases(row, ["percentComplete", "percent_complete", "progressPercent", "progress_percent", "% complete", "percent complete", "completion", "progress"]),
     earnedValue: 0,
@@ -1175,11 +1194,13 @@ const buildDetailsMarkup = (project, rows) => {
       const statusLabel = !hasPlannedCost ? "Setup needed" : hasActualCost ? "In progress" : "Ready";
       const statusTone = !hasPlannedCost ? "needs-setup" : hasActualCost ? "active" : "ready";
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "Not set";
+      const addedDurationDays = Number(row.addedDurationDays) || 0;
+      const durationNote = addedDurationDays > 0 ? `<small class="cost-schedule-note">+${addedDurationDays} day${addedDurationDays === 1 ? "" : "s"} added</small>` : "";
       const activityIdValue = getActivityRefId(row);
       const actionIdentifierValue = activityIdValue || String(row.costId || "").trim() || String(row.name || "").trim();
       const activityId = escapeHtml(actionIdentifierValue);
       const progressWidth = Math.max(0, Math.min(100, progressValue || 0));
-      return `<tr class="cost-record-row"><td><span class="cost-id-pill ${costIdCell ? "" : "is-missing"}">${costIdCell || "Add ID"}</span></td><td><div class="cost-activity-cell"><strong>${escapeHtml(row.name)}</strong><span>Activity ID: ${escapeHtml(activityIdValue || "—")}</span></div></td><td><span class="cost-muted-value">${durationCell}</span></td><td><div class="cost-progress-cell"><span>${progressCell || "0.00%"}</span><div class="cost-progress-track" aria-hidden="true"><i style="width:${progressWidth}%"></i></div></div></td><td class="planned-cost-cell"><span class="planned-cost-text cost-money">${plannedCostCell || "Not set"}</span></td><td><span class="cost-money">${actualCostCell || "Not logged"}</span></td><td><span class="cost-money">${earnedValueCell}</span><small class="cost-variance-note ${varianceTone}">${formatBudget(varianceValue)}</small></td><td><span class="cost-status-badge ${statusTone}">${statusLabel}</span></td><td class="actions-col"><button type="button" class="action-menu-trigger cost-actions-button" data-cost-actions="${activityId}" aria-label="Open cost actions for ${escapeHtml(row.name)}" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${activityId}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Add / Edit Cost Details</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
+      return `<tr class="cost-record-row"><td><span class="cost-id-pill ${costIdCell ? "" : "is-missing"}">${costIdCell || "Add ID"}</span></td><td><div class="cost-activity-cell"><strong>${escapeHtml(row.name)}</strong><span>Activity ID: ${escapeHtml(activityIdValue || "—")}</span></div></td><td><div class="cost-duration-cell"><span class="cost-muted-value">${durationCell}</span>${durationNote}</div></td><td><div class="cost-progress-cell"><span>${progressCell || "0.00%"}</span><div class="cost-progress-track" aria-hidden="true"><i style="width:${progressWidth}%"></i></div></div></td><td class="planned-cost-cell"><span class="planned-cost-text cost-money">${plannedCostCell || "Not set"}</span></td><td><span class="cost-money">${actualCostCell || "Not logged"}</span></td><td><span class="cost-money">${earnedValueCell}</span><small class="cost-variance-note ${varianceTone}">${formatBudget(varianceValue)}</small></td><td><span class="cost-status-badge ${statusTone}">${statusLabel}</span></td><td class="actions-col"><button type="button" class="action-menu-trigger cost-actions-button" data-cost-actions="${activityId}" aria-label="Open cost actions for ${escapeHtml(row.name)}" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${activityId}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Add / Edit Cost Details</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
     }).join("")
     : '<tr><td colspan="9" class="empty-cell"><strong>No costing records yet.</strong><span>Add activities to start tracking costs, then use Add / Edit Cost Details to assign budgets.</span></td></tr>';
 
