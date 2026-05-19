@@ -277,9 +277,9 @@ const getActivityScheduleDetails = (activity = {}) => {
   const hasLateCompletion = activity.status === "Completed" && extraDays > 0;
   return {
     finishNote: hasActualFinish ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
-    adjustedFinishNote: extraDays > 0 ? `Adjusted finish: ${toDisplayDate(delayReferenceDate)}` : "",
+    adjustedFinishNote: !hasActualFinish && extraDays > 0 ? `Adjusted finish: ${toDisplayDate(delayReferenceDate)}` : "",
     durationNote: extraDays > 0 ? `+${extraDays} day${extraDays === 1 ? "" : "s"} added` : "",
-    completionNote: hasLateCompletion ? `Completed late (+${extraDays} day${extraDays === 1 ? "" : "s"})` : "",
+    completionNote: hasLateCompletion ? "Completed late" : "",
     extraDays,
   };
 };
