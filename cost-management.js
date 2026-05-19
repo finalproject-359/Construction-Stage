@@ -367,16 +367,29 @@ const toDateInputValue = (value) => {
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
 };
+const countWorkingDaysInclusive = (startDate, finishDate) => {
+  const start = new Date(startDate);
+  const finish = new Date(finishDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(finish.getTime()) || finish < start) return 0;
+
+  const cursor = new Date(start);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(finish);
+  end.setHours(0, 0, 0, 0);
+
+  let workingDays = 0;
+  while (cursor <= end) {
+    if (isWorkingDate(cursor)) workingDays += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return workingDays;
+};
+
 const computeDurationDays = (startDate, finishDate, fallback = 0) => {
   const fallbackValue = Number(fallback) || 0;
   if (fallbackValue > 0) return fallbackValue;
 
-  const start = new Date(startDate);
-  const finish = new Date(finishDate);
-  if (!Number.isNaN(start.getTime()) && !Number.isNaN(finish.getTime()) && finish >= start) {
-    return Math.max(1, Math.round((finish.getTime() - start.getTime()) / 86400000) + 1);
-  }
-  return 0;
+  return countWorkingDaysInclusive(startDate, finishDate);
 };
 const computeEffectiveDurationDays = (activity = {}, startDate = "", finishDate = "", fallback = 0) => {
   const baseDuration = computeDurationDays(startDate, finishDate, fallback);
