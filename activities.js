@@ -48,7 +48,6 @@ const activityModalSubmitBtn = activityModalForm?.querySelector('button[type="su
 const DATA_SOURCE_URL =
   window.DataBridge?.DEFAULT_DATA_SOURCE_URL ||
   "https://script.google.com/macros/s/AKfycbwyc88NwggSsvZgpQhT_ar3PVD7SvYdz2kmpbPoXZqYKDnvBY4hBDO-gs7J_xVOuyyL/exec";
-const PROJECTS_LOCAL_STORAGE_KEY = "constructionStageProjects";
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
@@ -785,17 +784,6 @@ const showActivityPersistenceError = (actionLabel, error) => {
   window.alert(`Unable to ${actionLabel} activity in Google Sheets. No local copy was saved.${reason}`);
 };
 
-const readProjectsFromLocalStorage = () => {
-  try {
-    const raw = localStorage.getItem(PROJECTS_LOCAL_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeProject);
-  } catch {
-    return [];
-  }
-};
 
 const mergeActivities = (primary, secondary) => {
   const merged = [];
@@ -953,8 +941,6 @@ const mutateActivityInSource = async ({ action, activity }) => {
 };
 
 const loadActivitiesAndProjectsFromSource = async () => {
-  const localProjects = readProjectsFromLocalStorage();
-
   try {
     const [activitiesPayload, projectsPayload, dailyCostsPayload] = await Promise.all([
       fetchSourcePayload("activities"),
@@ -1005,10 +991,9 @@ const loadActivitiesAndProjectsFromSource = async () => {
     const fallbackActivities = Array.isArray(window.activitiesData)
       ? window.activitiesData.map(normalizeActivity)
       : [];
-    const fallbackProjects = mergeProjects(
-      Array.isArray(window.activitiesProjectCatalog) ? window.activitiesProjectCatalog.map(normalizeProject) : [],
-      localProjects
-    );
+    const fallbackProjects = Array.isArray(window.activitiesProjectCatalog)
+      ? window.activitiesProjectCatalog.map(normalizeProject)
+      : [];
     const activeFallbackActivities = filterActivitiesForActiveProjects(fallbackActivities, fallbackProjects);
 
     return {
