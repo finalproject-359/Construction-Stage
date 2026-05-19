@@ -258,20 +258,87 @@ const deriveActivityDisplayStatus = ({ status, plannedFinishDate, progress, dura
 const getActivityScheduleDetails = (activity = {}) => {
   const plannedFinishDate = activity.plannedFinishDate;
   const actualFinishDate = activity.actualFinishDate;
+  const latestDailyDate = activity.latestDailyDate;
   const hasPlannedFinish = plannedFinishDate instanceof Date && !Number.isNaN(plannedFinishDate.getTime());
   const hasActualFinish = actualFinishDate instanceof Date && !Number.isNaN(actualFinishDate.getTime());
+  const hasLatestDailyDate = latestDailyDate instanceof Date && !Number.isNaN(latestDailyDate.getTime());
+  const delayReferenceDate = hasActualFinish ? actualFinishDate : hasLatestDailyDate ? latestDailyDate : null;
 
-  if (!hasActualFinish) {
-    return { finishNote: "", durationNote: "" };
+  if (!delayReferenceDate) {
+    return { finishNote: "", durationNote: "", extraDays: 0 };
   }
 
   const extraDays = hasPlannedFinish
-    ? Math.max(0, Math.floor((actualFinishDate.getTime() - plannedFinishDate.getTime()) / 86400000))
+    ? Math.max(0, Math.floor((delayReferenceDate.getTime() - plannedFinishDate.getTime()) / 86400000))
     : 0;
 
   return {
-    finishNote: `Actual finish: ${toDisplayDate(actualFinishDate)}`,
+    finishNote: hasActualFinish ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
     durationNote: extraDays > 0 ? `+${extraDays} day${extraDays === 1 ? "" : "s"} added` : "",
+    extraDays,
+  };
+};
+
+const normalizeDailyCostEntry = (entry = {}) => {
+  const projectId = String(getValueByAliases(entry, ["projectId", "project_id", "project id", "project"]) || "").trim();
+  const activityId = String(getValueByAliases(entry, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id"]) || "").trim();
+  const date = parseDateValue(getValueByAliases(entry, ["date", "entryDate", "entry_date"]));
+  const progressValue = Number(getValueByAliases(entry, ["progress", "percentComplete", "percent_complete"])) || 0;
+  return { projectId, activityId, date, progressValue: Math.max(0, Math.min(100, progressValue)) };
+};
+
+const inferActualFinishFromDailyCosts = (activity = {}, dailyCosts = []) => {
+  if (!Array.isArray(dailyCosts) || !dailyCosts.length) return activity;
+
+  const targetActivityId = String(activity.id || "").trim();
+  const targetProjectId = String(activity.projectId || "").trim();
+  if (!targetActivityId) return activity;
+
+  const matchingEntries = dailyCosts
+    .map(normalizeDailyCostEntry)
+    .filter((entry) =>
+      entry.date instanceof Date &&
+      !Number.isNaN(entry.date.getTime()) &&
+      entry.activityId === targetActivityId &&
+      (!targetProjectId || !entry.projectId || entry.projectId === targetProjectId)
+    )
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  if (!matchingEntries.length) return activity;
+  const latestDailyDate = matchingEntries[matchingEntries.length - 1]?.date || null;
+
+  let cumulativeProgress = 0;
+  let inferredFinishDate = null;
+  for (const entry of matchingEntries) {
+    cumulativeProgress = Math.min(100, cumulativeProgress + entry.progressValue);
+    if (cumulativeProgress >= 100) {
+      inferredFinishDate = entry.date;
+      break;
+    }
+  }
+
+  const hasExplicitActualFinish = activity.actualFinishDate instanceof Date && !Number.isNaN(activity.actualFinishDate.getTime());
+  const shouldMarkDelayedFromDaily =
+    activity.progress < 100 &&
+    latestDailyDate instanceof Date &&
+    activity.plannedFinishDate instanceof Date &&
+    !Number.isNaN(activity.plannedFinishDate.getTime()) &&
+    latestDailyDate.getTime() > activity.plannedFinishDate.getTime();
+
+  return {
+    ...activity,
+    latestDailyDate,
+    actualFinishDate: hasExplicitActualFinish
+      ? activity.actualFinishDate
+      : inferredFinishDate instanceof Date
+        ? inferredFinishDate
+        : activity.actualFinishDate,
+    actualFinish: hasExplicitActualFinish
+      ? activity.actualFinish
+      : inferredFinishDate instanceof Date
+        ? toDisplayDate(inferredFinishDate)
+        : activity.actualFinish,
+    status: shouldMarkDelayedFromDaily ? "Delayed" : activity.status,
   };
 };
 
@@ -304,6 +371,7 @@ const normalizeActivity = (activity = {}) => {
     "actual_finish",
     "actualFinishDate",
     "actual_finish_date",
+    "actual finish",
     "actualEnd",
     "actual_end",
     "actualEndDate",
@@ -864,18 +932,25 @@ const loadActivitiesAndProjectsFromSource = async () => {
   const localProjects = readProjectsFromLocalStorage();
 
   try {
-    const [activitiesPayload, projectsPayload] = await Promise.all([
+    const [activitiesPayload, projectsPayload, dailyCostsPayload] = await Promise.all([
       fetchSourcePayload("activities"),
       fetchSourcePayload("projects"),
+      fetchSourcePayload("daily_costs"),
     ]);
 
     const remoteActivities = Array.isArray(activitiesPayload?.activities)
       ? activitiesPayload.activities.map(normalizeActivity)
       : [];
+    const remoteDailyCosts = Array.isArray(dailyCostsPayload?.dailyCosts)
+      ? dailyCostsPayload.dailyCosts
+      : [];
+    const activitiesWithInferredFinish = remoteActivities.map((activity) =>
+      inferActualFinishFromDailyCosts(activity, remoteDailyCosts)
+    );
     const remoteProjects = Array.isArray(projectsPayload?.projects)
       ? projectsPayload.projects.map(normalizeProject)
       : [];
-    const activeRemoteActivities = filterActivitiesForActiveProjects(remoteActivities, remoteProjects);
+    const activeRemoteActivities = filterActivitiesForActiveProjects(activitiesWithInferredFinish, remoteProjects);
 
     const computedKpis = {
       completed: 0,
