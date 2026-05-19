@@ -272,9 +272,12 @@ const getActivityScheduleDetails = (activity = {}) => {
     ? Math.max(0, Math.floor((delayReferenceDate.getTime() - plannedFinishDate.getTime()) / 86400000))
     : 0;
 
+  const hasLateCompletion = activity.status === "Completed" && extraDays > 0;
   return {
     finishNote: hasActualFinish ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
+    adjustedFinishNote: extraDays > 0 ? `Adjusted finish: ${toDisplayDate(delayReferenceDate)}` : "",
     durationNote: extraDays > 0 ? `+${extraDays} day${extraDays === 1 ? "" : "s"} added` : "",
+    completionNote: hasLateCompletion ? `Completed late (+${extraDays} day${extraDays === 1 ? "" : "s"})` : "",
     extraDays,
   };
 };
@@ -624,6 +627,7 @@ const buildActivityRowHtml = (activity) => {
       <td>
         <div class="activity-schedule-cell">
           <strong>${escapeHtml(activity.plannedFinish)}</strong>
+          ${scheduleDetails.adjustedFinishNote ? `<span class="activity-schedule-note is-delayed">${escapeHtml(scheduleDetails.adjustedFinishNote)}</span>` : ""}
           ${scheduleDetails.finishNote ? `<span class="activity-schedule-note ${activity.status === "Delayed" ? "is-delayed" : ""}">${escapeHtml(scheduleDetails.finishNote)}</span>` : ""}
         </div>
       </td>
@@ -633,7 +637,12 @@ const buildActivityRowHtml = (activity) => {
           ${scheduleDetails.durationNote ? `<span class="activity-schedule-note ${activity.status === "Delayed" ? "is-delayed" : ""}">${escapeHtml(scheduleDetails.durationNote)}</span>` : ""}
         </div>
       </td>
-      <td><span class="badge ${BADGE_CLASS_BY_STATUS[activity.status] || "badge-not-started"}">${escapeHtml(activity.status)}</span></td>
+      <td>
+        <div class="activity-status-cell">
+          <span class="badge ${BADGE_CLASS_BY_STATUS[activity.status] || "badge-not-started"}">${escapeHtml(activity.status)}</span>
+          ${scheduleDetails.completionNote ? `<span class="activity-schedule-note">${escapeHtml(scheduleDetails.completionNote)}</span>` : ""}
+        </div>
+      </td>
       <td>
         <div class="progress-cell"><div class="progress-track"><div class="progress-fill ${progressClass}" style="width:${activity.progress}%"></div></div><span>${activity.progress}%</span></div>
       </td>

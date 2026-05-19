@@ -1331,6 +1331,8 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const datePresetSelect = modal.querySelector("#dailyCostForm select[name=\"datePreset\"]");
   const customDateField = modal.querySelector("#customDateField");
   const customDateInput = modal.querySelector("#dailyCostForm input[name=\"customDate\"]");
+  const progressInput = modal.querySelector("#dailyCostForm input[name=\"progress\"]");
+  const actualCostInput = modal.querySelector("#dailyCostForm input[name=\"actualCost\"]");
   const dailyCostForm = modal.querySelector("#dailyCostForm");
   const resolveSelectedDate = () => {
     if (!datePresetSelect) return "";
@@ -1352,6 +1354,20 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         : "";
     }
   };
+  const applySelectedDateDefaults = () => {
+    if (!(progressInput instanceof HTMLInputElement) || !(actualCostInput instanceof HTMLInputElement)) return;
+    const selectedDate = resolveSelectedDate();
+    const existingEntry = entries.find((entry) => normalizeDateKey(entry.date) === selectedDate);
+    if (existingEntry) {
+      const existingProgress = Number(existingEntry.progress);
+      const existingActualCost = Number(existingEntry.actualCost);
+      progressInput.value = Number.isFinite(existingProgress) ? existingProgress.toFixed(2) : "";
+      actualCostInput.value = Number.isFinite(existingActualCost) ? existingActualCost.toFixed(2) : "";
+      return;
+    }
+    progressInput.value = "";
+    actualCostInput.value = "";
+  };
   if (datePresetSelect) {
     if (hasAvailableDates) {
       datePresetSelect.value = fallbackDate;
@@ -1363,11 +1379,16 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       customDateField?.classList.toggle("hidden", !isCustom);
       if (customDateInput) customDateInput.required = isCustom;
       updateDailyCostSubmitMode();
+      applySelectedDateDefaults();
     });
     customDateField?.classList.toggle("hidden", datePresetSelect.value !== "__custom__");
   }
-  customDateInput?.addEventListener("change", updateDailyCostSubmitMode);
+  customDateInput?.addEventListener("change", () => {
+    updateDailyCostSubmitMode();
+    applySelectedDateDefaults();
+  });
   updateDailyCostSubmitMode();
+  applySelectedDateDefaults();
 
   dailyCostForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
