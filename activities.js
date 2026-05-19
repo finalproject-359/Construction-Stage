@@ -277,9 +277,9 @@ const getActivityScheduleDetails = (activity = {}) => {
   const hasLateCompletion = activity.status === "Completed" && extraDays > 0;
   return {
     finishNote: hasActualFinish ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
-    adjustedFinishNote: extraDays > 0 ? `Adjusted finish: ${toDisplayDate(delayReferenceDate)}` : "",
+    adjustedFinishNote: !hasActualFinish && extraDays > 0 ? `Adjusted finish: ${toDisplayDate(delayReferenceDate)}` : "",
     durationNote: extraDays > 0 ? `+${extraDays} day${extraDays === 1 ? "" : "s"} added` : "",
-    completionNote: hasLateCompletion ? `Completed late (+${extraDays} day${extraDays === 1 ? "" : "s"})` : "",
+    completionNote: hasLateCompletion ? "Completed late" : "",
     extraDays,
   };
 };
@@ -312,16 +312,17 @@ const inferActualFinishFromDailyCosts = (activity = {}, dailyCosts = []) => {
 
   if (!matchingEntries.length) return activity;
   const latestDailyDate = matchingEntries[matchingEntries.length - 1]?.date || null;
-  const delayedDayCount = matchingEntries.filter((entry) => {
+  const explicitDelayedDayCount = matchingEntries.filter((entry) => {
     const normalizedStatus = String(entry.status || "").trim().toLowerCase();
-    if (["delayed", "behind schedule", "late", "overdue"].includes(normalizedStatus)) return true;
-    return (
-      activity.plannedFinishDate instanceof Date &&
-      !Number.isNaN(activity.plannedFinishDate.getTime()) &&
-      entry.date instanceof Date &&
-      entry.date.getTime() > activity.plannedFinishDate.getTime()
-    );
+    return ["delayed", "behind schedule", "late", "overdue"].includes(normalizedStatus);
   }).length;
+  const inferredOverdueDayCount = matchingEntries.filter((entry) => (
+    activity.plannedFinishDate instanceof Date &&
+    !Number.isNaN(activity.plannedFinishDate.getTime()) &&
+    entry.date instanceof Date &&
+    entry.date.getTime() > activity.plannedFinishDate.getTime()
+  )).length;
+  const delayedDayCount = explicitDelayedDayCount > 0 ? explicitDelayedDayCount : inferredOverdueDayCount;
 
   let cumulativeProgress = 0;
   let inferredFinishDate = null;
