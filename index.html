@@ -63,15 +63,24 @@
     </aside>
 
     <main class="main-content">
-      <header class="topbar dashboard-hero">
-        <div class="dashboard-hero-copy">
-          <span class="eyebrow">Construction Control Center</span>
+      <header class="topbar dashboard-header">
+        <div class="dashboard-header-copy">
           <h1>Executive Project Dashboard</h1>
           <p class="topbar-subtitle">Monitor budget, earned value, cost risk, and field progress with CosTrack.</p>
           <p class="live-sync-status as-of-text" aria-live="polite">Connecting to live Google Sheets data...</p>
-          <div class="hero-actions" aria-label="Dashboard quick actions">
-            <a class="hero-action primary" href="add-activity.html">Log Site Activity</a>
-            <a class="hero-action" href="cost-management.html">Open Cost Management</a>
+        </div>
+        <div class="dashboard-header-actions" aria-label="Dashboard quick actions">
+          <a class="dashboard-action-button" href="add-activity.html">Log Site Activity</a>
+          <a class="dashboard-action-button" href="cost-management.html">Open Cost Management</a>
+          <div class="dashboard-export-menu">
+            <button id="exportReportButton" class="dashboard-action-button primary" type="button" aria-haspopup="true" aria-expanded="false">
+              Export Report
+              <span aria-hidden="true">▾</span>
+            </button>
+            <div id="exportReportOptions" class="dashboard-export-options" hidden>
+              <button type="button" data-export-format="xlsx">Export as Excel (.xlsx)</button>
+              <button type="button" data-export-format="csv">Export as CSV (.csv)</button>
+            </div>
           </div>
         </div>
       </header>
