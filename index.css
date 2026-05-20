@@ -28,10 +28,10 @@ body.page-dashboard {
   align-items: flex-start;
   gap: 16px;
   margin-bottom: 18px;
-  padding: 16px 18px;
-  border: 1px solid var(--dashboard-line);
-  border-radius: 12px;
-  background: #fff;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .dashboard-header h1 { margin: 0 0 6px; font-size: clamp(1.35rem, 2vw, 2rem); color: #0f2652; letter-spacing: -0.02em; }
 .dashboard-header .topbar-subtitle { margin: 0; color: #51627f; font-size: 0.9rem; }
