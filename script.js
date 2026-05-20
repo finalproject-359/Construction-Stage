@@ -296,8 +296,15 @@ const extractDashboardRows = (rawRows) =>
       const project = projectId && projectName
         ? `${projectId} - ${projectName}`
         : projectId || projectName || "No Project ID";
-      const startDate = normalizeDateOnly(getCell(row, ["planned start", "start date", "start"]));
-      const finishDate = normalizeDateOnly(getCell(row, ["planned finish", "finish date", "end date", "finish"]));
+      const loggedDate = normalizeDateOnly(
+        getCell(row, ["activity date", "report date", "actual date", "date logged", "date"])
+      );
+      const startDate = normalizeDateOnly(
+        getCell(row, ["planned start", "start date", "start", "activity start"])
+      ) || loggedDate;
+      const finishDate = normalizeDateOnly(
+        getCell(row, ["planned finish", "finish date", "end date", "finish", "activity finish"])
+      ) || loggedDate;
       const plannedCost = parseNumber(
         firstNonEmptyCell(row, ["planned value", "planned cost", "planned cost/day", "planned cost per day", "total budget", "pv", "budget"])
       );
@@ -471,8 +478,15 @@ const handleDateRangeInputChange = () => {
 
 const rowMatchesDateFilter = (row, startDate, endDate) => {
   if (!startDate && !endDate) return true;
-  const rowStart = normalizeDateOnly(row.startDate) || normalizeDateOnly(row.date);
-  const rowEnd = normalizeDateOnly(row.finishDate) || rowStart;
+  const normalizedRowStart = normalizeDateOnly(row.startDate) || normalizeDateOnly(row.date);
+  const normalizedRowEnd = normalizeDateOnly(row.finishDate) || normalizedRowStart;
+  const rowStart = normalizedRowStart && normalizedRowEnd && normalizedRowStart > normalizedRowEnd
+    ? normalizedRowEnd
+    : normalizedRowStart;
+  const rowEnd = normalizedRowStart && normalizedRowEnd && normalizedRowStart > normalizedRowEnd
+    ? normalizedRowStart
+    : normalizedRowEnd;
+
   if (!rowStart && !rowEnd) return false;
   if (startDate && rowEnd && rowEnd < startDate) return false;
   if (endDate && rowStart && rowStart > endDate) return false;
