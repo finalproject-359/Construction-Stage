@@ -296,8 +296,15 @@ const extractDashboardRows = (rawRows) =>
       const project = projectId && projectName
         ? `${projectId} - ${projectName}`
         : projectId || projectName || "No Project ID";
-      const startDate = normalizeDateOnly(getCell(row, ["planned start", "start date", "start"]));
-      const finishDate = normalizeDateOnly(getCell(row, ["planned finish", "finish date", "end date", "finish"]));
+      const loggedDate = normalizeDateOnly(
+        getCell(row, ["activity date", "report date", "actual date", "date logged", "date"])
+      );
+      const startDate = normalizeDateOnly(
+        getCell(row, ["actual start", "actual start date", "planned start", "start date", "start", "activity start"])
+      ) || loggedDate;
+      const finishDate = normalizeDateOnly(
+        getCell(row, ["actual finish", "actual finish date", "planned finish", "finish date", "end date", "finish", "activity finish"])
+      ) || loggedDate;
       const plannedCost = parseNumber(
         firstNonEmptyCell(row, ["planned value", "planned cost", "planned cost/day", "planned cost per day", "total budget", "pv", "budget"])
       );
@@ -471,8 +478,15 @@ const handleDateRangeInputChange = () => {
 
 const rowMatchesDateFilter = (row, startDate, endDate) => {
   if (!startDate && !endDate) return true;
-  const rowStart = normalizeDateOnly(row.startDate) || normalizeDateOnly(row.date);
-  const rowEnd = normalizeDateOnly(row.finishDate) || rowStart;
+  const normalizedRowStart = normalizeDateOnly(row.startDate) || normalizeDateOnly(row.date);
+  const normalizedRowEnd = normalizeDateOnly(row.finishDate) || normalizedRowStart;
+  const rowStart = normalizedRowStart && normalizedRowEnd && normalizedRowStart > normalizedRowEnd
+    ? normalizedRowEnd
+    : normalizedRowStart;
+  const rowEnd = normalizedRowStart && normalizedRowEnd && normalizedRowStart > normalizedRowEnd
+    ? normalizedRowStart
+    : normalizedRowEnd;
+
   if (!rowStart && !rowEnd) return false;
   if (startDate && rowEnd && rowEnd < startDate) return false;
   if (endDate && rowStart && rowStart > endDate) return false;
@@ -484,11 +498,49 @@ const getFilteredRows = (rows) => {
   const startDate = String(dateStartFilterEl?.value || "").trim();
   const endDate = String(dateEndFilterEl?.value || "").trim();
 
-  return rows.filter((row) => {
-    const projectMatches = selectedProject === "all"
+  return rows
+    .filter((row) => {
+      const projectMatches = selectedProject === "all"
       || normalize(row.project, "").trim().toLowerCase() === selectedProject;
-    return projectMatches && rowMatchesDateFilter(row, startDate, endDate);
-  });
+      return projectMatches && rowMatchesDateFilter(row, startDate, endDate);
+    })
+    .map((row) => {
+      if (!Array.isArray(row.dailyEntries) || !row.dailyEntries.length) return row;
+      if (!startDate && !endDate) return row;
+
+      const matchingEntries = row.dailyEntries.filter((entry) =>
+        rowMatchesDateFilter({ startDate: entry.date, finishDate: entry.date }, startDate, endDate)
+      );
+      if (!matchingEntries.length) return row;
+
+      const actualCost = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.actualCost), 0);
+      const evFromEntries = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.earnedValue), 0);
+      const progressFromEntries = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.progress), 0);
+      const firstDate = matchingEntries
+        .map((entry) => normalizeDateOnly(entry.date))
+        .filter(Boolean)
+        .sort()[0] || row.startDate;
+      const lastDate = matchingEntries
+        .map((entry) => normalizeDateOnly(entry.date))
+        .filter(Boolean)
+        .sort()
+        .slice(-1)[0] || row.finishDate;
+
+      const percentComplete = progressFromEntries || row.percentComplete;
+      const ev = evFromEntries || (parseNumber(row.plannedCost) * (percentComplete / 100));
+
+      return {
+        ...row,
+        actualCost,
+        ev,
+        cv: ev - actualCost,
+        percentComplete,
+        costUsedPercent: parseNumber(row.plannedCost) ? (actualCost / parseNumber(row.plannedCost)) * 100 : 0,
+        startDate: firstDate,
+        finishDate: lastDate,
+        date: lastDate || firstDate || row.date || "",
+      };
+    });
 };
 
 const syncFilterOptionsFromRows = (rows) => {
@@ -1184,6 +1236,8 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
   const activityByProjectAndActivityId = new Map();
   const dailyCostsByCompositeKey = new Map();
   const dailyCostsByProjectActivityKey = new Map();
+  const dailyEntriesByCompositeKey = new Map();
+  const dailyEntriesByProjectActivityKey = new Map();
   const readBundleCell = (row, aliases, fallback = "") => firstNonEmptyCell(row, aliases, fallback);
 
   const getActivityProjectId = (activity) =>
@@ -1221,14 +1275,39 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
     parseNumber(readBundleCell(dailyCost, ["earned value/day", "earnedValuePerDay", "earned_value_per_day", "earned value", "earnedValue", "earned_value", "ev"], 0));
   const getDailyProgress = (dailyCost) =>
     parseNumber(readBundleCell(dailyCost, ["progress/day", "progressPerDay", "progress_per_day", "progress", "percent complete", "percentComplete", "% complete"], 0));
+  const getDailyDate = (dailyCost) =>
+    normalizeDateOnly(readBundleCell(dailyCost, ["date", "entry date", "actual date", "report date", "activity date"], ""));
 
   const addDailyCostTotal = (map, key, dailyCost) => {
     if (!key || key === "::") return;
-    const existing = map.get(key) || { actualCost: 0, earnedValue: 0, progress: 0, count: 0 };
+    const existing = map.get(key) || {
+      actualCost: 0,
+      earnedValue: 0,
+      progress: 0,
+      count: 0,
+      firstDate: "",
+      lastDate: "",
+    };
+    const dailyDate = getDailyDate(dailyCost);
     existing.actualCost += getDailyActualCost(dailyCost);
     existing.earnedValue += getDailyEarnedValue(dailyCost);
     existing.progress += getDailyProgress(dailyCost);
     existing.count += 1;
+    if (dailyDate) {
+      if (!existing.firstDate || dailyDate < existing.firstDate) existing.firstDate = dailyDate;
+      if (!existing.lastDate || dailyDate > existing.lastDate) existing.lastDate = dailyDate;
+    }
+    map.set(key, existing);
+  };
+  const addDailyEntry = (map, key, dailyCost) => {
+    if (!key || key === "::") return;
+    const existing = map.get(key) || [];
+    existing.push({
+      date: getDailyDate(dailyCost),
+      actualCost: getDailyActualCost(dailyCost),
+      earnedValue: getDailyEarnedValue(dailyCost),
+      progress: getDailyProgress(dailyCost),
+    });
     map.set(key, existing);
   };
 
@@ -1243,9 +1322,19 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
       makeDashboardCompositeKey({ projectId, activityId, costId }),
       dailyCost
     );
+    addDailyEntry(
+      dailyEntriesByCompositeKey,
+      makeDashboardCompositeKey({ projectId, activityId, costId }),
+      dailyCost
+    );
     if (activityId) {
       addDailyCostTotal(
         dailyCostsByProjectActivityKey,
+        makeDashboardCompositeKey({ projectId, activityId, costId: "" }),
+        dailyCost
+      );
+      addDailyEntry(
+        dailyEntriesByProjectActivityKey,
         makeDashboardCompositeKey({ projectId, activityId, costId: "" }),
         dailyCost
       );
@@ -1258,6 +1347,12 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
       ? dailyCostsByProjectActivityKey.get(makeDashboardCompositeKey({ projectId, activityId, costId: "" }))
       : null) ||
     null;
+  const getDailyEntriesForRow = ({ projectId, activityId, costId }) =>
+    dailyEntriesByCompositeKey.get(makeDashboardCompositeKey({ projectId, activityId, costId })) ||
+    (activityId
+      ? dailyEntriesByProjectActivityKey.get(makeDashboardCompositeKey({ projectId, activityId, costId: "" }))
+      : null) ||
+    [];
 
   activitiesList.forEach((activity) => {
     const projectId = getActivityProjectId(activity);
@@ -1298,6 +1393,7 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
     );
     const providedEarnedValue = readBundleCell(cost, ["earned value", "earnedValue", "earned_value", "earned value/day"], "");
     const dailyTotals = getDailyTotalsForRow({ projectId, activityId, costId });
+    const dailyEntries = getDailyEntriesForRow({ projectId, activityId, costId });
 
     rows.push({
       "Project ID": projectId,
@@ -1317,6 +1413,10 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
           : plannedCost * (progress / 100),
       "Planned Start": readBundleCell(matchedActivity, ["planned start", "plannedStart", "start date", "startDate"], ""),
       "Planned Finish": readBundleCell(matchedActivity, ["planned finish", "plannedFinish", "finish date", "finishDate"], ""),
+      "Actual Start": dailyTotals?.firstDate || "",
+      "Actual Finish": dailyTotals?.lastDate || "",
+      Date: dailyTotals?.lastDate || dailyTotals?.firstDate || "",
+      dailyEntries,
     });
   });
 
@@ -1329,6 +1429,7 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
     const progress = parseNumber(readBundleCell(activity, ["percent complete", "percentComplete", "progress", "completion"], 0));
     const providedEarnedValue = readBundleCell(activity, ["earned value", "earnedValue", "earned_value"], "");
     const dailyTotals = getDailyTotalsForRow({ projectId, activityId, costId: "" });
+    const dailyEntries = getDailyEntriesForRow({ projectId, activityId, costId: "" });
 
     rows.push({
       "Project ID": projectId,
@@ -1348,6 +1449,10 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
           : plannedCost * (progress / 100),
       "Planned Start": readBundleCell(activity, ["planned start", "plannedStart", "start date", "startDate"], ""),
       "Planned Finish": readBundleCell(activity, ["planned finish", "plannedFinish", "finish date", "finishDate"], ""),
+      "Actual Start": dailyTotals?.firstDate || "",
+      "Actual Finish": dailyTotals?.lastDate || "",
+      Date: dailyTotals?.lastDate || dailyTotals?.firstDate || "",
+      dailyEntries,
     });
   });
 
