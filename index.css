@@ -22,116 +22,36 @@ body.page-dashboard {
     linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
 }
 
-.dashboard-hero {
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 22px;
-  margin-bottom: 18px;
-  padding: clamp(22px, 3vw, 34px);
-  border: 1px solid rgba(13, 47, 99, 0.18);
-  border-radius: 28px;
-  background:
-    linear-gradient(135deg, rgba(13, 47, 99, 0.97), rgba(18, 63, 126, 0.92)),
-    repeating-linear-gradient(135deg, rgba(248, 181, 17, 0.12) 0 10px, transparent 10px 22px);
-  box-shadow: 0 24px 60px rgba(13, 47, 99, 0.18);
-  color: #ffffff;
-  isolation: isolate;
-}
-
-.dashboard-hero::after {
-  content: "";
-  position: absolute;
-  inset: auto -70px -120px auto;
-  width: 310px;
-  height: 310px;
-  border-radius: 50%;
-  background: rgba(248, 181, 17, 0.18);
-  pointer-events: none;
-}
-
-.dashboard-hero-copy {
-  position: relative;
-  z-index: 1;
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  padding: 7px 12px;
-  border: 1px solid rgba(248, 181, 17, 0.42);
-  border-radius: 999px;
-  background: rgba(248, 181, 17, 0.14);
-  color: #ffe7a3;
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.eyebrow::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--dashboard-amber);
-  box-shadow: 0 0 0 5px rgba(248, 181, 17, 0.16);
-}
-
-.dashboard-hero .topbar h1,
-.dashboard-hero h1 {
-  margin: 14px 0 8px;
-  max-width: 760px;
-  color: #ffffff;
-  font-size: clamp(2.05rem, 3.65vw, 3.9rem);
-  line-height: 0.98;
-  letter-spacing: -0.055em;
-}
-
-.dashboard-hero .topbar-subtitle {
-  max-width: 720px;
-  margin: 0;
-  color: #d8e6f7;
-  font-size: clamp(0.98rem, 1vw, 1.08rem);
-  line-height: 1.65;
-}
-
-.hero-actions {
+.dashboard-header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 22px;
-}
-
-.hero-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--dashboard-line);
   border-radius: 12px;
-  color: #ffffff;
-  font-size: 0.9rem;
-  font-weight: 800;
-  text-decoration: none;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  background: #fff;
 }
-
-.hero-action:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.1);
+.dashboard-header h1 { margin: 0 0 6px; font-size: clamp(1.35rem, 2vw, 2rem); color: #0f2652; letter-spacing: -0.02em; }
+.dashboard-header .topbar-subtitle { margin: 0; color: #51627f; font-size: 0.9rem; }
+.dashboard-header .live-sync-status { margin-top: 8px; }
+.dashboard-header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.dashboard-action-button {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px;
+  border: 1px solid var(--dashboard-line); border-radius: 8px; background: #fff; color: #172b4d;
+  text-decoration: none; font-size: 0.84rem; font-weight: 700;
 }
-
-.hero-action.primary {
-  border-color: rgba(248, 181, 17, 0.55);
-  background: linear-gradient(135deg, #f8b511, #dc9b0a);
-  color: #1b2433;
-  box-shadow: 0 12px 30px rgba(248, 181, 17, 0.28);
+.dashboard-action-button.primary { background: #0b2a63; color: #fff; border-color: #0b2a63; }
+.dashboard-export-menu { position: relative; }
+.dashboard-export-options {
+  position: absolute; right: 0; top: calc(100% + 6px); min-width: 190px; z-index: 20;
+  border: 1px solid var(--dashboard-line); border-radius: 8px; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
 }
+.dashboard-export-options button {
+  width: 100%; border: 0; background: transparent; text-align: left; padding: 10px 12px; font-size: 0.83rem; cursor: pointer;
+}
+.dashboard-export-options button:hover { background: #f4f7ff; }
 
 .dashboard-control-panel {
   margin-bottom: 14px;

@@ -27,6 +27,8 @@ const dateRangeSelectWrapEl = customDateRangeFieldsEl?.closest(".date-range-sele
 const activitySummarySortEl = document.getElementById("activitySummarySort");
 const activeProjectCountEl = document.getElementById("activeProjectCount");
 const dashboardRiskLevelEl = document.getElementById("dashboardRiskLevel");
+const exportReportButtonEl = document.getElementById("exportReportButton");
+const exportReportOptionsEl = document.getElementById("exportReportOptions");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const chartDependencyWarning =
@@ -659,6 +661,50 @@ const applyFiltersAndRender = () => {
   const filteredRows = getFilteredRows(activitySummaryRows);
   const sortedSummaryRows = sortActivitySummaryRows(filteredRows);
   renderDashboardFromRows(filteredRows, sortedSummaryRows);
+};
+
+const buildExportRows = (rows) =>
+  rows.map((row) => ({
+    Project: normalize(row.project),
+    Activity: normalize(row.activity),
+    "Activity ID": normalize(row.activityId || row.costId || "-"),
+    "Start Date": normalizeDateOnly(row.startDate) || normalize(row.startDate, "-"),
+    "Finish Date": normalizeDateOnly(row.finishDate) || normalize(row.finishDate, "-"),
+    "Planned Cost": parseNumber(row.plannedCost),
+    "Actual Cost": parseNumber(row.actualCost),
+    "Earned Value": parseNumber(row.ev),
+    "Cost Variance": parseNumber(row.cv),
+    "Percent Complete": parseNumber(row.percentComplete),
+    "Cost Used %": parseNumber(row.costUsedPercent),
+  }));
+
+const exportDashboardReport = (format = "xlsx") => {
+  const filteredRows = getFilteredRows(activitySummaryRows);
+  if (!filteredRows.length) {
+    showMessage("No filtered dashboard rows available for export.");
+    return;
+  }
+  const exportRows = buildExportRows(filteredRows);
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const filenameBase = `costrack-dashboard-report-${dateStamp}`;
+
+  if (format === "csv") {
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const csv = XLSX.utils.sheet_to_csv(worksheet);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filenameBase}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } else {
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Dashboard Report");
+    XLSX.writeFile(workbook, `${filenameBase}.xlsx`);
+  }
+
+  showMessage(`Exported ${filteredRows.length} row(s) as ${format.toUpperCase()}.`);
 };
 
 const calculateTotalsFromRows = (rows) => {
@@ -1589,6 +1635,26 @@ if (dateRangeFilterEl) {
 if (dateStartFilterEl) dateStartFilterEl.addEventListener("change", handleDateRangeInputChange);
 if (dateEndFilterEl) dateEndFilterEl.addEventListener("change", handleDateRangeInputChange);
 if (activitySummarySortEl) activitySummarySortEl.addEventListener("change", applyFiltersAndRender);
+if (exportReportButtonEl && exportReportOptionsEl) {
+  exportReportButtonEl.addEventListener("click", () => {
+    const expanded = exportReportButtonEl.getAttribute("aria-expanded") === "true";
+    exportReportButtonEl.setAttribute("aria-expanded", String(!expanded));
+    exportReportOptionsEl.hidden = expanded;
+  });
+  document.addEventListener("click", (event) => {
+    if (!exportReportOptionsEl.hidden && !event.target.closest(".dashboard-export-menu")) {
+      exportReportOptionsEl.hidden = true;
+      exportReportButtonEl.setAttribute("aria-expanded", "false");
+    }
+  });
+  exportReportOptionsEl.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-export-format]");
+    if (!button) return;
+    exportDashboardReport(button.dataset.exportFormat || "xlsx");
+    exportReportOptionsEl.hidden = true;
+    exportReportButtonEl.setAttribute("aria-expanded", "false");
+  });
+}
 
 const refreshDashboardIfVisible = async ({ force = false } = {}) => {
   if (!force && document.visibilityState === "hidden") return;
