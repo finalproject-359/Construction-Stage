@@ -752,7 +752,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
       progress: clampPercent(getValueByAliases(row, ["progress", "percentComplete", "percent_complete", "% complete", "percent complete"])),
       earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
-    })).filter((r) => r.projectId && r.date && hasPositiveActualCost(r));
+    })).filter((r) => r.projectId && r.date);
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
     return null;
