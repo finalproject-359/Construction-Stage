@@ -798,14 +798,19 @@ function syncActivityProgressFromCost(cost) {
     var rowActivityName = columns.name
       ? cleanText(values[i][columns.name - 1])
       : "";
-    var rowActivityCandidates = getIdentityCandidates(
-      rowActivityId,
-      rowActivityName,
-    );
-    var matchesActivity = identityCandidatesMatch(
-      rowActivityCandidates,
-      targetActivityCandidates,
-    );
+    var matchesActivity = false;
+    if (normalizedActivityId) {
+      matchesActivity = rowActivityId === normalizedActivityId;
+    } else {
+      var rowActivityCandidates = getIdentityCandidates(
+        rowActivityId,
+        rowActivityName,
+      );
+      matchesActivity = identityCandidatesMatch(
+        rowActivityCandidates,
+        targetActivityCandidates,
+      );
+    }
     if (!matchesActivity) continue;
 
     activitiesSheet
