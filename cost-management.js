@@ -665,6 +665,18 @@ const deriveDailyCostStatus = (item = {}, activity = null) => {
       ((activity.startDate && item.date < activity.startDate) ||
         (activity.finishDate && item.date > activity.finishDate)),
   );
+  const normalizedActivityStatus = String(activity?.status || "").trim().toLowerCase();
+  const activityActualFinish = toDateInputValue(
+    getValueByAliases(activity || {}, ["actualFinish", "actual_finish", "actualFinishDate", "actual_finish_date"]),
+  );
+  const isOperationallyAlignedCompletion =
+    Boolean(activity) &&
+    normalizedActivityStatus === "completed" &&
+    Boolean(activity.finishDate) &&
+    Boolean(activityActualFinish) &&
+    activityActualFinish <= activity.finishDate;
+
+  if (isOperationallyAlignedCompletion && activity && item?.date) return "On Schedule";
 
   if (activity && item?.date) return isDateDelayed ? "Delayed" : "On Schedule";
   if (isExplicitlyDelayed) return "Delayed";
@@ -1445,7 +1457,17 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert("Please provide a valid date.");
       return;
     }
-    const isDelayed = Boolean((activityStartDate && date < activityStartDate) || (activityFinishDate && date > activityFinishDate));
+    const isDelayedByDate = Boolean((activityStartDate && date < activityStartDate) || (activityFinishDate && date > activityFinishDate));
+    const normalizedActivityStatus = String(activity.status || "").trim().toLowerCase();
+    const activityActualFinishDate = toDateInputValue(
+      getValueByAliases(activity || {}, ["actualFinish", "actual_finish", "actualFinishDate", "actual_finish_date"]),
+    );
+    const isOperationallyAlignedCompletion =
+      normalizedActivityStatus === "completed" &&
+      Boolean(activityFinishDate) &&
+      Boolean(activityActualFinishDate) &&
+      activityActualFinishDate <= activityFinishDate;
+    const isDelayed = isOperationallyAlignedCompletion ? false : isDelayedByDate;
     const status = isDelayed ? "Delayed" : "On Schedule";
     const existingIndex = currentDailyCosts.findIndex((item) => {
       if (!isDailyCostForProject(item, projectId, normalizedProjectName)) return false;
