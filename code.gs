@@ -4815,6 +4815,22 @@ function normalizeIdentityForCompare(value) {
   return cleanText(value).toLowerCase();
 }
 
+function normalizeIdentityCompact(value) {
+  return normalizeIdentityForCompare(value).replace(/[^a-z0-9]/g, "");
+}
+
+function addUniqueIdentityCandidate(candidates, value) {
+  var normalized = normalizeIdentityForCompare(value);
+  if (normalized && candidates.indexOf(normalized) < 0) {
+    candidates.push(normalized);
+  }
+
+  var compact = normalizeIdentityCompact(value);
+  if (compact && candidates.indexOf(compact) < 0) {
+    candidates.push(compact);
+  }
+}
+
 function getIdentityCandidates() {
   var candidates = [];
   for (var i = 0; i < arguments.length; i += 1) {
@@ -4822,10 +4838,7 @@ function getIdentityCandidates() {
     if (!value) continue;
     var parsed = splitIdentityLabel(value);
     [value, parsed.id, parsed.name].forEach(function (candidate) {
-      var normalized = normalizeIdentityForCompare(candidate);
-      if (normalized && candidates.indexOf(normalized) < 0) {
-        candidates.push(normalized);
-      }
+      addUniqueIdentityCandidate(candidates, candidate);
     });
   }
   return candidates;
