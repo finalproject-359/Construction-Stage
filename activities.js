@@ -388,6 +388,50 @@ const inferActualFinishFromDailyCosts = (activity = {}, dailyCosts = []) => {
   };
 };
 
+const buildCostProgressLookup = (costRows = []) => {
+  const lookup = new Map();
+  (Array.isArray(costRows) ? costRows : []).forEach((row) => {
+    const projectId = String(getValueByAliases(row, ["projectId", "project_id", "project id", "project"]) || "").trim();
+    const activityId = String(getValueByAliases(row, ["activityId", "activity_id", "activity id", "sourceActivityId", "source_activity_id"]) || "").trim();
+    const costId = String(getValueByAliases(row, ["costId", "cost_id", "cost id", "id"]) || "").trim();
+    const progress = Math.max(0, Math.min(100, Number(getValueByAliases(row, ["progress", "percentComplete", "percent_complete"])) || 0));
+    if ((!activityId && !costId) || progress <= 0) return;
+    const keyByActivity = `${projectId}::${activityId}`;
+    const keyByCost = `${projectId}::${costId}`;
+    if (activityId) lookup.set(keyByActivity, Math.max(progress, Number(lookup.get(keyByActivity) || 0)));
+    if (costId) lookup.set(keyByCost, Math.max(progress, Number(lookup.get(keyByCost) || 0)));
+  });
+  return lookup;
+};
+
+const applyCostProgressFallback = (activities = [], costRows = []) => {
+  const lookup = buildCostProgressLookup(costRows);
+  if (!lookup.size) return activities;
+  return activities.map((activity) => {
+    const projectId = String(activity.projectId || "").trim();
+    const activityId = String(activity.id || "").trim();
+    const costId = String(activity.costId || "").trim();
+    const activityKey = `${projectId}::${activityId}`;
+    const costKey = `${projectId}::${costId}`;
+    const matchedProgress = Number(lookup.get(activityKey) || lookup.get(costKey) || 0);
+    if (matchedProgress <= 0) return activity;
+    const currentProgress = Number(activity.progress) || 0;
+    if (currentProgress >= matchedProgress) return activity;
+    return {
+      ...activity,
+      progress: matchedProgress,
+      status: deriveActivityDisplayStatus({
+        status: activity.status,
+        plannedFinishDate: activity.plannedFinishDate,
+        actualFinishDate: activity.actualFinishDate,
+        latestDailyDate: activity.latestDailyDate,
+        progress: matchedProgress,
+        durationStatus: activity.durationStatus,
+      }),
+    };
+  });
+};
+
 const escapeHtml = (value) =>
   String(value)
     .replaceAll("&", "&amp;")
@@ -975,10 +1019,11 @@ const mutateActivityInSource = async ({ action, activity }) => {
 
 const loadActivitiesAndProjectsFromSource = async () => {
   try {
-    const [activitiesPayload, projectsPayload, dailyCostsPayload] = await Promise.all([
+    const [activitiesPayload, projectsPayload, dailyCostsPayload, costsPayload] = await Promise.all([
       fetchSourcePayload("activities"),
       fetchSourcePayload("projects"),
       fetchSourcePayload("daily_costs"),
+      fetchSourcePayload("costs"),
     ]);
 
     const remoteActivities = Array.isArray(activitiesPayload?.activities)
@@ -987,13 +1032,17 @@ const loadActivitiesAndProjectsFromSource = async () => {
     const remoteDailyCosts = Array.isArray(dailyCostsPayload?.dailyCosts)
       ? dailyCostsPayload.dailyCosts
       : [];
+    const remoteCosts = Array.isArray(costsPayload?.costs)
+      ? costsPayload.costs
+      : [];
     const activitiesWithInferredFinish = remoteActivities.map((activity) =>
       inferActualFinishFromDailyCosts(activity, remoteDailyCosts)
     );
+    const activitiesWithCostFallback = applyCostProgressFallback(activitiesWithInferredFinish, remoteCosts);
     const remoteProjects = Array.isArray(projectsPayload?.projects)
       ? projectsPayload.projects.map(normalizeProject)
       : [];
-    const activeRemoteActivities = filterActivitiesForActiveProjects(activitiesWithInferredFinish, remoteProjects);
+    const activeRemoteActivities = filterActivitiesForActiveProjects(activitiesWithCostFallback, remoteProjects);
 
     const computedKpis = {
       completed: 0,
