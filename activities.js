@@ -239,18 +239,23 @@ const getTodayAtLocalMidnight = () => {
   return today;
 };
 
-const deriveActivityDisplayStatus = ({ status, plannedFinishDate, progress, durationStatus }) => {
+const deriveActivityDisplayStatus = ({ status, plannedFinishDate, actualFinishDate, latestDailyDate, progress, durationStatus }) => {
   const normalizedStatus = normalizeActivityStatusText(status);
   if (normalizedStatus === "Completed" || progress >= 100) return "Completed";
 
   const normalizedDurationStatus = String(durationStatus || "").trim().toLowerCase();
   const isDurationDelayed = ["delayed", "behind schedule", "late", "overdue"].includes(normalizedDurationStatus);
-  const isPastPlannedFinish =
-    plannedFinishDate instanceof Date &&
-    !Number.isNaN(plannedFinishDate.getTime()) &&
-    plannedFinishDate < getTodayAtLocalMidnight();
+  const hasPlannedFinish = plannedFinishDate instanceof Date && !Number.isNaN(plannedFinishDate.getTime());
+  const hasActualFinish = actualFinishDate instanceof Date && !Number.isNaN(actualFinishDate.getTime());
+  const hasLatestDailyDate = latestDailyDate instanceof Date && !Number.isNaN(latestDailyDate.getTime());
+  const isPastPlannedFinish = hasPlannedFinish && plannedFinishDate < getTodayAtLocalMidnight();
+  const isActualFinishBeyondPlan = hasPlannedFinish && hasActualFinish && actualFinishDate.getTime() > plannedFinishDate.getTime();
+  const isLatestDailyBeyondPlan =
+    progress < 100 && hasPlannedFinish && hasLatestDailyDate && latestDailyDate.getTime() > plannedFinishDate.getTime();
 
-  if (normalizedStatus === "Delayed" || isDurationDelayed || isPastPlannedFinish) return "Delayed";
+  if (isDurationDelayed || isPastPlannedFinish || isActualFinishBeyondPlan || isLatestDailyBeyondPlan) return "Delayed";
+
+  if (normalizedStatus === "Delayed") return progress > 0 ? "In Progress" : "Not Started";
   return normalizedStatus;
 };
 
@@ -275,7 +280,7 @@ const getActivityScheduleDetails = (activity = {}) => {
 
   const hasLateCompletion = activity.status === "Completed" && extraDays > 0;
   return {
-    finishNote: hasActualFinish ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
+    finishNote: hasActualFinish && activity.status === "Completed" ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
     adjustedFinishNote: !hasActualFinish && extraDays > 0 ? `Adjusted finish: ${toDisplayDate(delayReferenceDate)}` : "",
     durationNote: extraDays > 0 ? `+${extraDays} day${extraDays === 1 ? "" : "s"} added` : "",
     completionNote: hasLateCompletion ? "Completed late" : "",
@@ -457,6 +462,8 @@ const normalizeActivity = (activity = {}) => {
   const displayStatus = deriveActivityDisplayStatus({
     status,
     plannedFinishDate,
+    actualFinishDate,
+    latestDailyDate: activity.latestDailyDate,
     progress,
     durationStatus,
   });
