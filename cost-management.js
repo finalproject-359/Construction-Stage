@@ -1222,7 +1222,7 @@ const buildDetailsMarkup = (project, rows) => {
       } else if (normalizedActivityStatus === "delayed") {
         statusLabel = "Delayed";
         statusTone = "risk";
-      } else if (normalizedActivityStatus === "in progress" || (hasActualCost && progressValue > 0)) {
+      } else if (normalizedActivityStatus === "in progress" || progressValue > 0) {
         statusLabel = "In progress";
         statusTone = "active";
       } else if (normalizedActivityStatus === "not started" || progressValue <= 0) {
@@ -1590,10 +1590,12 @@ const syncCostSummaryToSheet = async ({ projectId, projectName, activity }) => {
   const resolvedProjectName = String(projectName || activity?.projectName || activity?.project || "").trim();
   const activityId = String(getActivityRefId(activity) || "").trim();
   const costId = String(activity?.costId || "").trim();
-  if (!resolvedProjectId || !activityId || !costId) return;
+  if (!resolvedProjectId || !costId) return;
 
-  const refreshed = getProjectCostData(resolvedProjectId, loadCostActivities()).rows
-    .find((row) => String(getActivityRefId(row) || "").trim() === activityId || String(row.costId || "").trim() === costId);
+  const projectRows = getProjectCostData(resolvedProjectId, loadCostActivities()).rows;
+  const refreshed = activityId
+    ? projectRows.find((row) => String(getActivityRefId(row) || "").trim() === activityId)
+    : projectRows.find((row) => String(row.costId || "").trim() === costId);
   if (!refreshed) return;
 
   const durationDays = Number(refreshed.durationDays) || 0;
