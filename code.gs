@@ -821,8 +821,12 @@ function syncActivityProgressFromCost(cost) {
       .setNumberFormat("0.00");
 
     if (columns.status) {
-      var nextStatus =
-        progress >= 100
+      var currentStatus = cleanText(values[i][columns.status - 1]);
+      var shouldPreserveDelayedStatus =
+        currentStatus === "delayed" && progress < 100;
+      var nextStatus = shouldPreserveDelayedStatus
+        ? "Delayed"
+        : progress >= 100
           ? "Completed"
           : progress > 0
             ? "In Progress"
