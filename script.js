@@ -513,7 +513,19 @@ const getFilteredRows = (rows) => {
       const matchingEntries = row.dailyEntries.filter((entry) =>
         rowMatchesDateFilter({ startDate: entry.date, finishDate: entry.date }, startDate, endDate)
       );
-      if (!matchingEntries.length) return row;
+      if (!matchingEntries.length) {
+        return {
+          ...row,
+          actualCost: 0,
+          ev: 0,
+          cv: 0,
+          percentComplete: 0,
+          costUsedPercent: 0,
+          startDate: "",
+          finishDate: "",
+          date: "",
+        };
+      }
 
       const actualCost = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.actualCost), 0);
       const evFromEntries = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.earnedValue), 0);
