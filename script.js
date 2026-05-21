@@ -540,8 +540,12 @@ const getFilteredRows = (rows) => {
         .sort()
         .slice(-1)[0] || row.finishDate;
 
-      const percentComplete = progressFromEntries || row.percentComplete;
-      const ev = evFromEntries || (parseNumber(row.plannedCost) * (percentComplete / 100));
+      const percentComplete = Number.isFinite(progressFromEntries)
+        ? progressFromEntries
+        : parseNumber(row.percentComplete);
+      const ev = Number.isFinite(evFromEntries)
+        ? evFromEntries
+        : (parseNumber(row.plannedCost) * (percentComplete / 100));
 
       return {
         ...row,
