@@ -752,7 +752,7 @@ const loadRemoteDailyCosts = async (projectFilter = {}) => {
       actualCost: parseBudgetValue(getValueByAliases(row, ["actualCost", "actual_cost", "amount"])),
       progress: clampPercent(getValueByAliases(row, ["progress", "percentComplete", "percent_complete", "% complete", "percent complete"])),
       earnedValue: parseBudgetValue(getValueByAliases(row, ["earnedValue", "earned_value", "earned value", "ev"])),
-    })).filter((r) => r.projectId && r.date && hasPositiveActualCost(r));
+    })).filter((r) => r.projectId && r.date);
   } catch (error) {
     console.warn("Unable to load daily costs from resource endpoint:", error);
     return null;
@@ -1081,8 +1081,7 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     .filter((item) => isActivityForProject(item, projectId, normalizedProjectName))
     .sort(compareActivitiesByStartPriority);
   const daily = loadDailyCosts()
-    .filter((item) => isDailyCostForProject(item, projectId, normalizedProjectName))
-    .filter(hasPositiveActualCost);
+    .filter((item) => isDailyCostForProject(item, projectId, normalizedProjectName));
   const rawRows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
     const rowCostId = String(activity.costId || "").trim();
@@ -1135,7 +1134,6 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
           String(entry.activityId || "").trim(),
           String(entry.costId || "").trim(),
           normalizeDateKey(entry.date),
-          parseBudgetValue(entry.actualCost),
         ].join("::");
         return [dedupeKey, entry];
       }),
@@ -1210,8 +1208,25 @@ const buildDetailsMarkup = (project, rows) => {
       const earnedValueCell = hasEarnedValue ? formatBudget(row.earnedValue) : "Not logged";
       const varianceValue = parseBudgetValue(row.earnedValue) - parseBudgetValue(row.actualCost);
       const varianceTone = varianceValue >= 0 ? "good" : "bad";
-      const statusLabel = !hasPlannedCost ? "Setup needed" : hasActualCost ? "In progress" : "Ready";
-      const statusTone = !hasPlannedCost ? "needs-setup" : hasActualCost ? "active" : "ready";
+      const normalizedActivityStatus = String(row.status || "").trim().toLowerCase();
+      let statusLabel = "Ready";
+      let statusTone = "ready";
+      if (!hasPlannedCost) {
+        statusLabel = "Setup needed";
+        statusTone = "needs-setup";
+      } else if (normalizedActivityStatus === "completed" || progressValue >= 100) {
+        statusLabel = "Completed";
+        statusTone = "complete";
+      } else if (normalizedActivityStatus === "delayed") {
+        statusLabel = "Delayed";
+        statusTone = "risk";
+      } else if (normalizedActivityStatus === "in progress" || (hasActualCost && progressValue > 0)) {
+        statusLabel = "In progress";
+        statusTone = "active";
+      } else if (normalizedActivityStatus === "not started" || progressValue <= 0) {
+        statusLabel = "Not started";
+        statusTone = "ready";
+      }
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "Not set";
       const activityIdValue = getActivityRefId(row);
       const actionIdentifierValue = activityIdValue || String(row.costId || "").trim() || String(row.name || "").trim();
