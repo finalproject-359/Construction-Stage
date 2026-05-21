@@ -310,8 +310,9 @@ const inferActualFinishFromDailyCosts = (activity = {}, dailyCosts = []) => {
   if (!Array.isArray(dailyCosts) || !dailyCosts.length) return activity;
 
   const targetActivityId = String(activity.id || "").trim();
+  const targetCostId = String(activity.costId || "").trim();
   const targetProjectId = String(activity.projectId || "").trim();
-  if (!targetActivityId) return activity;
+  if (!targetActivityId && !targetCostId) return activity;
 
   const matchingEntries = Array.from(new Map(
     dailyCosts
@@ -319,7 +320,10 @@ const inferActualFinishFromDailyCosts = (activity = {}, dailyCosts = []) => {
       .filter((entry) =>
         entry.date instanceof Date &&
         !Number.isNaN(entry.date.getTime()) &&
-        entry.activityId === targetActivityId &&
+        (
+          (targetActivityId && entry.activityId === targetActivityId) ||
+          (targetCostId && entry.costId === targetCostId)
+        ) &&
         (!targetProjectId || !entry.projectId || entry.projectId === targetProjectId)
       )
       .map((entry) => {
@@ -399,6 +403,7 @@ const formatProjectIdentityLabel = (projectId, projectName) => {
 
 const normalizeActivity = (activity = {}) => {
   const id = getValueByAliases(activity, ["id", "activityId", "activity_id", "code", "activityCode", "activity_code"]);
+  const costId = getValueByAliases(activity, ["costId", "cost_id", "cost id", "costCode", "cost_code"]);
   const name = getValueByAliases(activity, ["name", "activity", "activityName", "activity_name"]);
   const project = getValueByAliases(activity, ["project", "projectName", "project_name", "projectId", "project_id"]);
   let type = getValueByAliases(activity, ["type", "activityType", "activity_type"]);
@@ -487,6 +492,7 @@ const normalizeActivity = (activity = {}) => {
 
   return {
     id: id || "-",
+    costId: String(costId || "").trim(),
     name: name || "Untitled Activity",
     project: project || "-",
     type: type || "-",
