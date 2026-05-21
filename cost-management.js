@@ -1198,9 +1198,10 @@ const buildDetailsMarkup = (project, rows) => {
   const tableRows = rows.length
     ? rows.map((row) => {
       const hasPlannedCost = parseBudgetValue(row.plannedCost) > 0;
-      const hasLoggedActualCost = row.actualCost !== null
-        && row.actualCost !== undefined
-        && String(row.actualCost).trim() !== "";
+      const hasLoggedActualCost = Array.isArray(row.dailyItems)
+        && row.dailyItems.some((entry) => entry && entry.actualCost !== null
+          && entry.actualCost !== undefined
+          && String(entry.actualCost).trim() !== "");
       const hasActualCost = parseBudgetValue(row.actualCost) > 0;
       const costIdCell = row.costId ? escapeHtml(row.costId) : "";
       const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "";
