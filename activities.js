@@ -277,10 +277,18 @@ const getActivityScheduleDetails = (activity = {}) => {
     : 0;
   const delayedDayCount = Number(activity.delayedDayCount);
   const extraDays = Number.isFinite(delayedDayCount) && delayedDayCount > 0 ? delayedDayCount : dateDifferenceDays;
+  const normalizedStatus = normalizeActivityStatusText(activity.status);
+  const isCompleted = normalizedStatus === "Completed";
+  const isOperationallyAlignedCompletion =
+    isCompleted && hasPlannedFinish && hasActualFinish && actualFinishDate.getTime() <= plannedFinishDate.getTime();
 
-  const hasLateCompletion = activity.status === "Completed" && extraDays > 0;
+  if (isOperationallyAlignedCompletion) {
+    return { finishNote: "", adjustedFinishNote: "", durationNote: "", completionNote: "", extraDays: 0 };
+  }
+
+  const hasLateCompletion = isCompleted && extraDays > 0;
   return {
-    finishNote: hasActualFinish && activity.status === "Completed" ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
+    finishNote: hasActualFinish && isCompleted ? `Actual finish: ${toDisplayDate(actualFinishDate)}` : "",
     adjustedFinishNote: !hasActualFinish && extraDays > 0 ? `Adjusted finish: ${toDisplayDate(delayReferenceDate)}` : "",
     durationNote: extraDays > 0 ? `+${extraDays} day${extraDays === 1 ? "" : "s"} added` : "",
     completionNote: hasLateCompletion ? "Completed late" : "",
