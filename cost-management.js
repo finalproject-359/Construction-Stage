@@ -1198,12 +1198,15 @@ const buildDetailsMarkup = (project, rows) => {
   const tableRows = rows.length
     ? rows.map((row) => {
       const hasPlannedCost = parseBudgetValue(row.plannedCost) > 0;
+      const hasLoggedActualCost = row.actualCost !== null
+        && row.actualCost !== undefined
+        && String(row.actualCost).trim() !== "";
       const hasActualCost = parseBudgetValue(row.actualCost) > 0;
       const costIdCell = row.costId ? escapeHtml(row.costId) : "";
       const plannedCostCell = hasPlannedCost ? formatBudget(row.plannedCost) : "";
       const progressValue = clampPercent(row.progressPercent);
       const progressCell = Number.isFinite(progressValue) ? `${progressValue.toFixed(2)}%` : "";
-      const actualCostCell = hasActualCost ? formatBudget(row.actualCost) : "";
+      const actualCostCell = hasLoggedActualCost ? formatBudget(row.actualCost) : "";
       const hasEarnedValue = parseBudgetValue(row.earnedValue) > 0;
       const earnedValueCell = hasEarnedValue ? formatBudget(row.earnedValue) : "Not logged";
       const varianceValue = parseBudgetValue(row.earnedValue) - parseBudgetValue(row.actualCost);
@@ -1220,7 +1223,7 @@ const buildDetailsMarkup = (project, rows) => {
       } else if (normalizedActivityStatus === "delayed") {
         statusLabel = "Delayed";
         statusTone = "risk";
-      } else if (normalizedActivityStatus === "in progress" || (hasActualCost && progressValue > 0)) {
+      } else if (normalizedActivityStatus === "in progress" || hasLoggedActualCost) {
         statusLabel = "In progress";
         statusTone = "active";
       } else if (normalizedActivityStatus === "not started" || progressValue <= 0) {
