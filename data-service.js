@@ -6,7 +6,7 @@
     "project id",
     "project name",
     "activity id",
-    "project id",
+    "activity name",
     "project",
     "activity",
     "planned start",
@@ -39,17 +39,35 @@
     return [];
   };
 
+
+
+  const toResourceKeyVariants = (resourceName) => {
+    const raw = String(resourceName || "").trim();
+    if (!raw) return [];
+
+    const normalized = raw.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+    const camel = normalized.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
+    const compact = normalized.replace(/_/g, "");
+
+    return [...new Set([raw, normalized, camel, compact])];
+  };
+
   const extractResourceRows = (payload, resourceName) => {
-    const resourcePayload = payload?.[resourceName];
-    if (Array.isArray(resourcePayload)) return resourcePayload;
-    if (resourcePayload && typeof resourcePayload === "object") {
-      const directRows = extractRowsFromPayload(resourcePayload);
-      if (directRows.length) return directRows;
-      if (Array.isArray(resourcePayload[resourceName])) return resourcePayload[resourceName];
+    const resourceKeys = toResourceKeyVariants(resourceName);
+
+    for (const key of resourceKeys) {
+      const resourcePayload = payload?.[key];
+      if (Array.isArray(resourcePayload)) return resourcePayload;
+      if (resourcePayload && typeof resourcePayload === "object") {
+        const directRows = extractRowsFromPayload(resourcePayload);
+        if (directRows.length) return directRows;
+
+        for (const nestedKey of resourceKeys) {
+          if (Array.isArray(resourcePayload[nestedKey])) return resourcePayload[nestedKey];
+        }
+      }
     }
 
-    const directValue = payload?.[resourceName];
-    if (Array.isArray(directValue)) return directValue;
     return [];
   };
 
