@@ -255,6 +255,9 @@ const deriveActivityDisplayStatus = ({ status, plannedFinishDate, actualFinishDa
 
   if (isDurationDelayed || isPastPlannedFinish || isActualFinishBeyondPlan || isLatestDailyBeyondPlan) return "Delayed";
 
+  // Keep status aligned with tangible progress even when source status is stale.
+  if (progress > 0 && normalizedStatus === "Not Started") return "In Progress";
+
   if (normalizedStatus === "Delayed") return progress > 0 ? "In Progress" : "Not Started";
   return normalizedStatus;
 };
