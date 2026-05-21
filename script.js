@@ -528,6 +528,8 @@ const getFilteredRows = (rows) => {
       }
 
       const actualCost = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.actualCost), 0);
+      const hasEarnedValueData = matchingEntries.some((entry) => String(entry?.earnedValue ?? "").trim() !== "");
+      const hasProgressData = matchingEntries.some((entry) => String(entry?.progress ?? "").trim() !== "");
       const evFromEntries = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.earnedValue), 0);
       const progressFromEntries = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.progress), 0);
       const firstDate = matchingEntries
@@ -540,10 +542,10 @@ const getFilteredRows = (rows) => {
         .sort()
         .slice(-1)[0] || row.finishDate;
 
-      const percentComplete = Number.isFinite(progressFromEntries)
+      const percentComplete = hasProgressData && Number.isFinite(progressFromEntries)
         ? progressFromEntries
         : parseNumber(row.percentComplete);
-      const ev = Number.isFinite(evFromEntries)
+      const ev = hasEarnedValueData && Number.isFinite(evFromEntries)
         ? evFromEntries
         : (parseNumber(row.plannedCost) * (percentComplete / 100));
 
