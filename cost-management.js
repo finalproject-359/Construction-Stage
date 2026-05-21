@@ -655,7 +655,6 @@ const deriveDailyCostStatus = (item = {}, activity = null) => {
   const explicitStatus = String(
     getValueByAliases(item, ["status", "dailyStatus", "daily_status", "scheduleStatus", "schedule_status"]) || "",
   ).trim();
-  if (explicitStatus) return explicitStatus;
 
   const delayedValue = getValueByAliases(item, ["isDelayed", "is_delayed", "delayed"]);
   const delayedText = String(delayedValue || "").trim().toLowerCase();
@@ -666,7 +665,11 @@ const deriveDailyCostStatus = (item = {}, activity = null) => {
       ((activity.startDate && item.date < activity.startDate) ||
         (activity.finishDate && item.date > activity.finishDate)),
   );
-  return isExplicitlyDelayed || isDateDelayed ? "Delayed" : "On Schedule";
+
+  if (activity && item?.date) return isDateDelayed ? "Delayed" : "On Schedule";
+  if (isExplicitlyDelayed) return "Delayed";
+  if (explicitStatus) return explicitStatus;
+  return "On Schedule";
 };
 
 const normalizeDailyCostRecord = (item = {}, lookups = buildProjectIdentityLookups(loadProjects())) => ({
