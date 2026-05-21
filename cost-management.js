@@ -800,8 +800,10 @@ const extractActivityRefIdFromCostRow = (row = {}) => {
   if (directActivityId) return directActivityId;
 
   const notesValue = String(getValueByAliases(row, ["notes", "note", "remarks"]) || "");
-  const notesMatch = notesValue.match(/activity\s*id\s*[:#-]?\s*([a-z0-9._-]+)/i);
-  return notesMatch?.[1] ? String(notesMatch[1]).trim() : "";
+  const notesMatch = notesValue.match(/activity\s*id\s*[:#-]?\s*([^,;|\n\r]+)/i);
+  if (!notesMatch?.[1]) return "";
+
+  return String(notesMatch[1]).replace(/\s+/g, " ").trim();
 };
 
 const extractCostRowsFromPayload = (payload = {}) => {
