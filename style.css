@@ -303,6 +303,27 @@ body {
   max-width: 100%;
 }
 
+.dashboard-table-wrap {
+  display: block;
+  max-height: clamp(300px, 42vh, 460px);
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard-scroll-table {
+  min-width: 1120px;
+}
+
+.dashboard-scroll-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
