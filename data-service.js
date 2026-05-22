@@ -141,6 +141,8 @@
   const inFlightDataFetches = new Map();
   const REALTIME_CHANNEL_NAME = "construction-stage-google-sheet-sync";
   const REALTIME_STORAGE_KEY = "constructionStageGoogleSheetVersion";
+  const REALTIME_VERIFY_EVENT = "google-sheet:verified";
+  const REALTIME_MIN_POLL_INTERVAL_MS = 1500;
 
   const createLiveSourceTimeoutError = () =>
     new Error(`Live data source took longer than ${Math.round(LIVE_SOURCE_FETCH_TIMEOUT_MS / 1000)} seconds to respond.`);
@@ -380,6 +382,7 @@
     let timer = null;
     let inFlight = false;
     let lastVersion = "";
+    let lastPolledAt = 0;
     let started = false;
     let channel = null;
 
@@ -404,6 +407,17 @@
       const changed = Boolean(previousVersion && previousVersion !== versionInfo.version);
       if (changed) clearDataCaches();
       if (changed && emit) broadcastChange(versionInfo);
+      if (!changed) {
+        global.dispatchEvent(
+          new CustomEvent(REALTIME_VERIFY_EVENT, {
+            detail: {
+              ...versionInfo,
+              unchanged: true,
+              checkedAt: new Date().toISOString(),
+            },
+          })
+        );
+      }
       return changed;
     };
 
@@ -416,7 +430,10 @@
     const getNextDelay = () => (document.visibilityState === "hidden" ? HIDDEN_REALTIME_POLL_MS : DEFAULT_REALTIME_POLL_MS);
 
     const poll = async ({ emit = true } = {}) => {
+      const now = Date.now();
       if (inFlight) return;
+      if (now - lastPolledAt < REALTIME_MIN_POLL_INTERVAL_MS) return;
+      lastPolledAt = now;
       inFlight = true;
       try {
         const versionInfo = await fetchSourceVersion(DEFAULT_DATA_SOURCE_URL);
