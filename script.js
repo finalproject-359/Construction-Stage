@@ -1704,6 +1704,58 @@ const setupDashboardRealtimeSync = () => {
   });
 };
 
+const runDashboardIntro = () => {
+  const introEl = document.getElementById("dashboardIntro");
+  const logoWrapEl = document.getElementById("introLogoWrap");
+  const particlesHostEl = document.getElementById("introParticles");
+  const sidebarBrandLogoEl = document.querySelector(".sidebar-footer-logo img");
+  const pageEl = document.body;
+  if (!introEl || !logoWrapEl || !particlesHostEl || !sidebarBrandLogoEl || !pageEl) return;
+
+  pageEl.classList.add("intro-running");
+
+  const emitParticleBurst = (count = 16, spread = 190) => {
+    for (let i = 0; i < count; i += 1) {
+      const particle = document.createElement("span");
+      particle.className = "intro-particle";
+      const size = 2 + Math.random() * 4;
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+      particle.style.left = `${logoWrapEl.offsetLeft + (Math.random() * 120 - 18)}px`;
+      particle.style.top = `${logoWrapEl.offsetTop + (Math.random() * 120 - 18)}px`;
+      particle.style.setProperty("--tx", `${(Math.random() - 0.5) * spread}px`);
+      particle.style.setProperty("--ty", `${(Math.random() - 0.55) * spread}px`);
+      particlesHostEl.appendChild(particle);
+      particle.addEventListener("animationend", () => particle.remove(), { once: true });
+    }
+  };
+
+  requestAnimationFrame(() => introEl.classList.add("intro-logo-enter"));
+  setTimeout(() => {
+    introEl.classList.add("intro-logo-glow");
+    emitParticleBurst(22, 210);
+  }, 900);
+  setTimeout(() => introEl.classList.add("reveal-dashboard"), 2000);
+
+  setTimeout(() => {
+    const logoTargetRect = sidebarBrandLogoEl.getBoundingClientRect();
+    introEl.style.setProperty("--intro-target-x", `${Math.round(logoTargetRect.left)}px`);
+    introEl.style.setProperty("--intro-target-y", `${Math.round(logoTargetRect.top)}px`);
+    introEl.classList.add("move-logo");
+    emitParticleBurst(24, 260);
+    pageEl.classList.add("intro-main-reveal");
+  }, 3000);
+
+  setTimeout(() => {
+    introEl.classList.add("is-complete");
+    pageEl.classList.remove("intro-running");
+  }, 5000);
+};
+
+if (document.body?.classList.contains("page-dashboard")) {
+  runDashboardIntro();
+}
+
 setupServiceWorkerUpdates();
 refreshDashboardIfVisible({ force: true });
 setupDashboardRealtimeSync();
