@@ -104,6 +104,10 @@ const saveDailyCosts = (items) => {
   dailyCostsState = Array.isArray(items) ? items.slice() : [];
   persistToLocalStorage(DAILY_COSTS_LOCAL_STORAGE_KEY, dailyCostsState);
 };
+const updateDailyCostMetrics = () => {
+  // The daily-cost modal and optimistic local state updates already keep values current.
+  // This guard function preserves backwards compatibility with older submit handlers.
+};
 const postToDataSource = async (resource, action, payload) => {
   const endpoint = window.DataBridge?.DEFAULT_DATA_SOURCE_URL;
   if (!endpoint) throw new Error("Google Sheets endpoint is not configured.");
