@@ -756,6 +756,44 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   to { transform: translateY(0); opacity: 1; }
 }
 
+
+
+/* Intro motion tuning for smoother rendering and reduced-motion accessibility. */
+.intro-logo-wrap,
+.intro-logo,
+.dashboard-intro .intro-particle,
+.page-dashboard.intro-running .main-content,
+.page-dashboard.intro-running .sidebar {
+  will-change: transform, opacity, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-dashboard-veil,
+  .intro-logo-wrap,
+  .intro-logo,
+  .dashboard-intro .intro-particle,
+  .page-dashboard.intro-running .main-content,
+  .page-dashboard.intro-running .sidebar,
+  .page-dashboard.intro-running.intro-main-reveal .kpi-card,
+  .page-dashboard.intro-running.intro-main-reveal .chart-card,
+  .page-dashboard.intro-running.intro-main-reveal .table-panel,
+  .page-dashboard.intro-running.intro-main-reveal .dashboard-summary-strip article {
+    animation: none !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .dashboard-intro,
+  .dashboard-intro.is-complete,
+  .page-dashboard.intro-running .main-content,
+  .page-dashboard.intro-running .sidebar {
+    opacity: 1 !important;
+    visibility: visible !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
 @media (max-width: 1400px) {
   .page-dashboard .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
