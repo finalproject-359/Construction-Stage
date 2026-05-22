@@ -2710,3 +2710,37 @@ tbody tr { transition: background-color .18s ease, box-shadow .18s ease; }
     font-size: 0.86rem;
   }
 }
+
+.brand-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.brand-toggle:focus-visible {
+  outline: 2px solid #f4b73d;
+  outline-offset: 2px;
+}
+
+.brand-account-menu {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.94));
+  margin-top: 8px;
+  padding: 8px;
+}
+
+.brand-signout-btn {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.brand-signout-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
