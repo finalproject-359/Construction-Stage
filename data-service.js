@@ -219,6 +219,24 @@
     return request;
   };
 
+
+  const parseCsvRows = (rawText, sourceLabel) => {
+    if (!global.XLSX) {
+      throw new Error("Unable to parse source data because XLSX is not available in this environment.");
+    }
+
+    const workbook = XLSX.read(rawText, { type: "string" });
+    const firstSheetName = workbook?.SheetNames?.[0];
+    if (!firstSheetName) {
+      throw new Error(`Unable to parse ${sourceLabel}: the workbook did not contain any sheets.`);
+    }
+
+    const sheet = workbook.Sheets[firstSheetName];
+    const headerRowIndex = findHeaderRowIndex(sheet);
+    const rows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "", range: headerRowIndex });
+    return { rows, firstSheetName };
+  };
+
   const fetchRowsFromSource = async (providedUrl = "", options = {}) => {
     const rawUrl = providedUrl || DEFAULT_DATA_SOURCE_URL;
     const trimmedUrl = rawUrl.trim();
@@ -249,11 +267,7 @@
         }
 
         const rawText = await response.text();
-        const workbook = XLSX.read(rawText, { type: "string" });
-        const firstSheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[firstSheetName];
-        const headerRowIndex = findHeaderRowIndex(sheet);
-        const rows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "", range: headerRowIndex });
+        const { rows, firstSheetName } = parseCsvRows(rawText, "Apps Script Web App response");
         return {
           rows,
           sourceName: `Apps Script Web App CSV "${firstSheetName}"`,
@@ -265,11 +279,7 @@
       if (!response.ok) throw new Error(`Unable to fetch Google Sheet (HTTP ${response.status})`);
 
       const csvText = await response.text();
-      const workbook = XLSX.read(csvText, { type: "string" });
-      const firstSheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[firstSheetName];
-      const headerRowIndex = findHeaderRowIndex(sheet);
-      const rows = XLSX.utils.sheet_to_json(sheet, { raw: false, defval: "", range: headerRowIndex });
+      const { rows, firstSheetName } = parseCsvRows(csvText, "Google Sheet CSV");
 
       return {
         rows,
@@ -280,7 +290,8 @@
   };
 
   const appendNoCacheParam = (urlValue) => {
-    const parsed = new URL(urlValue, window.location.href);
+    const baseHref = global.location?.href || "https://localhost/";
+    const parsed = new URL(urlValue, baseHref);
     parsed.searchParams.set("_ts", Date.now().toString());
     parsed.searchParams.set("_nonce", Math.random().toString(36).slice(2));
     return parsed.toString();
