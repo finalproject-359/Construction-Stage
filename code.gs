@@ -1889,6 +1889,7 @@ function syncCostActualFromDailyCost(projectId, costId, options) {
             : null;
         var rowValues = targetRange ? targetRange.getValues()[0] : [];
         var rowFormats = targetRange ? targetRange.getNumberFormats()[0] : [];
+        var rowFormulas = targetRange ? targetRange.getFormulas()[0] : [];
 
         rowValues[costColumns.actualCost - 1] = roundTo(totalActualCost, 2);
         rowFormats[costColumns.actualCost - 1] = "#,##0.00";
@@ -1901,6 +1902,16 @@ function syncCostActualFromDailyCost(projectId, costId, options) {
           rowFormats[costColumns.earnedValue - 1] = "#,##0.00";
         }
         if (targetRange) {
+          for (var formulaIndex = 0; formulaIndex < rowFormulas.length; formulaIndex += 1) {
+            if (
+              rowFormulas[formulaIndex] &&
+              formulaIndex !== costColumns.actualCost - 1 &&
+              (!syncProgress || formulaIndex !== costProgressColumn - 1) &&
+              (!costColumns.earnedValue || formulaIndex !== costColumns.earnedValue - 1)
+            ) {
+              rowValues[formulaIndex] = rowFormulas[formulaIndex];
+            }
+          }
           targetRange.setValues([rowValues]);
           targetRange.setNumberFormats([rowFormats]);
         }
