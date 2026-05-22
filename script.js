@@ -1704,6 +1704,86 @@ const setupDashboardRealtimeSync = () => {
   });
 };
 
+const runDashboardIntro = () => {
+  const introEl = document.getElementById("dashboardIntro");
+  const primaryLogoWrapEl = document.getElementById("introLogoWrapPrimary");
+  const secondaryLogoWrapEl = document.getElementById("introLogoWrapSecondary");
+  const particlesHostEl = document.getElementById("introParticles");
+  const sidebarBrandLogoEl = document.querySelector(".brand .brand-logo");
+  const sidebarBrandCopyEl = document.querySelector(".brand .brand-copy h2");
+  const sidebarFooterLogoEl = document.querySelector(".sidebar-footer-logo img");
+  const pageEl = document.body;
+  if (
+    !introEl
+    || !primaryLogoWrapEl
+    || !secondaryLogoWrapEl
+    || !particlesHostEl
+    || !sidebarBrandLogoEl
+    || !pageEl
+  ) return;
+
+  pageEl.classList.add("intro-running");
+
+  const emitParticleBurst = (count = 16, spread = 190) => {
+    for (let i = 0; i < count; i += 1) {
+      const particle = document.createElement("span");
+      particle.className = "intro-particle";
+      const size = 2 + Math.random() * 4;
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+      particle.style.left = `${primaryLogoWrapEl.offsetLeft + (Math.random() * 120 - 18)}px`;
+      particle.style.top = `${primaryLogoWrapEl.offsetTop + (Math.random() * 120 - 18)}px`;
+      particle.style.setProperty("--tx", `${(Math.random() - 0.5) * spread}px`);
+      particle.style.setProperty("--ty", `${(Math.random() - 0.55) * spread}px`);
+      particlesHostEl.appendChild(particle);
+      particle.addEventListener("animationend", () => particle.remove(), { once: true });
+    }
+  };
+
+  requestAnimationFrame(() => introEl.classList.add("intro-logo-enter"));
+  setTimeout(() => {
+    introEl.classList.add("intro-logo-glow");
+    emitParticleBurst(22, 210);
+  }, 900);
+  setTimeout(() => introEl.classList.add("reveal-dashboard"), 2000);
+
+  setTimeout(() => {
+    const logoTargetRect = sidebarBrandLogoEl.getBoundingClientRect();
+    const brandTextRect = sidebarBrandCopyEl?.getBoundingClientRect();
+    const primaryTargetX = Math.round(logoTargetRect.left);
+    const primaryTargetY = Math.round(
+      brandTextRect
+        ? brandTextRect.top + ((brandTextRect.height - logoTargetRect.height) / 2)
+        : logoTargetRect.top
+    );
+    introEl.style.setProperty("--intro-target-x-primary", `${primaryTargetX}px`);
+    introEl.style.setProperty("--intro-target-y-primary", `${primaryTargetY}px`);
+
+    if (sidebarFooterLogoEl) {
+      const footerRect = sidebarFooterLogoEl.getBoundingClientRect();
+      introEl.style.setProperty("--intro-target-x-secondary", `${Math.round(footerRect.left)}px`);
+      introEl.style.setProperty("--intro-target-y-secondary", `${Math.round(footerRect.top)}px`);
+    } else {
+      introEl.style.setProperty("--intro-target-x-secondary", `${primaryTargetX}px`);
+      introEl.style.setProperty("--intro-target-y-secondary", `${primaryTargetY}px`);
+    }
+
+    introEl.classList.add("move-logo", "split-logo");
+    emitParticleBurst(24, 260);
+    emitParticleBurst(18, 180);
+    pageEl.classList.add("intro-main-reveal");
+  }, 3000);
+
+  setTimeout(() => {
+    introEl.classList.add("is-complete");
+    pageEl.classList.remove("intro-running");
+  }, 5000);
+};
+
+if (document.body?.classList.contains("page-dashboard")) {
+  runDashboardIntro();
+}
+
 setupServiceWorkerUpdates();
 refreshDashboardIfVisible({ force: true });
 setupDashboardRealtimeSync();
