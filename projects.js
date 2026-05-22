@@ -512,6 +512,30 @@ const saveToLocalStorage = (projects) => {
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(projects));
 };
 
+
+const parseLocalStorageArray = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeLocalStorageArray = (key, items) => {
+  localStorage.setItem(key, JSON.stringify(Array.isArray(items) ? items : []));
+};
+
+const refreshProjectsViews = ({ includeArchived = false } = {}) => {
+  hydrateFilters();
+  applyFilters();
+  if (includeArchived) {
+    hydrateArchivedProjectFilters();
+    renderArchivedProjects();
+  }
+};
 const readFromLocalStorage = () => {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -804,15 +828,13 @@ const addProject = async (project) => {
   await syncProjectWithGoogleSheet({ action: "create", project });
   state.allProjects = [project, ...state.allProjects];
   saveToLocalStorage(state.allProjects);
-  hydrateFilters();
-  applyFilters();
+  refreshProjectsViews();
 };
 
 const addProjectLocally = (project) => {
   state.allProjects = [project, ...state.allProjects];
   saveToLocalStorage(state.allProjects);
-  hydrateFilters();
-  applyFilters();
+  refreshProjectsViews();
 };
 
 const updateProject = async (updatedProject) => {
@@ -821,10 +843,7 @@ const updateProject = async (updatedProject) => {
     project.id === updatedProject.id ? updatedProject : project
   );
   saveToLocalStorage(state.allProjects);
-  hydrateFilters();
-  hydrateArchivedProjectFilters();
-  applyFilters();
-  renderArchivedProjects();
+  refreshProjectsViews({ includeArchived: true });
 };
 
 const restoreArchivedProject = async (projectId) => {
@@ -844,15 +863,6 @@ const removeRelatedProjectDataFromLocalStorage = (projectToDelete) => {
   const projectId = String(projectToDelete.id || "").trim();
   const projectName = String(projectToDelete.name || "").trim().toLowerCase();
 
-  const safeParseArray = (rawValue) => {
-    try {
-      const parsed = JSON.parse(rawValue || "[]");
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  };
-
   const normalizeProjectIdentity = (value) => String(value || "").trim().toLowerCase();
 
   const shouldDeleteByProject = (entry) => {
@@ -866,17 +876,17 @@ const removeRelatedProjectDataFromLocalStorage = (projectToDelete) => {
     return false;
   };
 
-  const activities = safeParseArray(localStorage.getItem(RELATED_LOCAL_STORAGE_KEYS.activities));
+  const activities = parseLocalStorageArray(RELATED_LOCAL_STORAGE_KEYS.activities);
   const nextActivities = activities.filter((activity) => !shouldDeleteByProject(activity));
-  localStorage.setItem(RELATED_LOCAL_STORAGE_KEYS.activities, JSON.stringify(nextActivities));
+  writeLocalStorageArray(RELATED_LOCAL_STORAGE_KEYS.activities, nextActivities);
 
-  const costActivities = safeParseArray(localStorage.getItem(RELATED_LOCAL_STORAGE_KEYS.costActivities));
+  const costActivities = parseLocalStorageArray(RELATED_LOCAL_STORAGE_KEYS.costActivities);
   const nextCostActivities = costActivities.filter((activity) => !shouldDeleteByProject(activity));
-  localStorage.setItem(RELATED_LOCAL_STORAGE_KEYS.costActivities, JSON.stringify(nextCostActivities));
+  writeLocalStorageArray(RELATED_LOCAL_STORAGE_KEYS.costActivities, nextCostActivities);
 
-  const dailyCosts = safeParseArray(localStorage.getItem(RELATED_LOCAL_STORAGE_KEYS.dailyCosts));
+  const dailyCosts = parseLocalStorageArray(RELATED_LOCAL_STORAGE_KEYS.dailyCosts);
   const nextDailyCosts = dailyCosts.filter((dailyCost) => !shouldDeleteByProject(dailyCost));
-  localStorage.setItem(RELATED_LOCAL_STORAGE_KEYS.dailyCosts, JSON.stringify(nextDailyCosts));
+  writeLocalStorageArray(RELATED_LOCAL_STORAGE_KEYS.dailyCosts, nextDailyCosts);
 };
 
 const archiveProject = async (projectId) => {
@@ -895,10 +905,7 @@ const archiveProject = async (projectId) => {
       : project
   );
   saveToLocalStorage(state.allProjects);
-  hydrateFilters();
-  hydrateArchivedProjectFilters();
-  applyFilters();
-  renderArchivedProjects();
+  refreshProjectsViews({ includeArchived: true });
 };
 
 const deleteProject = async (projectId) => {
@@ -911,10 +918,7 @@ const deleteProject = async (projectId) => {
   removeRelatedProjectDataFromLocalStorage(projectToDelete);
   state.allProjects = state.allProjects.filter((project) => project.id !== projectId);
   saveToLocalStorage(state.allProjects);
-  hydrateFilters();
-  hydrateArchivedProjectFilters();
-  applyFilters();
-  renderArchivedProjects();
+  refreshProjectsViews({ includeArchived: true });
   return payload;
 };
 
@@ -1222,8 +1226,7 @@ const bootstrapProjectsPage = async () => {
 
   state.allProjects = normalizedProjects;
   saveToLocalStorage(state.allProjects);
-  hydrateFilters();
-  applyFilters();
+  refreshProjectsViews();
 };
 
 const refreshProjectsIfVisible = async ({ force = false } = {}) => {
