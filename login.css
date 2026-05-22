@@ -57,4 +57,16 @@ input::placeholder { color: #95a2b8; }
 .login-feedback.info { color: #1f4fa2; }
 .login-feedback.success { color: var(--success); }
 footer { text-align: center; margin-top: 16px; font-size: .9rem; color: #6d7990; }
-@media (max-width: 1100px) { .login-shell { grid-template-columns: 1fr; min-height: 100vh; width: 100%; margin: 0; border-radius: 0; } .brand-panel { min-height: 420px; } }
+@media (max-width: 1100px) {
+  .login-shell { grid-template-columns: 1fr; min-height: 100vh; width: 100%; margin: 0; border-radius: 0; }
+  .form-panel { order: 1; padding: 28px 0 34px; }
+  .brand-panel { order: 2; min-height: clamp(280px, 40vh, 420px); }
+}
+
+@media (max-width: 760px) {
+  .form-wrap { width: min(560px, 92%); }
+  .login-card { padding: 22px 18px 20px; border-radius: 14px; }
+  .trust-row { gap: 6px 12px; font-size: 0.78rem; margin: 0 4px 8px; }
+  .brand-content h1 { font-size: clamp(1.8rem, 8vw, 2.4rem); }
+  .brand-metrics { gap: 10px; margin-top: 22px; }
+}
