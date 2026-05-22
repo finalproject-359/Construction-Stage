@@ -15,23 +15,32 @@
       <div class="analytics-overlay" aria-hidden="true"></div>
       <div class="brand-content">
         <img src="assets/logo-uploads/app-logo-v20260522.png" alt="CosTrack logo" class="brand-logo" />
-        <h1>Executive Project Dashboard</h1>
-        <p>Monitor project performance, cost management, and key metrics — all in one place.</p>
+        <p class="eyebrow">Construction Financial Intelligence</p>
+        <h1>Executive Cost &amp; Performance Command Center</h1>
+        <p>Unify budget health, project delivery KPIs, and cost controls in a single trusted workspace.</p>
+
+        <ul class="brand-metrics" aria-label="Platform highlights">
+          <li><strong>Portfolio Visibility</strong><span>Track all active sites and spending in real time.</span></li>
+          <li><strong>Audit-Ready Reporting</strong><span>Maintain clear records for finance and stakeholder reviews.</span></li>
+          <li><strong>Risk Awareness</strong><span>Spot overruns early with proactive budget indicators.</span></li>
+        </ul>
       </div>
     </section>
 
     <section class="form-panel" aria-label="Sign in form">
       <div class="form-wrap">
         <header class="welcome-copy">
-          <h2>Welcome Back</h2>
-          <p>Sign in to continue to your dashboard</p>
+          <h2>Sign in to CosTrack</h2>
+          <p>Secure access for project leaders, finance teams, and operations.</p>
         </header>
 
         <form class="login-card" id="loginForm" action="#" method="post" novalidate>
-          <label for="email">Email Address</label>
+          <div class="security-chip" role="note" aria-label="Security notice">🔐 Bank-grade encrypted session</div>
+
+          <label for="email">Work Email</label>
           <div class="field-wrap">
             <span class="icon" aria-hidden="true">✉</span>
-            <input type="email" id="email" name="email" placeholder="Enter your email" autocomplete="email" required />
+            <input type="email" id="email" name="email" placeholder="name@company.com" autocomplete="email" required />
           </div>
 
           <label for="password">Password</label>
@@ -41,6 +50,8 @@
             <button class="visibility-toggle" id="togglePassword" type="button" aria-label="Show password">👁</button>
           </div>
 
+          <p class="caps-lock" id="capsLockHint" aria-live="polite"></p>
+
           <div class="options-row">
             <label class="remember-row">
               <input type="checkbox" name="remember" />
@@ -49,8 +60,8 @@
             <button type="button" class="text-action" id="forgotPasswordButton">Forgot Password?</button>
           </div>
 
-          <button type="submit" class="sign-in-btn">Sign In</button>
-          <div class="divider" role="presentation"><span>Secure sign-in</span></div>
+          <button type="submit" class="sign-in-btn">Access Dashboard</button>
+          <div class="divider" role="presentation"><span>Protected workspace</span></div>
         </form>
 
         <p class="login-feedback" id="loginFeedback" aria-live="polite"></p>
