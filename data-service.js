@@ -14,13 +14,13 @@
     "complete",
     "created at",
   ];
-
   const normalizeHeader = (value) =>
     String(value)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+  const NORMALIZED_HEADER_ALIASES = EXPECTED_HEADER_ALIASES.map((alias) => normalizeHeader(alias));
 
   const extractRowsFromPayload = (payload) => {
     if (Array.isArray(payload)) return payload;
@@ -84,14 +84,19 @@
 
     rows.forEach((row, index) => {
       const normalizedCells = row.map((cell) => normalizeHeader(cell)).filter(Boolean);
-      const score = EXPECTED_HEADER_ALIASES.reduce((count, alias) => {
-        const hasAlias = normalizedCells.some((cell) => cell.includes(alias));
-        return count + (hasAlias ? 1 : 0);
+      if (!normalizedCells.length) return;
+
+      const score = NORMALIZED_HEADER_ALIASES.reduce((count, alias) => {
+        for (let i = 0; i < normalizedCells.length; i += 1) {
+          if (normalizedCells[i].includes(alias)) return count + 1;
+        }
+        return count;
       }, 0);
 
       if (score > bestScore) {
         bestScore = score;
         bestIndex = index;
+        if (bestScore === NORMALIZED_HEADER_ALIASES.length) return;
       }
     });
 
