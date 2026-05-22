@@ -1182,6 +1182,7 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
 };
 
 const buildSelectedProjectBannerMarkup = (project) => `<section class="selected-project-banner"><div><p class="selected-project-label">Selected Project</p><h3>${escapeHtml(formatProjectIdentityLabel(project))}</h3></div><a href="cost-management.html" class="ghost-btn">← Back to Projects</a></section>`;
+const COST_RECORD_PAGE_SIZE = 8;
 
 const buildDetailsMarkup = (project, rows) => {
   const plannedCost = rows.reduce((sum, row) => sum + parseBudgetValue(row.plannedCost), 0);
@@ -1281,6 +1282,9 @@ const buildDetailsMarkup = (project, rows) => {
 
   const costRecordHealth = rows.filter((row) => parseBudgetValue(row.plannedCost) > 0).length;
   const costRecordSummaryMarkup = `<div class="cost-record-summary" aria-label="Costing record summary"><article><span>Cost items</span><strong>${rows.length}</strong></article><article><span>Budgeted items</span><strong>${costRecordHealth}/${rows.length || 0}</strong></article><article><span>Actual spend</span><strong>${formatBudget(actualCost)}</strong></article><article><span>Variance</span><strong class="${varianceClass}">${formatBudget(variance)}</strong></article></div>`;
+  const paginationMarkup = rows.length > COST_RECORD_PAGE_SIZE
+    ? `<div class="cost-record-pagination" data-cost-pagination><p class="cost-record-pagination-summary" data-cost-pagination-summary></p><div class="cost-record-pagination-controls" data-cost-pagination-controls></div></div>`
+    : "";
 
   return `<nav class="details-tabs"><button class="tab-btn active" data-tab="overview" type="button">Overview</button><button class="tab-btn" data-tab="costing" type="button">Costing Record</button></nav>
   <section class="details-tab-panel" data-panel="overview"><section class="details-kpis">
@@ -1294,9 +1298,49 @@ const buildDetailsMarkup = (project, rows) => {
   <article class="panel donut-panel"><h3><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4a8 8 0 1 1-8 8"/><path d="M12 12V4"/><path d="M12 12h8"/></svg></span>Cost Status</h3><div class="donut-wrap"><div class="donut" style="background: conic-gradient(${donutSegments});"></div><ul class="status-list">${donutLegendMarkup}</ul></div></article>
   <article class="panel table-panel"><h3><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 4 6 6-3 1-3 7-3-3-7 3 3-7-1-3 6-6z"/></svg></span>Top Over Budget Activities</h3><table class="top-over-budget-table"><colgroup><col class="col-cost-id"><col class="col-activity"><col class="col-planned"><col class="col-actual"><col class="col-earned"><col class="col-variance"></colgroup><thead><tr><th>Cost ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Earned Value</th><th>Cost Variance</th></tr></thead><tbody>${topRows}</tbody></table></article></section></section>
   <section class="details-tab-panel hidden" data-panel="costing">
-  <div class="cost-record-workspace"><div class="cost-record-head cost-record-head-enhanced"><div><p class="eyebrow">Cost ledger</p><h3>Activity costing record</h3><p>Track each activity from planned budget setup through daily spend and earned value updates.</p></div><div class="cost-record-actions"><span class="cost-record-hint">Use the actions menu to add budgets or daily costs.</span></div></div>${costRecordSummaryMarkup}<section class="panel cost-record-table-panel"><table class="cost-table"><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Progress</th><th>Planned Cost</th><th>Actual Cost</th><th>Earned Value</th><th>Status</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section><div class="info-banner cost-record-tip"><p><strong>Tip:</strong> Planned Cost is view-only in this table and can be changed only via “Add / Edit Cost Details”. Daily cost entries refresh Actual Cost and Earned Value after saving.</p></div></div></section>
+  <div class="cost-record-workspace"><div class="cost-record-head cost-record-head-enhanced"><div><p class="eyebrow">Cost ledger</p><h3>Activity costing record</h3><p>Track each activity from planned budget setup through daily spend and earned value updates.</p></div><div class="cost-record-actions"><span class="cost-record-hint">Use the actions menu to add budgets or daily costs.</span></div></div>${costRecordSummaryMarkup}<section class="panel cost-record-table-panel"><table class="cost-table"><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Progress</th><th>Planned Cost</th><th>Actual Cost</th><th>Earned Value</th><th>Status</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section>${paginationMarkup}<div class="info-banner cost-record-tip"><p><strong>Tip:</strong> Planned Cost is view-only in this table and can be changed only via “Add / Edit Cost Details”. Daily cost entries refresh Actual Cost and Earned Value after saving.</p></div></div></section>
   <section class="daily-cost-modal hidden" id="dailyCostModal"></section>
   <section class="cost-meta-modal hidden" id="costMetaModal"></section>`;
+};
+const setupCostRecordPagination = () => {
+  const pagination = detailsView?.querySelector("[data-cost-pagination]");
+  if (!pagination) return;
+  const rows = Array.from(detailsView.querySelectorAll(".cost-record-table-panel tbody .cost-record-row"));
+  if (!rows.length) return;
+  const pageSize = COST_RECORD_PAGE_SIZE;
+  const totalRows = rows.length;
+  const totalPages = Math.ceil(totalRows / pageSize);
+  let currentPage = 1;
+  const summary = pagination.querySelector("[data-cost-pagination-summary]");
+  const controls = pagination.querySelector("[data-cost-pagination-controls]");
+  if (!controls || !summary) return;
+
+  const renderPage = (targetPage) => {
+    currentPage = Math.max(1, Math.min(totalPages, targetPage));
+    const start = (currentPage - 1) * pageSize;
+    const end = Math.min(totalRows, start + pageSize);
+    rows.forEach((row, index) => row.classList.toggle("hidden", index < start || index >= end));
+    summary.textContent = `Showing ${start + 1} to ${end} of ${totalRows} activities`;
+
+    controls.querySelectorAll("button[data-page]").forEach((button) => {
+      const page = Number(button.dataset.page);
+      button.classList.toggle("active", page === currentPage);
+    });
+    const prev = controls.querySelector("[data-nav='prev']");
+    const next = controls.querySelector("[data-nav='next']");
+    if (prev) prev.disabled = currentPage <= 1;
+    if (next) next.disabled = currentPage >= totalPages;
+  };
+
+  controls.innerHTML = `<button type="button" class="cost-page-nav" data-nav="prev" aria-label="Previous page">←</button>${Array.from({ length: totalPages }, (_, index) => `<button type="button" data-page="${index + 1}" class="cost-page-number">${index + 1}</button>`).join("")}<button type="button" class="cost-page-nav" data-nav="next" aria-label="Next page">→</button>`;
+  controls.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    if (button.dataset.page) renderPage(Number(button.dataset.page));
+    if (button.dataset.nav === "prev") renderPage(currentPage - 1);
+    if (button.dataset.nav === "next") renderPage(currentPage + 1);
+  });
+  renderPage(1);
 };
 
 const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities()) => {
@@ -1710,6 +1754,8 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
     }
     if (!event.target.closest(".actions-col")) closeCostActionMenus();
   }, listenerOptions);
+
+  setupCostRecordPagination();
 
   return true;
 };
