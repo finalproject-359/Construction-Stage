@@ -12,6 +12,7 @@ const emailError = document.getElementById("emailError");
 const emailWrap = document.getElementById("emailWrap");
 const passwordWrap = document.getElementById("passwordWrap");
 const submitButton = document.getElementById("submitButton");
+let loginAttemptTimer = null;
 
 if (sessionStorage.getItem("costrackAuth") === "authenticated") {
   window.location.replace("index.html");
@@ -47,6 +48,10 @@ const validateFields = () => {
   if (!password) {
     passwordWrap.classList.add("invalid");
     setFeedback("Please enter your password.", "error");
+    valid = false;
+  } else if (password.length < 8) {
+    passwordWrap.classList.add("invalid");
+    setFeedback("Password must be at least 8 characters.", "error");
     valid = false;
   }
 
@@ -89,12 +94,16 @@ loginForm?.addEventListener("submit", (event) => {
   submitButton.disabled = true;
   submitButton.textContent = "Signing in...";
 
-  window.setTimeout(() => {
+  if (loginAttemptTimer) {
+    window.clearTimeout(loginAttemptTimer);
+  }
+
+  loginAttemptTimer = window.setTimeout(() => {
     if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
       sessionStorage.setItem("costrackAuth", "authenticated");
       sessionStorage.setItem("costrackPlayDashboardIntro", "true");
       setFeedback("Sign-in successful. Redirecting to dashboard...", "success");
-      window.location.assign("index.html");
+      window.setTimeout(() => window.location.assign("index.html"), 350);
       return;
     }
 
