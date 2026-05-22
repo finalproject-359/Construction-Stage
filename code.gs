@@ -4443,23 +4443,30 @@ function normalizeDailyCostRecord(row) {
           row["earned_value"] ||
           row["EV"],
       );
-      var plannedCost = parseNumber(
+      var plannedCostRaw =
         row["Planned Cost"] ||
-          row["plannedCost"] ||
-          row["planned_cost"] ||
-          row["plannedValue"],
-      );
-      var progress = parseNumber(
+        row["plannedCost"] ||
+        row["planned_cost"] ||
+        row["plannedValue"];
+      var plannedCost = parseNumber(plannedCostRaw);
+      var progressRaw =
         row["Progress/Day"] ||
-          row["Progress"] ||
-          row["progress"] ||
-          row["progressPerDay"] ||
-          row["progress_per_day"] ||
-          row["percentComplete"] ||
-          row["% Complete"],
-      );
+        row["Progress"] ||
+        row["progress"] ||
+        row["progressPerDay"] ||
+        row["progress_per_day"] ||
+        row["percentComplete"] ||
+        row["% Complete"];
+      var progress = parseNumber(progressRaw);
       var recomputedEarnedValue = computeDailyEarnedValueFromPlannedCost(plannedCost, progress);
-      return recomputedEarnedValue > 0 ? recomputedEarnedValue : storedEarnedValue;
+      var canRecomputeEarnedValue =
+        plannedCostRaw !== null &&
+        plannedCostRaw !== undefined &&
+        cleanText(plannedCostRaw) !== "" &&
+        progressRaw !== null &&
+        progressRaw !== undefined &&
+        cleanText(progressRaw) !== "";
+      return canRecomputeEarnedValue ? recomputedEarnedValue : storedEarnedValue;
     })(),
     earnedValueStored: parseNumber(
       row["Earned Value/Day"] ||
