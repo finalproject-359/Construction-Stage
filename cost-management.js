@@ -2431,6 +2431,10 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refreshSelectedProjectCostView({ force: true });
 });
 
+const COST_DATA_AUTO_SYNC_MS = 30 * 1000;
+setInterval(() => {
+  refreshSelectedProjectCostView({ force: false });
+}, COST_DATA_AUTO_SYNC_MS);
 
 ["input", "change", "keydown"].forEach((eventName) => {
   document.addEventListener(eventName, (event) => {
