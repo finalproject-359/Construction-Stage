@@ -1740,7 +1740,8 @@ const runDashboardIntro = () => {
     }
   };
 
-  requestAnimationFrame(() => introEl.classList.add("intro-logo-enter"));
+  requestAnimationFrame(() => introEl.classList.add("intro-logo-build"));
+  setTimeout(() => introEl.classList.add("intro-logo-enter"), 260);
   setTimeout(() => {
     introEl.classList.add("intro-logo-glow");
     emitParticleBurst(22, 210);
