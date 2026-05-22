@@ -653,6 +653,11 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
     filter 800ms ease;
 }
 
+.intro-logo-secondary {
+  opacity: 0;
+  visibility: hidden;
+}
+
 .intro-logo {
   width: 100%;
   height: 100%;
@@ -664,6 +669,12 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   transform: translate(-50%, -50%) scale(1) rotate(0deg);
 }
 
+.dashboard-intro.intro-logo-enter .intro-logo-secondary,
+.dashboard-intro.intro-logo-glow .intro-logo-secondary {
+  opacity: 0;
+  visibility: hidden;
+}
+
 .dashboard-intro.intro-logo-glow .intro-logo-wrap {
   transform: translate(-50%, -50%) scale(1.09) rotate(7deg);
   filter:
@@ -671,10 +682,19 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
     drop-shadow(0 0 78px rgba(37, 99, 235, 0.3));
 }
 
-.dashboard-intro.move-logo .intro-logo-wrap {
-  left: var(--intro-target-x);
-  top: var(--intro-target-y);
+.dashboard-intro.split-logo .intro-logo-primary {
   width: clamp(52px, 6vw, 72px);
+  left: var(--intro-target-x-primary);
+  top: var(--intro-target-y-primary);
+  transform: translate(0, 0) scale(1) rotate(0deg);
+}
+
+.dashboard-intro.split-logo .intro-logo-secondary {
+  opacity: 1;
+  visibility: visible;
+  width: clamp(52px, 6vw, 72px);
+  left: var(--intro-target-x-secondary);
+  top: var(--intro-target-y-secondary);
   transform: translate(0, 0) scale(1) rotate(0deg);
 }
 
