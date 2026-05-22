@@ -290,7 +290,6 @@ const openEditProjectModal = (project) => {
   projectForm.elements.location.value = project.location || "";
   projectForm.elements.startDate.value = project.startDate;
   projectForm.elements.targetFinish.value = project.finishDate;
-  projectForm.elements.status.value = project.status;
   if (projectForm.elements.budget) projectForm.elements.budget.value = formatBudgetAsPeso(project.budget);
 
   if (projectModalTitle) projectModalTitle.textContent = "Edit Project";
@@ -1135,9 +1134,11 @@ projectForm.addEventListener("submit", async (event) => {
   const location = String(formData.get("location") || "").trim();
   const startDate = String(formData.get("startDate") || "").trim();
   const targetFinish = String(formData.get("targetFinish") || "").trim();
-  const status = String(formData.get("status") || "Not Started").trim();
-  const budget = parseBudgetValue(formData.get("budget"));
   const editingProject = state.allProjects.find((project) => project.id === state.editingProjectId);
+  const status = state.editingProjectId
+    ? String(editingProject?.status || "Not Started").trim()
+    : "Not Started";
+  const budget = parseBudgetValue(formData.get("budget"));
   const description = editingProject?.description || "";
 
   if (!projectName || !projectCode || !projectType || !location || !startDate || !targetFinish) {
