@@ -1,4 +1,4 @@
-const CACHE_VERSION = "floodcontrol-v10";
+const CACHE_VERSION = "floodcontrol-v11";
 const APP_SHELL_FILES = [
   "./",
   "./index.html",
@@ -20,7 +20,8 @@ const APP_SHELL_FILES = [
   "./add-activity.js",
   "./cost-management.js",
   "./page-loader.js",
-  "./manifest.webmanifest"
+  "./manifest.webmanifest",
+  "./assets/logo-uploads/app-logo-v20260522.png"
 ];
 
 const STATIC_ASSET_DESTINATIONS = new Set(["style", "script", "manifest", "image", "font"]);
