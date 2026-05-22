@@ -1620,8 +1620,16 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       }
 
       const localDailyCosts = loadDailyCosts();
-      if (existingIndex >= 0) {
-        localDailyCosts[existingIndex] = normalizeDailyCostRecord({ ...existingDailyCost, ...dailyCostPayload });
+      const matchingLocalIndex = localDailyCosts.findIndex((item = {}) => {
+        const itemDate = formatDateInput(item.date);
+        const itemActivityId = String(getActivityRefId(item) || "").trim();
+        const itemCostId = String(item.costId || "").trim();
+        const sameActivity = itemActivityId === resolvedActivityRefId || (activityCostId && itemCostId === activityCostId);
+        return sameActivity && itemDate === date;
+      });
+      const localExistingDailyCost = matchingLocalIndex >= 0 ? localDailyCosts[matchingLocalIndex] : null;
+      if (matchingLocalIndex >= 0) {
+        localDailyCosts[matchingLocalIndex] = normalizeDailyCostRecord({ ...localExistingDailyCost, ...dailyCostPayload });
       } else {
         localDailyCosts.push(normalizeDailyCostRecord(dailyCostPayload));
       }
