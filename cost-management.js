@@ -1632,6 +1632,26 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
 };
 
 let detailViewListenerController = null;
+let lastRenderedDetailsSignature = "";
+
+const buildDetailsSignature = (project = {}, rows = [], activeTab = "overview") => {
+  const normalizedRows = Array.isArray(rows) ? rows.map((row = {}) => ({
+    activityId: String(getActivityRefId(row) || "").trim(),
+    name: String(row.name || "").trim(),
+    durationDays: Number(row.durationDays) || 0,
+    progressPercent: clampPercent(row.progressPercent),
+    costId: String(row.costId || "").trim(),
+    plannedCost: parseBudgetValue(row.plannedCost),
+    actualCost: parseBudgetValue(row.actualCost),
+    earnedValue: parseBudgetValue(row.earnedValue),
+    status: String(row.status || "").trim(),
+  })) : [];
+  return JSON.stringify({
+    projectId: String(project.id || ""),
+    activeTab: activeTab === "costing" ? "costing" : "overview",
+    rows: normalizedRows,
+  });
+};
 
 const syncCostSummaryToSheet = async ({ projectId, projectName, activity }) => {
   const resolvedProjectId = String(projectId || activity?.projectId || "").trim();
@@ -1681,17 +1701,27 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
   selectedProjectBannerHost.innerHTML = buildSelectedProjectBannerMarkup(project);
   detailsView.classList.remove("hidden");
   const { rows } = getProjectCostData(projectId, allActivities);
+  const resolvedActiveTab = activeTab === "costing" ? "costing" : "overview";
+  const nextDetailsSignature = buildDetailsSignature(project, rows, resolvedActiveTab);
+
+  const applyActiveTab = (target = "overview") => {
+    const resolvedTarget = target === "costing" ? "costing" : "overview";
+    detailsView.querySelectorAll(".tab-btn").forEach((item) => item.classList.toggle("active", item.dataset.tab === resolvedTarget));
+    detailsView.querySelectorAll(".details-tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.dataset.panel !== resolvedTarget));
+  };
+
+  if (nextDetailsSignature === lastRenderedDetailsSignature) {
+    applyActiveTab(resolvedActiveTab);
+    return true;
+  }
+
   detailsView.innerHTML = buildDetailsMarkup(project, rows);
+  lastRenderedDetailsSignature = nextDetailsSignature;
   detailViewListenerController?.abort();
   detailViewListenerController = typeof AbortController === "function" ? new AbortController() : null;
   const listenerOptions = detailViewListenerController ? { signal: detailViewListenerController.signal } : undefined;
 
-  const applyActiveTab = (target = "overview") => {
-    detailsView.querySelectorAll(".tab-btn").forEach((item) => item.classList.toggle("active", item.dataset.tab === target));
-    detailsView.querySelectorAll(".details-tab-panel").forEach((panel) => panel.classList.toggle("hidden", panel.dataset.panel !== target));
-  };
-
-  applyActiveTab(activeTab);
+  applyActiveTab(resolvedActiveTab);
 
   detailsView.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
     const target = btn.dataset.tab || "overview";
