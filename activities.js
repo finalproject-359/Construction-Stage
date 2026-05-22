@@ -1460,7 +1460,7 @@ const renderTable = () => {
   activitiesTableBody.innerHTML = pageActivities.map(buildActivityRowHtml).join("");
 };
 
-const applyFilters = () => {
+const applyFilters = ({ resetPage = true } = {}) => {
   const searchValue = activitiesSearchInput?.value.trim().toLowerCase() || "";
   const statusValue = activitiesStatusFilter?.value || "All Statuses";
   const typeValue = activitiesTypeFilter?.value || "All Activity Types";
@@ -1503,7 +1503,13 @@ const applyFilters = () => {
       .sort(compareActivitiesByStartPriority);
   }
 
-  state.currentPage = 1;
+  if (resetPage) {
+    state.currentPage = 1;
+  } else {
+    const totalPages = Math.max(1, Math.ceil(state.filteredActivities.length / PAGE_SIZE));
+    state.currentPage = Math.min(Math.max(state.currentPage, 1), totalPages);
+  }
+
   syncWorkflowState();
   renderPagination();
   renderTable();
@@ -2165,7 +2171,7 @@ const bootstrapActivitiesPage = async () => {
   renderProjectPicker();
   hydrateSelectedProjectFromUrl();
   handleAddedActivityNotice();
-  applyFilters();
+  applyFilters({ resetPage: false });
 };
 
 const refreshActivitiesIfVisible = async ({ force = false } = {}) => {
