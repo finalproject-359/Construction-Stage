@@ -603,6 +603,159 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   line-height: 1.5;
 }
 
+.dashboard-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+  overflow: hidden;
+  background: #030711;
+}
+
+.intro-backdrop,
+.intro-dashboard-veil {
+  position: absolute;
+  inset: 0;
+}
+
+.intro-backdrop {
+  background:
+    radial-gradient(circle at 50% 56%, rgba(245, 179, 35, 0.16), transparent 42%),
+    radial-gradient(circle at 50% 45%, rgba(31, 77, 180, 0.12), transparent 48%),
+    #02040a;
+}
+
+.intro-dashboard-veil {
+  backdrop-filter: blur(14px);
+  background: linear-gradient(170deg, rgba(7, 15, 30, 0.72), rgba(3, 8, 18, 0.36));
+  opacity: 0;
+  transition: opacity 900ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.dashboard-intro.reveal-dashboard .intro-dashboard-veil { opacity: 1; }
+.dashboard-intro.move-logo .intro-dashboard-veil { opacity: 0.25; }
+
+.intro-logo-wrap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(190px, 20vw, 320px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%) scale(0.72) rotate(-8deg);
+  opacity: 0;
+  filter: drop-shadow(0 0 28px rgba(249, 181, 34, 0.4));
+  transition:
+    transform 1000ms cubic-bezier(.22, .85, .2, 1),
+    opacity 760ms cubic-bezier(.2, .8, .2, 1),
+    left 1200ms cubic-bezier(.2, .8, .2, 1),
+    top 1200ms cubic-bezier(.2, .8, .2, 1),
+    width 1200ms cubic-bezier(.2, .8, .2, 1),
+    filter 800ms ease;
+}
+
+.intro-logo-secondary {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.intro-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transform: translateY(22px) scale(0.9);
+  filter: blur(8px);
+  transition:
+    transform 1050ms cubic-bezier(.22, .85, .2, 1),
+    opacity 900ms ease,
+    filter 900ms ease;
+}
+
+.dashboard-intro.intro-logo-build .intro-logo {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.dashboard-intro.intro-logo-enter .intro-logo-wrap {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.02) rotate(-1deg);
+}
+
+.dashboard-intro.intro-logo-enter .intro-logo-secondary,
+.dashboard-intro.intro-logo-glow .intro-logo-secondary {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.dashboard-intro.intro-logo-glow .intro-logo-wrap {
+  transform: translate(-50%, -50%) scale(1.09) rotate(7deg);
+  filter:
+    drop-shadow(0 0 34px rgba(245, 191, 51, 0.62))
+    drop-shadow(0 0 78px rgba(37, 99, 235, 0.3));
+}
+
+.dashboard-intro.split-logo .intro-logo-primary {
+  width: clamp(52px, 6vw, 72px);
+  left: var(--intro-target-x-primary);
+  top: var(--intro-target-y-primary);
+  transform: translate(0, 0) scale(1) rotate(0deg);
+}
+
+.dashboard-intro.split-logo .intro-logo-secondary {
+  opacity: 1;
+  visibility: visible;
+  width: clamp(52px, 6vw, 72px);
+  left: var(--intro-target-x-secondary);
+  top: var(--intro-target-y-secondary);
+  transform: translate(0, 0) scale(1) rotate(0deg);
+}
+
+.dashboard-intro .intro-particle {
+  position: absolute;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(253, 197, 72, .95), rgba(250, 148, 11, 0.22) 70%, transparent);
+  animation: introParticle 1800ms linear forwards;
+}
+
+.dashboard-intro.is-complete {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 500ms ease, visibility 0ms linear 500ms;
+}
+
+.page-dashboard.intro-running .main-content,
+.page-dashboard.intro-running .sidebar {
+  transform: translateY(18px);
+  opacity: 0;
+  filter: blur(9px);
+  transition: transform 1200ms cubic-bezier(.2, .8, .2, 1), opacity 1100ms ease, filter 1300ms ease;
+}
+
+.page-dashboard.intro-running.intro-main-reveal .main-content,
+.page-dashboard.intro-running.intro-main-reveal .sidebar {
+  transform: translateY(0);
+  opacity: 1;
+  filter: blur(0);
+}
+
+.page-dashboard.intro-running.intro-main-reveal .kpi-card,
+.page-dashboard.intro-running.intro-main-reveal .chart-card,
+.page-dashboard.intro-running.intro-main-reveal .table-panel,
+.page-dashboard.intro-running.intro-main-reveal .dashboard-summary-strip article {
+  animation: dashFadeUp 720ms cubic-bezier(.18, .82, .24, 1) both;
+}
+
+@keyframes introParticle {
+  from { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+  to { transform: translate3d(var(--tx, 0), var(--ty, 0), 0) scale(0.18); opacity: 0; }
+}
+
+@keyframes dashFadeUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 @media (max-width: 1400px) {
   .page-dashboard .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
