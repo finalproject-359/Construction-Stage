@@ -1425,8 +1425,14 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert(`Unable to delete in strict mode. ${error?.message || "Missing project/cost parent record."}`);
       return;
     }
-    await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
+    const refreshTask = Promise.allSettled([
+      syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName }),
+      syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity }),
+    ]);
+    await refreshTask;
+    const metadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
+    applyCostMetadataRows(metadataRows);
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
     renderDailyCostModal(projectId, resolvedActivityRefId);
@@ -1602,8 +1608,10 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       }
 
       try {
-        await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
-        await syncCostSummaryToSheet({ projectId, projectName, activity });
+        await Promise.allSettled([
+          syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName }),
+          syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity }),
+        ]);
         const refreshedMetadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
         applyCostMetadataRows(refreshedMetadataRows);
       } catch (error) {
