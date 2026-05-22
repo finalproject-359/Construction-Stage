@@ -47,7 +47,7 @@ const activityModalSubtitle = document.querySelector(".activity-modal-header p")
 const activityModalSubmitBtn = activityModalForm?.querySelector('button[type="submit"]');
 const DATA_SOURCE_URL =
   window.DataBridge?.DEFAULT_DATA_SOURCE_URL ||
-  "https://script.google.com/macros/s/AKfycbyzOlQ008022FFG9Fmn2i3Z6AHr4DiVGk7sLxp-dvazjJSKZw0_ymXfqAFe2xeL2330/exec";
+  "https://script.google.com/macros/s/AKfycbxCgEYN-3z5lAtqPlf40Doji4lXp-cd6U35zX-7nRyLIPnzNAk60qUFXFXXydAwT2bx/exec";
 
 if (!activitiesTableBody) {
   throw new Error("Activities page is missing the table body element.");
