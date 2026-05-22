@@ -12,8 +12,8 @@
   --success: #0b7a38;
 }
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(circle at 12% 8%, rgba(17, 57, 124, 0.12), transparent 22rem), radial-gradient(circle at 88% 92%, rgba(205, 160, 82, 0.14), transparent 18rem), #e8edf5; color: var(--text-900); }
-.login-shell { width: min(1540px, 96vw); aspect-ratio: 16/9; min-height: min(92vh, 940px); margin: 2vh auto; border-radius: 24px; overflow: hidden; display: grid; grid-template-columns: 52% 48%; background: white; box-shadow: 0 36px 90px rgba(8, 24, 62, 0.3); border: 1px solid rgba(2, 17, 44, 0.2); }
+body { margin: 0; min-height: 100vh; font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(circle at 12% 8%, rgba(17, 57, 124, 0.12), transparent 22rem), radial-gradient(circle at 88% 92%, rgba(205, 160, 82, 0.14), transparent 18rem), #e8edf5; color: var(--text-900); overflow-x: hidden; }
+.login-shell { width: 100vw; min-height: 100vh; margin: 0; border-radius: 0; overflow: hidden; display: grid; grid-template-columns: 52% 48%; background: white; box-shadow: none; border: 0; }
 .brand-panel { position: relative; display: grid; place-items: center; padding: clamp(32px, 4vw, 60px); background: linear-gradient(165deg, #02173f 0%, #082b66 48%, #031731 100%); }
 .analytics-overlay { position: absolute; inset: 0; background: radial-gradient(circle at 72% 18%, rgba(205, 160, 82, 0.22), transparent 22%), linear-gradient(to top, rgba(83, 146, 255, 0.24) 0 1px, transparent 1px 100%), linear-gradient(to right, rgba(83, 146, 255, 0.12) 0 1px, transparent 1px 100%); background-size: auto, 100% 104px, 104px 100%; opacity: 0.48; }
 .brand-content { position: relative; z-index: 1; max-width: 560px; color: white; }
@@ -57,4 +57,4 @@ input::placeholder { color: #95a2b8; }
 .login-feedback.info { color: #1f4fa2; }
 .login-feedback.success { color: var(--success); }
 footer { text-align: center; margin-top: 16px; font-size: .9rem; color: #6d7990; }
-@media (max-width: 1100px) { .login-shell { grid-template-columns: 1fr; aspect-ratio: auto; min-height: 100vh; width: 100%; margin: 0; border-radius: 0; } .brand-panel { min-height: 420px; } }
+@media (max-width: 1100px) { .login-shell { grid-template-columns: 1fr; min-height: 100vh; width: 100%; margin: 0; border-radius: 0; } .brand-panel { min-height: 420px; } }
