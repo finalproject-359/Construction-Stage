@@ -2203,7 +2203,17 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
   const remoteActivities = Array.isArray(remoteActivityResult?.rows) ? remoteActivityResult.rows : [];
   const hasAuthoritativeActivitySheet = Boolean(remoteActivityResult?.authoritative);
   const selectedProjectHasFilter = Boolean(projectFilter?.projectId || projectFilter?.projectName);
-  const remoteActivityKeys = new Set(remoteActivities.map((item) => getCostActivityKey(item)));
+  const stableProjectActivities = selectedProjectHasFilter ? getStableCostActivities(projectFilter) : [];
+  const shouldUseStableProjectActivities = selectedProjectHasFilter
+    && !hasAuthoritativeActivitySheet
+    && stableProjectActivities.length > 0;
+  const effectiveRemoteActivities = shouldUseStableProjectActivities
+    ? stableProjectActivities
+    : remoteActivities;
+  if (shouldUseStableProjectActivities) {
+    console.warn("Unable to read latest costing activities from Google Sheets. Keeping the last stable costing rows visible.");
+  }
+  const remoteActivityKeys = new Set(effectiveRemoteActivities.map((item) => getCostActivityKey(item)));
   // Merge cached local overrides first so user-maintained Cost ID / planned-cost
   // metadata survives for matching sheet activities, then let fresh remote rows
   // refresh schedule fields. When the sheet was read successfully for the
@@ -2219,7 +2229,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
       if (!isActivityForProject(item, projectFilter.projectId, projectFilter.projectName)) return true;
       return remoteActivityKeys.has(getCostActivityKey(item));
     });
-  const merged = [...localActivities, ...remoteActivities];
+  const merged = [...localActivities, ...effectiveRemoteActivities];
   const deduped = new Map();
   merged.forEach((item) => {
     const key = `${String(item.projectId).trim()}::${String(getActivityRefId(item)).trim()}`;
@@ -2249,6 +2259,11 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
     });
   });
   const allActivities = Array.from(deduped.values());
+  if (selectedProjectHasFilter && hasAuthoritativeActivitySheet && effectiveRemoteActivities.length) {
+    rememberStableCostActivities(projectFilter, allActivities.filter((item) =>
+      isActivityForProject(item, projectFilter.projectId, projectFilter.projectName)
+    ));
+  }
   saveCostActivityOverrides(allActivities);
 
   await syncDailyCostsFromSheet(projectFilter, remoteDailyCosts);
@@ -2267,6 +2282,26 @@ const hasOpenCostDialog = () => Boolean(
 
 let isCostManagementSyncInFlight = false;
 let lastCostManagementUserInputAt = 0;
+const lastStableCostActivitiesByProject = new Map();
+
+const getProjectStabilityKey = (projectFilter = {}) => {
+  const projectId = String(projectFilter?.projectId || "").trim();
+  const projectName = String(projectFilter?.projectName || "").trim();
+  return projectId || projectName || "";
+};
+
+const rememberStableCostActivities = (projectFilter = {}, activities = []) => {
+  const key = getProjectStabilityKey(projectFilter);
+  if (!key || !Array.isArray(activities) || !activities.length) return;
+  lastStableCostActivitiesByProject.set(key, activities.map((item) => normalizeCostActivity(item)));
+};
+
+const getStableCostActivities = (projectFilter = {}) => {
+  const key = getProjectStabilityKey(projectFilter);
+  if (!key) return [];
+  const rows = lastStableCostActivitiesByProject.get(key);
+  return Array.isArray(rows) ? rows.map((item) => normalizeCostActivity(item)) : [];
+};
 
 const markCostManagementUserInput = () => {
   lastCostManagementUserInputAt = Date.now();
