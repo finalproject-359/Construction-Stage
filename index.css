@@ -518,6 +518,13 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   overflow-y: hidden;
 }
 
+.page-dashboard .dashboard-table-wrap {
+  max-height: clamp(300px, 42vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .page-dashboard .gap-panel table { min-width: 780px; }
 .page-dashboard .table-split-grid > .table-panel:first-child table { min-width: 900px; }
 .page-dashboard .table-split-grid > .table-panel:last-child table { min-width: 520px; }

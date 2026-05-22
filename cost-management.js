@@ -1087,11 +1087,25 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   const rawRows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
     const rowCostId = String(activity.costId || "").trim();
-    const dailyItems = daily.filter((entry) => {
+    const matchedDailyItems = daily.filter((entry) => {
       const entryActivityId = String(entry.activityId || "").trim();
       const entryCostId = String(entry.costId || "").trim();
       return entryActivityId === refId || (rowCostId && entryCostId === rowCostId);
     });
+    const dailyItems = Array.from(new Map(
+      matchedDailyItems.map((entry) => {
+        const entryDate = normalizeDateKey(entry.date);
+        const entryActivityId = String(entry.activityId || "").trim();
+        const entryCostId = String(entry.costId || "").trim();
+        const dedupeKey = [
+          String(entry.projectId || "").trim(),
+          rowCostId || entryCostId,
+          entryDate,
+          refId || entryActivityId,
+        ].join("::");
+        return [dedupeKey, entry];
+      }),
+    ).values());
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
     const accumulatedProgress = dailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
     const progressPercent = dailyItems.length ? clampPercent(accumulatedProgress) : clampPercent(activity.progressPercent);
