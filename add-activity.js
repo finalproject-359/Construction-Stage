@@ -20,16 +20,22 @@ const returnToActivities = selectedProject
 if (!selectedProject) {
   window.alert("Please select a project in Activities before opening the Add Activity page.");
   window.location.replace("activities.html");
+} else {
+  if (addActivityBackLink) addActivityBackLink.href = returnToActivities;
+  if (activityFormCancelLink) activityFormCancelLink.href = returnToActivities;
+  if (activityProjectInput) activityProjectInput.value = selectedProject;
 }
 
-if (addActivityBackLink) addActivityBackLink.href = returnToActivities;
-if (activityFormCancelLink) activityFormCancelLink.href = returnToActivities;
-if (activityProjectInput) activityProjectInput.value = selectedProject;
-
 if (activityStartDateInput && activityFinishDateInput) {
-  activityStartDateInput.addEventListener("change", () => {
+  const syncFinishDateMinimum = () => {
     activityFinishDateInput.min = activityStartDateInput.value || "";
+  };
+
+  activityStartDateInput.addEventListener("change", () => {
+    syncFinishDateMinimum();
   });
+
+  syncFinishDateMinimum();
 }
 
 const createActivityInSource = async (activity) => {
