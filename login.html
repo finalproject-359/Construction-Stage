@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CosTrack | Executive Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body>
+  <main class="login-shell">
+    <section class="brand-panel" aria-label="CosTrack executive overview">
+      <div class="analytics-overlay" aria-hidden="true"></div>
+      <div class="brand-content">
+        <img src="assets/logo-uploads/app-logo-v20260522.png" alt="CosTrack logo" class="brand-logo" />
+        <h1>Executive Project Dashboard</h1>
+        <p>Monitor project performance, cost management, and key metrics — all in one place.</p>
+      </div>
+    </section>
+
+    <section class="form-panel" aria-label="Sign in form">
+      <div class="form-wrap">
+        <header class="welcome-copy">
+          <h2>Welcome Back</h2>
+          <p>Sign in to continue to your dashboard</p>
+        </header>
+
+        <form class="login-card" id="loginForm" action="#" method="post" novalidate>
+          <label for="email">Email Address</label>
+          <div class="field-wrap">
+            <span class="icon" aria-hidden="true">✉</span>
+            <input type="email" id="email" name="email" placeholder="Enter your email" autocomplete="email" required />
+          </div>
+
+          <label for="password">Password</label>
+          <div class="field-wrap">
+            <span class="icon" aria-hidden="true">🔒</span>
+            <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <button class="visibility-toggle" id="togglePassword" type="button" aria-label="Show password">👁</button>
+          </div>
+
+          <div class="options-row">
+            <label class="remember-row">
+              <input type="checkbox" name="remember" />
+              <span>Remember me</span>
+            </label>
+            <button type="button" class="text-action" id="forgotPasswordButton">Forgot Password?</button>
+          </div>
+
+          <button type="submit" class="sign-in-btn">Sign In</button>
+          <div class="divider" role="presentation"><span>Secure sign-in</span></div>
+        </form>
+
+        <p class="login-feedback" id="loginFeedback" aria-live="polite"></p>
+        <footer>© 2026 CosTrack. All rights reserved.</footer>
+      </div>
+    </section>
+  </main>
+  <script src="login.js"></script>
+</body>
+</html>
