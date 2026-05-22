@@ -1302,7 +1302,9 @@ const buildDetailsMarkup = (project, rows) => {
   <section class="daily-cost-modal hidden" id="dailyCostModal"></section>
   <section class="cost-meta-modal hidden" id="costMetaModal"></section>`;
 };
-const setupCostRecordPagination = () => {
+const costRecordPageByProject = new Map();
+
+const setupCostRecordPagination = (projectId = "") => {
   const pagination = detailsView?.querySelector("[data-cost-pagination]");
   if (!pagination) return;
   const rows = Array.from(detailsView.querySelectorAll(".cost-record-table-panel tbody .cost-record-row"));
@@ -1310,13 +1312,15 @@ const setupCostRecordPagination = () => {
   const pageSize = COST_RECORD_PAGE_SIZE;
   const totalRows = rows.length;
   const totalPages = Math.ceil(totalRows / pageSize);
-  let currentPage = 1;
+  const projectKey = String(projectId || "").trim();
+  let currentPage = Math.max(1, Number(costRecordPageByProject.get(projectKey)) || 1);
   const summary = pagination.querySelector("[data-cost-pagination-summary]");
   const controls = pagination.querySelector("[data-cost-pagination-controls]");
   if (!controls || !summary) return;
 
   const renderPage = (targetPage) => {
     currentPage = Math.max(1, Math.min(totalPages, targetPage));
+    if (projectKey) costRecordPageByProject.set(projectKey, currentPage);
     const start = (currentPage - 1) * pageSize;
     const end = Math.min(totalRows, start + pageSize);
     rows.forEach((row, index) => row.classList.toggle("hidden", index < start || index >= end));
@@ -1340,7 +1344,7 @@ const setupCostRecordPagination = () => {
     if (button.dataset.nav === "prev") renderPage(currentPage - 1);
     if (button.dataset.nav === "next") renderPage(currentPage + 1);
   });
-  renderPage(1);
+  renderPage(currentPage);
 };
 
 const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities()) => {
@@ -1755,7 +1759,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
     if (!event.target.closest(".actions-col")) closeCostActionMenus();
   }, listenerOptions);
 
-  setupCostRecordPagination();
+  setupCostRecordPagination(projectId);
 
   return true;
 };
