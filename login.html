@@ -18,7 +18,6 @@
         <p class="eyebrow">Construction Financial Intelligence</p>
         <h1>Executive Cost &amp; Performance Command Center</h1>
         <p>Unify budget health, project delivery KPIs, and cost controls in a single trusted workspace.</p>
-
         <ul class="brand-metrics" aria-label="Platform highlights">
           <li><strong>Portfolio Visibility</strong><span>Track all active sites and spending in real time.</span></li>
           <li><strong>Audit-Ready Reporting</strong><span>Maintain clear records for finance and stakeholder reviews.</span></li>
@@ -29,24 +28,27 @@
 
     <section class="form-panel" aria-label="Sign in form">
       <div class="form-wrap">
-        <header class="welcome-copy">
-          <h2>Sign in to CosTrack</h2>
-          <p>Secure access for project leaders, finance teams, and operations.</p>
-        </header>
+        <div class="trust-row" aria-hidden="true">
+          <span>🔐 Bank-grade encryption</span><span>👥 Role-based access</span><span>☁ Reliable uptime</span>
+        </div>
 
         <form class="login-card" id="loginForm" action="#" method="post" novalidate>
-          <div class="security-chip" role="note" aria-label="Security notice">🔐 Bank-grade encrypted session</div>
+          <header class="welcome-copy">
+            <h2>Sign in to CosTrack</h2>
+            <p>Secure access for project leaders, finance teams, and operations.</p>
+          </header>
 
           <label for="email">Work Email</label>
-          <div class="field-wrap">
+          <div class="field-wrap" id="emailWrap">
             <span class="icon" aria-hidden="true">✉</span>
-            <input type="email" id="email" name="email" placeholder="name@company.com" autocomplete="email" required />
+            <input type="email" id="email" name="email" placeholder="name@company.com" autocomplete="email" required aria-describedby="emailError" />
           </div>
+          <p class="field-error" id="emailError" aria-live="polite"></p>
 
           <label for="password">Password</label>
-          <div class="field-wrap">
+          <div class="field-wrap" id="passwordWrap">
             <span class="icon" aria-hidden="true">🔒</span>
-            <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required />
+            <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required minlength="8" aria-describedby="passwordMeta" />
             <button class="visibility-toggle" id="togglePassword" type="button" aria-label="Show password">👁</button>
           </div>
 
@@ -60,14 +62,23 @@
             <button type="button" class="text-action" id="forgotPasswordButton">Forgot Password?</button>
           </div>
 
-          <button type="submit" class="sign-in-btn">Access Dashboard</button>
-          <div class="divider" role="presentation"><span>Protected workspace</span></div>
+          <button type="submit" class="sign-in-btn" id="submitButton">Sign In</button>
+
+          <div class="divider" role="presentation"><span id="passwordMeta">Protected workspace</span></div>
         </form>
 
         <p class="login-feedback" id="loginFeedback" aria-live="polite"></p>
-        <footer>© 2026 CosTrack. All rights reserved.</footer>
       </div>
     </section>
+
+    <footer class="login-footer">
+      <div class="footer-trust">
+        <div class="footer-item"><span class="footer-icon" aria-hidden="true">🛡️</span><div><strong>Secure</strong><p>Bank-grade encryption</p></div></div>
+        <div class="footer-item"><span class="footer-icon" aria-hidden="true">👥</span><div><strong>Trusted</strong><p>Role-based access</p></div></div>
+        <div class="footer-item"><span class="footer-icon" aria-hidden="true">☁</span><div><strong>Reliable</strong><p>Built for the field</p></div></div>
+      </div>
+      <p class="footer-copy">© 2026 CosTrack. All rights reserved.</p>
+    </footer>
   </main>
   <script src="login.js"></script>
 </body>
