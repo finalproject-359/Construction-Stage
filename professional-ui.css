@@ -41,8 +41,9 @@ body {
 
 .brand {
   min-height: 66px;
-  border-color: rgba(255, 255, 255, 0.12);
+  border: 0;
   background: rgba(255, 255, 255, 0.055);
+  box-shadow: none;
 }
 
 .brand h2 {
@@ -55,10 +56,21 @@ body {
 }
 
 .brand-logo {
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
-  background: linear-gradient(145deg, rgba(244, 176, 0, 0.22), rgba(244, 176, 0, 0.10));
-  border-color: rgba(244, 176, 0, 0.55);
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
   color: var(--construction-amber);
+}
+
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: brightness(1.18) contrast(1.2) saturate(1.15);
 }
 
 .menu a {
