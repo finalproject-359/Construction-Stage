@@ -662,14 +662,19 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  clip-path: inset(100% 0 0 0);
-  opacity: 0.15;
-  transition: clip-path 1050ms cubic-bezier(.22, .85, .2, 1), opacity 900ms ease;
+  opacity: 0;
+  transform: translateY(22px) scale(0.9);
+  filter: blur(8px);
+  transition:
+    transform 1050ms cubic-bezier(.22, .85, .2, 1),
+    opacity 900ms ease,
+    filter 900ms ease;
 }
 
 .dashboard-intro.intro-logo-build .intro-logo {
-  clip-path: inset(0 0 0 0);
   opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
 }
 
 .dashboard-intro.intro-logo-enter .intro-logo-wrap {
