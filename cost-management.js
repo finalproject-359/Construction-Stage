@@ -1606,6 +1606,18 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       earnedValue,
       isDelayed,
     };
+    const optimisticDailyCost = normalizeDailyCostRecord({
+      ...(existingDailyCost || {}),
+      ...dailyCostPayload,
+    });
+    const previousDailyCostsSnapshot = currentDailyCosts.slice();
+    const optimisticDailyCosts = currentDailyCosts.slice();
+    if (existingIndex >= 0) optimisticDailyCosts[existingIndex] = optimisticDailyCost;
+    else optimisticDailyCosts.push(optimisticDailyCost);
+    saveDailyCosts(optimisticDailyCosts);
+    updateDailyCostMetrics();
+    renderDailyCostModal(projectId, resolvedActivityRefId);
+
     setFormSavingState(form, true, existingIndex >= 0 ? "Updating…" : "Adding…");
     let saveVerifiedAfterTransportError = false;
     try {
@@ -1619,6 +1631,9 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
           syncedAfterError && loadDailyCosts().some((item) => isSavedDailyCostMatch(item, dailyCostPayload)),
         );
         if (!saveVerifiedAfterTransportError) {
+          saveDailyCosts(previousDailyCostsSnapshot);
+          updateDailyCostMetrics();
+          renderDailyCostModal(projectId, resolvedActivityRefId);
           alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
           return;
         }
