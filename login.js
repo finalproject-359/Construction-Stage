@@ -19,7 +19,7 @@ togglePasswordButton?.addEventListener("click", () => {
 });
 
 forgotPasswordButton?.addEventListener("click", () => {
-  feedback.textContent = "Use the default account shown below or contact your system administrator.";
+  feedback.textContent = "Please contact your system administrator to reset your credentials.";
   feedback.classList.add("info");
   feedback.classList.remove("error");
 });
