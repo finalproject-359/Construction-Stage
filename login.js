@@ -7,6 +7,7 @@ const passwordInput = document.getElementById("password");
 const feedback = document.getElementById("loginFeedback");
 const togglePasswordButton = document.getElementById("togglePassword");
 const forgotPasswordButton = document.getElementById("forgotPasswordButton");
+const capsLockHint = document.getElementById("capsLockHint");
 
 if (sessionStorage.getItem("costrackAuth") === "authenticated") {
   window.location.replace("index.html");
@@ -40,4 +41,10 @@ loginForm?.addEventListener("submit", (event) => {
   feedback.textContent = "Invalid credentials. Please use the assigned CosTrack account.";
   feedback.classList.add("error");
   feedback.classList.remove("info");
+});
+
+
+passwordInput?.addEventListener("keyup", (event) => {
+  const capsLockOn = event.getModifierState && event.getModifierState("CapsLock");
+  capsLockHint.textContent = capsLockOn ? "Caps Lock is on." : "";
 });
