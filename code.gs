@@ -553,8 +553,58 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
       .setNumberFormat("#,##0.00");
   }
 
+  syncDailyCostsFromCostRow(cost);
   syncCostActualFromDailyCost(projectId, costId, { syncProgress: false });
   syncProjectPlannedCostFromCosts(projectId, cost.project);
+}
+
+function syncDailyCostsFromCostRow(cost) {
+  var normalizedProjectId = cleanText(cost && cost.projectId);
+  var normalizedCostId = cleanText(cost && cost.costId);
+  if (!normalizedProjectId || !normalizedCostId) return;
+
+  var normalizedActivityId = cleanText(cost && cost.activityId);
+  var normalizedActivity = cleanText(cost && cost.activity);
+  var normalizedProject = cleanText(cost && cost.project);
+  var plannedCost = parseNumber(cost && cost.plannedCost);
+
+  var dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+  ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
+  var dailyColumns = getDailyCostColumnMap(dailySheet);
+  var values = dailySheet.getDataRange().getValues();
+
+  for (var i = 1; i < values.length; i += 1) {
+    var rowProjectId = cleanText(values[i][dailyColumns.projectId - 1]);
+    var rowCostId = cleanText(values[i][dailyColumns.costId - 1]);
+    var rowActivityId = dailyColumns.activityId
+      ? cleanText(values[i][dailyColumns.activityId - 1])
+      : "";
+    if (
+      rowProjectId !== normalizedProjectId ||
+      rowCostId !== normalizedCostId ||
+      (normalizedActivityId && rowActivityId && rowActivityId !== normalizedActivityId)
+    ) {
+      continue;
+    }
+
+    var targetRow = i + 1;
+    if (dailyColumns.project) {
+      dailySheet.getRange(targetRow, dailyColumns.project).setValue(
+        normalizedProject,
+      );
+    }
+    if (dailyColumns.activity && normalizedActivity) {
+      dailySheet.getRange(targetRow, dailyColumns.activity).setValue(
+        normalizedActivity,
+      );
+    }
+    if (dailyColumns.plannedCost) {
+      dailySheet
+        .getRange(targetRow, dailyColumns.plannedCost)
+        .setValue(roundTo(plannedCost, 2))
+        .setNumberFormat("#,##0.00");
+    }
+  }
 }
 
 function calculateProjectPlannedCostFromCosts(projectId, projectName) {
