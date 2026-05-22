@@ -1782,7 +1782,15 @@ const runDashboardIntro = () => {
 };
 
 if (document.body?.classList.contains("page-dashboard")) {
-  runDashboardIntro();
+  const shouldPlayDashboardIntro = sessionStorage.getItem("costrackPlayDashboardIntro") === "true";
+  const introEl = document.getElementById("dashboardIntro");
+
+  if (shouldPlayDashboardIntro) {
+    sessionStorage.removeItem("costrackPlayDashboardIntro");
+    runDashboardIntro();
+  } else if (introEl) {
+    introEl.classList.add("is-complete");
+  }
 }
 
 setupServiceWorkerUpdates();
