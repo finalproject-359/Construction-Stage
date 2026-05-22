@@ -471,6 +471,9 @@ body.page-activities .activities-date-btn:hover {
 
 
 body.page-activities .activities-project-empty-advisory {
+  border: 1px dashed #dbe5f3;
+  border-radius: 18px;
+  padding: clamp(26px, 4.5vw, 36px) 18px;
   border-color: #dbe5f3;
   background:
     radial-gradient(circle at 50% 0%, rgba(47, 85, 255, 0.06), transparent 38%),
