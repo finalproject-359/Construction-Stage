@@ -1878,27 +1878,31 @@ function syncCostActualFromDailyCost(projectId, costId, options) {
     ) {
       if (costColumns.actualCost) {
         var targetRow = rowIndex + 1;
-        costsSheet
-          .getRange(targetRow, costColumns.actualCost)
-          .setValue(totalActualCost);
-        costsSheet
-          .getRange(targetRow, costColumns.actualCost)
-          .setNumberFormat("#,##0.00");
+        var maxWritableColumn = Math.max(
+          costColumns.actualCost || 0,
+          costColumns.earnedValue || 0,
+          syncProgress && costProgressColumn > 0 ? costProgressColumn : 0,
+        );
+        var targetRange =
+          maxWritableColumn > 0
+            ? costsSheet.getRange(targetRow, 1, 1, maxWritableColumn)
+            : null;
+        var rowValues = targetRange ? targetRange.getValues()[0] : [];
+        var rowFormats = targetRange ? targetRange.getNumberFormats()[0] : [];
+
+        rowValues[costColumns.actualCost - 1] = roundTo(totalActualCost, 2);
+        rowFormats[costColumns.actualCost - 1] = "#,##0.00";
         if (syncProgress && costProgressColumn > 0) {
-          costsSheet.getRange(targetRow, costProgressColumn).setValue(
-            roundTo(totalProgress, 2),
-          );
-          costsSheet
-            .getRange(targetRow, costProgressColumn)
-            .setNumberFormat("0.00");
+          rowValues[costProgressColumn - 1] = roundTo(totalProgress, 2);
+          rowFormats[costProgressColumn - 1] = "0.00";
         }
         if (costColumns.earnedValue) {
-          costsSheet
-            .getRange(targetRow, costColumns.earnedValue)
-            .setValue(roundTo(totalEarnedValue, 2));
-          costsSheet
-            .getRange(targetRow, costColumns.earnedValue)
-            .setNumberFormat("#,##0.00");
+          rowValues[costColumns.earnedValue - 1] = roundTo(totalEarnedValue, 2);
+          rowFormats[costColumns.earnedValue - 1] = "#,##0.00";
+        }
+        if (targetRange) {
+          targetRange.setValues([rowValues]);
+          targetRange.setNumberFormats([rowFormats]);
         }
         if (syncProgress) {
           syncActivityProgressFromCost({
