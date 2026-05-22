@@ -2260,24 +2260,33 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
 
   if (!selectedProjectAfterBootstrap || !showProjectDetails(selectedProjectAfterBootstrap.id, resolvedSelectedTab, activitiesForDisplay)) renderProjects();
 };
-
-let isCostManagementSyncInFlight = false;
-
 const hasOpenCostDialog = () => Boolean(
   detailsView?.querySelector("#dailyCostModal:not(.hidden)")
   || detailsView?.querySelector("#costMetaModal:not(.hidden)")
 );
 
-const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
-  if (isCostManagementSyncInFlight) return;
-  if (!force && document.visibilityState === "hidden") return;
-  if (hasOpenCostDialog()) return;
+let isCostManagementSyncInFlight = false;
+let lastCostManagementUserInputAt = 0;
+
+const markCostManagementUserInput = () => {
+  lastCostManagementUserInputAt = Date.now();
+};
+
+const isCostManagementUserInteracting = () => {
+  if (hasOpenCostDialog()) return true;
   if (document.activeElement instanceof HTMLElement) {
     const isTyping =
       document.activeElement.matches("input, textarea, select")
       || document.activeElement.isContentEditable;
-    if (isTyping) return;
+    if (isTyping) return true;
   }
+  return Date.now() - lastCostManagementUserInputAt < 2000;
+};
+
+const refreshSelectedProjectCostView = async ({ force = false } = {}) => {
+  if (isCostManagementSyncInFlight) return;
+  if (!force && document.visibilityState === "hidden") return;
+  if (isCostManagementUserInteracting()) return;
 
   isCostManagementSyncInFlight = true;
   try {
@@ -2308,6 +2317,15 @@ window.addEventListener("pageshow", () => refreshSelectedProjectCostView({ force
 window.addEventListener("google-sheet:changed", () => refreshSelectedProjectCostView({ force: true }));
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refreshSelectedProjectCostView({ force: true });
+});
+
+
+["input", "change", "keydown"].forEach((eventName) => {
+  document.addEventListener(eventName, (event) => {
+    if (!(event.target instanceof HTMLElement)) return;
+    if (!event.target.closest("#costDetailsView, .cost-selection-filters-top, .cost-hero")) return;
+    markCostManagementUserInput();
+  }, { capture: true });
 });
 
 refreshSelectedProjectCostView({ force: true });
