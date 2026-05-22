@@ -68,8 +68,10 @@ input::placeholder { color: #95a2b8; }
   .login-shell { grid-template-columns: 1fr; grid-template-rows: auto auto auto; grid-template-areas: "form" "brand" "footer"; min-height: 100vh; width: 100%; margin: 0; border-radius: 0; }
   .form-panel { padding: 28px 0 34px; }
   .brand-panel { min-height: clamp(280px, 40vh, 420px); }
-  .login-footer { flex-direction: column; align-items: flex-start; padding: 16px 20px; }
-  .footer-copy { white-space: normal; }
+  .login-footer { padding: 14px 22px; }
+  .footer-trust { gap: 14px; }
+  .footer-item { padding-right: 14px; }
+  .footer-copy { white-space: nowrap; }
 }
 
 @media (max-width: 760px) {
@@ -78,6 +80,8 @@ input::placeholder { color: #95a2b8; }
   .trust-row { gap: 6px 12px; font-size: 0.78rem; margin: 0 4px 8px; }
   .brand-content h1 { font-size: clamp(1.8rem, 8vw, 2.4rem); }
   .brand-metrics { gap: 10px; margin-top: 22px; }
+  .login-footer { flex-direction: column; align-items: flex-start; gap: 10px; }
   .footer-trust { flex-direction: column; align-items: flex-start; gap: 10px; }
   .footer-item { border-right: 0; padding-right: 0; }
+  .footer-copy { white-space: normal; }
 }
