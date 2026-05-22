@@ -1425,11 +1425,29 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert(`Unable to delete in strict mode. ${error?.message || "Missing project/cost parent record."}`);
       return;
     }
-    await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
+    const nextDailyCosts = loadDailyCosts().filter((item) => {
+      const sameProject = isDailyCostForProject(item, projectId, normalizedProjectName);
+      const sameDate = normalizeDateKey(item.date) === normalizeDateKey(date);
+      const itemActivityId = String(item.activityId || "").trim();
+      const itemCostId = String(item.costId || "").trim();
+      const sameActivity = itemActivityId === resolvedActivityRefId || (activityCostId && itemCostId === activityCostId);
+      return !(sameProject && sameDate && sameActivity);
+    });
+    saveDailyCosts(nextDailyCosts);
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
-    const nextActivities = loadCostActivities();
-    showProjectDetails(projectId, activeTab, nextActivities);
+    showProjectDetails(projectId, activeTab, loadCostActivities());
     renderDailyCostModal(projectId, resolvedActivityRefId);
+    Promise.allSettled([
+      syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName }),
+      syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity }),
+    ]).then(async () => {
+      const metadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
+      applyCostMetadataRows(metadataRows);
+      showProjectDetails(projectId, activeTab, loadCostActivities());
+      renderDailyCostModal(projectId, resolvedActivityRefId);
+    }).catch((error) => {
+      console.warn("Daily cost delete background refresh failed:", error);
+    });
   }));
   const datePresetSelect = modal.querySelector("#dailyCostForm select[name=\"datePreset\"]");
   const customDateField = modal.querySelector("#customDateField");
@@ -1601,17 +1619,15 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         }
       }
 
-      try {
-        await syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName });
-        await syncCostSummaryToSheet({ projectId, projectName, activity });
-        const refreshedMetadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
-        applyCostMetadataRows(refreshedMetadataRows);
-      } catch (error) {
-        console.warn("Daily cost was saved, but the follow-up refresh/summary sync failed:", error);
-        if (typeof window.notify === "function") {
-          window.notify("Daily cost saved. Refresh the page if the latest totals do not appear yet.", "warning");
-        }
+      const localDailyCosts = loadDailyCosts();
+      if (existingIndex >= 0) {
+        localDailyCosts[existingIndex] = normalizeDailyCostRecord({ ...existingDailyCost, ...dailyCostPayload });
+      } else {
+        localDailyCosts.push(normalizeDailyCostRecord(dailyCostPayload));
       }
+      saveDailyCosts(localDailyCosts);
+
+      if (form.isConnected) setFormSavingState(form, false);
 
       if (typeof window.notify === "function") {
         window.notify(
@@ -1622,9 +1638,23 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         );
       }
       const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
-      const nextActivities = loadCostActivities();
-      showProjectDetails(projectId, activeTab, nextActivities);
+      showProjectDetails(projectId, activeTab, loadCostActivities());
       renderDailyCostModal(projectId, resolvedActivityRefId);
+
+      Promise.allSettled([
+        syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName }),
+        syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity }),
+      ]).then(async () => {
+        const refreshedMetadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
+        applyCostMetadataRows(refreshedMetadataRows);
+        showProjectDetails(projectId, activeTab, loadCostActivities());
+        renderDailyCostModal(projectId, resolvedActivityRefId);
+      }).catch((error) => {
+        console.warn("Daily cost background refresh failed:", error);
+        if (typeof window.notify === "function") {
+          window.notify("Daily cost saved. Refresh the page if the latest totals do not appear yet.", "warning");
+        }
+      });
     } finally {
       if (form.isConnected) setFormSavingState(form, false);
     }
