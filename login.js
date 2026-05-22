@@ -8,41 +8,102 @@ const feedback = document.getElementById("loginFeedback");
 const togglePasswordButton = document.getElementById("togglePassword");
 const forgotPasswordButton = document.getElementById("forgotPasswordButton");
 const capsLockHint = document.getElementById("capsLockHint");
+const emailError = document.getElementById("emailError");
+const emailWrap = document.getElementById("emailWrap");
+const passwordWrap = document.getElementById("passwordWrap");
+const submitButton = document.getElementById("submitButton");
 
 if (sessionStorage.getItem("costrackAuth") === "authenticated") {
   window.location.replace("index.html");
 }
 
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const setFeedback = (message, type) => {
+  feedback.textContent = message;
+  feedback.classList.remove("error", "info", "success");
+  if (type) feedback.classList.add(type);
+};
+
+const validateFields = () => {
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  let valid = true;
+
+  emailWrap.classList.remove("invalid");
+  passwordWrap.classList.remove("invalid");
+  emailError.textContent = "";
+
+  if (!email) {
+    emailWrap.classList.add("invalid");
+    emailError.textContent = "Email is required.";
+    valid = false;
+  } else if (!isValidEmail(email)) {
+    emailWrap.classList.add("invalid");
+    emailError.textContent = "Enter a valid work email address.";
+    valid = false;
+  }
+
+  if (!password) {
+    passwordWrap.classList.add("invalid");
+    setFeedback("Please enter your password.", "error");
+    valid = false;
+  }
+
+  return valid;
+};
+
 togglePasswordButton?.addEventListener("click", () => {
   const isPassword = passwordInput.type === "password";
   passwordInput.type = isPassword ? "text" : "password";
+  togglePasswordButton.textContent = isPassword ? "🙈" : "👁";
   togglePasswordButton.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
 });
 
 forgotPasswordButton?.addEventListener("click", () => {
-  feedback.textContent = "Please contact your system administrator to reset your credentials.";
-  feedback.classList.add("info");
-  feedback.classList.remove("error");
+  setFeedback("Please contact your system administrator to reset your credentials.", "info");
+});
+
+emailInput?.addEventListener("input", () => {
+  emailWrap.classList.remove("invalid");
+  emailError.textContent = "";
+});
+
+passwordInput?.addEventListener("input", () => {
+  passwordWrap.classList.remove("invalid");
+  if (feedback.classList.contains("error")) {
+    setFeedback("", "");
+  }
 });
 
 loginForm?.addEventListener("submit", (event) => {
   event.preventDefault();
 
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
-
-  if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
-    sessionStorage.setItem("costrackAuth", "authenticated");
-    sessionStorage.setItem("costrackPlayDashboardIntro", "true");
-    window.location.assign("index.html");
+  if (!validateFields()) {
     return;
   }
 
-  feedback.textContent = "Invalid credentials. Please use the assigned CosTrack account.";
-  feedback.classList.add("error");
-  feedback.classList.remove("info");
-});
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
 
+  submitButton.disabled = true;
+  submitButton.textContent = "Signing in...";
+
+  window.setTimeout(() => {
+    if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
+      sessionStorage.setItem("costrackAuth", "authenticated");
+      sessionStorage.setItem("costrackPlayDashboardIntro", "true");
+      setFeedback("Sign-in successful. Redirecting to dashboard...", "success");
+      window.location.assign("index.html");
+      return;
+    }
+
+    submitButton.disabled = false;
+    submitButton.textContent = "Access Dashboard";
+    passwordWrap.classList.add("invalid");
+    setFeedback("Invalid credentials. Please use the assigned CosTrack account.", "error");
+  }, 500);
+});
 
 passwordInput?.addEventListener("keyup", (event) => {
   const capsLockOn = event.getModifierState && event.getModifierState("CapsLock");
