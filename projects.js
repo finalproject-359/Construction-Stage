@@ -37,8 +37,8 @@ const kpiEls = {
 };
 
 if (!projectModal || !projectForm || !projectsTableBody) {
-  throw new Error("Projects page is missing required elements.");
-}
+  console.warn("Projects page is missing required elements. Project script initialization skipped.");
+} else {
 
 const LOCAL_STORAGE_KEY = "constructionStageProjects";
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
@@ -1272,3 +1272,5 @@ const setupProjectsRealtimeSync = () => {
 
 refreshProjectsIfVisible({ force: true });
 setupProjectsRealtimeSync();
+
+}
