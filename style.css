@@ -304,10 +304,10 @@ body {
 }
 
 .dashboard-table-wrap {
-  max-height: clamp(280px, 38vh, 420px);
-  overflow-y: auto;
+  height: clamp(280px, 38vh, 420px);
+  overflow: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
 }
 
 .dashboard-table-wrap thead th {
