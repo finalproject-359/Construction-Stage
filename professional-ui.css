@@ -561,3 +561,18 @@ textarea:focus-visible {
     border-top: 1px solid var(--dashboard-line);
   }
 }
+
+
+.sidebar-footer-logo {
+  margin-top: auto;
+  padding-top: 28px;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebar-footer-logo img {
+  width: min(170px, 100%);
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+}
