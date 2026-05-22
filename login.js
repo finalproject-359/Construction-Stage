@@ -32,6 +32,7 @@ loginForm?.addEventListener("submit", (event) => {
 
   if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
     sessionStorage.setItem("costrackAuth", "authenticated");
+    sessionStorage.setItem("costrackPlayDashboardIntro", "true");
     window.location.assign("index.html");
     return;
   }
