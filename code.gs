@@ -293,11 +293,6 @@ function refreshDailyCostRowMetrics(dailySheet, rowNumber, columns) {
       plannedCost * (Math.max(0, Math.min(100, progress)) / 100),
       2,
     );
-  } else if (plannedCostPerDay > 0 && progress >= 0) {
-    earnedValue = roundTo(
-      plannedCostPerDay * (Math.max(0, Math.min(100, progress)) / 100),
-      2,
-    );
   }
 
   if (columns.progress && progress >= 0) {
@@ -312,6 +307,38 @@ function refreshDailyCostRowMetrics(dailySheet, rowNumber, columns) {
     dailySheet
       .getRange(rowNumber, columns.earnedValue)
       .setNumberFormat("#,##0.00");
+  }
+}
+
+
+function refreshDailyCostMetricsForCost(projectId, costId, activityId, activityName) {
+  var dailySheet = getOrCreateSheet(CONFIG.sheetNames.dailyCosts);
+  ensureSheetHeaders(dailySheet, CONFIG.headers.dailyCosts);
+  var columns = getDailyCostColumnMap(dailySheet);
+  var values = dailySheet.getDataRange().getValues();
+  if (values.length <= 1) return;
+
+  var targetProjectId = cleanText(projectId);
+  var targetCostId = cleanText(costId);
+  var targetActivityId = cleanText(activityId);
+  var targetActivityName = cleanText(activityName);
+
+  for (var i = 1; i < values.length; i += 1) {
+    var row = values[i];
+    var rowProjectId = columns.projectId ? cleanText(row[columns.projectId - 1]) : "";
+    if (targetProjectId && rowProjectId !== targetProjectId) continue;
+
+    var rowCostId = columns.costId ? cleanText(row[columns.costId - 1]) : "";
+    var rowActivityId = columns.activityId ? cleanText(row[columns.activityId - 1]) : "";
+    var rowActivity = columns.activity ? cleanText(row[columns.activity - 1]) : "";
+
+    var matches =
+      (targetCostId && rowCostId === targetCostId) ||
+      (targetActivityId && rowActivityId === targetActivityId) ||
+      (!targetActivityId && !targetCostId && targetActivityName && rowActivity === targetActivityName);
+    if (!matches) continue;
+
+    refreshDailyCostRowMetrics(dailySheet, i + 1, columns);
   }
 }
 
@@ -986,6 +1013,7 @@ function handleRequest(payload) {
       daily_costs: {
         count: filtered.dailyCosts.length,
         dailyCosts: filtered.dailyCosts,
+        verification: summarizeDailyCostVerification(filtered.dailyCosts),
       },
       dashboard: buildDashboardPayload(filtered),
       all: buildAllPayload(filtered),
@@ -1649,8 +1677,8 @@ function normalizeIncomingDailyCost(input) {
     2,
   );
   var computedEarnedValue =
-    plannedCostPerDay > 0 && progress >= 0
-      ? roundTo(plannedCostPerDay * (progress / 100), 2)
+    plannedCost > 0 && progress >= 0
+      ? roundTo(plannedCost * (progress / 100), 2)
       : 0;
 
   return {
@@ -2278,6 +2306,31 @@ function upsertCostRow(cost) {
     rowNumber > 1 ? rowNumber : Math.max(sheet.getLastRow() + 1, 2);
   sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
   applyCostRowFormats(sheet, targetRow, columns);
+
+  var effectiveProjectId = columns.projectId
+    ? cleanText(rowValues[columns.projectId - 1])
+    : cleanText(cost.projectId);
+  var effectiveCostId = columns.costId
+    ? cleanText(rowValues[columns.costId - 1])
+    : cleanText(cost.costId);
+  var effectiveActivityId = columns.activityId
+    ? cleanText(rowValues[columns.activityId - 1])
+    : cleanText(cost.activityId);
+  var effectiveActivity = columns.activity
+    ? cleanText(rowValues[columns.activity - 1])
+    : cleanText(cost.activity);
+
+  refreshDailyCostMetricsForCost(
+    effectiveProjectId,
+    effectiveCostId,
+    effectiveActivityId,
+    effectiveActivity,
+  );
+  syncCostActualFromDailyCost(effectiveProjectId, effectiveCostId, {
+    activityId: effectiveActivityId,
+    syncProgress: false,
+  });
+
   syncProjectPlannedCostFromCosts(
     columns.projectId
       ? cleanText(rowValues[columns.projectId - 1])
@@ -4314,6 +4367,13 @@ function normalizeCostRecord(row) {
   };
 }
 
+function computeDailyEarnedValueFromPlannedCost(plannedCost, progress) {
+  var normalizedPlannedCost = parseNumber(plannedCost);
+  var normalizedProgress = Math.max(0, Math.min(100, parseNumber(progress)));
+  if (normalizedPlannedCost <= 0 || normalizedProgress <= 0) return 0;
+  return roundTo(normalizedPlannedCost * (normalizedProgress / 100), 2);
+}
+
 function normalizeDailyCostRecord(row) {
   return {
     projectId: cleanText(
@@ -4375,7 +4435,33 @@ function normalizeDailyCostRecord(row) {
         row["actualCost"] ||
         row["actual_cost"],
     ),
-    earnedValue: parseNumber(
+    earnedValue: (function () {
+      var storedEarnedValue = parseNumber(
+        row["Earned Value/Day"] ||
+          row["Earned Value"] ||
+          row["earnedValue"] ||
+          row["earned_value"] ||
+          row["EV"],
+      );
+      var plannedCost = parseNumber(
+        row["Planned Cost"] ||
+          row["plannedCost"] ||
+          row["planned_cost"] ||
+          row["plannedValue"],
+      );
+      var progress = parseNumber(
+        row["Progress/Day"] ||
+          row["Progress"] ||
+          row["progress"] ||
+          row["progressPerDay"] ||
+          row["progress_per_day"] ||
+          row["percentComplete"] ||
+          row["% Complete"],
+      );
+      var recomputedEarnedValue = computeDailyEarnedValueFromPlannedCost(plannedCost, progress);
+      return recomputedEarnedValue > 0 ? recomputedEarnedValue : storedEarnedValue;
+    })(),
+    earnedValueStored: parseNumber(
       row["Earned Value/Day"] ||
         row["Earned Value"] ||
         row["earnedValue"] ||
@@ -4385,6 +4471,23 @@ function normalizeDailyCostRecord(row) {
     createdAt: normalizeDate(
       row["Created At"] || row["createdAt"] || row["created_at"],
     ),
+  };
+}
+
+
+function summarizeDailyCostVerification(rows) {
+  var items = Array.isArray(rows) ? rows : [];
+  var mismatched = 0;
+  for (var i = 0; i < items.length; i += 1) {
+    var current = items[i] || {};
+    if (roundTo(current.earnedValue, 2) !== roundTo(current.earnedValueStored, 2)) {
+      mismatched += 1;
+    }
+  }
+  return {
+    totalRows: items.length,
+    matchedRows: Math.max(0, items.length - mismatched),
+    mismatchedRows: mismatched,
   };
 }
 
@@ -4682,6 +4785,7 @@ function buildAllPayload(data) {
     daily_costs: {
       count: data.dailyCosts.length,
       dailyCosts: data.dailyCosts,
+      verification: summarizeDailyCostVerification(data.dailyCosts),
     },
     dashboard: buildDashboardPayload(data),
   };

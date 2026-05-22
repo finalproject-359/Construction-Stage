@@ -1407,7 +1407,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     ? entries.map((entry) => {
       const progressValue = Number(entry.progress);
       const hasManualProgress = Number.isFinite(progressValue);
-      const earnedValue = hasManualProgress ? activityPlannedCostPerDay * (progressValue / 100) : Number.NaN;
+      const earnedValue = hasManualProgress ? activityPlannedCost * (progressValue / 100) : Number.NaN;
       const progressLabel = hasManualProgress ? `${progressValue.toFixed(2)}%` : "—";
       const earnedValueLabel = Number.isFinite(earnedValue) ? formatBudget(earnedValue) : "—";
       const status = deriveDailyCostStatus(entry, activity);
@@ -1576,7 +1576,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert("Strict mode: please add a valid Cost ID first before saving daily costs.");
       return;
     }
-    const earnedValue = Number((activityPlannedCostPerDay * (progress / 100)).toFixed(2));
+    const earnedValue = Number((activityPlannedCost * (progress / 100)).toFixed(2));
     if (existingDailyCost) {
       const existingProgress = Number(existingDailyCost.progress);
       const existingActualCost = Number(existingDailyCost.actualCost);
