@@ -1440,7 +1440,10 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       return;
     }
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
-    const refreshTask = Promise.allSettled([
+    // Keep the modal snappy by re-rendering it first from local cache.
+    // The heavier project-details table refresh is deferred to background sync.
+    renderDailyCostModal(projectId, resolvedActivityRefId);
+    Promise.allSettled([
       syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName }),
       syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity }),
     ]);
@@ -1644,8 +1647,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         );
       }
       const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
-      const nextActivities = loadCostActivities();
-      showProjectDetails(projectId, activeTab, nextActivities);
+      // Keep daily-record rendering responsive by avoiding an immediate full details redraw.
       renderDailyCostModal(projectId, resolvedActivityRefId);
     } finally {
       if (form.isConnected) setFormSavingState(form, false);
