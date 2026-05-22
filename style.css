@@ -304,16 +304,23 @@ body {
 }
 
 .dashboard-table-wrap {
-  height: clamp(280px, 38vh, 420px);
-  overflow: auto;
+  display: block;
+  max-height: clamp(300px, 42vh, 460px);
+  overflow-x: auto;
+  overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
-.dashboard-table-wrap thead th {
+.dashboard-scroll-table {
+  min-width: 1120px;
+}
+
+.dashboard-scroll-table thead th {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   background: var(--panel);
 }
 
