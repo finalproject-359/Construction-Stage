@@ -27,18 +27,18 @@
           <p>Sign in to continue to your dashboard</p>
         </header>
 
-        <form class="login-card" action="#" method="post" novalidate>
+        <form class="login-card" id="loginForm" action="#" method="post" novalidate>
           <label for="email">Email Address</label>
           <div class="field-wrap">
             <span class="icon" aria-hidden="true">✉</span>
-            <input type="email" id="email" name="email" placeholder="Enter your email" autocomplete="email" value="costrack2026@gmail.com" />
+            <input type="email" id="email" name="email" placeholder="Enter your email" autocomplete="email" value="costrack2026@gmail.com" required />
           </div>
 
           <label for="password">Password</label>
           <div class="field-wrap">
             <span class="icon" aria-hidden="true">🔒</span>
-            <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" value="costrack2026" />
-            <button class="visibility-toggle" type="button" aria-label="Show password">👁</button>
+            <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" value="costrack2026" required />
+            <button class="visibility-toggle" id="togglePassword" type="button" aria-label="Show password">👁</button>
           </div>
 
           <div class="options-row">
@@ -46,7 +46,7 @@
               <input type="checkbox" name="remember" />
               <span>Remember me</span>
             </label>
-            <button type="button" class="text-action">Forgot Password?</button>
+            <button type="button" class="text-action" id="forgotPasswordButton">Forgot Password?</button>
           </div>
 
           <button type="submit" class="sign-in-btn">Sign In</button>
@@ -54,9 +54,11 @@
           <div class="divider" role="presentation"><span>or</span></div>
         </form>
 
+        <p class="login-feedback" id="loginFeedback" aria-live="polite"></p>
         <footer>© 2024 CosTrack Tech. All rights reserved.</footer>
       </div>
     </section>
   </main>
+  <script src="login.js"></script>
 </body>
 </html>
