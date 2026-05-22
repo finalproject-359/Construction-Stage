@@ -99,7 +99,7 @@ loginForm?.addEventListener("submit", (event) => {
     }
 
     submitButton.disabled = false;
-    submitButton.textContent = "Access Dashboard";
+    submitButton.textContent = "Sign In";
     passwordWrap.classList.add("invalid");
     setFeedback("Invalid credentials. Please use the assigned CosTrack account.", "error");
   }, 500);
