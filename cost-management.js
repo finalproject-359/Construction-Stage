@@ -333,7 +333,7 @@ const getPhilippineHolidaySetForYear = (year) => {
 };
 const isWorkingDate = (date) => {
   const day = date.getDay();
-  if (day === 0 || day === 6) return false;
+  if (day === 0) return false;
   const holidays = getPhilippineHolidaySetForYear(date.getFullYear());
   return !holidays.has(formatMonthDayKey(date));
 };

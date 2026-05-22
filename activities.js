@@ -663,7 +663,7 @@ const countPhilippineWorkingDaysInclusive = (startDate, finishDate) => {
 
   while (cursor <= end) {
     const dayOfWeek = cursor.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isSunday = dayOfWeek === 0;
     const year = cursor.getFullYear();
 
     if (year !== currentYear) {
@@ -672,7 +672,7 @@ const countPhilippineWorkingDaysInclusive = (startDate, finishDate) => {
     }
 
     const isHoliday = yearHolidaySet?.has(formatMonthDayKey(cursor));
-    if (!isWeekend && !isHoliday) workingDays += 1;
+    if (!isSunday && !isHoliday) workingDays += 1;
 
     cursor.setDate(cursor.getDate() + 1);
   }
