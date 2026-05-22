@@ -811,13 +811,22 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   .date-range-field + .date-range-field { border-left: 0; border-top: 1px solid var(--dashboard-line); }
   .page-dashboard .chart-canvas-wrap { height: 300px; }
   .chart-metric-chips { width: 100%; }
+  .dashboard-header,
+  .dashboard-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dashboard-action-button {
+    width: 100%;
+    justify-content: center;
+  }
   .summary-sort-filter {
     align-items: flex-start;
     flex-direction: column;
     margin-left: 0;
     width: 100%;
   }
-  .summary-sort-filter select { width: 100%; }
+  .summary-sort-filter select { width: 100%; min-width: 0; }
   .dashboard-hero { padding: 20px; border-radius: 22px; }
   .dashboard-hero h1 { letter-spacing: -0.035em; }
   .dashboard-control-panel,
