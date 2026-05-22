@@ -1649,7 +1649,7 @@ const handleDeleteActivity = async (activityKey) => {
 
   state.allActivities.splice(index, 1);
   refreshFilterOptions();
-  applyFilters();
+  applyFilters({ resetPage: false });
 
   const deletedCosts = Number(deletePayload?.deletedCosts) || 0;
   const deletedDailyCosts = Number(deletePayload?.deletedDailyCosts) || 0;
@@ -2098,7 +2098,7 @@ if (activityModalForm) {
       state.allActivities.unshift(nextActivity);
     }
     refreshFilterOptions();
-    applyFilters();
+    applyFilters({ resetPage: false });
     closeAddActivityModal();
     isActivityModalSubmitting = false;
     if (activityModalSubmitBtn) {
