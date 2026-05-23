@@ -435,14 +435,45 @@ const syncDateRangeInputConstraints = () => {
   }
 };
 
+const resolvePresetDateRange = (selectedRange) => {
+  if (selectedRange === "all" || selectedRange === "custom") return null;
+
+  const today = new Date();
+  const startDate = new Date(today);
+  const endDate = new Date(today);
+
+  if (selectedRange === "today") {
+    return { startDate, endDate };
+  }
+
+  if (selectedRange === "week") {
+    const dayOfWeek = today.getDay();
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startDate.setDate(today.getDate() - daysSinceMonday);
+    endDate.setDate(startDate.getDate() + 6);
+    return { startDate, endDate };
+  }
+
+  if (selectedRange === "month") {
+    startDate.setDate(1);
+    endDate.setMonth(today.getMonth() + 1, 0);
+    return { startDate, endDate };
+  }
+
+  if (selectedRange === "year") {
+    startDate.setMonth(0, 1);
+    endDate.setMonth(11, 31);
+    return { startDate, endDate };
+  }
+
+  return { startDate, endDate };
+};
+
 const updateDateRangeFilterValues = () => {
   if (!dateStartFilterEl || !dateEndFilterEl || !dateRangeFilterEl) return;
 
   const selectedRange = dateRangeFilterEl.value;
   setCustomDateRangeFieldsVisibility();
-  const today = new Date();
-  const startDate = new Date(today);
-  const endDate = new Date(today);
 
   if (selectedRange === "all") {
     dateStartFilterEl.value = "";
@@ -456,18 +487,14 @@ const updateDateRangeFilterValues = () => {
     return;
   }
 
-  if (selectedRange === "week") {
-    const dayOfWeek = today.getDay();
-    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    startDate.setDate(today.getDate() - daysSinceMonday);
-  } else if (selectedRange === "month") {
-    startDate.setDate(1);
-  } else if (selectedRange === "year") {
-    startDate.setMonth(0, 1);
+  const presetRange = resolvePresetDateRange(selectedRange);
+  if (!presetRange) {
+    syncDateRangeInputConstraints();
+    return;
   }
 
-  dateStartFilterEl.value = formatDateInputValue(startDate);
-  dateEndFilterEl.value = formatDateInputValue(endDate);
+  dateStartFilterEl.value = formatDateInputValue(presetRange.startDate);
+  dateEndFilterEl.value = formatDateInputValue(presetRange.endDate);
   syncDateRangeInputConstraints();
 };
 
@@ -504,7 +531,16 @@ const getFilteredRows = (rows) => {
     .filter((row) => {
       const projectMatches = selectedProject === "all"
       || normalize(row.project, "").trim().toLowerCase() === selectedProject;
-      return projectMatches && rowMatchesDateFilter(row, startDate, endDate);
+      if (!projectMatches) return false;
+      if (!startDate && !endDate) return true;
+
+      if (Array.isArray(row.dailyEntries) && row.dailyEntries.length) {
+        return row.dailyEntries.some((entry) =>
+          rowMatchesDateFilter({ startDate: entry.date, finishDate: entry.date }, startDate, endDate)
+        );
+      }
+
+      return rowMatchesDateFilter(row, startDate, endDate);
     })
     .map((row) => {
       if (!Array.isArray(row.dailyEntries) || !row.dailyEntries.length) return row;
@@ -513,19 +549,7 @@ const getFilteredRows = (rows) => {
       const matchingEntries = row.dailyEntries.filter((entry) =>
         rowMatchesDateFilter({ startDate: entry.date, finishDate: entry.date }, startDate, endDate)
       );
-      if (!matchingEntries.length) {
-        return {
-          ...row,
-          actualCost: 0,
-          ev: 0,
-          cv: 0,
-          percentComplete: 0,
-          costUsedPercent: 0,
-          startDate: "",
-          finishDate: "",
-          date: "",
-        };
-      }
+      if (!matchingEntries.length) return null;
 
       const actualCost = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.actualCost), 0);
       const evFromEntries = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.earnedValue), 0);
@@ -558,7 +582,8 @@ const getFilteredRows = (rows) => {
         finishDate: lastDate,
         date: lastDate || firstDate || row.date || "",
       };
-    });
+    })
+    .filter(Boolean);
 };
 
 const syncFilterOptionsFromRows = (rows) => {
