@@ -515,11 +515,13 @@ const rowMatchesDateFilter = (row, startDate, endDate, options = {}) => {
   const rowEnd = normalizedRowStart && normalizedRowEnd && normalizedRowStart > normalizedRowEnd
     ? normalizedRowStart
     : normalizedRowEnd;
+  const comparisonStart = rowStart || rowEnd;
+  const comparisonEnd = rowEnd || rowStart;
 
-  if (!rowStart && !rowEnd) return false;
+  if (!comparisonStart && !comparisonEnd) return false;
 
-  if (startDate && rowEnd && rowEnd < startDate) return false;
-  if (endDate && rowStart && rowStart > endDate) return false;
+  if (startDate && comparisonEnd && comparisonEnd < startDate) return false;
+  if (endDate && comparisonStart && comparisonStart > endDate) return false;
   return true;
 };
 
