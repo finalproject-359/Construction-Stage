@@ -265,6 +265,17 @@ const setFormSavingState = (form, isSaving, savingText = "Saving…") => {
       : escapeHtml(submitButton.dataset.defaultLabel || "Save");
   }
 };
+const setButtonLoadingState = (button, isLoading, loadingLabel = "Processing…") => {
+  if (!(button instanceof HTMLButtonElement)) return;
+  if (isLoading) {
+    if (!button.dataset.defaultLabel) button.dataset.defaultLabel = button.textContent.trim();
+    button.disabled = true;
+    button.innerHTML = `<span class="btn-spinner" aria-hidden="true"></span><span>${escapeHtml(loadingLabel)}</span>`;
+    return;
+  }
+  button.disabled = false;
+  button.textContent = button.dataset.defaultLabel || "Submit";
+};
 
 const getStatusTone = (status = "") => {
   const normalized = String(status).toLowerCase();
@@ -1367,7 +1378,19 @@ const setupCostRecordPagination = (projectId = "") => {
   renderPage(currentPage);
 };
 
-const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities()) => {
+const dailyCostModalState = {
+  openProjectId: "",
+  openActivityId: "",
+  manuallyClosed: false,
+};
+const closeDailyCostModal = () => {
+  const modal = detailsView.querySelector("#dailyCostModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+  dailyCostModalState.manuallyClosed = true;
+};
+const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities(), options = {}) => {
+  const { forceOpen = false } = options;
   const modal = detailsView.querySelector("#dailyCostModal");
   const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
   const projectName = String(project?.name || "").trim();
@@ -1379,6 +1402,13 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
 
   const requestedActivityIdentifier = String(activityId || "").trim();
   const resolvedActivityRefId = String(getActivityRefId(activity) || requestedActivityIdentifier).trim();
+  const isSameModalContext =
+    dailyCostModalState.openProjectId === String(projectId || "").trim()
+    && dailyCostModalState.openActivityId === resolvedActivityRefId;
+  if (!forceOpen && isSameModalContext && dailyCostModalState.manuallyClosed) return;
+  dailyCostModalState.openProjectId = String(projectId || "").trim();
+  dailyCostModalState.openActivityId = resolvedActivityRefId;
+  dailyCostModalState.manuallyClosed = false;
   const normalizedActivityName = String(activity.name || "").trim().toLowerCase();
   const activityCostId = String(activity.costId || "").trim();
   const activityName = String(activity.name || "").trim();
@@ -1428,13 +1458,15 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     <section class="daily-cost-section"><h4>Daily Cost Records</h4><div class="daily-cost-table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Progress/Day</th><th>Actual Cost/Day (₱)</th><th>Earned Value/Day (₱)</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></section>
     <div class="daily-cost-footer"><button type="button" class="ghost-btn" id="closeDailyModalBtnFooter">Close</button></div></div>`;
 
-  modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", () => modal.classList.add("hidden"));
-  modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", () => modal.classList.add("hidden"));
+  modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", closeDailyCostModal);
+  modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", closeDailyCostModal);
   modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", async () => {
+    setButtonLoadingState(button, true, "Deleting…");
     const date = String(button.dataset.deleteDate || "");
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
     const resolvedProjectName = String(activity.projectName || activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
+      setButtonLoadingState(button, false);
       alert("Unable to delete daily cost because Project ID is missing.");
       return;
     }
@@ -1442,6 +1474,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       await postToDataSource("daily_costs", "delete", { dailyCost: { projectId: resolvedProjectId, costId: activityCostId, activityId: resolvedActivityRefId, date } });
     } catch (error) {
       console.warn("Unable to delete daily cost from Google Sheets:", error);
+      setButtonLoadingState(button, false);
       alert(`Unable to delete in strict mode. ${error?.message || "Missing project/cost parent record."}`);
       return;
     }
@@ -1480,6 +1513,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
     renderDailyCostModal(projectId, resolvedActivityRefId);
+    if (typeof window.notify === "function") window.notify("Record deleted successfully.", "success");
   }));
   const datePresetSelect = modal.querySelector("#dailyCostForm select[name=\"datePreset\"]");
   const customDateField = modal.querySelector("#customDateField");
@@ -1684,7 +1718,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         window.notify(
           saveVerifiedAfterTransportError
             ? "Daily cost saved in Google Sheets. The Apps Script response could not be read, but the saved row was verified."
-            : existingIndex >= 0 ? "Daily cost updated successfully." : "Daily cost added successfully.",
+            : existingIndex >= 0 ? "Record updated successfully." : "Costing record saved successfully.",
           "success",
         );
       }
@@ -1846,7 +1880,7 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
       const activityId = actionBtn.dataset.activityId;
       closeCostActionMenus();
       if (actionBtn.classList.contains("view-daily-cost-btn")) {
-        renderDailyCostModal(projectId, activityId, allActivities);
+        renderDailyCostModal(projectId, activityId, allActivities, { forceOpen: true });
       } else {
         editCostMetadata(projectId, activityId, allActivities);
       }
