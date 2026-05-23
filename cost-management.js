@@ -1256,7 +1256,10 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
           Number(row.progress) || 0,
           Number(existing.progress) || 0,
         ));
-        const mergedProgressPercent = clampPercent(Math.max(mergedProgress, mergedSheetProgress));
+        // If daily records exist, they are the source of truth for Progress/Day totals.
+        const mergedProgressPercent = uniqueDailyItems.length > 0
+          ? clampPercent(mergedProgress)
+          : clampPercent(Math.max(mergedProgress, mergedSheetProgress));
         const mergedEarnedValueFromDaily = uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
         if (mergedEarnedValueFromDaily > 0) return mergedEarnedValueFromDaily;
         const mergedPlannedCost = parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost);
@@ -1279,6 +1282,9 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
           Number(existing.progress) || 0,
           Number(row.progress) || 0,
         ));
+        // Keep UI aligned with Daily Cost modal: when daily rows are present,
+        // show accumulated Progress/Day instead of stale sheet-level progress.
+        if (uniqueDailyItems.length > 0) return clampPercent(mergedProgress);
         return clampPercent(Math.max(mergedProgress, mergedSheetProgress));
       })(),
       actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
