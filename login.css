@@ -25,8 +25,8 @@ body { margin: 0; min-height: 100vh; font-family: "Inter", system-ui, -apple-sys
 .brand-metrics { margin: 30px 0 0; padding: 0; list-style: none; display: grid; gap: 14px; }
 .brand-metrics li { display: grid; grid-template-columns: 42px 1fr; align-items: start; gap: 10px; padding: 12px 14px; border: 1px solid rgba(192, 213, 251, 0.22); background: rgba(5, 24, 57, 0.46); border-radius: 12px; backdrop-filter: blur(2px); }
 .metric-icon { width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: 10px; background: rgba(205, 160, 82, 0.2); color: #ffd892; font-size: .95rem; margin-top: 2px; }
-.brand-metrics strong { font-size: .95rem; font-weight: 700; letter-spacing: .01em; }
-.brand-metrics span { font-size: .9rem; color: rgba(224, 234, 250, 0.92); line-height: 1.38; }
+.brand-metrics strong { display: block; margin-bottom: 4px; font-size: .95rem; font-weight: 700; letter-spacing: .01em; }
+.brand-metrics span { display: block; font-size: .9rem; color: rgba(224, 234, 250, 0.92); line-height: 1.38; }
 .form-panel { grid-area: form; background: linear-gradient(180deg, #fbfdff 0%, #f2f6fc 100%); display: grid; place-items: center; }
 .form-wrap { width: min(540px, 88%); }
 .login-card { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(4px); border: 1px solid rgba(18, 46, 96, 0.14); border-radius: 18px; padding: 26px 28px 28px; box-shadow: 0 20px 46px rgba(13, 34, 72, 0.13); }
