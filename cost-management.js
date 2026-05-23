@@ -241,6 +241,30 @@ const formatProjectTimeline = (project) => {
   const finish = project.finishDate ? formatHumanDate(project.finishDate) : "Finish not set";
   return `${start} — ${finish}`;
 };
+
+
+const isFormDirty = (form) => {
+  if (!(form instanceof HTMLFormElement)) return false;
+  const controls = Array.from(form.elements || []);
+  return controls.some((control) => {
+    if (
+      control instanceof HTMLInputElement
+      || control instanceof HTMLTextAreaElement
+      || control instanceof HTMLSelectElement
+    ) {
+      if (control.disabled) return false;
+      if (control instanceof HTMLInputElement && (control.type === "checkbox" || control.type === "radio")) {
+        return control.checked !== control.defaultChecked;
+      }
+      return control.value !== control.defaultValue;
+    }
+    return false;
+  });
+};
+const confirmDiscardFormChanges = (form, prompt = "You have unsaved changes. Discard them?") => {
+  if (!isFormDirty(form)) return true;
+  return window.confirm(prompt);
+};
 const setFormSavingState = (form, isSaving, savingText = "Saving…") => {
   if (!(form instanceof HTMLFormElement)) return;
   const submitButton = form.querySelector('button[type="submit"]');
@@ -1476,13 +1500,18 @@ const shouldHydrateDailyCostSession = (sessionKey = "") => {
   if (dailyCostModalState.manuallyClosed) return false;
   return dailyCostModalState.sessionKey === sessionKey;
 };
-const closeDailyCostModal = () => {
+const closeDailyCostModal = ({ force = false } = {}) => {
   const modal = detailsView.querySelector("#dailyCostModal");
-  if (!modal) return;
+  if (!modal) return false;
+  const form = modal.querySelector("#dailyCostForm");
+  if (!force && form instanceof HTMLFormElement && !confirmDiscardFormChanges(form, "You have unsaved Daily Cost changes. Discard and close?")) {
+    return false;
+  }
   modal.classList.add("hidden");
   dailyCostModalState.manuallyClosed = true;
   dailyCostModalState.sessionKey = "";
   dailyCostModalState.activeRequestToken += 1;
+  return true;
 };
 const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities(), options = {}) => {
   const { forceOpen = false } = options;
@@ -1568,6 +1597,9 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   const isCurrentRenderSession = () => shouldHydrateDailyCostSession(renderSessionKey) && dailyCostModalState.activeRequestToken === requestToken;
   modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", closeDailyCostModal);
   modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", closeDailyCostModal);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) closeDailyCostModal();
+  });
   modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", async () => {
     setButtonLoadingState(button, true, "Deleting…");
     setDailyCostModalBusy(true, "Deleting record…");
@@ -2032,7 +2064,14 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
   const plannedPreview = formatBudget(parseBudgetValue(target.plannedCost));
   modal.innerHTML = `<div class="cost-meta-dialog panel" role="dialog" aria-modal="true" aria-labelledby="costMetaTitle"><div class="cost-meta-head cost-meta-head-enhanced"><div><span class="eyebrow">${hasExistingCost ? "Update cost setup" : "New cost setup"}</span><h3 id="costMetaTitle">${hasExistingCost ? "Edit Cost Details" : "Add Cost Details"}</h3><p>Assign a cost code and planned budget before recording daily field costs.</p></div><button type="button" class="cost-meta-close" id="closeCostMetaModalBtn" aria-label="Close">×</button></div><div class="cost-meta-activity-card"><span>Activity</span><strong>${escapeHtml(target.name || "Untitled Activity")}</strong><p>${Number(target.durationDays) || 0} day duration · Current planned cost ${plannedPreview}</p></div><form id="costMetaForm" class="cost-meta-form"><label class="cost-meta-field" for="costMetaIdInput"><span>Cost ID <strong aria-hidden="true">*</strong></span><input id="costMetaIdInput" name="costId" type="text" placeholder="e.g., C001" value="${escapeHtml(target.costId || "")}" autocomplete="off" required><small>Use a short unique code that matches your cost sheet.</small></label><label class="cost-meta-field" for="costMetaPlannedInput"><span>Planned Cost (₱) <strong aria-hidden="true">*</strong></span><input id="costMetaPlannedInput" name="plannedCost" type="number" min="0" step="0.01" placeholder="Enter planned cost" value="${Number(target.plannedCost) || 0}" required><small>This amount is used to calculate planned cost per day and earned value.</small></label><div class="cost-meta-save-note"><strong>What happens next?</strong><span>The record is saved to Google Sheets, then the costing table refreshes with the updated budget.</span></div><div class="cost-meta-actions"><button type="button" class="ghost-btn" id="cancelCostMetaModalBtn">Cancel</button><button type="submit" class="primary-btn">Save Cost Details</button></div></form></div>`;
 
-  const closeModal = () => modal.classList.add("hidden");
+  const closeModal = ({ force = false } = {}) => {
+    const form = modal.querySelector("#costMetaForm");
+    if (!force && form instanceof HTMLFormElement && !confirmDiscardFormChanges(form, "You have unsaved Cost Details changes. Discard and close?")) {
+      return false;
+    }
+    modal.classList.add("hidden");
+    return true;
+  };
   modal.querySelector("#closeCostMetaModalBtn")?.addEventListener("click", closeModal);
   modal.querySelector("#cancelCostMetaModalBtn")?.addEventListener("click", closeModal);
   modal.addEventListener("click", (event) => {
@@ -2101,7 +2140,7 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
     if (typeof window.notify === "function") {
       window.notify(hasExistingCost ? "Cost details updated successfully." : "Cost details saved successfully.", "success");
     }
-    closeModal();
+    closeModal({ force: true });
     showProjectDetails(projectId, "costing", loadCostActivities());
   });
 };
