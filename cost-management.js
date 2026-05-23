@@ -1117,7 +1117,7 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     const plannedCostPerDay = Number(activity.durationDays) > 0
       ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
       : 0;
-    const earnedValue = earnedValueFromDaily > 0
+    const earnedValue = dailyItems.length
       ? earnedValueFromDaily
       : computeEarnedValue(plannedCostPerDay, dailyItems.length, progressPercent, activity.earnedValue);
     return { ...activity, progressPercent, actualCost, dailyItems, earnedValue };

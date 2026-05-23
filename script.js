@@ -1467,8 +1467,8 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
       "Actual Cost": dailyTotals?.count
         ? dailyTotals.actualCost
         : parseNumber(readBundleCell(cost, ["actual cost", "actualCost", "actual_cost", "actual cost/day", "cost", "amount"], 0)),
-      "Progress": dailyTotals?.count && dailyTotals.progress ? dailyTotals.progress : progress,
-      "Earned Value": dailyTotals?.count && dailyTotals.earnedValue
+      "Progress": dailyTotals?.count ? dailyTotals.progress : progress,
+      "Earned Value": dailyTotals?.count
         ? dailyTotals.earnedValue
         : providedEarnedValue !== ""
           ? parseNumber(providedEarnedValue)
@@ -1503,8 +1503,8 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
       "Actual Cost": dailyTotals?.count
         ? dailyTotals.actualCost
         : parseNumber(readBundleCell(activity, ["actual cost", "actualCost", "actual_cost"], 0)),
-      "Progress": dailyTotals?.count && dailyTotals.progress ? dailyTotals.progress : progress,
-      "Earned Value": dailyTotals?.count && dailyTotals.earnedValue
+      "Progress": dailyTotals?.count ? dailyTotals.progress : progress,
+      "Earned Value": dailyTotals?.count
         ? dailyTotals.earnedValue
         : providedEarnedValue !== ""
           ? parseNumber(providedEarnedValue)
