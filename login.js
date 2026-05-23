@@ -41,7 +41,7 @@ const validateFields = () => {
     valid = false;
   } else if (!isValidEmail(email)) {
     emailWrap.classList.add("invalid");
-    emailError.textContent = "Enter a valid work email address.";
+    emailError.textContent = "Enter a valid email address.";
     valid = false;
   }
 
@@ -61,7 +61,9 @@ const validateFields = () => {
 togglePasswordButton?.addEventListener("click", () => {
   const isPassword = passwordInput.type === "password";
   passwordInput.type = isPassword ? "text" : "password";
-  togglePasswordButton.textContent = isPassword ? "🙈" : "👁";
+  togglePasswordButton.innerHTML = isPassword
+    ? '<i class="fa-regular fa-eye-slash"></i>'
+    : '<i class="fa-regular fa-eye"></i>';
   togglePasswordButton.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
 });
 
