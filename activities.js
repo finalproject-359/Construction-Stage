@@ -5,8 +5,8 @@ const activitiesTypeFilter = document.getElementById("activitiesTypeFilter");
 const activitiesSelectedProjectName = document.getElementById("activitiesSelectedProjectName");
 const activitiesPageHero = document.querySelector(".activities-topbar.page-hero");
 const activitiesBackToProjectsBtn = document.getElementById("activitiesBackToProjectsBtn");
-const activitiesDateFilterWrap = document.querySelector(".activities-date-filter");
 const activitiesDateFilterBtn = document.getElementById("activitiesDateFilterBtn");
+const activitiesDateFilterWrap = activitiesDateFilterBtn?.closest(".activities-date-filter") || null;
 const activitiesDateFilterLabel = document.getElementById("activitiesDateFilterLabel");
 const activitiesDateRangePanel = document.getElementById("activitiesDateRangePanel");
 const activitiesFilterStartDate = document.getElementById("activitiesFilterStartDate");
@@ -1490,13 +1490,14 @@ const applyFilters = ({ resetPage = true } = {}) => {
         const textMatch =
           !searchValue ||
           `${item.name} ${item.type} ${item.status}`.toLowerCase().includes(searchValue);
-        const dateValue = item.plannedStartDate;
         const hasDateFilter = Boolean(dateStartValue || dateEndValue);
+        const startDate = item.plannedStartDate;
+        const finishDate = item.plannedFinishDate || item.plannedStartDate;
         const dateMatch =
           !hasDateFilter ||
-          (dateValue &&
-            (!dateStartValue || dateValue >= dateStartValue) &&
-            (!dateEndValue || dateValue <= dateEndValue));
+          ((startDate || finishDate) &&
+            (!dateStartValue || (finishDate && finishDate >= dateStartValue)) &&
+            (!dateEndValue || (startDate && startDate <= dateEndValue)));
 
         return projectMatch && statusMatch && typeMatch && textMatch && dateMatch;
       })
@@ -1910,6 +1911,14 @@ if (activitiesDateFilterBtn) {
     if (isOpen) {
       closeDateRangePanel();
       return;
+    }
+
+    if (activitiesFilterStartDate) {
+      activitiesFilterStartDate.value = toInputDate(state.dateRange.start);
+    }
+    if (activitiesFilterEndDate) {
+      activitiesFilterEndDate.value = toInputDate(state.dateRange.end);
+      activitiesFilterEndDate.min = activitiesFilterStartDate?.value || "";
     }
     openDateRangePanel();
   });
