@@ -435,14 +435,45 @@ const syncDateRangeInputConstraints = () => {
   }
 };
 
+const resolvePresetDateRange = (selectedRange) => {
+  if (selectedRange === "all" || selectedRange === "custom") return null;
+
+  const today = new Date();
+  const startDate = new Date(today);
+  const endDate = new Date(today);
+
+  if (selectedRange === "today") {
+    return { startDate, endDate };
+  }
+
+  if (selectedRange === "week") {
+    const dayOfWeek = today.getDay();
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startDate.setDate(today.getDate() - daysSinceMonday);
+    endDate.setDate(startDate.getDate() + 6);
+    return { startDate, endDate };
+  }
+
+  if (selectedRange === "month") {
+    startDate.setDate(1);
+    endDate.setMonth(today.getMonth() + 1, 0);
+    return { startDate, endDate };
+  }
+
+  if (selectedRange === "year") {
+    startDate.setMonth(0, 1);
+    endDate.setMonth(11, 31);
+    return { startDate, endDate };
+  }
+
+  return { startDate, endDate };
+};
+
 const updateDateRangeFilterValues = () => {
   if (!dateStartFilterEl || !dateEndFilterEl || !dateRangeFilterEl) return;
 
   const selectedRange = dateRangeFilterEl.value;
   setCustomDateRangeFieldsVisibility();
-  const today = new Date();
-  const startDate = new Date(today);
-  const endDate = new Date(today);
 
   if (selectedRange === "all") {
     dateStartFilterEl.value = "";
@@ -456,18 +487,14 @@ const updateDateRangeFilterValues = () => {
     return;
   }
 
-  if (selectedRange === "week") {
-    const dayOfWeek = today.getDay();
-    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    startDate.setDate(today.getDate() - daysSinceMonday);
-  } else if (selectedRange === "month") {
-    startDate.setDate(1);
-  } else if (selectedRange === "year") {
-    startDate.setMonth(0, 1);
+  const presetRange = resolvePresetDateRange(selectedRange);
+  if (!presetRange) {
+    syncDateRangeInputConstraints();
+    return;
   }
 
-  dateStartFilterEl.value = formatDateInputValue(startDate);
-  dateEndFilterEl.value = formatDateInputValue(endDate);
+  dateStartFilterEl.value = formatDateInputValue(presetRange.startDate);
+  dateEndFilterEl.value = formatDateInputValue(presetRange.endDate);
   syncDateRangeInputConstraints();
 };
 
