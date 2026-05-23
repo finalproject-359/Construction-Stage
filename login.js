@@ -15,9 +15,11 @@ const passwordWrap = document.getElementById("passwordWrap");
 const submitButton = document.getElementById("submitButton");
 let loginAttemptTimer = null;
 
-const getAuthStorage = () => (localStorage.getItem("costrackRememberMe") === "true" ? localStorage : sessionStorage);
+const getAuthStorage = (rememberMe) => (rememberMe ? localStorage : sessionStorage);
 
-if (sessionStorage.getItem("costrackAuth") === "authenticated" || localStorage.getItem("costrackAuth") === "authenticated") {
+if (sessionStorage.getItem("costrackAuth") === "authenticated") {
+  window.location.replace("index.html");
+} else if (localStorage.getItem("costrackRememberMe") === "true" && localStorage.getItem("costrackAuth") === "authenticated") {
   sessionStorage.setItem("costrackAuth", "authenticated");
   window.location.replace("index.html");
 }
@@ -110,10 +112,11 @@ loginForm?.addEventListener("submit", (event) => {
 
   loginAttemptTimer = window.setTimeout(() => {
     if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
-      const authStorage = getAuthStorage();
+      const rememberMe = Boolean(rememberMeCheckbox?.checked);
+      localStorage.setItem("costrackRememberMe", String(rememberMe));
+      const authStorage = getAuthStorage(rememberMe);
       authStorage.setItem("costrackAuth", "authenticated");
-      localStorage.setItem("costrackRememberMe", String(Boolean(rememberMeCheckbox?.checked)));
-      if (!(rememberMeCheckbox?.checked)) {
+      if (!rememberMe) {
         localStorage.removeItem("costrackAuth");
       }
       sessionStorage.setItem("costrackAuth", "authenticated");
