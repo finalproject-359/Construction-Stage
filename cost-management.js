@@ -533,14 +533,17 @@ const cleanupOrphanedDailyCosts = (activities = loadCostActivities()) => {
 
 const runInternalDailyCostDataChecker = (items = [], activities = loadCostActivities()) => {
   const normalizedActivities = activities.map(normalizeCostActivity);
-  const activityByScopedKey = new Map();
+  const activityByScopedIdOrCostKey = new Map();
+  const activityByScopedNameKey = new Map();
 
   normalizedActivities.forEach((activity) => {
     const projectKey = normalizeLookup(resolveActivityProjectId(activity));
     const activityId = normalizeLookup(getActivityRefId(activity));
     const costId = normalizeLookup(activity.costId);
-    if (projectKey && activityId) activityByScopedKey.set(`${projectKey}::${activityId}`, activity);
-    if (projectKey && costId) activityByScopedKey.set(`${projectKey}::${costId}`, activity);
+    const activityName = normalizeLookup(activity.name);
+    if (projectKey && activityId) activityByScopedIdOrCostKey.set(`${projectKey}::${activityId}`, activity);
+    if (projectKey && costId) activityByScopedIdOrCostKey.set(`${projectKey}::${costId}`, activity);
+    if (projectKey && activityName) activityByScopedNameKey.set(`${projectKey}::${activityName}`, activity);
   });
 
   const lookups = buildProjectIdentityLookups(loadProjects());
@@ -549,8 +552,13 @@ const runInternalDailyCostDataChecker = (items = [], activities = loadCostActivi
   (Array.isArray(items) ? items : []).forEach((item) => {
     const normalized = normalizeDailyCostRecord(item, lookups);
     const projectKey = normalizeLookup(normalized.projectId);
-    const activityKey = normalizeLookup(normalized.activityId || normalized.costId);
-    const linkedActivity = activityByScopedKey.get(`${projectKey}::${activityKey}`) || null;
+    const activityIdKey = normalizeLookup(normalized.activityId);
+    const costIdKey = normalizeLookup(normalized.costId);
+    const activityNameKey = normalizeLookup(normalized.activity);
+    const linkedActivity = activityByScopedIdOrCostKey.get(`${projectKey}::${activityIdKey}`)
+      || activityByScopedIdOrCostKey.get(`${projectKey}::${costIdKey}`)
+      || activityByScopedNameKey.get(`${projectKey}::${activityNameKey}`)
+      || null;
 
     if (!projectKey || !normalized.date || !linkedActivity) return;
 
