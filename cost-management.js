@@ -1123,9 +1123,10 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     ).values());
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
     const accumulatedProgress = dailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
-    // Costing progress should reflect DailyCosts input only. Keep it at 0 until at
-    // least one daily-cost row exists for this activity.
-    const progressPercent = dailyItems.length ? clampPercent(accumulatedProgress) : 0;
+    const sheetProgress = clampPercent(Number(activity.progressPercent ?? activity.progress) || 0);
+    // Prefer whichever is newer/higher between accumulated DailyCosts progress and
+    // the synced Progress value stored on the Costs sheet to avoid stale UI display.
+    const progressPercent = clampPercent(Math.max(accumulatedProgress, sheetProgress));
     const earnedValueFromDaily = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
     const plannedCostPerDay = Number(activity.durationDays) > 0
       ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
@@ -1180,9 +1181,13 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       plannedCost: parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost),
       earnedValue: (() => {
         const mergedProgress = uniqueDailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
-        const mergedProgressPercent = uniqueDailyItems.length
-          ? clampPercent(mergedProgress)
-          : clampPercent(Number(row.progressPercent) || Number(existing.progressPercent) || 0);
+        const mergedSheetProgress = clampPercent(Math.max(
+          Number(row.progressPercent) || 0,
+          Number(existing.progressPercent) || 0,
+          Number(row.progress) || 0,
+          Number(existing.progress) || 0,
+        ));
+        const mergedProgressPercent = clampPercent(Math.max(mergedProgress, mergedSheetProgress));
         const mergedEarnedValueFromDaily = uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
         if (mergedEarnedValueFromDaily > 0) return mergedEarnedValueFromDaily;
         const mergedPlannedCost = parseBudgetValue(row.plannedCost) || parseBudgetValue(existing.plannedCost);
@@ -1199,8 +1204,13 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
       })(),
       progressPercent: (() => {
         const mergedProgress = uniqueDailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
-        if (uniqueDailyItems.length) return clampPercent(mergedProgress);
-        return clampPercent(Number(existing.progressPercent) || Number(row.progressPercent) || 0);
+        const mergedSheetProgress = clampPercent(Math.max(
+          Number(existing.progressPercent) || 0,
+          Number(row.progressPercent) || 0,
+          Number(existing.progress) || 0,
+          Number(row.progress) || 0,
+        ));
+        return clampPercent(Math.max(mergedProgress, mergedSheetProgress));
       })(),
       actualCost: uniqueDailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0),
       durationDays: Math.max(Number(existing.durationDays) || 0, Number(row.durationDays) || 0),
