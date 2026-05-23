@@ -1797,6 +1797,25 @@ body.page-cost-management .details-tab-panel td.actions-col .project-actions-men
   animation: cost-spin 700ms linear infinite;
 }
 
+.daily-cost-busy-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: rgba(241, 245, 249, 0.78);
+  backdrop-filter: blur(1px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #0f2952;
+  z-index: 5;
+}
+
+.daily-cost-dialog {
+  position: relative;
+}
+
 .daily-cost-duplicate-hint {
   margin: 10px 0 0;
   padding: 10px 12px;
