@@ -208,7 +208,19 @@ const normalizeProject = (project = {}) => {
 
   const startDate = startDateRaw || "";
   const finishDate = finishDateRaw || "";
-  const normalizedStatus = String(statusRaw || "Not Started").trim() || "Not Started";
+  const normalizeProjectStatus = (value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    const statusMap = {
+      "not started": "Not Started",
+      "in progress": "In Progress",
+      "on hold": "On Hold",
+      completed: "Completed",
+      archived: "Archived",
+    };
+    return statusMap[normalized] || "Not Started";
+  };
+  const normalizedStatus = normalizeProjectStatus(statusRaw);
+  const progressRaw = Number(getValueByAliases(project, ["progress", "percentComplete", "percent_complete"]));
 
   const progressByStatus = {
     Completed: 100,
@@ -228,10 +240,7 @@ const normalizeProject = (project = {}) => {
     startDate,
     finishDate,
     budget: parseBudgetValue(budgetRaw),
-    progress:
-      Number.isFinite(Number(getValueByAliases(project, ["progress", "percentComplete", "percent_complete"])))
-        ? Math.max(0, Math.min(100, Number(getValueByAliases(project, ["progress", "percentComplete", "percent_complete"]))))
-        : progressByStatus[normalizedStatus] ?? 0,
+    progress: Number.isFinite(progressRaw) ? Math.max(0, Math.min(100, progressRaw)) : progressByStatus[normalizedStatus] ?? 0,
     description: String(descriptionRaw || "").trim(),
     archivedDate: archivedDateRaw || finishDate || createdAtRaw || "",
     archiveReason: String(archiveReasonRaw || descriptionRaw || "Project completed").trim(),
