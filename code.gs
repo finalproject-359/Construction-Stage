@@ -521,7 +521,6 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
   var costId = columns.costId ? cleanText(rowValues[columns.costId - 1]) : "";
   if (!projectId || !costId) return;
 
-  var rawProgress = columns.progress ? rowValues[columns.progress - 1] : null;
   var cost = {
     projectId: projectId,
     project: columns.project ? cleanText(rowValues[columns.project - 1]) : "",
@@ -538,23 +537,9 @@ function refreshCostRowMetrics(costsSheet, rowNumber, columns) {
     earnedValue: columns.earnedValue
       ? parseNumber(rowValues[columns.earnedValue - 1])
       : 0,
-    progress: hasExplicitValue(rawProgress) ? parseNumber(rawProgress) : null,
   };
 
-  if (hasExplicitValue(rawProgress)) syncActivityProgressFromCost(cost);
-
-  if (columns.earnedValue) {
-    var computedEarnedValue = Number(computeEarnedValue(cost)) || 0;
-    costsSheet
-      .getRange(rowNumber, columns.earnedValue)
-      .setValue(computedEarnedValue);
-    costsSheet
-      .getRange(rowNumber, columns.earnedValue)
-      .setNumberFormat("#,##0.00");
-  }
-
-  syncDailyCostsFromCostRow(cost);
-  syncCostActualFromDailyCost(projectId, costId, { syncProgress: false });
+  syncCostActualFromDailyCost(projectId, costId);
   syncProjectPlannedCostFromCosts(projectId, cost.project);
 }
 
@@ -2309,37 +2294,10 @@ function upsertCostRow(cost) {
   if (columns.activityId) rowValues[columns.activityId - 1] = cost.activityId;
   if (columns.activity) rowValues[columns.activity - 1] = cost.activity;
   if (columns.duration) rowValues[columns.duration - 1] = cost.duration;
-  if (columns.progress && hasExplicitValue(cost.progress)) {
-    rowValues[columns.progress - 1] = cost.progress;
-  }
-  if (hasExplicitValue(cost.progress)) {
-    syncActivityProgressFromCost({
-      projectId: columns.projectId
-        ? cleanText(rowValues[columns.projectId - 1])
-        : cleanText(cost.projectId),
-      project: columns.project
-        ? cleanText(rowValues[columns.project - 1])
-        : cleanText(cost.project),
-      activityId: columns.activityId
-        ? cleanText(rowValues[columns.activityId - 1])
-        : cleanText(cost.activityId),
-      activity: columns.activity
-        ? cleanText(rowValues[columns.activity - 1])
-        : cleanText(cost.activity),
-      progress: columns.progress ? rowValues[columns.progress - 1] : cost.progress,
-    });
-  }
   if (columns.plannedCost)
     rowValues[columns.plannedCost - 1] = cost.plannedCost;
   if (columns.plannedCostPerDay)
     rowValues[columns.plannedCostPerDay - 1] = cost.plannedCostPerDay;
-  if (columns.actualCost) rowValues[columns.actualCost - 1] = cost.actualCost;
-  const explicitEarnedValue = parseNumber(cost && cost.earnedValue);
-  const computedEarnedValue = Number(computeEarnedValue(cost)) || 0;
-  const normalizedEarnedValue =
-    explicitEarnedValue > 0 ? explicitEarnedValue : computedEarnedValue;
-  if (columns.earnedValue)
-    rowValues[columns.earnedValue - 1] = Number(normalizedEarnedValue) || 0;
   if (columns.category) rowValues[columns.category - 1] = cost.category;
   if (columns.date) rowValues[columns.date - 1] = cost.date;
   if (columns.notes) rowValues[columns.notes - 1] = cost.notes;
@@ -2378,7 +2336,6 @@ function upsertCostRow(cost) {
   );
   syncCostActualFromDailyCost(effectiveProjectId, effectiveCostId, {
     activityId: effectiveActivityId,
-    syncProgress: false,
   });
 
   syncProjectPlannedCostFromCosts(
