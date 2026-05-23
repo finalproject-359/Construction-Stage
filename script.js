@@ -1007,7 +1007,7 @@ const destroyCharts = () => {
 
 };
 
-const buildDashboardChartOptions = ({ yAxis, valueFormatter, legendPosition = "bottom" } = {}) => ({
+const buildDashboardChartOptions = ({ yAxis, valueFormatter, legendPosition = "bottom", xLabelStep = 1 } = {}) => ({
   responsive: true,
   maintainAspectRatio: false,
   animation: { duration: 260 },
@@ -1050,7 +1050,9 @@ const buildDashboardChartOptions = ({ yAxis, valueFormatter, legendPosition = "b
         color: "#667085",
         font: { size: 11, weight: "700" },
         maxRotation: 0,
-        callback: function tickLabel(value) {
+        autoSkip: false,
+        callback: function tickLabel(value, index) {
+          if (xLabelStep > 1 && index % xLabelStep !== 0) return "";
           return truncateChartLabel(this.getLabelForValue(value));
         },
       },
@@ -1067,6 +1069,11 @@ const buildDashboardChartOptions = ({ yAxis, valueFormatter, legendPosition = "b
     },
   },
 });
+
+const computeXAxisLabelStep = (count, targetVisibleLabels = 8) => {
+  if (!count || count <= targetVisibleLabels) return 1;
+  return Math.ceil(count / targetVisibleLabels);
+};
 
 const labelsFromChartItems = (items = []) => {
   const firstItem = items[0];
@@ -1100,6 +1107,7 @@ const generateCharts = (rows) => {
   const costUsedSeries = rows.map((row) => row.costUsedPercent);
   const varianceValues = rows.map((row) => row.cv);
   const costAxis = buildLinearAxisRange(varianceValues, { includeZero: true, targetTickCount: 6 });
+  const xLabelStep = computeXAxisLabelStep(labels.length, 7);
 
   const varianceCanvas = document.getElementById("varianceChart");
   const costCanvas = document.getElementById("costChart");
@@ -1109,8 +1117,8 @@ const generateCharts = (rows) => {
   }
 
   const sharedLineStyles = {
-    pointRadius: 3,
-    pointHoverRadius: 5,
+    pointRadius: labels.length > 14 ? 1.5 : 3,
+    pointHoverRadius: labels.length > 14 ? 3 : 5,
     borderWidth: 3,
     tension: 0.35,
     fill: false,
@@ -1142,6 +1150,7 @@ const generateCharts = (rows) => {
       ],
     },
     options: buildDashboardChartOptions({
+      xLabelStep,
       valueFormatter: (value) => formatPercent(value),
       yAxis: {
         min: 0,
@@ -1164,11 +1173,14 @@ const generateCharts = (rows) => {
           borderWidth: 1,
           borderRadius: 10,
           borderSkipped: false,
-          maxBarThickness: 42,
+          maxBarThickness: 28,
+          categoryPercentage: 0.72,
+          barPercentage: 0.84,
         },
       ],
     },
     options: buildDashboardChartOptions({
+      xLabelStep,
       valueFormatter: formatCurrency,
       yAxis: {
         min: costAxis.min,
