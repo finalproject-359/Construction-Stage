@@ -517,6 +517,7 @@ const rowMatchesDateFilter = (row, startDate, endDate) => {
     : normalizedRowEnd;
 
   if (!rowStart && !rowEnd) return false;
+
   if (startDate && rowEnd && rowEnd < startDate) return false;
   if (endDate && rowStart && rowStart > endDate) return false;
   return true;
@@ -540,7 +541,9 @@ const getFilteredRows = (rows) => {
         );
       }
 
-      return rowMatchesDateFilter(row, startDate, endDate);
+      // Date-filtered dashboard totals should come from DailyCosts-derived dailyEntries.
+      // If no daily entries exist for this row, we cannot isolate in-range values safely.
+      return false;
     })
     .map((row) => {
       if (!Array.isArray(row.dailyEntries) || !row.dailyEntries.length) return row;
