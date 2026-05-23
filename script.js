@@ -505,7 +505,7 @@ const handleDateRangeInputChange = () => {
   applyFiltersAndRender();
 };
 
-const rowMatchesDateFilter = (row, startDate, endDate) => {
+const rowMatchesDateFilter = (row, startDate, endDate, options = {}) => {
   if (!startDate && !endDate) return true;
   const normalizedRowStart = normalizeDateOnly(row.startDate) || normalizeDateOnly(row.date);
   const normalizedRowEnd = normalizeDateOnly(row.finishDate) || normalizedRowStart;
