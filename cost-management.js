@@ -1112,14 +1112,16 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     ).values());
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
     const accumulatedProgress = dailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
-    const progressPercent = dailyItems.length ? clampPercent(accumulatedProgress) : clampPercent(activity.progressPercent);
+    // Costing progress should reflect DailyCosts input only. Keep it at 0 until at
+    // least one daily-cost row exists for this activity.
+    const progressPercent = dailyItems.length ? clampPercent(accumulatedProgress) : 0;
     const earnedValueFromDaily = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
     const plannedCostPerDay = Number(activity.durationDays) > 0
       ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
       : 0;
     const earnedValue = dailyItems.length
       ? earnedValueFromDaily
-      : computeEarnedValue(plannedCostPerDay, dailyItems.length, progressPercent, activity.earnedValue);
+      : computeEarnedValue(plannedCostPerDay, 0, 0, 0);
     return { ...activity, progressPercent, actualCost, dailyItems, earnedValue };
   });
 
@@ -1316,7 +1318,7 @@ const buildDetailsMarkup = (project, rows) => {
   <article class="panel donut-panel"><h3><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4a8 8 0 1 1-8 8"/><path d="M12 12V4"/><path d="M12 12h8"/></svg></span>Cost Status</h3><div class="donut-wrap"><div class="donut" style="background: conic-gradient(${donutSegments});"></div><ul class="status-list">${donutLegendMarkup}</ul></div></article>
   <article class="panel table-panel"><h3><span class="panel-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 4 6 6-3 1-3 7-3-3-7 3 3-7-1-3 6-6z"/></svg></span>Top Over Budget Activities</h3><table class="top-over-budget-table"><colgroup><col class="col-cost-id"><col class="col-activity"><col class="col-planned"><col class="col-actual"><col class="col-earned"><col class="col-variance"></colgroup><thead><tr><th>Cost ID</th><th>Activity</th><th>Planned Cost</th><th>Actual Cost</th><th>Earned Value</th><th>Cost Variance</th></tr></thead><tbody>${topRows}</tbody></table></article></section></section>
   <section class="details-tab-panel hidden" data-panel="costing">
-  <div class="cost-record-workspace"><div class="cost-record-head cost-record-head-enhanced"><div><p class="eyebrow">Cost ledger</p><h3>Activity costing record</h3><p>Track each activity from planned budget setup through daily spend and earned value updates.</p></div><div class="cost-record-actions"><span class="cost-record-hint">Use the actions menu to add budgets or daily costs.</span></div></div>${costRecordSummaryMarkup}<section class="panel cost-record-table-panel"><table class="cost-table"><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Progress</th><th>Planned Cost</th><th>Actual Cost</th><th>Earned Value</th><th>Status</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section>${paginationMarkup}<div class="info-banner cost-record-tip"><p><strong>Tip:</strong> Planned Cost is view-only in this table and can be changed only via “Add / Edit Cost Details”. Daily cost entries refresh Actual Cost and Earned Value after saving.</p></div></div></section>
+  <div class="cost-record-workspace"><div class="cost-record-head cost-record-head-enhanced"><div><p class="eyebrow">Cost ledger</p><h3>Activity costing record</h3><p>Rows are sourced from the project's Activities list; cost fields stay empty until you add Cost/Daily Cost records.</p></div><div class="cost-record-actions"><span class="cost-record-hint">Use the actions menu to add budgets or daily costs.</span></div></div>${costRecordSummaryMarkup}<section class="panel cost-record-table-panel"><table class="cost-table"><thead><tr><th>Cost ID</th><th>Activity</th><th>Duration</th><th>Progress</th><th>Planned Cost</th><th>Actual Cost</th><th>Earned Value</th><th>Status</th><th>Actions</th></tr></thead><tbody>${tableRows}</tbody></table></section>${paginationMarkup}<div class="info-banner cost-record-tip"><p><strong>Tip:</strong> Planned Cost is view-only in this table and can be changed only via “Add / Edit Cost Details”. Daily cost entries refresh Actual Cost and Earned Value after saving.</p></div></div></section>
   <section class="daily-cost-modal hidden" id="dailyCostModal"></section>
   <section class="cost-meta-modal hidden" id="costMetaModal"></section>`;
 };
