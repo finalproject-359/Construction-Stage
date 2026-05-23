@@ -531,6 +531,47 @@ const cleanupOrphanedDailyCosts = (activities = loadCostActivities()) => {
   if (JSON.stringify(cleaned) !== JSON.stringify(dailyCostsState)) saveDailyCosts(cleaned);
 };
 
+const runInternalDailyCostDataChecker = (items = [], activities = loadCostActivities()) => {
+  const normalizedActivities = activities.map(normalizeCostActivity);
+  const activityByScopedKey = new Map();
+
+  normalizedActivities.forEach((activity) => {
+    const projectKey = normalizeLookup(resolveActivityProjectId(activity));
+    const activityId = normalizeLookup(getActivityRefId(activity));
+    const costId = normalizeLookup(activity.costId);
+    if (projectKey && activityId) activityByScopedKey.set(`${projectKey}::${activityId}`, activity);
+    if (projectKey && costId) activityByScopedKey.set(`${projectKey}::${costId}`, activity);
+  });
+
+  const lookups = buildProjectIdentityLookups(loadProjects());
+  const fixedRows = [];
+
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    const normalized = normalizeDailyCostRecord(item, lookups);
+    const projectKey = normalizeLookup(normalized.projectId);
+    const activityKey = normalizeLookup(normalized.activityId || normalized.costId);
+    const linkedActivity = activityByScopedKey.get(`${projectKey}::${activityKey}`) || null;
+
+    if (!projectKey || !normalized.date || !linkedActivity) return;
+
+    const fixedProgress = clampPercent(normalized.progress);
+    const fixedActualCost = Math.max(0, parseBudgetValue(normalized.actualCost));
+    const fixedStatus = deriveDailyCostStatus(
+      { ...normalized, progress: fixedProgress, actualCost: fixedActualCost },
+      linkedActivity,
+    );
+
+    fixedRows.push({
+      ...normalized,
+      progress: fixedProgress,
+      actualCost: fixedActualCost,
+      status: fixedStatus,
+    });
+  });
+
+  return fixedRows;
+};
+
 const loadCostActivities = () => dedupeCostActivities(costActivitiesState).slice();
 
 const normalizeRemoteActivity = (row = {}) => {
@@ -830,7 +871,8 @@ const syncDailyCostsFromSheet = async (projectFilter = {}, prefetchedDailyCosts 
     .filter((item) => getDailyCostRecordKey(item))
     .forEach((item) => dedupedDailyCosts.set(getDailyCostRecordKey(item), item));
 
-  saveDailyCosts(Array.from(dedupedDailyCosts.values()));
+  const checkedRows = runInternalDailyCostDataChecker(Array.from(dedupedDailyCosts.values()));
+  saveDailyCosts(checkedRows);
   return true;
 };
 
@@ -2453,6 +2495,7 @@ const bootstrapCostManagement = async ({ preferredTab = null } = {}) => {
 
   await syncDailyCostsFromSheet(projectFilter, remoteDailyCosts);
   cleanupOrphanedDailyCosts(allActivities);
+  saveDailyCosts(runInternalDailyCostDataChecker(loadDailyCosts(), allActivities));
 
   if (Array.isArray(remoteCostMetadataRows)) applyCostMetadataRows(remoteCostMetadataRows, projectFilter);
 
