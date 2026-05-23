@@ -50,6 +50,7 @@
   });
 
   signOutBtn?.addEventListener('click', () => {
+    sessionStorage.setItem('costrackSignedOutAt', String(Date.now()));
     sessionStorage.removeItem('costrackAuth');
     sessionStorage.removeItem('costrackPlayDashboardIntro');
     localStorage.removeItem('costrackAuth');
