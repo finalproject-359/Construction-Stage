@@ -1193,10 +1193,9 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     ).values());
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
     const accumulatedProgress = dailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
-    const sheetProgress = clampPercent(Number(activity.progressPercent ?? activity.progress) || 0);
-    // Prefer whichever is newer/higher between accumulated DailyCosts progress and
-    // the synced Progress value stored on the Costs sheet to avoid stale UI display.
-    const progressPercent = clampPercent(Math.max(accumulatedProgress, sheetProgress));
+    // Costing Record must reflect only the accumulated Progress/Day total
+    // sourced from daily cost records.
+    const progressPercent = clampPercent(accumulatedProgress);
     const earnedValueFromDaily = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
     const plannedCostPerDay = Number(activity.durationDays) > 0
       ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
