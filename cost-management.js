@@ -1112,14 +1112,16 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     ).values());
     const actualCost = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.actualCost), 0);
     const accumulatedProgress = dailyItems.reduce((sum, entry) => sum + clampPercent(entry.progress), 0);
-    const progressPercent = dailyItems.length ? clampPercent(accumulatedProgress) : clampPercent(activity.progressPercent);
+    // Costing progress should reflect DailyCosts input only. Keep it at 0 until at
+    // least one daily-cost row exists for this activity.
+    const progressPercent = dailyItems.length ? clampPercent(accumulatedProgress) : 0;
     const earnedValueFromDaily = dailyItems.reduce((sum, entry) => sum + parseBudgetValue(entry.earnedValue), 0);
     const plannedCostPerDay = Number(activity.durationDays) > 0
       ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
       : 0;
     const earnedValue = dailyItems.length
       ? earnedValueFromDaily
-      : computeEarnedValue(plannedCostPerDay, dailyItems.length, progressPercent, activity.earnedValue);
+      : computeEarnedValue(plannedCostPerDay, 0, 0, 0);
     return { ...activity, progressPercent, actualCost, dailyItems, earnedValue };
   });
 
