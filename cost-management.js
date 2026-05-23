@@ -1462,6 +1462,7 @@ const dailyCostModalState = {
   openActivityId: "",
   manuallyClosed: false,
   sessionKey: "",
+  activeRequestToken: 0,
 };
 const buildDailyCostSessionKey = (projectId, activityId) => `${String(projectId || "").trim()}::${String(activityId || "").trim()}`;
 const shouldHydrateDailyCostSession = (sessionKey = "") => {
@@ -1474,6 +1475,8 @@ const closeDailyCostModal = () => {
   if (!modal) return;
   modal.classList.add("hidden");
   dailyCostModalState.manuallyClosed = true;
+  dailyCostModalState.sessionKey = "";
+  dailyCostModalState.activeRequestToken += 1;
 };
 const renderDailyCostModal = (projectId, activityId, allActivities = loadCostActivities(), options = {}) => {
   const { forceOpen = false } = options;
@@ -1496,6 +1499,8 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   dailyCostModalState.openActivityId = resolvedActivityRefId;
   dailyCostModalState.manuallyClosed = false;
   dailyCostModalState.sessionKey = buildDailyCostSessionKey(projectId, resolvedActivityRefId);
+  dailyCostModalState.activeRequestToken += 1;
+  const requestToken = dailyCostModalState.activeRequestToken;
   const renderSessionKey = dailyCostModalState.sessionKey;
   const normalizedActivityName = String(activity.name || "").trim().toLowerCase();
   const activityCostId = String(activity.costId || "").trim();
@@ -1544,17 +1549,28 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
   modal.innerHTML = `<div class="daily-cost-dialog panel" role="dialog" aria-modal="true" aria-labelledby="dailyCostTitle"><div class="daily-cost-head"><h3 id="dailyCostTitle">${escapeHtml(activity.name)} Daily Cost</h3><button type="button" class="daily-cost-close" id="closeDailyModalBtn" aria-label="Close">×</button></div><p class="daily-cost-range">📅 ${escapeHtml(formatLongHumanDate(activity.startDate))} to ${escapeHtml(formatLongHumanDate(activity.finishDate))}</p>
     <section class="daily-cost-section"><h4>Add Daily Cost</h4><p class="daily-cost-note">Flow: 1) Add entry, 2) Save to Google Sheet, 3) Daily Cost Records refresh from sheet.</p><form id="dailyCostForm" class="daily-cost-form"><label><span>Select Date</span><select name="datePreset" required><option value="" disabled ${hasAvailableDates ? "" : "selected"}>${hasAvailableDates ? "Choose date" : "No in-range working dates available"}</option>${dateOptions}<option value="__custom__">+ Add Date</option></select></label><label id="customDateField" class="hidden"><span>Add Date</span><input name="customDate" type="date" value="${escapeHtml(fallbackDate)}"></label><label><span>Progress/Day (%)</span><input name="progress" type="number" min="0" max="100" step="0.01" placeholder="Enter progress" required></label><label><span>Daily Cost (₱)</span><input name="actualCost" type="number" min="0" step="0.01" placeholder="Enter amount" required></label><button class="primary-btn" type="submit">Add Daily Cost</button></form><p class="daily-cost-duplicate-hint" id="dailyCostDuplicateHint" hidden></p></section>
     <section class="daily-cost-section"><h4>Daily Cost Records</h4><div class="daily-cost-table-wrap"><table><thead><tr><th>Date</th><th>Status</th><th>Progress/Day</th><th>Actual Cost/Day (₱)</th><th>Earned Value/Day (₱)</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div></section>
-    <div class="daily-cost-footer"><button type="button" class="ghost-btn" id="closeDailyModalBtnFooter">Close</button></div></div>`;
+    <div class="daily-cost-footer"><button type="button" class="ghost-btn" id="closeDailyModalBtnFooter">Close</button></div><div class="daily-cost-busy-overlay hidden" id="dailyCostBusyOverlay" role="status" aria-live="polite"><span class="btn-spinner" aria-hidden="true"></span><span id="dailyCostBusyLabel">Processing…</span></div></div>`;
 
+
+  const setDailyCostModalBusy = (isBusy, label = "Processing…") => {
+    const overlay = modal.querySelector("#dailyCostBusyOverlay");
+    const busyLabel = modal.querySelector("#dailyCostBusyLabel");
+    if (!(overlay instanceof HTMLElement)) return;
+    overlay.classList.toggle("hidden", !isBusy);
+    if (busyLabel) busyLabel.textContent = label;
+  };
+  const isCurrentRenderSession = () => shouldHydrateDailyCostSession(renderSessionKey) && dailyCostModalState.activeRequestToken === requestToken;
   modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", closeDailyCostModal);
   modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", closeDailyCostModal);
   modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", async () => {
     setButtonLoadingState(button, true, "Deleting…");
+    setDailyCostModalBusy(true, "Deleting record…");
     const date = String(button.dataset.deleteDate || "");
     const resolvedProjectId = String(projectId || activity.projectId || "").trim();
     const resolvedProjectName = String(activity.projectName || activity.project || projectName || "").trim();
     if (!resolvedProjectId) {
       setButtonLoadingState(button, false);
+      setDailyCostModalBusy(false);
       alert("Unable to delete daily cost because Project ID is missing.");
       return;
     }
@@ -1563,6 +1579,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     } catch (error) {
       console.warn("Unable to delete daily cost from Google Sheets:", error);
       setButtonLoadingState(button, false);
+      setDailyCostModalBusy(false);
       alert(`Unable to delete in strict mode. ${error?.message || "Missing project/cost parent record."}`);
       return;
     }
@@ -1593,7 +1610,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     // Keep the modal snappy by re-rendering it first from local cache.
     // The heavier project-details table refresh is deferred to background sync.
-    if (!shouldHydrateDailyCostSession(renderSessionKey)) return;
+    if (!isCurrentRenderSession()) return;
     renderDailyCostModal(projectId, resolvedActivityRefId);
     await syncDailyCostsFromSheet({ projectId: resolvedProjectId, projectName: resolvedProjectName.toLowerCase() });
     await refreshTask;
@@ -1601,9 +1618,10 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     applyCostMetadataRows(metadataRows);
     const nextActivities = loadCostActivities();
     showProjectDetails(projectId, activeTab, nextActivities);
-    if (shouldHydrateDailyCostSession(renderSessionKey)) renderDailyCostModal(projectId, resolvedActivityRefId);
+    if (isCurrentRenderSession()) renderDailyCostModal(projectId, resolvedActivityRefId);
     notifyUser("Record deleted successfully.", "success");
     setButtonLoadingState(button, false);
+    setDailyCostModalBusy(false);
   }));
   const datePresetSelect = modal.querySelector("#dailyCostForm select[name=\"datePreset\"]");
   const customDateField = modal.querySelector("#customDateField");
@@ -1766,9 +1784,9 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     if (existingIndex >= 0) optimisticDailyCosts[existingIndex] = optimisticDailyCost;
     else optimisticDailyCosts.push(optimisticDailyCost);
     setFormSavingState(form, true, existingIndex >= 0 ? "Updating…" : "Adding…");
+    setDailyCostModalBusy(true, existingIndex >= 0 ? "Updating record…" : "Saving record…");
     saveDailyCosts(optimisticDailyCosts);
     updateDailyCostMetrics();
-    if (shouldHydrateDailyCostSession(renderSessionKey)) renderDailyCostModal(projectId, resolvedActivityRefId);
     let saveVerifiedAfterTransportError = false;
     try {
       try {
@@ -1783,7 +1801,7 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
         if (!saveVerifiedAfterTransportError) {
           saveDailyCosts(previousDailyCostsSnapshot);
           updateDailyCostMetrics();
-          if (shouldHydrateDailyCostSession(renderSessionKey)) renderDailyCostModal(projectId, resolvedActivityRefId);
+          if (isCurrentRenderSession()) renderDailyCostModal(projectId, resolvedActivityRefId);
           alert(`Unable to save to Google Sheets. ${error?.message || "Please check Apps Script deployment permissions and try again."}`);
           return;
         }
@@ -1809,9 +1827,10 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       );
       const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
       // Keep daily-record rendering responsive by avoiding an immediate full details redraw.
-      if (shouldHydrateDailyCostSession(renderSessionKey)) renderDailyCostModal(projectId, resolvedActivityRefId);
+      if (isCurrentRenderSession()) renderDailyCostModal(projectId, resolvedActivityRefId);
     } finally {
       if (form.isConnected) setFormSavingState(form, false);
+      if (dailyCostForm?.isConnected) setDailyCostModalBusy(false);
     }
   });
 };
