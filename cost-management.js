@@ -263,7 +263,31 @@ const isFormDirty = (form) => {
 };
 const confirmDiscardFormChanges = (form, prompt = "You have unsaved changes. Discard them?") => {
   if (!isFormDirty(form)) return true;
-  return window.confirm(prompt);
+  return new Promise((resolve) => {
+    const existing = document.getElementById("costDiscardConfirmModal");
+    if (existing) existing.remove();
+    const modal = document.createElement("div");
+    modal.id = "costDiscardConfirmModal";
+    modal.className = "cost-discard-confirm-modal";
+    modal.innerHTML = `<div class="cost-discard-confirm-dialog panel" role="dialog" aria-modal="true" aria-labelledby="costDiscardConfirmTitle">
+      <h3 id="costDiscardConfirmTitle">Unsaved changes</h3>
+      <p>${escapeHtml(prompt)}</p>
+      <div class="cost-discard-confirm-actions">
+        <button type="button" class="ghost-btn" data-confirm-cancel>Keep editing</button>
+        <button type="button" class="primary-btn" data-confirm-ok>Discard changes</button>
+      </div>
+    </div>`;
+    const finalize = (value) => {
+      modal.remove();
+      resolve(value);
+    };
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) finalize(false);
+    });
+    modal.querySelector("[data-confirm-cancel]")?.addEventListener("click", () => finalize(false));
+    modal.querySelector("[data-confirm-ok]")?.addEventListener("click", () => finalize(true));
+    document.body.appendChild(modal);
+  });
 };
 const setFormSavingState = (form, isSaving, savingText = "Saving…") => {
   if (!(form instanceof HTMLFormElement)) return;
@@ -1500,11 +1524,12 @@ const shouldHydrateDailyCostSession = (sessionKey = "") => {
   if (dailyCostModalState.manuallyClosed) return false;
   return dailyCostModalState.sessionKey === sessionKey;
 };
-const closeDailyCostModal = ({ force = false } = {}) => {
+const closeDailyCostModal = async ({ force = false } = {}) => {
   const modal = detailsView.querySelector("#dailyCostModal");
   if (!modal) return false;
   const form = modal.querySelector("#dailyCostForm");
-  if (!force && form instanceof HTMLFormElement && !confirmDiscardFormChanges(form, "You have unsaved Daily Cost changes. Discard and close?")) {
+  const canClose = force || !(form instanceof HTMLFormElement) || await confirmDiscardFormChanges(form, "You have unsaved Daily Cost changes. Discard and close?");
+  if (!canClose) {
     return false;
   }
   modal.classList.add("hidden");
@@ -1595,10 +1620,14 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
     if (busyLabel) busyLabel.textContent = label;
   };
   const isCurrentRenderSession = () => shouldHydrateDailyCostSession(renderSessionKey) && dailyCostModalState.activeRequestToken === requestToken;
-  modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", closeDailyCostModal);
-  modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", closeDailyCostModal);
+  modal.querySelector("#closeDailyModalBtn")?.addEventListener("click", () => {
+    closeDailyCostModal();
+  });
+  modal.querySelector("#closeDailyModalBtnFooter")?.addEventListener("click", () => {
+    closeDailyCostModal();
+  });
   modal.addEventListener("click", (event) => {
-    if (event.target === modal) closeDailyCostModal();
+    if (event.target === modal) void closeDailyCostModal();
   });
   modal.querySelectorAll("[data-delete-date]").forEach((button) => button.addEventListener("click", async () => {
     setButtonLoadingState(button, true, "Deleting…");
@@ -2064,18 +2093,23 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
   const plannedPreview = formatBudget(parseBudgetValue(target.plannedCost));
   modal.innerHTML = `<div class="cost-meta-dialog panel" role="dialog" aria-modal="true" aria-labelledby="costMetaTitle"><div class="cost-meta-head cost-meta-head-enhanced"><div><span class="eyebrow">${hasExistingCost ? "Update cost setup" : "New cost setup"}</span><h3 id="costMetaTitle">${hasExistingCost ? "Edit Cost Details" : "Add Cost Details"}</h3><p>Assign a cost code and planned budget before recording daily field costs.</p></div><button type="button" class="cost-meta-close" id="closeCostMetaModalBtn" aria-label="Close">×</button></div><div class="cost-meta-activity-card"><span>Activity</span><strong>${escapeHtml(target.name || "Untitled Activity")}</strong><p>${Number(target.durationDays) || 0} day duration · Current planned cost ${plannedPreview}</p></div><form id="costMetaForm" class="cost-meta-form"><label class="cost-meta-field" for="costMetaIdInput"><span>Cost ID <strong aria-hidden="true">*</strong></span><input id="costMetaIdInput" name="costId" type="text" placeholder="e.g., C001" value="${escapeHtml(target.costId || "")}" autocomplete="off" required><small>Use a short unique code that matches your cost sheet.</small></label><label class="cost-meta-field" for="costMetaPlannedInput"><span>Planned Cost (₱) <strong aria-hidden="true">*</strong></span><input id="costMetaPlannedInput" name="plannedCost" type="number" min="0" step="0.01" placeholder="Enter planned cost" value="${Number(target.plannedCost) || 0}" required><small>This amount is used to calculate planned cost per day and earned value.</small></label><div class="cost-meta-save-note"><strong>What happens next?</strong><span>The record is saved to Google Sheets, then the costing table refreshes with the updated budget.</span></div><div class="cost-meta-actions"><button type="button" class="ghost-btn" id="cancelCostMetaModalBtn">Cancel</button><button type="submit" class="primary-btn">Save Cost Details</button></div></form></div>`;
 
-  const closeModal = ({ force = false } = {}) => {
+  const closeModal = async ({ force = false } = {}) => {
     const form = modal.querySelector("#costMetaForm");
-    if (!force && form instanceof HTMLFormElement && !confirmDiscardFormChanges(form, "You have unsaved Cost Details changes. Discard and close?")) {
+    const canClose = force || !(form instanceof HTMLFormElement) || await confirmDiscardFormChanges(form, "You have unsaved Cost Details changes. Discard and close?");
+    if (!canClose) {
       return false;
     }
     modal.classList.add("hidden");
     return true;
   };
-  modal.querySelector("#closeCostMetaModalBtn")?.addEventListener("click", closeModal);
-  modal.querySelector("#cancelCostMetaModalBtn")?.addEventListener("click", closeModal);
+  modal.querySelector("#closeCostMetaModalBtn")?.addEventListener("click", () => {
+    closeModal();
+  });
+  modal.querySelector("#cancelCostMetaModalBtn")?.addEventListener("click", () => {
+    closeModal();
+  });
   modal.addEventListener("click", (event) => {
-    if (event.target === modal) closeModal();
+    if (event.target === modal) void closeModal();
   });
 
   modal.querySelector("#costMetaForm")?.addEventListener("submit", async (event) => {
