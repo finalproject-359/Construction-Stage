@@ -7,6 +7,7 @@ const passwordInput = document.getElementById("password");
 const feedback = document.getElementById("loginFeedback");
 const togglePasswordButton = document.getElementById("togglePassword");
 const forgotPasswordButton = document.getElementById("forgotPasswordButton");
+const rememberMeCheckbox = document.getElementById("rememberMe");
 const capsLockHint = document.getElementById("capsLockHint");
 const emailError = document.getElementById("emailError");
 const emailWrap = document.getElementById("emailWrap");
@@ -14,8 +15,15 @@ const passwordWrap = document.getElementById("passwordWrap");
 const submitButton = document.getElementById("submitButton");
 let loginAttemptTimer = null;
 
-if (sessionStorage.getItem("costrackAuth") === "authenticated") {
+const getAuthStorage = () => (localStorage.getItem("costrackRememberMe") === "true" ? localStorage : sessionStorage);
+
+if (sessionStorage.getItem("costrackAuth") === "authenticated" || localStorage.getItem("costrackAuth") === "authenticated") {
+  sessionStorage.setItem("costrackAuth", "authenticated");
   window.location.replace("index.html");
+}
+
+if (localStorage.getItem("costrackRememberMe") === "true" && rememberMeCheckbox) {
+  rememberMeCheckbox.checked = true;
 }
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -102,6 +110,12 @@ loginForm?.addEventListener("submit", (event) => {
 
   loginAttemptTimer = window.setTimeout(() => {
     if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
+      const authStorage = getAuthStorage();
+      authStorage.setItem("costrackAuth", "authenticated");
+      localStorage.setItem("costrackRememberMe", String(Boolean(rememberMeCheckbox?.checked)));
+      if (!(rememberMeCheckbox?.checked)) {
+        localStorage.removeItem("costrackAuth");
+      }
       sessionStorage.setItem("costrackAuth", "authenticated");
       sessionStorage.setItem("costrackPlayDashboardIntro", "true");
       setFeedback("Sign-in successful. Redirecting to dashboard...", "success");
@@ -116,7 +130,11 @@ loginForm?.addEventListener("submit", (event) => {
   }, 500);
 });
 
-passwordInput?.addEventListener("keyup", (event) => {
+passwordInput?.addEventListener("keydown", (event) => {
   const capsLockOn = event.getModifierState && event.getModifierState("CapsLock");
   capsLockHint.textContent = capsLockOn ? "Caps Lock is on." : "";
+});
+
+passwordInput?.addEventListener("blur", () => {
+  capsLockHint.textContent = "";
 });
