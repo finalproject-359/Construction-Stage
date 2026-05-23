@@ -1754,6 +1754,38 @@ body.page-cost-management .details-tab-panel td.actions-col .project-actions-men
   animation: cost-dialog-in 240ms cubic-bezier(.2, .8, .2, 1);
 }
 
+.cost-discard-confirm-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 19, 37, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 2000;
+}
+
+.cost-discard-confirm-dialog {
+  width: min(440px, 100%);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.cost-discard-confirm-dialog h3 {
+  margin: 0;
+}
+
+.cost-discard-confirm-dialog p {
+  margin: 0;
+  color: var(--text-muted, #5a6478);
+}
+
+.cost-discard-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
 .daily-cost-form .primary-btn,
 .cost-meta-form .primary-btn {
   display: inline-flex;
