@@ -529,6 +529,45 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
 .page-dashboard .table-split-grid > .table-panel:first-child table { min-width: 900px; }
 .page-dashboard .table-split-grid > .table-panel:last-child table { min-width: 520px; }
 
+/* Keep key activity columns visible while horizontally scrolling. */
+.page-dashboard .table-split-grid > .table-panel:first-child {
+  --summary-col-1-width: 160px;
+  --summary-col-2-width: 280px;
+}
+
+.page-dashboard .table-split-grid > .table-panel:first-child th:nth-child(1),
+.page-dashboard .table-split-grid > .table-panel:first-child td:nth-child(1) {
+  min-width: var(--summary-col-1-width);
+  width: var(--summary-col-1-width);
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+
+.page-dashboard .table-split-grid > .table-panel:first-child th:nth-child(2),
+.page-dashboard .table-split-grid > .table-panel:first-child td:nth-child(2) {
+  min-width: var(--summary-col-2-width);
+  width: var(--summary-col-2-width);
+  position: sticky;
+  left: var(--summary-col-1-width);
+  z-index: 3;
+}
+
+.page-dashboard .table-split-grid > .table-panel:first-child tbody td:nth-child(1),
+.page-dashboard .table-split-grid > .table-panel:first-child tbody td:nth-child(2) {
+  background: #fff;
+}
+
+.page-dashboard .table-split-grid > .table-panel:first-child tbody tr:hover td:nth-child(1),
+.page-dashboard .table-split-grid > .table-panel:first-child tbody tr:hover td:nth-child(2) {
+  background: #f8fbff;
+}
+
+.page-dashboard .table-split-grid > .table-panel:first-child thead th:nth-child(1),
+.page-dashboard .table-split-grid > .table-panel:first-child thead th:nth-child(2) {
+  z-index: 4;
+}
+
 .page-dashboard .table-wrap::-webkit-scrollbar { height: 10px; }
 .page-dashboard .table-wrap::-webkit-scrollbar-track { background: #eef3f8; border-radius: 999px; }
 .page-dashboard .table-wrap::-webkit-scrollbar-thumb { background: #b9c7da; border-radius: 999px; }
