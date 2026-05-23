@@ -1905,6 +1905,21 @@ const showProjectDetails = (projectId, activeTab = "overview", allActivities = l
       closeCostActionMenus();
       if (actionBtn.classList.contains("view-daily-cost-btn")) {
         renderDailyCostModal(projectId, activityId, allActivities, { forceOpen: true });
+        const project = loadProjects().map(normalizeProject).find((item) => item.id === projectId);
+        const normalizedProjectName = String(project?.name || "").trim().toLowerCase();
+        syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName })
+          .then(async (synced) => {
+            if (!synced) return;
+            const refreshedActivities = loadCostActivities();
+            const metadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
+            applyCostMetadataRows(metadataRows);
+            if (shouldHydrateDailyCostSession(buildDailyCostSessionKey(projectId, String(activityId || "").trim()))) {
+              renderDailyCostModal(projectId, activityId, refreshedActivities, { forceOpen: true });
+            }
+          })
+          .catch((error) => {
+            console.warn("Unable to refresh daily cost modal from Google Sheets:", error);
+          });
       } else {
         editCostMetadata(projectId, activityId, allActivities);
       }
