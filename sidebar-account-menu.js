@@ -52,6 +52,8 @@
   signOutBtn?.addEventListener('click', () => {
     sessionStorage.removeItem('costrackAuth');
     sessionStorage.removeItem('costrackPlayDashboardIntro');
+    localStorage.removeItem('costrackAuth');
+    localStorage.removeItem('costrackRememberMe');
     window.location.assign('login.html');
   });
 })();
