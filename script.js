@@ -505,7 +505,7 @@ const handleDateRangeInputChange = () => {
   applyFiltersAndRender();
 };
 
-const rowMatchesDateFilter = (row, startDate, endDate) => {
+const rowMatchesDateFilter = (row, startDate, endDate, options = {}) => {
   if (!startDate && !endDate) return true;
   const normalizedRowStart = normalizeDateOnly(row.startDate) || normalizeDateOnly(row.date);
   const normalizedRowEnd = normalizeDateOnly(row.finishDate) || normalizedRowStart;
@@ -517,6 +517,14 @@ const rowMatchesDateFilter = (row, startDate, endDate) => {
     : normalizedRowEnd;
 
   if (!rowStart && !rowEnd) return false;
+
+  const requireFullContainment = options.requireFullContainment === true;
+  if (requireFullContainment) {
+    if (startDate && rowStart && rowStart < startDate) return false;
+    if (endDate && rowEnd && rowEnd > endDate) return false;
+    return true;
+  }
+
   if (startDate && rowEnd && rowEnd < startDate) return false;
   if (endDate && rowStart && rowStart > endDate) return false;
   return true;
@@ -540,7 +548,7 @@ const getFilteredRows = (rows) => {
         );
       }
 
-      return rowMatchesDateFilter(row, startDate, endDate);
+      return rowMatchesDateFilter(row, startDate, endDate, { requireFullContainment: true });
     })
     .map((row) => {
       if (!Array.isArray(row.dailyEntries) || !row.dailyEntries.length) return row;
