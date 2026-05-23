@@ -549,9 +549,11 @@ const getFilteredRows = (rows) => {
       const normalizedRowStart = normalizeDateOnly(row.startDate);
       const normalizedRowEnd = normalizeDateOnly(row.finishDate) || normalizedRowStart;
       if (!normalizedRowStart && !normalizedRowEnd) return false;
-      if (startDate && normalizedRowStart && normalizedRowStart < startDate) return false;
-      if (endDate && normalizedRowEnd && normalizedRowEnd > endDate) return false;
-      return true;
+      return rowMatchesDateFilter(
+        { startDate: normalizedRowStart, finishDate: normalizedRowEnd },
+        startDate,
+        endDate
+      );
     })
     .map((row) => {
       if (!Array.isArray(row.dailyEntries) || !row.dailyEntries.length) return row;
