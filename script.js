@@ -531,7 +531,16 @@ const getFilteredRows = (rows) => {
     .filter((row) => {
       const projectMatches = selectedProject === "all"
       || normalize(row.project, "").trim().toLowerCase() === selectedProject;
-      return projectMatches && rowMatchesDateFilter(row, startDate, endDate);
+      if (!projectMatches) return false;
+      if (!startDate && !endDate) return true;
+
+      if (Array.isArray(row.dailyEntries) && row.dailyEntries.length) {
+        return row.dailyEntries.some((entry) =>
+          rowMatchesDateFilter({ startDate: entry.date, finishDate: entry.date }, startDate, endDate)
+        );
+      }
+
+      return rowMatchesDateFilter(row, startDate, endDate);
     })
     .map((row) => {
       if (!Array.isArray(row.dailyEntries) || !row.dailyEntries.length) return row;
@@ -540,19 +549,7 @@ const getFilteredRows = (rows) => {
       const matchingEntries = row.dailyEntries.filter((entry) =>
         rowMatchesDateFilter({ startDate: entry.date, finishDate: entry.date }, startDate, endDate)
       );
-      if (!matchingEntries.length) {
-        return {
-          ...row,
-          actualCost: 0,
-          ev: 0,
-          cv: 0,
-          percentComplete: 0,
-          costUsedPercent: 0,
-          startDate: "",
-          finishDate: "",
-          date: "",
-        };
-      }
+      if (!matchingEntries.length) return null;
 
       const actualCost = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.actualCost), 0);
       const evFromEntries = matchingEntries.reduce((sum, entry) => sum + parseNumber(entry.earnedValue), 0);
@@ -585,7 +582,8 @@ const getFilteredRows = (rows) => {
         finishDate: lastDate,
         date: lastDate || firstDate || row.date || "",
       };
-    });
+    })
+    .filter(Boolean);
 };
 
 const syncFilterOptionsFromRows = (rows) => {
