@@ -1445,14 +1445,35 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       alert(`Unable to delete in strict mode. ${error?.message || "Missing project/cost parent record."}`);
       return;
     }
+    // Remove the deleted row from local cache immediately so optimistic re-renders
+    // cannot resurrect stale progress/amounts while background sync is still running.
+    const lookups = buildProjectIdentityLookups(loadProjects());
+    const normalizedDate = normalizeDateKey(date);
+    const targetKey = getDailyCostRecordKey(normalizeDailyCostRecord({
+      projectId: resolvedProjectId,
+      projectName: resolvedProjectName,
+      activityId: resolvedActivityRefId,
+      costId: activityCostId,
+      date: normalizedDate,
+    }, lookups));
+    const nextDailyCosts = loadDailyCosts()
+      .map((item) => normalizeDailyCostRecord(item, lookups))
+      .filter((item) => {
+        const itemKey = getDailyCostRecordKey(item);
+        if (targetKey && itemKey === targetKey) return false;
+        const sameProject = String(item.projectId || "").trim() === resolvedProjectId;
+        const sameDate = normalizeDateKey(item.date) === normalizedDate;
+        const sameCost = activityCostId && String(item.costId || "").trim() === activityCostId;
+        const sameActivity = resolvedActivityRefId && String(item.activityId || "").trim() === resolvedActivityRefId;
+        const removeByIdentity = sameProject && sameDate && (sameCost || sameActivity);
+        return !removeByIdentity;
+      });
+    saveDailyCosts(nextDailyCosts);
     const activeTab = detailsView.querySelector(".tab-btn.active")?.dataset.tab || "overview";
     // Keep the modal snappy by re-rendering it first from local cache.
     // The heavier project-details table refresh is deferred to background sync.
     renderDailyCostModal(projectId, resolvedActivityRefId);
-    Promise.allSettled([
-      syncDailyCostsFromSheet({ projectId, projectName: normalizedProjectName }),
-      syncCostSummaryToSheet({ projectId, projectName: normalizedProjectName, activity }),
-    ]);
+    await syncDailyCostsFromSheet({ projectId: resolvedProjectId, projectName: resolvedProjectName.toLowerCase() });
     await refreshTask;
     const metadataRows = await loadRemoteCostMetadata({ projectId, projectName: normalizedProjectName });
     applyCostMetadataRows(metadataRows);
