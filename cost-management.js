@@ -719,6 +719,22 @@ const normalizeDailyCostRecord = (item = {}, lookups = buildProjectIdentityLooku
   earnedValue: parseBudgetValue(getValueByAliases(item, ["earnedValue", "earned_value", "earned value", "ev"]) ?? item.earnedValue),
 });
 
+const isDailyCostLinkedToActivity = (entry = {}, activity = {}) => {
+  const activityRefId = String(getActivityRefId(activity) || "").trim();
+  const entryActivityId = String(entry.activityId || "").trim();
+  const activityCostId = String(activity.costId || "").trim();
+  const entryCostId = String(entry.costId || "").trim();
+
+  const activityRefLookup = normalizeLookup(activityRefId);
+  const entryRefLookup = normalizeLookup(entryActivityId);
+  const activityCostLookup = normalizeLookup(activityCostId);
+  const entryCostLookup = normalizeLookup(entryCostId);
+
+  if (activityRefLookup && entryRefLookup && activityRefLookup === entryRefLookup) return true;
+  if (!entryRefLookup && activityCostLookup && entryCostLookup && activityCostLookup === entryCostLookup) return true;
+  return false;
+};
+
 const getDailyCostRecordKey = (item = {}) => {
   const projectId = String(item.projectId || "").trim();
   const activityId = String(item.activityId || "").trim();
@@ -1110,11 +1126,7 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
   const rawRows = activities.map((activity) => {
     const refId = getActivityRefId(activity);
     const rowCostId = String(activity.costId || "").trim();
-    const matchedDailyItems = daily.filter((entry) => {
-      const entryActivityId = String(entry.activityId || "").trim();
-      const entryCostId = String(entry.costId || "").trim();
-      return entryActivityId === refId || (rowCostId && entryCostId === rowCostId);
-    });
+    const matchedDailyItems = daily.filter((entry) => isDailyCostLinkedToActivity(entry, activity));
     const dailyItems = Array.from(new Map(
       matchedDailyItems.map((entry) => {
         const entryDate = normalizeDateKey(entry.date);
@@ -1139,9 +1151,9 @@ const getProjectCostData = (projectId, allActivities = loadCostActivities()) => 
     const plannedCostPerDay = Number(activity.durationDays) > 0
       ? parseBudgetValue(activity.plannedCost) / Number(activity.durationDays)
       : 0;
-    const earnedValue = dailyItems.length
+    const earnedValue = earnedValueFromDaily > 0
       ? earnedValueFromDaily
-      : computeEarnedValue(plannedCostPerDay, 0, 0, 0);
+      : computeEarnedValue(plannedCostPerDay, dailyItems.length, progressPercent, 0);
     return { ...activity, progressPercent, actualCost, dailyItems, earnedValue };
   });
 

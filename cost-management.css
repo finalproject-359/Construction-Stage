@@ -68,6 +68,64 @@ body.page-cost-management .main-content {
   padding: 0;
 }
 
+
+/* Cost management page interface fixes */
+body.page-cost-management .activities-project-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+body.page-cost-management .cost-project-selection-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1 1 720px;
+  min-width: 0;
+}
+
+body.page-cost-management .activities-selection-search {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+body.page-cost-management .activities-selection-select {
+  flex: 1 1 190px;
+  min-width: 180px;
+}
+
+body.page-cost-management .cost-selection-date-filter {
+  position: relative;
+  z-index: 12;
+}
+
+body.page-cost-management .cost-selection-date-filter .activities-date-range-panel {
+  z-index: 30;
+}
+
+@media (max-width: 900px) {
+  body.page-cost-management .activities-project-selection-toolbar,
+  body.page-cost-management .cost-project-selection-toolbar-left {
+    align-items: stretch;
+  }
+
+  body.page-cost-management .activities-selection-search,
+  body.page-cost-management .activities-selection-select,
+  body.page-cost-management .cost-selection-date-filter,
+  body.page-cost-management #clearCostFilters {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body.page-cost-management .cost-selection-date-filter .activities-date-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 .search-box {
   border: 1px solid #d8deec;
   border-radius: 12px;
