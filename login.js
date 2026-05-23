@@ -16,10 +16,15 @@ const submitButton = document.getElementById("submitButton");
 let loginAttemptTimer = null;
 
 const getAuthStorage = (rememberMe) => (rememberMe ? localStorage : sessionStorage);
+const SIGN_OUT_FLAG_KEY = "costrackSignedOutAt";
 
 if (sessionStorage.getItem("costrackAuth") === "authenticated") {
   window.location.replace("index.html");
-} else if (localStorage.getItem("costrackRememberMe") === "true" && localStorage.getItem("costrackAuth") === "authenticated") {
+} else if (
+  localStorage.getItem("costrackRememberMe") === "true" &&
+  localStorage.getItem("costrackAuth") === "authenticated" &&
+  !sessionStorage.getItem(SIGN_OUT_FLAG_KEY)
+) {
   sessionStorage.setItem("costrackAuth", "authenticated");
   window.location.replace("index.html");
 }
@@ -114,12 +119,16 @@ loginForm?.addEventListener("submit", (event) => {
     if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
       const rememberMe = Boolean(rememberMeCheckbox?.checked);
       localStorage.setItem("costrackRememberMe", String(rememberMe));
+
       const authStorage = getAuthStorage(rememberMe);
+      localStorage.removeItem("costrackAuth");
+      sessionStorage.removeItem("costrackAuth");
       authStorage.setItem("costrackAuth", "authenticated");
-      if (!rememberMe) {
-        localStorage.removeItem("costrackAuth");
+      sessionStorage.removeItem(SIGN_OUT_FLAG_KEY);
+
+      if (rememberMe) {
+        sessionStorage.setItem("costrackAuth", "authenticated");
       }
-      sessionStorage.setItem("costrackAuth", "authenticated");
       sessionStorage.setItem("costrackPlayDashboardIntro", "true");
       setFeedback("Sign-in successful. Redirecting to dashboard...", "success");
       window.setTimeout(() => window.location.assign("index.html"), 350);
