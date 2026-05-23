@@ -517,6 +517,7 @@ const rowMatchesDateFilter = (row, startDate, endDate) => {
     : normalizedRowEnd;
 
   if (!rowStart && !rowEnd) return false;
+
   if (startDate && rowEnd && rowEnd < startDate) return false;
   if (endDate && rowStart && rowStart > endDate) return false;
   return true;
@@ -540,7 +541,17 @@ const getFilteredRows = (rows) => {
         );
       }
 
-      return rowMatchesDateFilter(row, startDate, endDate);
+      const normalizedRowDate = normalizeDateOnly(row.date);
+      if (normalizedRowDate) {
+        return rowMatchesDateFilter({ startDate: normalizedRowDate, finishDate: normalizedRowDate }, startDate, endDate);
+      }
+
+      const normalizedRowStart = normalizeDateOnly(row.startDate);
+      const normalizedRowEnd = normalizeDateOnly(row.finishDate) || normalizedRowStart;
+      if (!normalizedRowStart && !normalizedRowEnd) return false;
+      if (startDate && normalizedRowStart && normalizedRowStart < startDate) return false;
+      if (endDate && normalizedRowEnd && normalizedRowEnd > endDate) return false;
+      return true;
     })
     .map((row) => {
       if (!Array.isArray(row.dailyEntries) || !row.dailyEntries.length) return row;
