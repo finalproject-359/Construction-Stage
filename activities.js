@@ -1490,13 +1490,14 @@ const applyFilters = ({ resetPage = true } = {}) => {
         const textMatch =
           !searchValue ||
           `${item.name} ${item.type} ${item.status}`.toLowerCase().includes(searchValue);
-        const dateValue = item.plannedStartDate;
         const hasDateFilter = Boolean(dateStartValue || dateEndValue);
+        const startDate = item.plannedStartDate;
+        const finishDate = item.plannedFinishDate || item.plannedStartDate;
         const dateMatch =
           !hasDateFilter ||
-          (dateValue &&
-            (!dateStartValue || dateValue >= dateStartValue) &&
-            (!dateEndValue || dateValue <= dateEndValue));
+          ((startDate || finishDate) &&
+            (!dateStartValue || (finishDate && finishDate >= dateStartValue)) &&
+            (!dateEndValue || (startDate && startDate <= dateEndValue)));
 
         return projectMatch && statusMatch && typeMatch && textMatch && dateMatch;
       })
@@ -1910,6 +1911,14 @@ if (activitiesDateFilterBtn) {
     if (isOpen) {
       closeDateRangePanel();
       return;
+    }
+
+    if (activitiesFilterStartDate) {
+      activitiesFilterStartDate.value = toInputDate(state.dateRange.start);
+    }
+    if (activitiesFilterEndDate) {
+      activitiesFilterEndDate.value = toInputDate(state.dateRange.end);
+      activitiesFilterEndDate.min = activitiesFilterStartDate?.value || "";
     }
     openDateRangePanel();
   });
