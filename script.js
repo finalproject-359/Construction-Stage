@@ -143,6 +143,20 @@ const normalize = (value, fallback = "N/A") => {
   if (value === null || value === undefined || value === "") return fallback;
   return String(value).trim() || fallback;
 };
+const parseDelayedFlag = (row) => {
+  const delayedValue = firstNonEmptyCell(row, [
+    "is delayed",
+    "is_delayed",
+    "isDelayed",
+    "delayed",
+    "delay status",
+    "schedule status",
+    "status",
+  ]);
+  const normalized = normalize(delayedValue, "").toLowerCase();
+  if (!normalized) return false;
+  return ["true", "yes", "1", "delayed", "behind schedule", "late", "overdue"].includes(normalized);
+};
 
 const escapeHtml = (value) =>
   String(value ?? "")
@@ -321,6 +335,7 @@ const extractDashboardRows = (rawRows) =>
         rawEarnedValue !== null && rawEarnedValue !== undefined && String(rawEarnedValue).trim() !== "";
       const ev = hasProvidedEarnedValue ? parseNumber(rawEarnedValue) : plannedCost * (percentComplete / 100);
       const cv = ev - actualCost;
+      const isDelayed = parseDelayedFlag(row);
 
       return {
         activityId: hasValidActivityId ? detectedActivityId : "",
@@ -339,6 +354,7 @@ const extractDashboardRows = (rawRows) =>
         costUsedPercent: plannedCost ? (actualCost / plannedCost) * 100 : 0,
         budgetVariancePercent: plannedCost ? (cv / plannedCost) * 100 : 0,
         budgetStatus: cv >= 0 ? "Under Budget" : "Over Budget",
+        isDelayed,
       };
     })
     .filter(
@@ -860,10 +876,24 @@ const renderGapTable = (rows) => {
     .sort((a,b) => (b.percentComplete - b.costUsedPercent) - (a.percentComplete - a.costUsedPercent))
     .map((row) => {
       const gap = row.percentComplete - row.costUsedPercent;
-      const status = gap >= 0 ? "On Track" : gap > -5 ? "Slightly Over Budget" : "Over Budget";
-      const interpretation = gap >= 0 ? "Progress is ahead of cost." : gap > -5 ? "Cost is slightly ahead of progress." : "Cost is ahead of progress.";
+      const status = row.isDelayed
+        ? "Delayed"
+        : gap >= 0
+          ? "On Track"
+          : gap > -5
+            ? "Slightly Over Budget"
+            : "Over Budget";
+      const interpretation = row.isDelayed
+        ? gap >= 0
+          ? "Activity is delayed even though progress is ahead of cost."
+          : "Activity is delayed and cost is ahead of progress."
+        : gap >= 0
+          ? "Progress is ahead of cost."
+          : gap > -5
+            ? "Cost is slightly ahead of progress."
+            : "Cost is ahead of progress.";
       const gapClass = gap >= 0 ? "positive" : "negative";
-      const statusClass = gap >= 0 ? "ok" : gap > -5 ? "warn" : "bad";
+      const statusClass = row.isDelayed ? "warn" : gap >= 0 ? "ok" : gap > -5 ? "warn" : "bad";
       return `<tr>
         <td>${escapeHtml(row.activity)}</td>
         <td>${formatPercent(row.percentComplete)}</td>
