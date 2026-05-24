@@ -95,10 +95,73 @@
             <div id="exportReportOptions" class="dashboard-export-options" hidden>
               <button type="button" data-export-format="xlsx">Export as Excel (.xlsx)</button>
               <button type="button" data-export-format="csv">Export as CSV (.csv)</button>
+              <button type="button" data-export-format="pdf">Export as PDF (.pdf)</button>
+              <button type="button" data-export-action="customize">Customize Export…</button>
             </div>
           </div>
         </div>
       </header>
+      <div id="exportSettingsModal" class="export-settings-modal" hidden role="dialog" aria-modal="true" aria-labelledby="exportSettingsHeading">
+        <div class="export-settings-panel">
+          <h2 id="exportSettingsHeading">Customize Report Export</h2>
+          <p>Select which columns to include in your report. Settings are saved in this browser.</p>
+          <div id="exportColumnList" class="export-column-list"></div>
+          <div class="export-settings-actions">
+            <button id="exportSettingsCancel" type="button" class="dashboard-action-button">Cancel</button>
+            <button id="exportSettingsSave" type="button" class="dashboard-action-button primary">Save</button>
+          </div>
+        </div>
+      </div>
+      <div id="pdfSettingsModal" class="export-settings-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pdfSettingsHeading">
+        <div class="export-settings-panel">
+          <h2 id="pdfSettingsHeading">PDF Print Setup</h2>
+          <p>Choose page setup and which sections to include before opening the print dialog.</p>
+          <div class="pdf-settings-grid">
+            <label>
+              <span>Paper size</span>
+              <select id="pdfPaperSize">
+                <option value="a4">A4</option>
+                <option value="letter">Letter</option>
+                <option value="legal">Legal</option>
+              </select>
+            </label>
+            <label>
+              <span>Orientation</span>
+              <select id="pdfOrientation">
+                <option value="landscape">Landscape</option>
+                <option value="portrait">Portrait</option>
+              </select>
+            </label>
+            <label>
+              <span>Margins</span>
+              <select id="pdfMargin">
+                <option value="8mm">Narrow</option>
+                <option value="12mm" selected>Normal</option>
+                <option value="18mm">Wide</option>
+              </select>
+            </label>
+            <label>
+              <span>Font size</span>
+              <select id="pdfFontSize">
+                <option value="11px">Small</option>
+                <option value="12px" selected>Medium</option>
+                <option value="13px">Large</option>
+              </select>
+            </label>
+          </div>
+          <div class="pdf-include-list">
+            <label><input id="pdfIncludeMeta" type="checkbox" checked /> Include report header & metadata</label>
+            <label><input id="pdfIncludeDateRange" type="checkbox" checked /> Include selected date range details</label>
+            <label><input id="pdfIncludeSummary" type="checkbox" checked /> Include summary metrics</label>
+            <label><input id="pdfIncludeWarnings" type="checkbox" checked /> Include data quality warnings</label>
+            <label><input id="pdfIncludeTable" type="checkbox" checked /> Include detailed table</label>
+          </div>
+          <div class="export-settings-actions">
+            <button id="pdfSettingsCancel" type="button" class="dashboard-action-button">Cancel</button>
+            <button id="pdfSettingsPrint" type="button" class="dashboard-action-button primary">Open Print Dialog</button>
+          </div>
+        </div>
+      </div>
 
       <section class="dashboard-control-panel" aria-label="Dashboard filters">
         <div class="dashboard-filters">
