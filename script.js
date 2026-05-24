@@ -816,6 +816,63 @@ const applyWorksheetNumberFormats = (worksheet) => {
   percentColumns.forEach((header) => applyFormat(header, percentageFormat, (value) => value / 100));
 };
 
+const applyProfessionalWorksheetLayout = (worksheet, rows = []) => {
+  if (!worksheet || !worksheet["!ref"]) return;
+  const range = XLSX.utils.decode_range(worksheet["!ref"]);
+  const headerRowIndex = range.s.r;
+  const headerColor = "1E3A8A";
+  const headerTextColor = "FFFFFF";
+  const zebraColor = "F8FAFC";
+  const totalsRowRawIndex = rows.findIndex((row) => String(row?.Project || "").trim().toUpperCase() === "TOTALS");
+  const totalsRowSheetIndex = totalsRowRawIndex >= 0 ? totalsRowRawIndex + 1 : -1;
+  const cols = [];
+
+  for (let col = range.s.c; col <= range.e.c; col += 1) {
+    const headerCellAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c: col });
+    const headerText = String(worksheet[headerCellAddress]?.v || "");
+    cols[col] = { wch: Math.max(14, headerText.length + 4) };
+    for (let row = range.s.r + 1; row <= range.e.r; row += 1) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+      const value = String(worksheet[cellAddress]?.v ?? "");
+      cols[col].wch = Math.min(42, Math.max(cols[col].wch, value.length + 2));
+    }
+  }
+  worksheet["!cols"] = cols;
+
+  for (let row = range.s.r; row <= range.e.r; row += 1) {
+    for (let col = range.s.c; col <= range.e.c; col += 1) {
+      const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+      const cell = worksheet[cellAddress];
+      if (!cell) continue;
+      const isHeader = row === headerRowIndex;
+      const isTotals = row === totalsRowSheetIndex;
+      const isAlt = !isHeader && !isTotals && row % 2 === 1;
+      const existingStyle = cell.s || {};
+      const font = Object.assign({}, existingStyle.font || {}, { name: "Calibri", sz: 11, color: { rgb: "0F172A" } });
+      const alignment = Object.assign({}, existingStyle.alignment || {}, { vertical: "center", horizontal: "left", wrapText: true });
+      const border = {
+        top: { style: "thin", color: { rgb: "CBD5E1" } },
+        right: { style: "thin", color: { rgb: "CBD5E1" } },
+        bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+        left: { style: "thin", color: { rgb: "CBD5E1" } },
+      };
+      const style = { ...existingStyle, font, alignment, border };
+      if (isHeader) {
+        style.font = { ...font, bold: true, sz: 12, color: { rgb: headerTextColor } };
+        style.alignment = { ...alignment, horizontal: "center" };
+        style.fill = { patternType: "solid", fgColor: { rgb: headerColor } };
+      } else if (isTotals) {
+        style.font = { ...font, bold: true };
+        style.fill = { patternType: "solid", fgColor: { rgb: "DBEAFE" } };
+      } else if (isAlt) {
+        style.fill = { patternType: "solid", fgColor: { rgb: zebraColor } };
+      }
+      cell.s = style;
+    }
+  }
+  worksheet["!rows"] = [{ hpt: 24 }, ...Array.from({ length: range.e.r - range.s.r }, () => ({ hpt: 20 }))];
+};
+
 const getSelectedExportColumns = () => {
   try {
     const raw = localStorage.getItem(EXPORT_COLUMN_PREF_KEY);
@@ -948,12 +1005,12 @@ const exportDashboardReport = (format = "xlsx") => {
       </header>
     `;
     const dateRangeHtml = `<p><strong>Date Range:</strong> ${escapeHtml(resolvedDateRange)}</p>`;
-    const summary = `<h3>Summary</h3><ul><li>Total Planned Cost: ${formatCurrency(totals.planned)}</li><li>Total Actual Cost: ${formatCurrency(totals.actual)}</li><li>Total Earned Value: ${formatCurrency(totals.ev)}</li><li>Total Cost Variance: ${formatCurrency(totals.cv)}</li><li>Physical Progress: ${progress.physicalProgressPercent.toFixed(2)}%</li><li>Cost Spent: ${progress.costSpentPercent.toFixed(2)}%</li></ul>`;
+    const summary = `<section class="pdf-card"><h3>Executive Summary</h3><div class="pdf-grid"><div class="pdf-metric"><span>Total Planned Cost</span><strong>${formatCurrency(totals.planned)}</strong></div><div class="pdf-metric"><span>Total Actual Cost</span><strong>${formatCurrency(totals.actual)}</strong></div><div class="pdf-metric"><span>Total Earned Value</span><strong>${formatCurrency(totals.ev)}</strong></div><div class="pdf-metric"><span>Total Cost Variance</span><strong>${formatCurrency(totals.cv)}</strong></div><div class="pdf-metric"><span>Physical Progress</span><strong>${progress.physicalProgressPercent.toFixed(2)}%</strong></div><div class="pdf-metric"><span>Cost Spent</span><strong>${progress.costSpentPercent.toFixed(2)}%</strong></div></div></section>`;
     const tableRows = selectedRows
       .map((row) => `<tr>${Object.values(row).map((value) => `<td>${escapeHtml(String(value ?? ""))}</td>`).join("")}</tr>`)
       .join("");
     const tableHead = `<tr>${Object.keys(selectedRows[0] || {}).map((key) => `<th>${escapeHtml(key)}</th>`).join("")}</tr>`;
-    const warningHtml = `<h3>Data Quality Warnings</h3><ul>${warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>`;
+    const warningHtml = `<section class="pdf-card"><h3>Data Quality Warnings</h3><ul class="pdf-warning-list">${warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul></section>`;
     const printWindow = window.open("", "_blank");
     if (printWindow) {
       const pageCss = `@page { size: ${pdfPrefs.paperSize} ${pdfPrefs.orientation}; margin: ${pdfPrefs.margin}; }`;
@@ -964,7 +1021,7 @@ const exportDashboardReport = (format = "xlsx") => {
         pdfPrefs.includeWarnings ? warningHtml : "",
         pdfPrefs.includeTable ? `<table>${tableHead}${tableRows}</table>` : "",
       ].join("");
-      printWindow.document.write(`<html><head><title>${filenameBase}</title><style>${pageCss} body{font-family:Inter,Arial,sans-serif;padding:0;font-size:${pdfPrefs.fontSize};color:#0f172a;} .pdf-shell{padding-top:84px;padding-bottom:48px;} .pdf-report-header{position:fixed;top:0;left:0;right:0;height:72px;border-bottom:1px solid #dbe3f2;background:#fff;padding:8px 10px;} .pdf-brand{display:flex;align-items:center;gap:10px;} .pdf-brand img{width:44px;height:44px;object-fit:contain;} .pdf-brand h1{margin:0;font-size:16px;line-height:1.2;} .pdf-brand p{margin:2px 0 0;font-size:11px;color:#334155;} .pdf-report-footer{position:fixed;left:0;right:0;bottom:0;height:34px;border-top:1px solid #dbe3f2;background:#fff;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#475569;} table{border-collapse:collapse;width:100%;font-size:inherit;}th,td{border:1px solid #ddd;padding:6px;}th{background:#f4f7ff;}h3{margin:14px 0 8px;}</style></head><body><div class="pdf-shell">${bodyParts}</div><footer class="pdf-report-footer"><span>CosTrack • Track Better. Build Better.</span><span>Generated ${now.toLocaleDateString()} ${now.toLocaleTimeString()}</span></footer></body></html>`);
+      printWindow.document.write(`<html><head><title>${filenameBase}</title><style>${pageCss} body{font-family:Inter,Arial,sans-serif;padding:0;font-size:${pdfPrefs.fontSize};color:#0f172a;background:#f8fafc;} .pdf-shell{padding:92px 0 52px;} .pdf-content{padding:0 6px;} .pdf-card{background:#fff;border:1px solid #dbe3f2;border-radius:10px;padding:10px 12px;margin:0 0 12px;box-shadow:0 1px 0 rgba(15,23,42,.04);} .pdf-report-header{position:fixed;top:0;left:0;right:0;height:74px;border-bottom:1px solid #dbe3f2;background:#fff;padding:8px 10px;} .pdf-brand{display:flex;align-items:center;gap:10px;} .pdf-brand img{width:44px;height:44px;object-fit:contain;} .pdf-brand h1{margin:0;font-size:16px;line-height:1.2;color:#1e3a8a;} .pdf-brand p{margin:2px 0 0;font-size:11px;color:#334155;} .pdf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;} .pdf-metric{border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#f8fafc;} .pdf-metric span{display:block;font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.04em;} .pdf-metric strong{font-size:13px;color:#0f172a;} .pdf-report-footer{position:fixed;left:0;right:0;bottom:0;height:34px;border-top:1px solid #dbe3f2;background:#fff;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#475569;} .pdf-warning-list{margin:0;padding-left:18px;} table{border-collapse:separate;border-spacing:0;width:100%;font-size:inherit;background:#fff;border:1px solid #dbe3f2;border-radius:10px;overflow:hidden;} th,td{border-bottom:1px solid #e2e8f0;padding:7px 8px;} th{background:#1e3a8a;color:#fff;text-transform:uppercase;font-size:10px;letter-spacing:.04em;} tr:nth-child(even) td{background:#f8fafc;} tr:last-child td{border-bottom:none;} h3{margin:0 0 8px;font-size:14px;color:#1e293b;}</style></head><body><div class="pdf-shell"><div class="pdf-content">${bodyParts}</div></div><footer class="pdf-report-footer"><span>CosTrack • Track Better. Build Better.</span><span>Generated ${now.toLocaleDateString()} ${now.toLocaleTimeString()}</span></footer></body></html>`);
       printWindow.document.close();
       printWindow.focus();
       printWindow.print();
@@ -999,6 +1056,10 @@ const exportDashboardReport = (format = "xlsx") => {
     const warningSheet = XLSX.utils.json_to_sheet(warnings.map((warning) => ({ Warning: warning })));
     applyWorksheetNumberFormats(worksheet);
     applyWorksheetNumberFormats(summarySheet);
+    applyProfessionalWorksheetLayout(worksheet, detailedRows);
+    applyProfessionalWorksheetLayout(summarySheet);
+    applyProfessionalWorksheetLayout(metadataSheet);
+    applyProfessionalWorksheetLayout(warningSheet);
     worksheet["!autofilter"] = { ref: worksheet["!ref"] };
     worksheet["!freeze"] = { xSplit: 0, ySplit: 1, topLeftCell: "A2", activePane: "bottomLeft", state: "frozen" };
     XLSX.utils.book_append_sheet(workbook, worksheet, "Dashboard Report");
