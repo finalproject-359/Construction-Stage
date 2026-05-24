@@ -956,7 +956,6 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   border-radius: 12px;
   background: #fff !important;
 }
-.dashboard-header-actions .icon-only{width:40px;padding:0;justify-content:center}
 .kpi-grid{gap:10px;grid-template-columns:repeat(6,minmax(0,1fr));}
 .kpi-card{
   border-radius: 12px;
@@ -972,14 +971,35 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
 .panel-header h3{font-size:.9rem}
 .panel-header p{font-size:.68rem}
 .table-panel{border-radius:12px;border-color:#e4e9f3}
-.insights-panel{margin-top:12px}
-.insights-list{display:grid;gap:10px}
-.insight-item{padding:10px 12px;border:1px solid #e9edf6;border-radius:10px;background:#fff}
-.insight-item h4{margin:0 0 4px;font-size:.8rem;color:#17325d}
-.insight-item p{margin:0;font-size:.72rem;color:#54657f}
-.insight-item.critical{background:#f8fbff;border-left:4px solid #2f55ff}
-.insight-item.positive{background:#f6fffb;border-left:4px solid #14b86e}
-.insight-item.info{background:#f8f7ff;border-left:4px solid #8666ff}
+.gap-panel { margin-bottom: 16px; }
+.gap-panel .dashboard-table-wrap {
+  max-height: 275px;
+  overflow: auto;
+  border: 1px solid #d7e0ed;
+  border-radius: 10px;
+}
+.insights-panel {
+  margin-top: 0;
+  background: #f9fbff;
+  border: 1px solid #dbe4f2;
+}
+.insights-panel .panel-header {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dfe7f3;
+  margin-bottom: 8px;
+}
+.insights-list{display:grid;gap:8px}
+.insight-item{
+  padding:8px 12px;
+  border:1px solid #dbe4f2;
+  border-radius:7px;
+  background:#f4f7fc;
+}
+.insight-item h4{margin:0 0 1px;font-size:.78rem;color:#1c3965;line-height:1.35}
+.insight-item p{margin:0;font-size:.68rem;color:#5f6f86;line-height:1.35}
+.insight-item.critical{background:#f3f7ff;border-left:3px solid #3a63ff}
+.insight-item.positive{background:#edf9f4;border-left:3px solid #22b573}
+.insight-item.info{background:#f2f0ff;border-left:3px solid #8170ff}
 
 @media (max-width: 1400px){
   .kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
@@ -989,4 +1009,18 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   .dashboard-filters{grid-template-columns:1fr}
   .chart-grid{grid-template-columns:1fr}
   .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+.gap-insights-grid{
+  display:grid;
+  grid-template-columns:minmax(0,2.05fr) minmax(290px,.95fr);
+  gap:14px;
+  align-items:start;
+  margin-bottom:16px;
+}
+.gap-insights-grid .gap-panel{margin-bottom:0}
+.gap-insights-grid .insights-panel{height:100%}
+
+@media (max-width: 1200px){
+  .gap-insights-grid{grid-template-columns:1fr}
 }
