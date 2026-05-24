@@ -35,6 +35,12 @@ const exportSettingsSaveEl = document.getElementById("exportSettingsSave");
 const exportSettingsCancelEl = document.getElementById("exportSettingsCancel");
 const insightVarianceValueEl = document.getElementById("insightVarianceValue");
 const insightCpiValueEl = document.getElementById("insightCpiValue");
+const varianceInsightItemEl = document.getElementById("varianceInsightItem");
+const varianceInsightHeadingEl = document.getElementById("varianceInsightHeading");
+const varianceInsightDescriptionEl = document.getElementById("varianceInsightDescription");
+const cpiInsightItemEl = document.getElementById("cpiInsightItem");
+const cpiInsightHeadingEl = document.getElementById("cpiInsightHeading");
+const cpiInsightDescriptionEl = document.getElementById("cpiInsightDescription");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const chartDependencyWarning =
@@ -676,8 +682,39 @@ const updateDashboardSummary = (rows, totals, progressMetrics) => {
       : "No active data";
   }
 
-  if (insightVarianceValueEl) insightVarianceValueEl.textContent = formatCurrency(parseNumber(totals?.cv));
+  const totalVariance = parseNumber(totals?.cv);
+  if (insightVarianceValueEl) insightVarianceValueEl.textContent = formatCurrency(totalVariance);
   if (insightCpiValueEl) insightCpiValueEl.textContent = cpi.toFixed(2);
+
+  if (varianceInsightHeadingEl) {
+    varianceInsightHeadingEl.innerHTML = `${totalVariance >= 0 ? "Cost variance is favorable by" : "Cost variance is unfavorable by"} <span id="insightVarianceValue">${escapeHtml(formatCurrency(Math.abs(totalVariance)))}</span>`;
+  }
+
+  if (varianceInsightDescriptionEl) {
+    varianceInsightDescriptionEl.textContent =
+      totalVariance >= 0 ? "You are currently under budget." : "You are currently over budget.";
+  }
+
+  if (varianceInsightItemEl) {
+    varianceInsightItemEl.classList.remove("positive", "critical");
+    varianceInsightItemEl.classList.add(totalVariance >= 0 ? "positive" : "critical");
+  }
+
+  if (cpiInsightHeadingEl) {
+    cpiInsightHeadingEl.innerHTML = `CPI is ${cpi >= 1 ? "performing well" : "below target"} at <span id="insightCpiValue">${escapeHtml(cpi.toFixed(2))}</span>`;
+  }
+
+  if (cpiInsightDescriptionEl) {
+    cpiInsightDescriptionEl.textContent =
+      cpi >= 1
+        ? `For every ₱1 spent, ₱${cpi.toFixed(2)} of value earned.`
+        : `For every ₱1 spent, only ₱${cpi.toFixed(2)} of value earned.`;
+  }
+
+  if (cpiInsightItemEl) {
+    cpiInsightItemEl.classList.remove("info", "critical");
+    cpiInsightItemEl.classList.add(cpi >= 1 ? "info" : "critical");
+  }
 
   if (dashboardRiskLevelEl) {
     if (!activityCount) {
