@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWix+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkR4fE0zYfV+yh9Gkk9aF6QnM7m0fQ8f6W4g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="login.css" />
 </head>
 <body>
@@ -20,9 +20,9 @@
         <h1>Executive Cost &amp; Performance Command Center</h1>
         <p>Unify budget health, project delivery KPIs, and cost controls in a single trusted workspace.</p>
         <ul class="brand-metrics" aria-label="Platform highlights">
-          <li><span class="metric-icon" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></span><div><strong>Portfolio Visibility</strong><span>Track all active sites and spending in real time.</span></div></li>
-          <li><span class="metric-icon" aria-hidden="true"><i class="fa-solid fa-file-invoice-dollar"></i></span><div><strong>Audit-Ready Reporting</strong><span>Maintain clear records for finance and stakeholder reviews.</span></div></li>
-          <li><span class="metric-icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></span><div><strong>Risk Awareness</strong><span>Spot overruns early with proactive budget indicators.</span></div></li>
+          <li><span class="metric-icon" aria-hidden="true"><i class="bi bi-graph-up-arrow"></i></span><div><strong>Portfolio Visibility</strong><span>Track all active sites and spending in real time.</span></div></li>
+          <li><span class="metric-icon" aria-hidden="true"><i class="bi bi-file-earmark-bar-graph"></i></span><div><strong>Audit-Ready Reporting</strong><span>Maintain clear records for finance and stakeholder reviews.</span></div></li>
+          <li><span class="metric-icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></span><div><strong>Risk Awareness</strong><span>Spot overruns early with proactive budget indicators.</span></div></li>
         </ul>
       </div>
     </section>
@@ -37,16 +37,16 @@
 
           <label for="email">Email</label>
           <div class="field-wrap" id="emailWrap">
-            <span class="icon" aria-hidden="true"><i class="fa-regular fa-envelope"></i></span>
+            <span class="icon" aria-hidden="true"><i class="bi bi-envelope"></i></span>
             <input type="email" id="email" name="email" placeholder="Email" autocomplete="email" required aria-describedby="emailError" />
           </div>
           <p class="field-error" id="emailError" aria-live="polite"></p>
 
           <label for="password">Password</label>
           <div class="field-wrap" id="passwordWrap">
-            <span class="icon" aria-hidden="true"><i class="fa-solid fa-lock"></i></span>
+            <span class="icon" aria-hidden="true"><i class="bi bi-lock-fill"></i></span>
             <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required minlength="8" aria-describedby="passwordMeta" />
-            <button class="visibility-toggle" id="togglePassword" type="button" aria-label="Show password"><i class="fa-regular fa-eye"></i></button>
+            <button class="visibility-toggle" id="togglePassword" type="button" aria-label="Show password"><i class="bi bi-eye"></i></button>
           </div>
 
           <p class="caps-lock" id="capsLockHint" aria-live="polite"></p>
@@ -70,9 +70,9 @@
 
     <footer class="login-footer">
       <div class="footer-trust">
-        <div class="footer-item"><span class="footer-icon" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span><div><strong>Secure</strong><p>Bank-grade encryption</p></div></div>
-        <div class="footer-item"><span class="footer-icon" aria-hidden="true"><i class="fa-solid fa-users"></i></span><div><strong>Trusted</strong><p>Role-based access</p></div></div>
-        <div class="footer-item"><span class="footer-icon" aria-hidden="true"><i class="fa-solid fa-cloud"></i></span><div><strong>Reliable</strong><p>Built for the field</p></div></div>
+        <div class="footer-item"><span class="footer-icon" aria-hidden="true"><i class="bi bi-shield-lock"></i></span><div><strong>Secure</strong><p>Bank-grade encryption</p></div></div>
+        <div class="footer-item"><span class="footer-icon" aria-hidden="true"><i class="bi bi-people-fill"></i></span><div><strong>Trusted</strong><p>Role-based access</p></div></div>
+        <div class="footer-item"><span class="footer-icon" aria-hidden="true"><i class="bi bi-cloud-fill"></i></span><div><strong>Reliable</strong><p>Built for the field</p></div></div>
       </div>
       <p class="footer-copy">© 2026 CosTrack. All rights reserved.</p>
     </footer>

@@ -70,8 +70,8 @@ togglePasswordButton?.addEventListener("click", () => {
   const isPassword = passwordInput.type === "password";
   passwordInput.type = isPassword ? "text" : "password";
   togglePasswordButton.innerHTML = isPassword
-    ? '<i class="fa-regular fa-eye-slash"></i>'
-    : '<i class="fa-regular fa-eye"></i>';
+    ? '<i class="bi bi-eye-slash"></i>'
+    : '<i class="bi bi-eye"></i>';
   togglePasswordButton.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
 });
 
