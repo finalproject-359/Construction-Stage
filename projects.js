@@ -72,6 +72,7 @@ let projectsRefreshTimer = null;
 let isProjectsSyncInFlight = false;
 let lastProjectsSignature = "";
 let isProjectFormSubmitting = false;
+let isAutoPersistInFlight = false;
 
 const syncProjectsHeroState = () => {
   if (projectsPageHero) {
@@ -230,17 +231,28 @@ const normalizeProject = (project = {}) => {
     "Not Started": 0,
   };
 
+  const normalizedProgress = Number.isFinite(progressRaw)
+    ? Math.max(0, Math.min(100, progressRaw))
+    : progressByStatus[normalizedStatus] ?? 0;
+
+  const derivedStatus = (() => {
+    if (normalizedStatus === "Archived" || normalizedStatus === "On Hold") return normalizedStatus;
+    if (normalizedProgress >= 100) return "Completed";
+    if (normalizedProgress > 0) return "In Progress";
+    return "Not Started";
+  })();
+
   return {
     id: String(idRaw || "").trim(),
     name: String(nameRaw || "Untitled Project").trim(),
     code: String(codeRaw || idRaw || "").trim(),
     type: String(typeRaw || "General").trim() || "General",
-    status: normalizedStatus,
+    status: derivedStatus,
     location: String(locationRaw || "").trim(),
     startDate,
     finishDate,
     budget: parseBudgetValue(budgetRaw),
-    progress: Number.isFinite(progressRaw) ? Math.max(0, Math.min(100, progressRaw)) : progressByStatus[normalizedStatus] ?? 0,
+    progress: normalizedProgress,
     description: String(descriptionRaw || "").trim(),
     archivedDate: archivedDateRaw || finishDate || createdAtRaw || "",
     archiveReason: String(archiveReasonRaw || descriptionRaw || "Project completed").trim(),
@@ -1226,9 +1238,58 @@ projectsSearchInput?.addEventListener("input", applyFilters);
 projectsStatusFilter?.addEventListener("change", applyFilters);
 projectsTypeFilter?.addEventListener("change", applyFilters);
 
+const buildProjectsById = (projects = []) => {
+  const lookup = new Map();
+  projects.forEach((project) => {
+    const id = String(project?.id || "").trim();
+    if (!id) return;
+    lookup.set(id, project);
+  });
+  return lookup;
+};
+
+const persistDerivedProjectChanges = async (sourceProjects = [], derivedProjects = []) => {
+  if (!DATA_SOURCE_URL || isAutoPersistInFlight) return;
+
+  const sourceById = buildProjectsById(sourceProjects);
+  const changedProjects = derivedProjects.filter((project) => {
+    const source = sourceById.get(String(project?.id || "").trim());
+    if (!source) return false;
+
+    const sourceProgress = Number(source.progress);
+    const nextProgress = Number(project.progress);
+    const normalizedSourceProgress = Number.isFinite(sourceProgress)
+      ? Math.max(0, Math.min(100, sourceProgress))
+      : 0;
+    const normalizedNextProgress = Number.isFinite(nextProgress)
+      ? Math.max(0, Math.min(100, nextProgress))
+      : 0;
+    const sameProgress = Math.abs(normalizedSourceProgress - normalizedNextProgress) < 0.0001;
+
+    const sourceStatus = String(source.status || "").trim().toLowerCase();
+    const nextStatus = String(project.status || "").trim().toLowerCase();
+    const sameStatus = sourceStatus === nextStatus;
+
+    return !sameProgress || !sameStatus;
+  });
+
+  if (!changedProjects.length) return;
+
+  isAutoPersistInFlight = true;
+  try {
+    for (const project of changedProjects) {
+      await syncProjectWithGoogleSheet({ action: "update", project });
+    }
+  } finally {
+    isAutoPersistInFlight = false;
+  }
+};
+
 const bootstrapProjectsPage = async () => {
   const projects = await loadProjectsFromSource();
-  const normalizedProjects = applyAutoProjectProgressAndStatus(Array.isArray(projects) ? projects : []);
+  const sourceProjects = Array.isArray(projects) ? projects : [];
+  const normalizedProjects = applyAutoProjectProgressAndStatus(sourceProjects);
+  await persistDerivedProjectChanges(sourceProjects, normalizedProjects);
   const nextSignature = JSON.stringify(normalizedProjects);
   if (nextSignature === lastProjectsSignature) return;
   lastProjectsSignature = nextSignature;
