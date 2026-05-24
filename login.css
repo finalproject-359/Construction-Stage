@@ -40,6 +40,20 @@ body { margin: 0; min-height: 100vh; font-family: "Inter", system-ui, -apple-sys
 .field-wrap.invalid { border-color: rgba(180, 35, 24, 0.7); box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.1); }
 .icon { color: #5f7396; font-size: 1rem; width: 18px; text-align: center; }
 input[type="email"], input[type="password"], input[type="text"] { border: 0; height: 54px; width: 100%; font-size: 1rem; color: #1c2f52; outline: none; background: transparent; }
+input[type="email"]:-webkit-autofill,
+input[type="password"]:-webkit-autofill,
+input[type="text"]:-webkit-autofill,
+input[type="email"]:-webkit-autofill:hover,
+input[type="password"]:-webkit-autofill:hover,
+input[type="text"]:-webkit-autofill:hover,
+input[type="email"]:-webkit-autofill:focus,
+input[type="password"]:-webkit-autofill:focus,
+input[type="text"]:-webkit-autofill:focus {
+  -webkit-text-fill-color: #1c2f52;
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
 input::placeholder { color: #95a2b8; }
 .visibility-toggle { border: 0; background: transparent; color: #5f708d; font-size: 1.1rem; cursor: pointer; min-width: 32px; min-height: 32px; border-radius: 8px; }
 .visibility-toggle:hover { background: #eff4fd; }
