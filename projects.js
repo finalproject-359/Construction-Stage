@@ -230,17 +230,28 @@ const normalizeProject = (project = {}) => {
     "Not Started": 0,
   };
 
+  const normalizedProgress = Number.isFinite(progressRaw)
+    ? Math.max(0, Math.min(100, progressRaw))
+    : progressByStatus[normalizedStatus] ?? 0;
+
+  const derivedStatus = (() => {
+    if (normalizedStatus === "Archived" || normalizedStatus === "On Hold") return normalizedStatus;
+    if (normalizedProgress >= 100) return "Completed";
+    if (normalizedProgress > 0) return "In Progress";
+    return "Not Started";
+  })();
+
   return {
     id: String(idRaw || "").trim(),
     name: String(nameRaw || "Untitled Project").trim(),
     code: String(codeRaw || idRaw || "").trim(),
     type: String(typeRaw || "General").trim() || "General",
-    status: normalizedStatus,
+    status: derivedStatus,
     location: String(locationRaw || "").trim(),
     startDate,
     finishDate,
     budget: parseBudgetValue(budgetRaw),
-    progress: Number.isFinite(progressRaw) ? Math.max(0, Math.min(100, progressRaw)) : progressByStatus[normalizedStatus] ?? 0,
+    progress: normalizedProgress,
     description: String(descriptionRaw || "").trim(),
     archivedDate: archivedDateRaw || finishDate || createdAtRaw || "",
     archiveReason: String(archiveReasonRaw || descriptionRaw || "Project completed").trim(),
