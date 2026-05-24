@@ -243,8 +243,34 @@ const formatProjectTimeline = (project) => {
 };
 
 
+const buildFormStateSnapshot = (form) => {
+  if (!(form instanceof HTMLFormElement)) return "";
+  const controls = Array.from(form.elements || []);
+  const payload = controls
+    .filter((control) => (
+      control instanceof HTMLInputElement
+      || control instanceof HTMLTextAreaElement
+      || control instanceof HTMLSelectElement
+    ))
+    .filter((control) => !control.disabled)
+    .map((control) => {
+      const name = String(control.name || control.id || "");
+      if (control instanceof HTMLInputElement && (control.type === "checkbox" || control.type === "radio")) {
+        return { name, type: control.type, checked: control.checked };
+      }
+      return { name, type: control.type || control.tagName.toLowerCase(), value: control.value };
+    });
+  return JSON.stringify(payload);
+};
+const markFormSnapshot = (form) => {
+  if (!(form instanceof HTMLFormElement)) return;
+  form.dataset.initialSnapshot = buildFormStateSnapshot(form);
+};
 const isFormDirty = (form) => {
   if (!(form instanceof HTMLFormElement)) return false;
+  if (typeof form.dataset.initialSnapshot === "string" && form.dataset.initialSnapshot.length > 0) {
+    return buildFormStateSnapshot(form) !== form.dataset.initialSnapshot;
+  }
   const controls = Array.from(form.elements || []);
   return controls.some((control) => {
     if (
@@ -1742,15 +1768,18 @@ const renderDailyCostModal = (projectId, activityId, allActivities = loadCostAct
       if (customDateInput) customDateInput.required = isCustom;
       updateDailyCostSubmitMode();
       applySelectedDateDefaults();
+      if (dailyCostForm instanceof HTMLFormElement) markFormSnapshot(dailyCostForm);
     });
     customDateField?.classList.toggle("hidden", datePresetSelect.value !== "__custom__");
   }
   customDateInput?.addEventListener("change", () => {
     updateDailyCostSubmitMode();
     applySelectedDateDefaults();
+    if (dailyCostForm instanceof HTMLFormElement) markFormSnapshot(dailyCostForm);
   });
   updateDailyCostSubmitMode();
   applySelectedDateDefaults();
+  if (dailyCostForm instanceof HTMLFormElement) markFormSnapshot(dailyCostForm);
 
   dailyCostForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -2111,8 +2140,10 @@ const renderCostMetadataModal = (projectId, activityRefId, target) => {
   modal.addEventListener("click", (event) => {
     if (event.target === modal) void closeModal();
   });
+  const costMetaForm = modal.querySelector("#costMetaForm");
+  if (costMetaForm instanceof HTMLFormElement) markFormSnapshot(costMetaForm);
 
-  modal.querySelector("#costMetaForm")?.addEventListener("submit", async (event) => {
+  costMetaForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     if (form.classList.contains("is-saving")) return;
