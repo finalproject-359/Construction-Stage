@@ -2377,7 +2377,7 @@ function updateProjectRow(project) {
   rowValues[lookup.columns.id - 1] = project.id;
   rowValues[lookup.columns.name - 1] = project.name;
   rowValues[lookup.columns.type - 1] = project.type;
-  rowValues[lookup.columns.status - 1] = project.status;
+  var resolvedStatus = project.status;
   rowValues[lookup.columns.location - 1] = project.location;
   rowValues[lookup.columns.startDate - 1] = project.startDate;
   rowValues[lookup.columns.finishDate - 1] = project.finishDate;
@@ -2394,8 +2394,13 @@ function updateProjectRow(project) {
       project.id,
       project.name,
     );
-    rowValues[lookup.columns.progress - 1] =
+    const resolvedProgress =
       computedProgress === null ? project.progress : computedProgress;
+    rowValues[lookup.columns.progress - 1] = resolvedProgress;
+    resolvedStatus = deriveProjectStatusFromProgress(project.status, resolvedProgress);
+  }
+  if (lookup.columns.status) {
+    rowValues[lookup.columns.status - 1] = resolvedStatus;
   }
   lookup.sheet
     .getRange(lookup.rowNumber, 1, 1, lookup.lastColumn)
@@ -3856,6 +3861,29 @@ function ensureSheetHeaders(sheet, expectedHeaders) {
   sheet.getRange(1, 1, 1, expectedHeaders.length).setValues([expectedHeaders]);
 }
 
+
+function normalizeProjectStatus(value) {
+  var normalized = cleanText(value).toLowerCase();
+  if (normalized === "in progress") return "In Progress";
+  if (normalized === "on hold") return "On Hold";
+  if (normalized === "completed") return "Completed";
+  if (normalized === "archived") return "Archived";
+  return "Not Started";
+}
+
+function deriveProjectStatusFromProgress(status, progress) {
+  var normalizedStatus = normalizeProjectStatus(status);
+  var numericProgress = Number(progress);
+  if (normalizedStatus === "Archived" || normalizedStatus === "On Hold") {
+    return normalizedStatus;
+  }
+  if (Number.isFinite(numericProgress)) {
+    if (numericProgress >= 100) return "Completed";
+    if (numericProgress > 0) return "In Progress";
+  }
+  return normalizedStatus;
+}
+
 function normalizeIncomingProject(input) {
   const source = input || {};
 
@@ -3939,17 +3967,20 @@ function normalizeIncomingProject(input) {
     budget = descriptionBudget || createdAtBudget || 0;
   }
 
+  var normalizedProgress = normalizeProjectProgress(explicitProgress, status);
+  var normalizedStatus = deriveProjectStatusFromProgress(status, normalizedProgress);
+
   return {
     id: id || code || Utilities.getUuid(),
     code: code || id,
     name: name,
     type: type,
-    status: status,
+    status: normalizedStatus,
     location: location,
     startDate: startDate,
     finishDate: finishDate,
     budget: budget,
-    progress: normalizeProjectProgress(explicitProgress, status),
+    progress: normalizedProgress,
   };
 }
 
