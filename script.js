@@ -29,6 +29,10 @@ const activeProjectCountEl = document.getElementById("activeProjectCount");
 const dashboardRiskLevelEl = document.getElementById("dashboardRiskLevel");
 const exportReportButtonEl = document.getElementById("exportReportButton");
 const exportReportOptionsEl = document.getElementById("exportReportOptions");
+const exportSettingsModalEl = document.getElementById("exportSettingsModal");
+const exportColumnListEl = document.getElementById("exportColumnList");
+const exportSettingsSaveEl = document.getElementById("exportSettingsSave");
+const exportSettingsCancelEl = document.getElementById("exportSettingsCancel");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const chartDependencyWarning =
@@ -47,6 +51,20 @@ let lastStableDashboardSavedAt = 0;
 const DASHBOARD_REFRESH_INTERVAL_MS = 30 * 1000;
 let dashboardRefreshTimer = null;
 let pendingDashboardRefreshRequested = false;
+const EXPORT_COLUMN_PREF_KEY = "costrack.export.columns.v1";
+const EXPORT_COLUMNS = [
+  { key: "Project", label: "Project" },
+  { key: "Activity", label: "Activity" },
+  { key: "Activity ID", label: "Activity ID" },
+  { key: "Start Date", label: "Start Date" },
+  { key: "Finish Date", label: "Finish Date" },
+  { key: "Planned Cost", label: "Planned Cost" },
+  { key: "Actual Cost", label: "Actual Cost" },
+  { key: "Earned Value", label: "Earned Value" },
+  { key: "Cost Variance", label: "Cost Variance" },
+  { key: "Percent Complete", label: "Percent Complete" },
+  { key: "Cost Used %", label: "Cost Used %" },
+];
 
 const getProjectFilterPrefill = () => {
   try {
@@ -746,6 +764,38 @@ const buildExportRows = (rows) =>
     "Cost Used %": parseNumber(row.costUsedPercent),
   }));
 
+const getSelectedExportColumns = () => {
+  try {
+    const raw = localStorage.getItem(EXPORT_COLUMN_PREF_KEY);
+    const parsed = JSON.parse(raw || "[]");
+    const valid = parsed.filter((key) => EXPORT_COLUMNS.some((column) => column.key === key));
+    return valid.length ? valid : EXPORT_COLUMNS.map((column) => column.key);
+  } catch {
+    return EXPORT_COLUMNS.map((column) => column.key);
+  }
+};
+
+const applyExportColumnSelection = (rows) => {
+  const selectedColumns = getSelectedExportColumns();
+  return rows.map((row) =>
+    selectedColumns.reduce((acc, key) => {
+      acc[key] = row[key];
+      return acc;
+    }, {})
+  );
+};
+
+const buildExportWarnings = (rows) => {
+  const warnings = [];
+  const missingDateCount = rows.filter((row) => !normalizeDateOnly(row.startDate) && !normalizeDateOnly(row.finishDate)).length;
+  const missingCostCount = rows.filter((row) => !Number.isFinite(parseNumber(row.plannedCost)) || !Number.isFinite(parseNumber(row.actualCost))).length;
+  if (missingDateCount) warnings.push(`Rows with missing start/finish dates: ${missingDateCount}`);
+  if (missingCostCount) warnings.push(`Rows with missing/invalid planned or actual cost: ${missingCostCount}`);
+  return warnings.length ? warnings : ["No data quality warnings detected."];
+};
+
+const slugify = (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "all";
+
 const exportDashboardReport = (format = "xlsx") => {
   const filteredRows = getFilteredRows(activitySummaryRows);
   if (!filteredRows.length) {
@@ -753,11 +803,27 @@ const exportDashboardReport = (format = "xlsx") => {
     return;
   }
   const exportRows = buildExportRows(filteredRows);
-  const dateStamp = new Date().toISOString().slice(0, 10);
-  const filenameBase = `costrack-dashboard-report-${dateStamp}`;
+  const selectedRows = applyExportColumnSelection(exportRows);
+  const warnings = buildExportWarnings(filteredRows);
+  const now = new Date();
+  const dateStamp = now.toISOString().slice(0, 10);
+  const timeStamp = now.toISOString().slice(11, 16).replace(":", "");
+  const projectLabel = projectFilterEl?.value || "all";
+  const dateRangeLabel = dateRangeFilterEl?.value || "all";
+  const filenameBase = `costrack-dashboard-report-${dateStamp}_${timeStamp}_project-${slugify(projectLabel)}_date-${slugify(dateRangeLabel)}`;
+  const totals = calculateTotalsFromRows(filteredRows);
+  const progress = calculateProgressMetrics(filteredRows, totals);
+  const metadataRows = [
+    { Field: "Generated At (UTC)", Value: now.toISOString() },
+    { Field: "Generated At (Local)", Value: now.toLocaleString() },
+    { Field: "Project Filter", Value: projectLabel },
+    { Field: "Date Range Filter", Value: dateRangeLabel },
+    { Field: "Row Count", Value: filteredRows.length },
+    { Field: "App Version", Value: "CosTrack Dashboard v1" },
+  ];
 
   if (format === "csv") {
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const worksheet = XLSX.utils.json_to_sheet(selectedRows);
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -765,10 +831,40 @@ const exportDashboardReport = (format = "xlsx") => {
     link.download = `${filenameBase}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
+  } else if (format === "pdf") {
+    const header = `<h1>CosTrack Dashboard Report</h1><p><strong>Generated:</strong> ${now.toLocaleString()}</p><p><strong>Project:</strong> ${projectLabel} | <strong>Date Range:</strong> ${dateRangeLabel}</p>`;
+    const tableRows = selectedRows
+      .map((row) => `<tr>${Object.values(row).map((value) => `<td>${String(value ?? "")}</td>`).join("")}</tr>`)
+      .join("");
+    const tableHead = `<tr>${Object.keys(selectedRows[0] || {}).map((key) => `<th>${key}</th>`).join("")}</tr>`;
+    const warningHtml = `<h3>Data Quality Warnings</h3><ul>${warnings.map((warning) => `<li>${warning}</li>`).join("")}</ul>`;
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`<html><head><title>${filenameBase}</title><style>body{font-family:Inter,Arial,sans-serif;padding:20px;}table{border-collapse:collapse;width:100%;font-size:12px;}th,td{border:1px solid #ddd;padding:6px;}th{background:#f4f7ff;position:sticky;top:0;}h1{margin:0 0 10px;}</style></head><body>${header}${warningHtml}<table>${tableHead}${tableRows}</table></body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    }
   } else {
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const worksheet = XLSX.utils.json_to_sheet(selectedRows);
+    const metadataSheet = XLSX.utils.json_to_sheet(metadataRows);
+    const summarySheet = XLSX.utils.json_to_sheet([
+      { Metric: "Total Planned Cost", Value: totals.planned },
+      { Metric: "Total Actual Cost", Value: totals.actual },
+      { Metric: "Total Earned Value", Value: totals.ev },
+      { Metric: "Total Cost Variance", Value: totals.cv },
+      { Metric: "Physical Progress %", Value: progress.physicalProgressPercent / 100 },
+      { Metric: "Cost Spent %", Value: progress.costSpentPercent / 100 },
+      { Metric: "Efficiency Gap %", Value: progress.efficiencyGapPercent / 100 },
+    ]);
+    const warningSheet = XLSX.utils.json_to_sheet(warnings.map((warning) => ({ Warning: warning })));
+    worksheet["!autofilter"] = { ref: worksheet["!ref"] };
+    worksheet["!freeze"] = { xSplit: 0, ySplit: 1, topLeftCell: "A2", activePane: "bottomLeft", state: "frozen" };
     XLSX.utils.book_append_sheet(workbook, worksheet, "Dashboard Report");
+    XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+    XLSX.utils.book_append_sheet(workbook, metadataSheet, "Metadata");
+    XLSX.utils.book_append_sheet(workbook, warningSheet, "Warnings");
     XLSX.writeFile(workbook, `${filenameBase}.xlsx`);
   }
 
@@ -1731,10 +1827,32 @@ if (exportReportButtonEl && exportReportOptionsEl) {
   });
   exportReportOptionsEl.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-export-format]");
-    if (!button) return;
-    exportDashboardReport(button.dataset.exportFormat || "xlsx");
+    if (button) {
+      exportDashboardReport(button.dataset.exportFormat || "xlsx");
+    }
+    const actionButton = event.target.closest("button[data-export-action='customize']");
+    if (actionButton && exportSettingsModalEl) {
+      const selected = new Set(getSelectedExportColumns());
+      exportColumnListEl.innerHTML = EXPORT_COLUMNS.map((column) => `
+        <label><input type="checkbox" value="${column.key}" ${selected.has(column.key) ? "checked" : ""}/> ${column.label}</label>
+      `).join("");
+      exportSettingsModalEl.hidden = false;
+    }
+    if (!button && !actionButton) return;
     exportReportOptionsEl.hidden = true;
     exportReportButtonEl.setAttribute("aria-expanded", "false");
+  });
+}
+
+if (exportSettingsSaveEl && exportSettingsCancelEl && exportSettingsModalEl) {
+  exportSettingsCancelEl.addEventListener("click", () => {
+    exportSettingsModalEl.hidden = true;
+  });
+  exportSettingsSaveEl.addEventListener("click", () => {
+    const selected = Array.from(exportColumnListEl.querySelectorAll("input[type='checkbox']:checked")).map((el) => el.value);
+    localStorage.setItem(EXPORT_COLUMN_PREF_KEY, JSON.stringify(selected.length ? selected : EXPORT_COLUMNS.map((column) => column.key)));
+    exportSettingsModalEl.hidden = true;
+    showMessage("Export column preferences saved.");
   });
 }
 
