@@ -927,7 +927,6 @@ body.page-dashboard .date-range-select-wrap.is-custom-range {
   border-radius: 12px;
   background: #fff !important;
 }
-.dashboard-header-actions .icon-only{width:40px;padding:0;justify-content:center}
 .kpi-grid{gap:10px;grid-template-columns:repeat(6,minmax(0,1fr));}
 .kpi-card{
   border-radius: 12px;
