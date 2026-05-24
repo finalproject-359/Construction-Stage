@@ -686,9 +686,6 @@ const updateDashboardSummary = (rows, totals, progressMetrics) => {
       : "No active data";
   }
 
-  if (insightVarianceValueEl) insightVarianceValueEl.textContent = formatCurrency(parseNumber(totals?.cv));
-  if (insightCpiValueEl) insightCpiValueEl.textContent = cpi.toFixed(2);
-
   if (dashboardRiskLevelEl) {
     if (!activityCount) {
       dashboardRiskLevelEl.textContent = "Awaiting data";
