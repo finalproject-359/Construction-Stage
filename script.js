@@ -33,8 +33,18 @@ const exportSettingsModalEl = document.getElementById("exportSettingsModal");
 const exportColumnListEl = document.getElementById("exportColumnList");
 const exportSettingsSaveEl = document.getElementById("exportSettingsSave");
 const exportSettingsCancelEl = document.getElementById("exportSettingsCancel");
-const insightVarianceValueEl = document.getElementById("insightVarianceValue");
-const insightCpiValueEl = document.getElementById("insightCpiValue");
+const pdfSettingsModalEl = document.getElementById("pdfSettingsModal");
+const pdfPaperSizeEl = document.getElementById("pdfPaperSize");
+const pdfOrientationEl = document.getElementById("pdfOrientation");
+const pdfMarginEl = document.getElementById("pdfMargin");
+const pdfFontSizeEl = document.getElementById("pdfFontSize");
+const pdfIncludeMetaEl = document.getElementById("pdfIncludeMeta");
+const pdfIncludeDateRangeEl = document.getElementById("pdfIncludeDateRange");
+const pdfIncludeSummaryEl = document.getElementById("pdfIncludeSummary");
+const pdfIncludeWarningsEl = document.getElementById("pdfIncludeWarnings");
+const pdfIncludeTableEl = document.getElementById("pdfIncludeTable");
+const pdfSettingsCancelEl = document.getElementById("pdfSettingsCancel");
+const pdfSettingsPrintEl = document.getElementById("pdfSettingsPrint");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const chartDependencyWarning =
@@ -848,6 +858,7 @@ const getPdfExportPrefs = () => {
     margin: "12mm",
     fontSize: "12px",
     includeMeta: true,
+    includeDateRange: true,
     includeSummary: true,
     includeWarnings: true,
     includeTable: true,
@@ -871,6 +882,7 @@ const openPdfSettingsModal = () => {
   if (pdfMarginEl) pdfMarginEl.value = prefs.margin;
   if (pdfFontSizeEl) pdfFontSizeEl.value = prefs.fontSize;
   if (pdfIncludeMetaEl) pdfIncludeMetaEl.checked = !!prefs.includeMeta;
+  if (pdfIncludeDateRangeEl) pdfIncludeDateRangeEl.checked = !!prefs.includeDateRange;
   if (pdfIncludeSummaryEl) pdfIncludeSummaryEl.checked = !!prefs.includeSummary;
   if (pdfIncludeWarningsEl) pdfIncludeWarningsEl.checked = !!prefs.includeWarnings;
   if (pdfIncludeTableEl) pdfIncludeTableEl.checked = !!prefs.includeTable;
@@ -902,6 +914,8 @@ const exportDashboardReport = (format = "xlsx") => {
     { Field: "Row Count", Value: filteredRows.length },
     { Field: "App Version", Value: "CosTrack Dashboard v1" },
     { Field: "Timezone", Value: Intl.DateTimeFormat().resolvedOptions().timeZone || "Unknown" },
+    { Field: "Date Start", Value: dateStartFilterEl?.value || "-" },
+    { Field: "Date End", Value: dateEndFilterEl?.value || "-" },
   ];
 
   if (format === "csv") {
@@ -915,7 +929,26 @@ const exportDashboardReport = (format = "xlsx") => {
     URL.revokeObjectURL(link.href);
   } else if (format === "pdf") {
     const pdfPrefs = getPdfExportPrefs();
-    const header = `<h1>CosTrack Dashboard Report</h1><p><strong>Generated:</strong> ${now.toLocaleString()}</p><p><strong>Project:</strong> ${projectLabel} | <strong>Date Range:</strong> ${dateRangeLabel}</p>`;
+    const resolvedDateRange = (() => {
+      const start = dateStartFilterEl?.value || "";
+      const end = dateEndFilterEl?.value || "";
+      if (dateRangeLabel === "custom") return `${start || "-"} to ${end || "-"}`;
+      return dateRangeLabel;
+    })();
+    const logoPath = "assets/logo-uploads/app-logo-v20260522.png";
+    const header = `
+      <header class="pdf-report-header">
+        <div class="pdf-brand">
+          <img src="${logoPath}" alt="CosTrack logo" />
+          <div>
+            <h1>CosTrack Dashboard Report</h1>
+            <p><strong>Generated:</strong> ${now.toLocaleString()}</p>
+            <p><strong>Project:</strong> ${projectLabel}</p>
+          </div>
+        </div>
+      </header>
+    `;
+    const dateRangeHtml = `<p><strong>Date Range:</strong> ${resolvedDateRange}</p>`;
     const summary = `<h3>Summary</h3><ul><li>Total Planned Cost: ${formatCurrency(totals.planned)}</li><li>Total Actual Cost: ${formatCurrency(totals.actual)}</li><li>Total Earned Value: ${formatCurrency(totals.ev)}</li><li>Total Cost Variance: ${formatCurrency(totals.cv)}</li><li>Physical Progress: ${progress.physicalProgressPercent.toFixed(2)}%</li><li>Cost Spent: ${progress.costSpentPercent.toFixed(2)}%</li></ul>`;
     const tableRows = selectedRows
       .map((row) => `<tr>${Object.values(row).map((value) => `<td>${String(value ?? "")}</td>`).join("")}</tr>`)
@@ -927,11 +960,12 @@ const exportDashboardReport = (format = "xlsx") => {
       const pageCss = `@page { size: ${pdfPrefs.paperSize} ${pdfPrefs.orientation}; margin: ${pdfPrefs.margin}; }`;
       const bodyParts = [
         pdfPrefs.includeMeta ? header : "",
+        pdfPrefs.includeDateRange ? dateRangeHtml : "",
         pdfPrefs.includeSummary ? summary : "",
         pdfPrefs.includeWarnings ? warningHtml : "",
         pdfPrefs.includeTable ? `<table>${tableHead}${tableRows}</table>` : "",
       ].join("");
-      printWindow.document.write(`<html><head><title>${filenameBase}</title><style>${pageCss} body{font-family:Inter,Arial,sans-serif;padding:0;font-size:${pdfPrefs.fontSize};}table{border-collapse:collapse;width:100%;font-size:inherit;}th,td{border:1px solid #ddd;padding:6px;}th{background:#f4f7ff;}h1{margin:0 0 10px;}</style></head><body>${bodyParts}</body></html>`);
+      printWindow.document.write(`<html><head><title>${filenameBase}</title><style>${pageCss} body{font-family:Inter,Arial,sans-serif;padding:0;font-size:${pdfPrefs.fontSize};color:#0f172a;} .pdf-shell{padding-top:84px;padding-bottom:48px;} .pdf-report-header{position:fixed;top:0;left:0;right:0;height:72px;border-bottom:1px solid #dbe3f2;background:#fff;padding:8px 10px;} .pdf-brand{display:flex;align-items:center;gap:10px;} .pdf-brand img{width:44px;height:44px;object-fit:contain;} .pdf-brand h1{margin:0;font-size:16px;line-height:1.2;} .pdf-brand p{margin:2px 0 0;font-size:11px;color:#334155;} .pdf-report-footer{position:fixed;left:0;right:0;bottom:0;height:34px;border-top:1px solid #dbe3f2;background:#fff;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#475569;} table{border-collapse:collapse;width:100%;font-size:inherit;}th,td{border:1px solid #ddd;padding:6px;}th{background:#f4f7ff;}h3{margin:14px 0 8px;}</style></head><body><div class="pdf-shell">${bodyParts}</div><footer class="pdf-report-footer"><span>CosTrack • Track Better. Build Better.</span><span>Generated ${now.toLocaleDateString()} ${now.toLocaleTimeString()}</span></footer></body></html>`);
       printWindow.document.close();
       printWindow.focus();
       printWindow.print();
@@ -1978,6 +2012,7 @@ if (pdfSettingsModalEl && pdfSettingsCancelEl && pdfSettingsPrintEl) {
       margin: pdfMarginEl?.value || "12mm",
       fontSize: pdfFontSizeEl?.value || "12px",
       includeMeta: !!pdfIncludeMetaEl?.checked,
+      includeDateRange: !!pdfIncludeDateRangeEl?.checked,
       includeSummary: !!pdfIncludeSummaryEl?.checked,
       includeWarnings: !!pdfIncludeWarningsEl?.checked,
       includeTable: !!pdfIncludeTableEl?.checked,
