@@ -33,6 +33,8 @@ const exportSettingsModalEl = document.getElementById("exportSettingsModal");
 const exportColumnListEl = document.getElementById("exportColumnList");
 const exportSettingsSaveEl = document.getElementById("exportSettingsSave");
 const exportSettingsCancelEl = document.getElementById("exportSettingsCancel");
+const insightVarianceValueEl = document.getElementById("insightVarianceValue");
+const insightCpiValueEl = document.getElementById("insightCpiValue");
 
 const DATA_SOURCE_URL = window.DataBridge?.DEFAULT_DATA_SOURCE_URL || "";
 const chartDependencyWarning =
@@ -672,6 +674,9 @@ const updateDashboardSummary = (rows, totals, progressMetrics) => {
       ? `${activityCount} ${activityLabel} · ${uniqueProjects} ${projectLabel}`
       : "No active data";
   }
+
+  if (insightVarianceValueEl) insightVarianceValueEl.textContent = formatCurrency(parseNumber(totals?.cv));
+  if (insightCpiValueEl) insightCpiValueEl.textContent = cpi.toFixed(2);
 
   if (dashboardRiskLevelEl) {
     if (!activityCount) {
