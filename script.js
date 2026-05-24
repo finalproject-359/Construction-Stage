@@ -796,7 +796,7 @@ const applyWorksheetNumberFormats = (worksheet) => {
   const currencyColumns = ["Planned Cost", "Actual Cost", "Earned Value", "Cost Variance"];
   const percentColumns = ["Percent Complete", "Cost Used %"];
   const percentageFormat = "0.00%";
-  const currencyFormat = '"$"#,##0.00;[Red]-"$"#,##0.00';
+  const currencyFormat = '"₱"#,##0.00;[Red]-"₱"#,##0.00';
 
   const applyFormat = (header, formatCode, transform) => {
     const colIndex = findSheetColumnIndexByHeader(worksheet, header);
