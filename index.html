@@ -85,11 +85,11 @@
           <p class="live-sync-status as-of-text" aria-live="polite">Connecting to live Google Sheets data...</p>
         </div>
         <div class="dashboard-header-actions" aria-label="Dashboard quick actions">
-          <a class="dashboard-action-button" href="add-activity.html">Log Site Activity</a>
+          <button class="dashboard-action-button icon-only" type="button" aria-label="Notifications">🔔</button>
           <a class="dashboard-action-button" href="cost-management.html">Open Cost Management</a>
           <div class="dashboard-export-menu">
             <button id="exportReportButton" class="dashboard-action-button primary" type="button" aria-haspopup="true" aria-expanded="false">
-              Export Report
+              Project Report
               <span aria-hidden="true">▾</span>
             </button>
             <div id="exportReportOptions" class="dashboard-export-options" hidden>
@@ -357,6 +357,26 @@
               <tr><td colspan="6" class="placeholder">No data loaded yet.</td></tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section class="table-panel insights-panel">
+        <div class="panel-header">
+          <div><h3>Key Insights</h3><p>Highlights requiring immediate attention and wins to sustain.</p></div>
+        </div>
+        <div class="insights-list">
+          <article class="insight-item critical">
+            <h4>3 activities require immediate attention</h4>
+            <p>High risk of delay or cost overrun.</p>
+          </article>
+          <article class="insight-item positive">
+            <h4>Cost variance is favorable by <span id="insightVarianceValue">₱121,686.03</span></h4>
+            <p>You are currently under budget.</p>
+          </article>
+          <article class="insight-item info">
+            <h4>CPI is performing well at <span id="insightCpiValue">1.54</span></h4>
+            <p>For every ₱1 spent, ₱1.54 of value earned.</p>
+          </article>
         </div>
       </section>
 
