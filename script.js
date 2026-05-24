@@ -936,25 +936,27 @@ const exportDashboardReport = (format = "xlsx") => {
       return dateRangeLabel;
     })();
     const logoPath = "assets/logo-uploads/app-logo-v20260522.png";
+    const safeProjectLabel = escapeHtml(projectLabel);
+    const safeGeneratedAt = escapeHtml(now.toLocaleString());
     const header = `
       <header class="pdf-report-header">
         <div class="pdf-brand">
           <img src="${logoPath}" alt="CosTrack logo" />
           <div>
             <h1>CosTrack Dashboard Report</h1>
-            <p><strong>Generated:</strong> ${now.toLocaleString()}</p>
-            <p><strong>Project:</strong> ${projectLabel}</p>
+            <p><strong>Generated:</strong> ${safeGeneratedAt}</p>
+            <p><strong>Project:</strong> ${safeProjectLabel}</p>
           </div>
         </div>
       </header>
     `;
-    const dateRangeHtml = `<p><strong>Date Range:</strong> ${resolvedDateRange}</p>`;
+    const dateRangeHtml = `<p><strong>Date Range:</strong> ${escapeHtml(resolvedDateRange)}</p>`;
     const summary = `<h3>Summary</h3><ul><li>Total Planned Cost: ${formatCurrency(totals.planned)}</li><li>Total Actual Cost: ${formatCurrency(totals.actual)}</li><li>Total Earned Value: ${formatCurrency(totals.ev)}</li><li>Total Cost Variance: ${formatCurrency(totals.cv)}</li><li>Physical Progress: ${progress.physicalProgressPercent.toFixed(2)}%</li><li>Cost Spent: ${progress.costSpentPercent.toFixed(2)}%</li></ul>`;
     const tableRows = selectedRows
-      .map((row) => `<tr>${Object.values(row).map((value) => `<td>${String(value ?? "")}</td>`).join("")}</tr>`)
+      .map((row) => `<tr>${Object.values(row).map((value) => `<td>${escapeHtml(String(value ?? ""))}</td>`).join("")}</tr>`)
       .join("");
-    const tableHead = `<tr>${Object.keys(selectedRows[0] || {}).map((key) => `<th>${key}</th>`).join("")}</tr>`;
-    const warningHtml = `<h3>Data Quality Warnings</h3><ul>${warnings.map((warning) => `<li>${warning}</li>`).join("")}</ul>`;
+    const tableHead = `<tr>${Object.keys(selectedRows[0] || {}).map((key) => `<th>${escapeHtml(key)}</th>`).join("")}</tr>`;
+    const warningHtml = `<h3>Data Quality Warnings</h3><ul>${warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>`;
     const printWindow = window.open("", "_blank");
     if (printWindow) {
       const pageCss = `@page { size: ${pdfPrefs.paperSize} ${pdfPrefs.orientation}; margin: ${pdfPrefs.margin}; }`;
