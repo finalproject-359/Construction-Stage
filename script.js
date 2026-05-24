@@ -1066,7 +1066,7 @@ const exportDashboardReport = (format = "xlsx") => {
     XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
     XLSX.utils.book_append_sheet(workbook, metadataSheet, "Metadata");
     XLSX.utils.book_append_sheet(workbook, warningSheet, "Warnings");
-    XLSX.writeFile(workbook, `${filenameBase}.xlsx`);
+    XLSX.writeFile(workbook, `${filenameBase}.xlsx`, { cellStyles: true });
   }
 
   showMessage(`Exported ${filteredRows.length} row(s) as ${format.toUpperCase()}.`);
