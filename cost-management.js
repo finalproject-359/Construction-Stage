@@ -1389,7 +1389,7 @@ const buildDetailsMarkup = (project, rows) => {
   const avgActualPerDay = totalDuration > 0 ? actualCost / totalDuration : 0;
 
   const tableRows = rows.length
-    ? rows.map((row) => {
+    ? rows.map((row, rowIndex) => {
       const hasPlannedCost = parseBudgetValue(row.plannedCost) > 0;
       const hasActualCost = parseBudgetValue(row.actualCost) > 0;
       const costIdCell = row.costId ? escapeHtml(row.costId) : "";
@@ -1423,9 +1423,11 @@ const buildDetailsMarkup = (project, rows) => {
       const durationCell = Number(row.durationDays) > 0 ? `${row.durationDays} days` : "Not set";
       const activityIdValue = getActivityRefId(row);
       const actionIdentifierValue = activityIdValue || String(row.costId || "").trim() || String(row.name || "").trim();
-      const activityId = escapeHtml(actionIdentifierValue);
+      const actionIdentifier = String(actionIdentifierValue || "").trim();
+      const activityId = escapeHtml(actionIdentifier);
+      const actionMenuKey = escapeHtml(`${actionIdentifier || "activity"}::${rowIndex}`);
       const progressWidth = Math.max(0, Math.min(100, progressValue || 0));
-      return `<tr class="cost-record-row"><td><span class="cost-id-pill ${costIdCell ? "" : "is-missing"}">${costIdCell || "Add ID"}</span></td><td><div class="cost-activity-cell"><strong>${escapeHtml(row.name)}</strong><span>Activity ID: ${escapeHtml(activityIdValue || "—")}</span></div></td><td><span class="cost-muted-value">${durationCell}</span></td><td><div class="cost-progress-cell"><span>${progressCell || "0.00%"}</span><div class="cost-progress-track" aria-hidden="true"><i style="width:${progressWidth}%"></i></div></div></td><td class="planned-cost-cell"><span class="planned-cost-text cost-money">${plannedCostCell || "Not set"}</span></td><td><span class="cost-money">${actualCostCell || "Not logged"}</span></td><td><span class="cost-money">${earnedValueCell}</span><small class="cost-variance-note ${varianceTone}">${formatBudget(varianceValue)}</small></td><td><span class="cost-status-badge ${statusTone}">${statusLabel}</span></td><td class="actions-col"><button type="button" class="action-menu-trigger cost-actions-button" data-cost-actions="${activityId}" aria-label="Open cost actions for ${escapeHtml(row.name)}" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${activityId}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Add / Edit Cost Details</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
+      return `<tr class="cost-record-row"><td><span class="cost-id-pill ${costIdCell ? "" : "is-missing"}">${costIdCell || "Add ID"}</span></td><td><div class="cost-activity-cell"><strong>${escapeHtml(row.name)}</strong><span>Activity ID: ${escapeHtml(activityIdValue || "—")}</span></div></td><td><span class="cost-muted-value">${durationCell}</span></td><td><div class="cost-progress-cell"><span>${progressCell || "0.00%"}</span><div class="cost-progress-track" aria-hidden="true"><i style="width:${progressWidth}%"></i></div></div></td><td class="planned-cost-cell"><span class="planned-cost-text cost-money">${plannedCostCell || "Not set"}</span></td><td><span class="cost-money">${actualCostCell || "Not logged"}</span></td><td><span class="cost-money">${earnedValueCell}</span><small class="cost-variance-note ${varianceTone}">${formatBudget(varianceValue)}</small></td><td><span class="cost-status-badge ${statusTone}">${statusLabel}</span></td><td class="actions-col"><button type="button" class="action-menu-trigger cost-actions-button" data-cost-actions="${actionMenuKey}" aria-label="Open cost actions for ${escapeHtml(row.name)}" aria-expanded="false">⋮</button><div class="project-actions-menu hidden" data-cost-menu="${actionMenuKey}" role="menu" aria-label="Cost actions"><button type="button" class="project-action-btn edit-cost-meta-btn" data-activity-id="${activityId}" role="menuitem">Add / Edit Cost Details</button><button type="button" class="project-action-btn view-daily-cost-btn" data-activity-id="${activityId}" role="menuitem">View / Add Daily Cost</button></div></td></tr>`;
     }).join("")
     : '<tr><td colspan="9" class="empty-cell"><strong>No costing records yet.</strong><span>Add activities to start tracking costs, then use Add / Edit Cost Details to assign budgets.</span></td></tr>';
 
