@@ -148,6 +148,10 @@
   const isAbortError = (error) =>
     error?.name === "AbortError" || /aborted|abort/i.test(String(error?.message || error || ""));
 
+
+  const isDnsResolutionError = (error) =>
+    /err_name_not_resolved|name not resolved|dns|dns_probe/i.test(String(error?.message || error || ""));
+
   const getDataCacheKey = (kind, urlValue) => `${DATA_CACHE_PREFIX}${kind}:${urlValue}`;
 
   const readDataCache = (kind, urlValue, { allowStale = false } = {}) => {
@@ -422,7 +426,13 @@
         const versionInfo = await fetchSourceVersion(DEFAULT_DATA_SOURCE_URL);
         rememberVersion(versionInfo, { emit });
       } catch (error) {
-        console.warn("Google Sheet realtime version check failed:", error);
+        if (isDnsResolutionError(error)) {
+          console.warn(
+            "Google Sheet realtime check failed because the Apps Script host name could not be resolved. Verify internet/DNS access and DATA_SOURCE_URL."
+          );
+        } else {
+          console.warn("Google Sheet realtime version check failed:", error);
+        }
       } finally {
         inFlight = false;
         schedule(getNextDelay());

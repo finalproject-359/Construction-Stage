@@ -569,6 +569,9 @@ const readFromLocalStorage = () => {
   }
 };
 
+const isDnsResolutionError = (error) =>
+  /err_name_not_resolved|name not resolved|dns|dns_probe/i.test(String(error?.message || error || ""));
+
 const resolveProjectBudgetForSync = (project = {}) => {
   if (typeof getDerivedBudgetForProject === "function") {
     return getDerivedBudgetForProject(project);
@@ -642,9 +645,12 @@ const syncProjectWithGoogleSheet = async ({ action, project, projectId }) => {
     }
 
     if (!response || payload?.ok === false) {
-      const guidance = maybeCorsIssue
-        ? "CORS check failed for POST. Verify your Google Apps Script Web App is deployed to Anyone and use the latest /exec deployment URL."
-        : "Unable to reach the Google Sheet endpoint.";
+      const dnsIssue = isDnsResolutionError(error);
+      const guidance = dnsIssue
+        ? "Could not resolve script.google.com (DNS lookup failed). Check internet/DNS access, firewall/proxy settings, and verify the URL host is correct."
+        : maybeCorsIssue
+          ? "CORS check failed for POST. Verify your Google Apps Script Web App is deployed to Anyone and use the latest /exec deployment URL."
+          : "Unable to reach the Google Sheet endpoint.";
       throw new Error(
         `${guidance} If this endpoint was recently changed, update DATA_SOURCE_URL in data-service.js.`
       );
