@@ -35,6 +35,12 @@ const CONFIG = {
       "Project Name",
       "Activity ID",
       "Activity",
+      "WBS",
+      "Predecessor",
+      "Optimistic Duration",
+      "Most Likely Duration",
+      "Pessimistic Duration",
+      "PERT Duration",
       "Planned Start",
       "Planned Finish",
       "Duration",
@@ -1385,6 +1391,12 @@ function handleActivityMutation(action, payload) {
     if (columns.id) rowValues[columns.id - 1] = activity.id;
     if (columns.name) rowValues[columns.name - 1] = activity.name;
     if (columns.status) rowValues[columns.status - 1] = activity.status;
+    if (columns.wbs) rowValues[columns.wbs - 1] = activity.wbs;
+    if (columns.predecessor) rowValues[columns.predecessor - 1] = activity.predecessor;
+    if (columns.optimisticDuration) rowValues[columns.optimisticDuration - 1] = activity.optimisticDuration;
+    if (columns.mostLikelyDuration) rowValues[columns.mostLikelyDuration - 1] = activity.mostLikelyDuration;
+    if (columns.pessimisticDuration) rowValues[columns.pessimisticDuration - 1] = activity.pessimisticDuration;
+    if (columns.pertDuration) rowValues[columns.pertDuration - 1] = activity.pertDuration;
     if (columns.plannedStart)
       rowValues[columns.plannedStart - 1] = activity.plannedStart;
     if (columns.plannedFinish)
@@ -2198,6 +2210,12 @@ function normalizeIncomingCost(input) {
     earnedValue: parseNumber(
       source.earnedValue || source.earned_value || source.ev,
     ),
+    wbs: cleanText(source.wbs || source.wbsCode || source.wbs_code),
+    predecessor: cleanText(source.predecessor || source.predecessors || source.predecessorId || source.predecessor_id),
+    optimisticDuration: cleanText(source.optimisticDuration || source.optimistic_duration || source.optimistic),
+    mostLikelyDuration: cleanText(source.mostLikelyDuration || source.most_likely_duration || source.mostLikely || source.most_likely),
+    pessimisticDuration: cleanText(source.pessimisticDuration || source.pessimistic_duration || source.pessimistic),
+    pertDuration: cleanText(source.pertDuration || source.pert_duration || source.pert),
     notes: cleanText(source.notes || source.note || source.remarks),
   };
 }
@@ -2592,6 +2610,12 @@ function normalizeIncomingActivity(input) {
     actualFinish: actualFinish,
     duration: duration,
     percentComplete: percentComplete,
+    wbs: cleanText(source.wbs || source.wbsCode || source.wbs_code),
+    predecessor: cleanText(source.predecessor || source.predecessors || source.predecessorId || source.predecessor_id),
+    optimisticDuration: cleanText(source.optimisticDuration || source.optimistic_duration || source.optimistic),
+    mostLikelyDuration: cleanText(source.mostLikelyDuration || source.most_likely_duration || source.mostLikely || source.most_likely),
+    pessimisticDuration: cleanText(source.pessimisticDuration || source.pessimistic_duration || source.pessimistic),
+    pertDuration: cleanText(source.pertDuration || source.pert_duration || source.pert),
     notes: cleanText(source.notes || source.note || source.remarks),
   };
 }
@@ -2686,6 +2710,12 @@ function getActivityColumnMap(sheet) {
     projectId: indexOfHeader(["Project ID"]),
     project: indexOfHeader(["Project Name", "Project"]),
     name: indexOfHeader(["Activity", "Activity Name", "Name"]),
+    wbs: indexOfHeader(["WBS", "WBS Code", "WBS ID"]),
+    predecessor: indexOfHeader(["Predecessor", "Predecessors", "Predecessor ID"]),
+    optimisticDuration: indexOfHeader(["Optimistic Duration", "Optimistic", "PERT Optimistic"]),
+    mostLikelyDuration: indexOfHeader(["Most Likely Duration", "Most Likely", "PERT Most Likely"]),
+    pessimisticDuration: indexOfHeader(["Pessimistic Duration", "Pessimistic", "PERT Pessimistic"]),
+    pertDuration: indexOfHeader(["PERT Duration", "PERT"]),
     plannedStart: indexOfHeader(["Planned Start", "Start Date"]),
     plannedFinish: indexOfHeader(["Planned Finish", "Finish Date"]),
     actualFinish: indexOfHeader([
@@ -2766,6 +2796,12 @@ function updateActivityRow(activity) {
   if (lookup.columns.project)
     rowValues[lookup.columns.project - 1] = activity.project;
   if (lookup.columns.name) rowValues[lookup.columns.name - 1] = activity.name;
+  if (lookup.columns.wbs) rowValues[lookup.columns.wbs - 1] = activity.wbs;
+  if (lookup.columns.predecessor) rowValues[lookup.columns.predecessor - 1] = activity.predecessor;
+  if (lookup.columns.optimisticDuration) rowValues[lookup.columns.optimisticDuration - 1] = activity.optimisticDuration;
+  if (lookup.columns.mostLikelyDuration) rowValues[lookup.columns.mostLikelyDuration - 1] = activity.mostLikelyDuration;
+  if (lookup.columns.pessimisticDuration) rowValues[lookup.columns.pessimisticDuration - 1] = activity.pessimisticDuration;
+  if (lookup.columns.pertDuration) rowValues[lookup.columns.pertDuration - 1] = activity.pertDuration;
   if (lookup.columns.plannedStart)
     rowValues[lookup.columns.plannedStart - 1] = activity.plannedStart;
   if (lookup.columns.plannedFinish)
@@ -3523,6 +3559,12 @@ function normalizeActivitiesColumnsIfNeeded(sheet) {
       "id",
     ],
     activity: ["activity", "activity name", "name"],
+    wbs: ["wbs", "wbs code", "wbs id"],
+    predecessor: ["predecessor", "predecessors", "predecessor id"],
+    "optimistic duration": ["optimistic duration", "optimistic", "pert optimistic"],
+    "most likely duration": ["most likely duration", "most likely", "pert most likely"],
+    "pessimistic duration": ["pessimistic duration", "pessimistic", "pert pessimistic"],
+    "pert duration": ["pert duration", "pert"],
     "planned start": ["planned start", "planned_start", "start date"],
     "planned finish": [
       "planned finish",
@@ -4318,6 +4360,12 @@ function normalizeActivityRecord(row) {
     projectCode: projectId,
     project: cleanText(getCell(row, ["project", "project name"])),
     name: cleanText(getCell(row, ["activity", "activity name", "name"])),
+    wbs: cleanText(getCell(row, ["wbs", "wbs code", "wbs id"])),
+    predecessor: cleanText(getCell(row, ["predecessor", "predecessors", "predecessor id"])),
+    optimisticDuration: cleanText(getCell(row, ["optimistic duration", "optimistic", "pert optimistic"])),
+    mostLikelyDuration: cleanText(getCell(row, ["most likely duration", "most likely", "pert most likely"])),
+    pessimisticDuration: cleanText(getCell(row, ["pessimistic duration", "pessimistic", "pert pessimistic"])),
+    pertDuration: cleanText(getCell(row, ["pert duration", "pert"])),
     type: cleanText(getCell(row, ["type", "activity type"])) || "General",
     status: cleanText(getCell(row, ["status"])) || "Not Started",
     plannedStart: normalizeDate(

@@ -637,3 +637,229 @@ body.page-activities .activities-project-card-action-row .badge-delayed {
     flex-direction: column;
   }
 }
+
+/* Primavera-style scheduling board. */
+body.page-activities .activities-planner-panel {
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(13, 47, 99, 0.04), rgba(248, 181, 17, 0.05)),
+    #ffffff;
+}
+
+.activities-planner-header {
+  align-items: flex-start;
+}
+
+.activities-gantt-board {
+  display: grid;
+  gap: 10px;
+  min-height: 180px;
+  overflow-x: auto;
+}
+
+.activities-gantt-toolbar,
+.activities-gantt-header,
+.activities-gantt-row {
+  min-width: 980px;
+  display: grid;
+  grid-template-columns: 250px 130px minmax(360px, 1fr) 96px;
+  align-items: center;
+}
+
+.activities-gantt-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  color: #475467;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: 1px solid #e5edf8;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.activities-gantt-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  color: #344054;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid #dbe5f3;
+  border-radius: 14px 14px 0 0;
+  background: #f8fafc;
+}
+
+.activities-gantt-header > span,
+.activities-gantt-grid-cell,
+.activities-gantt-timeline-cell {
+  min-height: 54px;
+  padding: 11px 12px;
+  border-right: 1px solid #e7edf7;
+}
+
+.activities-gantt-header > span:last-child,
+.activities-gantt-row > :last-child {
+  border-right: 0;
+}
+
+.activities-gantt-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #667085;
+}
+
+.activities-gantt-rows {
+  display: grid;
+  min-width: 980px;
+  border: 1px solid #e5edf8;
+  border-top: 0;
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
+}
+
+.activities-gantt-row {
+  border-top: 1px solid #eef2f7;
+  background: #ffffff;
+}
+
+.activities-gantt-row:nth-child(odd) {
+  background: rgba(247, 249, 255, 0.72);
+}
+
+.activities-gantt-row.is-critical {
+  box-shadow: inset 4px 0 0 #ef4444;
+}
+
+.activities-gantt-grid-cell {
+  display: grid;
+  gap: 4px;
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 800;
+  min-width: 0;
+}
+
+.activities-gantt-grid-cell small {
+  color: #667085;
+  font-size: 0.76rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.predecessor-cell,
+.pert-cell {
+  color: #475467;
+  font-size: 0.8rem;
+}
+
+.activities-gantt-timeline-cell {
+  position: relative;
+  min-height: 54px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0, transparent calc(12.5% - 1px), rgba(203, 213, 225, 0.48) calc(12.5% - 1px), rgba(203, 213, 225, 0.48) 12.5%),
+    linear-gradient(180deg, rgba(239, 246, 255, 0.42), rgba(255, 255, 255, 0.58));
+}
+
+.activities-gantt-bar {
+  position: absolute;
+  top: 50%;
+  height: 24px;
+  min-width: 34px;
+  overflow: hidden;
+  border: 1px solid rgba(29, 78, 216, 0.24);
+  border-radius: 999px;
+  background: #dbe7ff;
+  box-shadow: 0 8px 16px rgba(47, 85, 255, 0.16);
+  transform: translateY(-50%);
+}
+
+.activities-gantt-row.is-critical .activities-gantt-bar {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: #fee2e2;
+  box-shadow: 0 8px 16px rgba(239, 68, 68, 0.16);
+}
+
+.activities-gantt-progress {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f55ff, #38bdf8);
+}
+
+.activities-gantt-row.is-critical .activities-gantt-progress {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+}
+
+.activities-gantt-label {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0b1f3f;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.activities-gantt-empty {
+  display: grid;
+  min-height: 150px;
+  place-items: center;
+  color: #667085;
+  font-weight: 800;
+  text-align: center;
+  border: 1px dashed #dbe5f3;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.activity-wbs-code,
+.activity-predecessor-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 160px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.activity-wbs-code {
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+
+.activity-predecessor-chip {
+  color: #92400e;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+}
+
+.activity-pert-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+body.page-activities .activities-table-panel table {
+  min-width: 1380px;
+}
+
+@media (max-width: 760px) {
+  .activities-gantt-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .activity-pert-grid {
+    grid-template-columns: 1fr;
+  }
+}
