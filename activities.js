@@ -14,6 +14,7 @@ const activitiesFilterEndDate = document.getElementById("activitiesFilterEndDate
 const activitiesDateClearBtn = document.getElementById("activitiesDateClearBtn");
 const activitiesDateApplyBtn = document.getElementById("activitiesDateApplyBtn");
 const activitiesTableSummary = document.getElementById("activitiesTableSummary");
+const activitiesPlannerGantt = document.getElementById("activitiesPlannerGantt");
 const activitiesProjectSelectionFilters = document.getElementById("activitiesProjectSelectionFilters");
 const activitiesProjectSelection = document.getElementById("activitiesProjectSelection");
 const activitiesViewShell = document.getElementById("activitiesViewShell");
@@ -42,6 +43,11 @@ const activityModalProjectInput = document.getElementById("activityModalProjectI
 const activityModalProjectDisplay = document.getElementById("activityModalProjectDisplay");
 const activityModalStartDateInput = document.getElementById("activityModalStartDateInput");
 const activityModalFinishDateInput = document.getElementById("activityModalFinishDateInput");
+const activityModalWbsInput = document.getElementById("activityModalWbsInput");
+const activityModalPredecessorInput = document.getElementById("activityModalPredecessorInput");
+const activityModalOptimisticInput = document.getElementById("activityModalOptimisticInput");
+const activityModalMostLikelyInput = document.getElementById("activityModalMostLikelyInput");
+const activityModalPessimisticInput = document.getElementById("activityModalPessimisticInput");
 const activityModalTitle = document.getElementById("activityModalTitle");
 const activityModalSubtitle = document.querySelector(".activity-modal-header p");
 const activityModalSubmitBtn = activityModalForm?.querySelector('button[type="submit"]');
@@ -448,6 +454,45 @@ const formatProjectIdentityLabel = (projectId, projectName) => {
   return `${safeId} - ${safeName}`;
 };
 
+const parsePositiveNumber = (value) => {
+  const n = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+const formatDurationDays = (value) => {
+  const n = parsePositiveNumber(value);
+  if (n === null) return "-";
+  const rounded = Math.round(n * 10) / 10;
+  return `${rounded} day${rounded === 1 ? "" : "s"}`;
+};
+
+const getDurationDaysFromActivity = (activity = {}) => {
+  const explicitPert = parsePositiveNumber(activity.pertDuration);
+  if (explicitPert !== null) return explicitPert;
+  const durationNumber = parsePositiveNumber(activity.duration);
+  if (durationNumber !== null) return durationNumber;
+  if (activity.plannedStartDate instanceof Date && activity.plannedFinishDate instanceof Date) {
+    return countPhilippineWorkingDaysInclusive(activity.plannedStartDate, activity.plannedFinishDate);
+  }
+  return 0;
+};
+
+const deriveWbsFromActivityId = (id) => {
+  const text = String(id || "").trim();
+  const groups = text.match(/\d+/g);
+  if (!groups?.length) return "-";
+  return groups.slice(0, 3).map((group) => String(Number(group))).join(".");
+};
+
+const getPertDuration = (optimistic, mostLikely, pessimistic, fallbackDays) => {
+  const o = parsePositiveNumber(optimistic);
+  const m = parsePositiveNumber(mostLikely);
+  const p = parsePositiveNumber(pessimistic);
+  if (o !== null && m !== null && p !== null) return Math.round(((o + (4 * m) + p) / 6) * 10) / 10;
+  const fallback = parsePositiveNumber(fallbackDays);
+  return fallback !== null ? fallback : null;
+};
+
 const normalizeActivity = (activity = {}) => {
   const id = getValueByAliases(activity, ["id", "activityId", "activity_id", "code", "activityCode", "activity_code"]);
   const costId = getValueByAliases(activity, ["costId", "cost_id", "cost id", "costCode", "cost_code"]);
@@ -469,6 +514,11 @@ const normalizeActivity = (activity = {}) => {
     "actual_end_date",
   ]);
   const durationRaw = getValueByAliases(activity, ["duration", "durationDays", "duration_days"]);
+  const wbsRaw = getValueByAliases(activity, ["wbs", "wbsCode", "wbs_code", "wbsId", "wbs_id", "workBreakdownStructure"]);
+  const predecessorRaw = getValueByAliases(activity, ["predecessor", "predecessors", "predecessorId", "predecessor_id", "predecessorActivity", "predecessor_activity"]);
+  const optimisticRaw = getValueByAliases(activity, ["optimisticDuration", "optimistic_duration", "optimistic", "pertOptimistic", "pert_optimistic"]);
+  const mostLikelyRaw = getValueByAliases(activity, ["mostLikelyDuration", "most_likely_duration", "mostLikely", "most_likely", "pertMostLikely", "pert_most_likely"]);
+  const pessimisticRaw = getValueByAliases(activity, ["pessimisticDuration", "pessimistic_duration", "pessimistic", "pertPessimistic", "pert_pessimistic"]);
   let progressRaw = getValueByAliases(activity, ["progress", "percentComplete", "percent_complete"]);
   let durationStatus = getValueByAliases(activity, [
     "durationStatus",
@@ -528,6 +578,9 @@ const normalizeActivity = (activity = {}) => {
   const plannedStartDate = parseDateValue(plannedStartRaw);
   const plannedFinishDate = parseDateValue(plannedFinishRaw);
   const actualFinishDate = parseDateValue(actualFinishRaw);
+  const durationLabel = toDurationLabel(durationRaw, plannedStartDate, plannedFinishDate);
+  const durationDays = parsePositiveNumber(durationLabel) || countPhilippineWorkingDaysInclusive(plannedStartDate, plannedFinishDate);
+  const pertDuration = getPertDuration(optimisticRaw, mostLikelyRaw, pessimisticRaw, durationDays);
   const displayStatus = deriveActivityDisplayStatus({
     status,
     plannedFinishDate,
@@ -540,6 +593,8 @@ const normalizeActivity = (activity = {}) => {
   return {
     id: id || "-",
     costId: String(costId || "").trim(),
+    wbs: String(wbsRaw || "").trim() || deriveWbsFromActivityId(id),
+    predecessor: String(predecessorRaw || "").trim() || "-",
     name: name || "Untitled Activity",
     project: project || "-",
     type: type || "-",
@@ -550,7 +605,12 @@ const normalizeActivity = (activity = {}) => {
     plannedStartDate,
     plannedFinishDate,
     actualFinishDate,
-    duration: toDurationLabel(durationRaw, plannedStartDate, plannedFinishDate),
+    duration: durationLabel,
+    durationDays,
+    optimisticDuration: optimisticRaw === undefined || optimisticRaw === null ? "" : String(optimisticRaw).trim(),
+    mostLikelyDuration: mostLikelyRaw === undefined || mostLikelyRaw === null ? "" : String(mostLikelyRaw).trim(),
+    pessimisticDuration: pessimisticRaw === undefined || pessimisticRaw === null ? "" : String(pessimisticRaw).trim(),
+    pertDuration,
     progress,
     durationStatus,
   };
@@ -707,6 +767,7 @@ const buildActivityRowHtml = (activity) => {
   const scheduleDetails = getActivityScheduleDetails(activity);
   return `
     <tr class="${activity.status === "Delayed" ? "activity-row-delayed" : ""}">
+      <td><span class="activity-wbs-code">${escapeHtml(activity.wbs)}</span></td>
       <td>${escapeHtml(activity.id)}</td>
       <td>
         <div class="activity-name-cell">
@@ -714,6 +775,7 @@ const buildActivityRowHtml = (activity) => {
           <span>${escapeHtml(activity.type && activity.type !== "-" ? activity.type : "General activity")}</span>
         </div>
       </td>
+      <td><span class="activity-predecessor-chip">${escapeHtml(activity.predecessor)}</span></td>
       <td>${escapeHtml(activity.plannedStart)}</td>
       <td>
         <div class="activity-schedule-cell">
@@ -725,6 +787,7 @@ const buildActivityRowHtml = (activity) => {
       <td>
         <div class="activity-schedule-cell">
           <strong>${escapeHtml(activity.duration)}</strong>
+          <span class="activity-schedule-note">PERT: ${escapeHtml(formatDurationDays(activity.pertDuration))}</span>
           ${scheduleDetails.durationNote ? `<span class="activity-schedule-note ${activity.status === "Delayed" ? "is-delayed" : ""}">${escapeHtml(scheduleDetails.durationNote)}</span>` : ""}
         </div>
       </td>
@@ -774,7 +837,7 @@ const EMPTY_STATE_HTML = `
 const renderEmptyState = (message = "Get started by adding your first activity") => {
   activitiesTableBody.innerHTML = `
     <tr class="activities-empty-row">
-      <td colspan="8">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
+      <td colspan="10">${message === "Get started by adding your first activity" ? EMPTY_STATE_HTML : escapeHtml(message)}</td>
     </tr>
   `;
 };
@@ -1437,6 +1500,90 @@ const renderPagination = () => {
   `;
 };
 
+
+const addDays = (date, days) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  next.setHours(0, 0, 0, 0);
+  return next;
+};
+
+const getGanttActivityDates = (activity) => {
+  const start = activity.plannedStartDate instanceof Date && !Number.isNaN(activity.plannedStartDate.getTime())
+    ? activity.plannedStartDate
+    : null;
+  const finish = activity.plannedFinishDate instanceof Date && !Number.isNaN(activity.plannedFinishDate.getTime())
+    ? activity.plannedFinishDate
+    : start;
+  return { start, finish };
+};
+
+const renderPrimaveraGantt = () => {
+  if (!activitiesPlannerGantt) return;
+
+  if (!hasSelectedProject()) {
+    activitiesPlannerGantt.innerHTML = `<div class="activities-gantt-empty">Select a project to load the Primavera-style schedule board.</div>`;
+    return;
+  }
+
+  const timelineActivities = state.filteredActivities.filter((activity) => getGanttActivityDates(activity).start);
+  if (!timelineActivities.length) {
+    activitiesPlannerGantt.innerHTML = `<div class="activities-gantt-empty">No dated activities available for the current filters.</div>`;
+    return;
+  }
+
+  const starts = timelineActivities.map((activity) => getGanttActivityDates(activity).start.getTime());
+  const finishes = timelineActivities.map((activity) => getGanttActivityDates(activity).finish.getTime());
+  const minDate = addDays(new Date(Math.min(...starts)), -2);
+  const maxDate = addDays(new Date(Math.max(...finishes)), 2);
+  const totalMs = Math.max(maxDate.getTime() - minDate.getTime(), 24 * 60 * 60 * 1000);
+  const daySpan = Math.max(1, Math.ceil(totalMs / (24 * 60 * 60 * 1000)));
+  const tickCount = Math.min(8, Math.max(3, Math.ceil(daySpan / 14)));
+  const ticks = Array.from({ length: tickCount }, (_, index) => {
+    const date = addDays(minDate, Math.round((daySpan / Math.max(tickCount - 1, 1)) * index));
+    return `<span>${escapeHtml(date.toLocaleDateString("en-US", { month: "short", day: "numeric" }))}</span>`;
+  }).join("");
+
+  const rows = timelineActivities.slice(0, 30).map((activity) => {
+    const { start, finish } = getGanttActivityDates(activity);
+    const left = Math.max(0, ((start.getTime() - minDate.getTime()) / totalMs) * 100);
+    const width = Math.max(2.5, ((finish.getTime() - start.getTime() + (24 * 60 * 60 * 1000)) / totalMs) * 100);
+    const progressWidth = Math.max(0, Math.min(100, activity.progress));
+    const isCritical = activity.status === "Delayed" || progressWidth < 100 && finish < getTodayAtLocalMidnight();
+    return `
+      <div class="activities-gantt-row ${isCritical ? "is-critical" : ""}">
+        <div class="activities-gantt-grid-cell">
+          <span class="activity-wbs-code">${escapeHtml(activity.wbs)}</span>
+          <strong>${escapeHtml(activity.id)}</strong>
+          <small>${escapeHtml(activity.name)}</small>
+        </div>
+        <div class="activities-gantt-grid-cell predecessor-cell">${escapeHtml(activity.predecessor)}</div>
+        <div class="activities-gantt-timeline-cell">
+          <span class="activities-gantt-bar" style="left:${left}%;width:${Math.min(width, 100 - left)}%">
+            <span class="activities-gantt-progress" style="width:${progressWidth}%"></span>
+            <span class="activities-gantt-label">${escapeHtml(activity.progress)}%</span>
+          </span>
+        </div>
+        <div class="activities-gantt-grid-cell pert-cell">${escapeHtml(formatDurationDays(activity.pertDuration))}</div>
+      </div>
+    `;
+  }).join("");
+
+  activitiesPlannerGantt.innerHTML = `
+    <div class="activities-gantt-toolbar">
+      <span>${escapeHtml(timelineActivities.length)} scheduled item${timelineActivities.length === 1 ? "" : "s"}</span>
+      <span>Window: ${escapeHtml(toDisplayDate(minDate))} — ${escapeHtml(toDisplayDate(maxDate))}</span>
+    </div>
+    <div class="activities-gantt-header">
+      <span>WBS / Activity</span>
+      <span>Predecessor</span>
+      <span class="activities-gantt-scale">${ticks}</span>
+      <span>PERT</span>
+    </div>
+    <div class="activities-gantt-rows">${rows}</div>
+  `;
+};
+
 const renderTable = () => {
   if (!hasSelectedProject()) {
     renderEmptyState("Select a project to view activities.");
@@ -1489,7 +1636,7 @@ const applyFilters = ({ resetPage = true } = {}) => {
         const typeMatch = typeValue === "All Activity Types" || item.type === typeValue;
         const textMatch =
           !searchValue ||
-          `${item.name} ${item.type} ${item.status}`.toLowerCase().includes(searchValue);
+          `${item.wbs} ${item.id} ${item.name} ${item.type} ${item.status} ${item.predecessor}`.toLowerCase().includes(searchValue);
         const hasDateFilter = Boolean(dateStartValue || dateEndValue);
         const startDate = item.plannedStartDate;
         const finishDate = item.plannedFinishDate || item.plannedStartDate;
@@ -1513,6 +1660,7 @@ const applyFilters = ({ resetPage = true } = {}) => {
 
   syncWorkflowState();
   renderPagination();
+  renderPrimaveraGantt();
   renderTable();
   updateKpis(state.filteredActivities);
   updateSummary();
@@ -1602,6 +1750,11 @@ const openEditActivityModal = (activityKey) => {
   state.editingActivityKey = activityKey;
   idInput.value = activity.id || "";
   nameInput.value = activity.name || "";
+  if (activityModalWbsInput) activityModalWbsInput.value = activity.wbs === "-" ? "" : activity.wbs || "";
+  if (activityModalPredecessorInput) activityModalPredecessorInput.value = activity.predecessor === "-" ? "" : activity.predecessor || "";
+  if (activityModalOptimisticInput) activityModalOptimisticInput.value = activity.optimisticDuration || "";
+  if (activityModalMostLikelyInput) activityModalMostLikelyInput.value = activity.mostLikelyDuration || "";
+  if (activityModalPessimisticInput) activityModalPessimisticInput.value = activity.pessimisticDuration || "";
   updateActivityModalProjectDetails(activity.project || state.selectedProject || "");
   if (activityModalStartDateInput) activityModalStartDateInput.value = toInputDate(activity.plannedStartDate || activity.plannedStart);
   if (activityModalFinishDateInput) {
@@ -1728,12 +1881,14 @@ const onPaginationClick = (event) => {
   }
 
   renderPagination();
+  renderPrimaveraGantt();
   renderTable();
   updateSummary();
 };
 
 refreshFilterOptions();
 syncWorkflowState();
+renderPrimaveraGantt();
 
 [activitiesSearchInput, activitiesStatusFilter, activitiesTypeFilter]
   .filter(Boolean)
@@ -2035,6 +2190,11 @@ if (activityModalForm) {
       status: existingActivity?.status || "Not Started",
       plannedStart,
       plannedFinish,
+      wbs: String(formData.get("wbs") || "").trim(),
+      predecessor: String(formData.get("predecessor") || "").trim(),
+      optimisticDuration: String(formData.get("optimisticDuration") || "").trim(),
+      mostLikelyDuration: String(formData.get("mostLikelyDuration") || "").trim(),
+      pessimisticDuration: String(formData.get("pessimisticDuration") || "").trim(),
       progress: existingActivity?.progress ?? 0,
       durationStatus: existingActivity?.durationStatus || "-",
       actualStart: existingActivity?.actualStartDate || existingActivity?.actualStart || "",
@@ -2052,6 +2212,12 @@ if (activityModalForm) {
       plannedFinish: toInputDate(nextActivity.plannedFinishDate || nextActivity.plannedFinish),
       duration: nextActivity.duration,
       percentComplete: nextActivity.progress,
+      wbs: nextActivity.wbs,
+      predecessor: nextActivity.predecessor,
+      optimisticDuration: nextActivity.optimisticDuration,
+      mostLikelyDuration: nextActivity.mostLikelyDuration,
+      pessimisticDuration: nextActivity.pessimisticDuration,
+      pertDuration: nextActivity.pertDuration,
       notes: "",
     };
 

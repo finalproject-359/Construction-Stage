@@ -32,7 +32,7 @@
         <div class="page-hero-copy">
           <p class="page-eyebrow">Field activity control</p>
           <h1 id="activitiesPageTitle">Activities</h1>
-          <p class="activities-subtitle">Plan, monitor, and update field activities with clear schedule and progress controls.</p>
+          <p class="activities-subtitle">Plan, monitor, and update field activities with Primavera-style WBS, predecessor, Gantt, and PERT controls.</p>
           <div class="page-hero-steps" aria-label="Activities workflow">
             <span><strong>1</strong> Choose project</span>
             <span><strong>2</strong> Refine work items</span>
@@ -40,9 +40,9 @@
           </div>
         </div>
         <div class="page-hero-panel" aria-label="Activities focus areas">
-          <div><span>Schedule clarity</span><strong>Planned dates</strong></div>
-          <div><span>Field updates</span><strong>Progress tracking</strong></div>
-          <div><span>Risk visibility</span><strong>Delayed works</strong></div>
+          <div><span>Schedule clarity</span><strong>Gantt timeline</strong></div>
+          <div><span>Logic control</span><strong>Predecessors</strong></div>
+          <div><span>Risk visibility</span><strong>PERT estimates</strong></div>
         </div>
       </header>
 
@@ -214,16 +214,29 @@
         </div>
       </section>
 
+      <section class="table-panel activities-planner-panel" aria-labelledby="activitiesPlannerTitle">
+        <div class="activities-controls-header activities-planner-header">
+          <div>
+            <p class="page-eyebrow">Primavera schedule view</p>
+            <h2 id="activitiesPlannerTitle">WBS, predecessors, Gantt, and PERT</h2>
+          </div>
+          <p>Use the timeline to validate sequencing, float risk, and expected duration before updating site progress.</p>
+        </div>
+        <div id="activitiesPlannerGantt" class="activities-gantt-board" aria-live="polite"></div>
+      </section>
+
       <section class="table-panel activities-table-panel">
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                <th>WBS</th>
                 <th>Activity ID</th>
                 <th>Activity</th>
+                <th>Predecessor</th>
                 <th>Planned Start</th>
                 <th>Planned Finish</th>
-                <th>Duration</th>
+                <th>Duration / PERT</th>
                 <th>Status</th>
                 <th>Progress</th>
                 <th class="actions-col">Actions</th>
@@ -231,7 +244,7 @@
             </thead>
             <tbody id="activitiesTableBody">
               <tr class="activities-empty-row">
-                <td colspan="8">
+                <td colspan="10">
                   <div class="activities-empty-state">
                     <div class="activities-empty-illustration" aria-hidden="true">
                       <svg viewBox="0 0 120 120" fill="none">
@@ -305,6 +318,17 @@
                 <input id="activityModalNameInput" name="activityName" type="text" required placeholder="Enter activity name" />
               </label>
 
+              <div class="activity-field-grid">
+                <label class="activity-field">
+                  <span>WBS Code</span>
+                  <input id="activityModalWbsInput" name="wbs" type="text" placeholder="e.g. 1.2.3" />
+                </label>
+                <label class="activity-field">
+                  <span>Predecessor</span>
+                  <input id="activityModalPredecessorInput" name="predecessor" type="text" placeholder="e.g. A101 FS" />
+                </label>
+              </div>
+
             </div>
 
             <div class="activity-form-section">
@@ -317,6 +341,20 @@
                 <label class="activity-field">
                   <span>Planned Finish <em>*</em></span>
                   <input id="activityModalFinishDateInput" name="plannedFinish" type="date" required />
+                </label>
+              </div>
+              <div class="activity-field-grid activity-pert-grid" aria-label="PERT estimates">
+                <label class="activity-field">
+                  <span>Optimistic</span>
+                  <input id="activityModalOptimisticInput" name="optimisticDuration" type="number" min="0" step="0.5" placeholder="Days" />
+                </label>
+                <label class="activity-field">
+                  <span>Most Likely</span>
+                  <input id="activityModalMostLikelyInput" name="mostLikelyDuration" type="number" min="0" step="0.5" placeholder="Days" />
+                </label>
+                <label class="activity-field">
+                  <span>Pessimistic</span>
+                  <input id="activityModalPessimisticInput" name="pessimisticDuration" type="number" min="0" step="0.5" placeholder="Days" />
                 </label>
               </div>
             </div>
