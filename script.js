@@ -1669,8 +1669,13 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
   const dailyEntriesByProjectActivityKey = new Map();
   const readBundleCell = (row, aliases, fallback = "") => firstNonEmptyCell(row, aliases, fallback);
 
-  const getActivityProjectId = (activity) =>
-    String(readBundleCell(activity, ["project id", "projectId", "project_id", "project code", "projectCode"])).trim();
+  const getActivityProjectId = (activity) => {
+    const explicitProjectId = String(
+      readBundleCell(activity, ["project id", "projectId", "project_id", "project code", "projectCode"])
+    ).trim();
+    if (explicitProjectId) return explicitProjectId;
+    return String(readBundleCell(activity, ["project", "project name", "projectName"], "")).trim();
+  };
   const getActivityId = (activity) =>
     String(
       readBundleCell(activity, [
@@ -1682,8 +1687,13 @@ const buildRowsFromActivitiesAndCosts = (activities, costs, dailyCosts = []) => 
         "id",
       ])
     ).trim();
-  const getCostProjectId = (cost) =>
-    String(readBundleCell(cost, ["project id", "projectId", "project_id", "project code", "projectCode"])).trim();
+  const getCostProjectId = (cost) => {
+    const explicitProjectId = String(
+      readBundleCell(cost, ["project id", "projectId", "project_id", "project code", "projectCode"])
+    ).trim();
+    if (explicitProjectId) return explicitProjectId;
+    return String(readBundleCell(cost, ["project", "project name", "projectName"], "")).trim();
+  };
   const getCostActivityId = (cost) =>
     String(
       readBundleCell(cost, [
