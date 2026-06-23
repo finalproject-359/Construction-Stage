@@ -654,6 +654,16 @@ body.page-activities .activities-planner-panel {
   display: grid;
   gap: 10px;
   min-height: 180px;
+  overflow-x: auto;
+}
+
+.activities-gantt-toolbar,
+.activities-gantt-header,
+.activities-gantt-row {
+  min-width: 1080px;
+  display: grid;
+  grid-template-columns: 270px 150px 130px minmax(420px, 1fr);
+  align-items: stretch;
 }
 
 .activities-gantt-toolbar {
@@ -761,9 +771,25 @@ body.page-activities .activities-planner-panel {
 .activities-gantt-header > span,
 .activities-gantt-grid-cell,
 .activities-gantt-timeline-cell {
-  min-height: 46px;
-  padding: 9px 11px;
+  min-height: 54px;
+  padding: 11px 12px;
   border-right: 1px solid #d9e2ef;
+}
+
+.activities-gantt-header > span:nth-child(3),
+.activities-gantt-row > :nth-child(3) {
+  border-right: 4px solid #9aa8bc;
+  box-shadow: 6px 0 12px rgba(15, 23, 42, 0.08);
+}
+
+.activities-gantt-header > span:nth-child(-n + 3),
+.activities-gantt-row > :nth-child(-n + 3) {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.96));
+}
+
+.activities-gantt-header > span:nth-child(4),
+.activities-gantt-timeline-cell {
+  border-left: 0;
 }
 
 .activities-gantt-left-header > span:last-child,
@@ -783,7 +809,11 @@ body.page-activities .activities-planner-panel {
 
 .activities-gantt-rows {
   display: grid;
-  position: relative;
+  min-width: 1080px;
+  border: 1px solid #e5edf8;
+  border-top: 0;
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
 }
 
 .activities-gantt-row {
@@ -824,34 +854,18 @@ body.page-activities .activities-planner-panel {
   font-size: 0.8rem;
 }
 
+.predecessor-cell {
+  align-content: center;
+  font-family: "Inter", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+
 .duration-cell strong {
   color: #0b1f3f;
 }
 
 .duration-cell small {
   color: #667085;
-}
-
-.activities-dependency-chip {
-  display: inline-flex;
-  width: fit-content;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  color: #334155;
-  background: #f8fafc;
-}
-
-.activities-dependency-chip.is-empty {
-  color: #94a3b8;
-  border-style: dashed;
-}
-
-.activities-logic-warning {
-  color: #b42318 !important;
-  white-space: normal !important;
 }
 
 .activities-gantt-timeline-cell {
@@ -876,7 +890,7 @@ body.page-activities .activities-planner-panel {
 .activities-gantt-bar {
   position: absolute;
   top: 50%;
-  height: 22px;
+  height: 26px;
   min-width: 46px;
   overflow: hidden;
   border: 1px solid rgba(29, 78, 216, 0.24);
@@ -926,55 +940,7 @@ body.page-activities .activities-planner-panel {
   align-items: center;
   justify-content: center;
   color: #0b1f3f;
-  font-size: 0.64rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.activities-wbs-group-row {
-  display: flex;
-  min-height: 34px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 7px 12px;
-  color: #0b1f3f;
-  font-size: 0.78rem;
-  font-weight: 900;
-  border-top: 1px solid #dbe5f3;
-  background: linear-gradient(90deg, #eaf1ff, #f8fafc);
-}
-
-.activities-wbs-group-row span {
-  color: #667085;
-  font-weight: 800;
-}
-
-.activities-wbs-group-timeline {
-  min-width: 760px;
-  justify-content: flex-end;
-  background:
-    linear-gradient(90deg, rgba(47, 85, 255, 0.12), rgba(248, 250, 252, 0.92));
-}
-
-.activities-gantt-today {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 4;
-  width: 2px;
-  background: #f97316;
-  pointer-events: none;
-}
-
-.activities-gantt-today span {
-  position: sticky;
-  top: 4px;
-  display: inline-block;
-  margin-left: 5px;
-  padding: 3px 7px;
-  color: #fff;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 900;
   white-space: nowrap;
   border-radius: 999px;

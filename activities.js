@@ -1539,57 +1539,6 @@ const getDurationOffsetDays = (activity, projectStartDate) => {
   return Math.max(0, Math.round((start.getTime() - projectStartDate.getTime()) / (24 * 60 * 60 * 1000)));
 };
 
-const parsePredecessorTokens = (predecessor = "") => {
-  const text = String(predecessor || "").trim();
-  if (!text || text === "-") return [];
-  return text.split(/[,;]+/).map((item) => {
-    const match = item.trim().match(/^([^\s]+)(?:\s+(FS|SS|FF|SF))?/i);
-    return match ? { id: match[1], type: (match[2] || "FS").toUpperCase() } : null;
-  }).filter(Boolean);
-};
-
-const getActivityLogicWarnings = (activity, activitiesById) => {
-  const warnings = [];
-  parsePredecessorTokens(activity.predecessor).forEach((dependency) => {
-    const predecessor = activitiesById.get(String(dependency.id).toLowerCase());
-    if (!predecessor) {
-      warnings.push(`Predecessor ${dependency.id} was not found.`);
-      return;
-    }
-
-    const predecessorFinish = getGanttActivityDates(predecessor).finish;
-    const activityStart = getGanttActivityDates(activity).start;
-    if (dependency.type === "FS" && predecessorFinish && activityStart && activityStart < predecessorFinish) {
-      warnings.push(`${activity.id} starts before predecessor ${dependency.id} finishes.`);
-    }
-  });
-  return warnings;
-};
-
-const getStatusModifierClass = (status) => {
-  const normalized = normalizeActivityStatusText(status).toLowerCase().replace(/\s+/g, "-");
-  return `is-status-${normalized}`;
-};
-
-const getWbsGroupKey = (wbs = "-") => {
-  const text = String(wbs || "-").trim() || "-";
-  if (text === "-") return "Unassigned WBS";
-  const parts = text.split(".").filter(Boolean);
-  return parts.length > 1 ? parts.slice(0, 2).join(".") : text;
-};
-
-const formatGanttScaleTick = (day) => {
-  if (state.ganttScale === "week") return `Week ${Math.max(1, Math.ceil(day / 7))}`;
-  if (state.ganttScale === "month") return `Month ${Math.max(1, Math.ceil(day / 30))}`;
-  return `Day ${day}`;
-};
-
-const getGanttScaleLabel = (totalDurationDays) => {
-  if (state.ganttScale === "week") return `Week scale: 1 — ${Math.max(1, Math.ceil(totalDurationDays / 7))} week${Math.ceil(totalDurationDays / 7) === 1 ? "" : "s"}`;
-  if (state.ganttScale === "month") return `Month scale: 1 — ${Math.max(1, Math.ceil(totalDurationDays / 30))} month${Math.ceil(totalDurationDays / 30) === 1 ? "" : "s"}`;
-  return `Duration scale: 0 — ${totalDurationDays} day${totalDurationDays === 1 ? "" : "s"}`;
-};
-
 const renderPrimaveraGantt = () => {
   if (!activitiesPlannerGantt) return;
 
@@ -1612,18 +1561,15 @@ const renderPrimaveraGantt = () => {
     .map((activity) => getGanttActivityDates(activity).start)
     .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()));
   const projectStartDate = datedStarts.length ? new Date(Math.min(...datedStarts.map((date) => date.getTime()))) : null;
-  const todayOffset = projectStartDate
-    ? Math.round((getTodayAtLocalMidnight().getTime() - projectStartDate.getTime()) / (24 * 60 * 60 * 1000))
-    : null;
   const maxDurationExtent = timelineActivities.reduce((max, activity) => {
     const offset = getDurationOffsetDays(activity, projectStartDate);
     return Math.max(max, offset + getActivityDurationDays(activity));
-  }, Math.max(1, todayOffset || 1));
+  }, 1);
   const totalDurationDays = Math.max(1, Math.ceil(maxDurationExtent));
   const tickCount = Math.min(8, Math.max(4, Math.ceil(totalDurationDays / 5) + 1));
   const ticks = Array.from({ length: tickCount }, (_, index) => {
     const day = Math.round((totalDurationDays / Math.max(tickCount - 1, 1)) * index);
-    return `<span>${escapeHtml(formatGanttScaleTick(day))}</span>`;
+    return `<span>Day ${escapeHtml(day)}</span>`;
   }).join("");
   const todayLeft = todayOffset !== null && todayOffset >= 0 && todayOffset <= totalDurationDays
     ? Math.max(0, Math.min(100, (todayOffset / totalDurationDays) * 100))
@@ -1637,50 +1583,26 @@ const renderPrimaveraGantt = () => {
     return groups;
   }, new Map());
 
-  const buildRow = (activity) => {
-    const { start, finish } = getGanttActivityDates(activity);
+  const rows = timelineActivities.slice(0, 30).map((activity) => {
+    const { finish } = getGanttActivityDates(activity);
     const offsetDays = getDurationOffsetDays(activity, projectStartDate);
     const durationDays = getActivityDurationDays(activity);
     const left = Math.max(0, (offsetDays / totalDurationDays) * 100);
     const width = Math.max(3, (durationDays / totalDurationDays) * 100);
-    const safeWidth = Math.min(width, 100 - left);
     const progressWidth = Math.max(0, Math.min(100, activity.progress));
-    const logicWarnings = getActivityLogicWarnings(activity, activitiesById);
-    const isCritical = activity.status === "Delayed" || logicWarnings.length || (progressWidth < 100 && finish && finish < getTodayAtLocalMidnight());
-    const statusClass = getStatusModifierClass(activity.status);
-    const dependencyChips = parsePredecessorTokens(activity.predecessor)
-      .map((dependency) => `<span class="activities-dependency-chip"><strong>${escapeHtml(dependency.id)}</strong>${escapeHtml(dependency.type)}</span>`)
-      .join("") || `<span class="activities-dependency-chip is-empty">None</span>`;
-    const tooltip = [
-      `${activity.id} - ${activity.name}`,
-      `WBS: ${activity.wbs}`,
-      `Duration: ${formatDurationDays(durationDays)}`,
-      `PERT: ${formatDurationDays(activity.pertDuration)}`,
-      `Progress: ${activity.progress}%`,
-      `Status: ${activity.status}`,
-      `Predecessor: ${activity.predecessor}`,
-      `Start: ${activity.plannedStart}`,
-      `Finish: ${activity.plannedFinish}`,
-      ...logicWarnings.map((warning) => `Warning: ${warning}`),
-    ].join("\n");
-    const warningHtml = logicWarnings.length
-      ? `<small class="activities-logic-warning">⚠ ${escapeHtml(logicWarnings[0])}</small>`
-      : "";
-
+    const isCritical = activity.status === "Delayed" || (progressWidth < 100 && finish && finish < getTodayAtLocalMidnight());
     return `
-      <div class="activities-gantt-left-row activities-gantt-row ${isCritical ? "is-critical" : ""} ${statusClass}">
+      <div class="activities-gantt-row ${isCritical ? "is-critical" : ""}">
         <div class="activities-gantt-grid-cell activities-gantt-activity-cell">
           <span class="activity-wbs-code">${escapeHtml(activity.wbs)}</span>
           <strong>${escapeHtml(activity.id)}</strong>
           <small>${escapeHtml(activity.name)}</small>
         </div>
-        <div class="activities-gantt-grid-cell predecessor-cell">${dependencyChips}${warningHtml}</div>
+        <div class="activities-gantt-grid-cell predecessor-cell">${escapeHtml(activity.predecessor)}</div>
         <div class="activities-gantt-grid-cell duration-cell">
           <strong>${escapeHtml(formatDurationDays(durationDays))}</strong>
           <small>PERT ${escapeHtml(formatDurationDays(activity.pertDuration))}</small>
         </div>
-      </div>
-      <div class="activities-gantt-timeline-row activities-gantt-row ${isCritical ? "is-critical" : ""} ${statusClass}">
         <div class="activities-gantt-timeline-cell">
           <span class="activities-gantt-baseline" style="left:${left}%;width:${safeWidth}%"></span>
           <span class="activities-gantt-bar" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}" style="left:${left}%;width:${safeWidth}%">
@@ -1717,39 +1639,14 @@ const renderPrimaveraGantt = () => {
 
   activitiesPlannerGantt.innerHTML = `
     <div class="activities-gantt-toolbar">
-      <div>
-        <span>${escapeHtml(timelineActivities.length)} scheduled item${timelineActivities.length === 1 ? "" : "s"}</span>
-        <span>${escapeHtml(getGanttScaleLabel(totalDurationDays))}</span>
-      </div>
-      <div class="activities-gantt-toolbar-actions" role="group" aria-label="Gantt display density">
-        <span class="activities-gantt-legend"><i class="legend-completed"></i>Done</span>
-        <span class="activities-gantt-legend"><i class="legend-progress"></i>Progress</span>
-        <span class="activities-gantt-legend"><i class="legend-delayed"></i>Critical</span>
-        <button type="button" data-gantt-scale="duration" class="${state.ganttScale === "duration" ? "active" : ""}">Day</button>
-        <button type="button" data-gantt-scale="week" class="${state.ganttScale === "week" ? "active" : ""}">Week</button>
-        <button type="button" data-gantt-scale="month" class="${state.ganttScale === "month" ? "active" : ""}">Month</button>
-        <button type="button" data-gantt-density="compact" class="${state.ganttDensity === "compact" ? "active" : ""}">Compact</button>
-        <button type="button" data-gantt-density="comfortable" class="${state.ganttDensity === "comfortable" ? "active" : ""}">Comfortable</button>
-      </div>
+      <span>${escapeHtml(timelineActivities.length)} scheduled item${timelineActivities.length === 1 ? "" : "s"}</span>
+      <span>Duration scale: 0 — ${escapeHtml(totalDurationDays)} day${totalDurationDays === 1 ? "" : "s"}</span>
     </div>
-    <div class="activities-gantt-split ${state.ganttDensity === "comfortable" ? "is-comfortable" : "is-compact"}">
-      <div class="activities-gantt-left-pane">
-        <div class="activities-gantt-header activities-gantt-left-header">
-          <span>WBS / Activity</span>
-          <span>Predecessor Logic</span>
-          <span>Duration / PERT</span>
-        </div>
-        <div class="activities-gantt-rows">${leftRows.join("")}</div>
-      </div>
-      <div class="activities-gantt-right-pane">
-        <div class="activities-gantt-header activities-gantt-timeline-header">
-          <span class="activities-gantt-scale">${ticks}</span>
-        </div>
-        <div class="activities-gantt-rows activities-gantt-timeline-rows">
-          ${todayLeft !== null ? `<span class="activities-gantt-today" style="left:${todayLeft}%"><span>Today / Day ${escapeHtml(todayOffset)}</span></span>` : ""}
-          ${timelineRows.join("")}
-        </div>
-      </div>
+    <div class="activities-gantt-header">
+      <span>WBS / Activity</span>
+      <span>Predecessor</span>
+      <span>Duration / PERT</span>
+      <span class="activities-gantt-scale">${ticks}</span>
     </div>
   `;
 };
