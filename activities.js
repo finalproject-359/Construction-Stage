@@ -1518,6 +1518,25 @@ const getGanttActivityDates = (activity) => {
   return { start, finish };
 };
 
+const getActivityDurationDays = (activity) => {
+  const explicitDuration = parsePositiveNumber(activity.durationDays);
+  if (explicitDuration !== null && explicitDuration > 0) return explicitDuration;
+
+  const durationFromLabel = parsePositiveNumber(activity.duration);
+  if (durationFromLabel !== null && durationFromLabel > 0) return durationFromLabel;
+
+  const { start, finish } = getGanttActivityDates(activity);
+  if (start && finish) return Math.max(1, countPhilippineWorkingDaysInclusive(start, finish));
+
+  return Math.max(1, parsePositiveNumber(activity.pertDuration) || 1);
+};
+
+const getDurationOffsetDays = (activity, projectStartDate) => {
+  const { start } = getGanttActivityDates(activity);
+  if (!start || !projectStartDate) return 0;
+  return Math.max(0, Math.round((start.getTime() - projectStartDate.getTime()) / (24 * 60 * 60 * 1000)));
+};
+
 const renderPrimaveraGantt = () => {
   if (!activitiesPlannerGantt) return;
 
@@ -1526,45 +1545,57 @@ const renderPrimaveraGantt = () => {
     return;
   }
 
-  const timelineActivities = state.filteredActivities.filter((activity) => getGanttActivityDates(activity).start);
+  const timelineActivities = state.filteredActivities.filter((activity) => {
+    const duration = getActivityDurationDays(activity);
+    return Number.isFinite(duration) && duration > 0;
+  });
+
   if (!timelineActivities.length) {
-    activitiesPlannerGantt.innerHTML = `<div class="activities-gantt-empty">No dated activities available for the current filters.</div>`;
+    activitiesPlannerGantt.innerHTML = `<div class="activities-gantt-empty">No duration-based activities available for the current filters.</div>`;
     return;
   }
 
-  const starts = timelineActivities.map((activity) => getGanttActivityDates(activity).start.getTime());
-  const finishes = timelineActivities.map((activity) => getGanttActivityDates(activity).finish.getTime());
-  const minDate = addDays(new Date(Math.min(...starts)), -2);
-  const maxDate = addDays(new Date(Math.max(...finishes)), 2);
-  const totalMs = Math.max(maxDate.getTime() - minDate.getTime(), 24 * 60 * 60 * 1000);
-  const daySpan = Math.max(1, Math.ceil(totalMs / (24 * 60 * 60 * 1000)));
-  const tickCount = Math.min(8, Math.max(3, Math.ceil(daySpan / 14)));
+  const datedStarts = timelineActivities
+    .map((activity) => getGanttActivityDates(activity).start)
+    .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()));
+  const projectStartDate = datedStarts.length ? new Date(Math.min(...datedStarts.map((date) => date.getTime()))) : null;
+  const maxDurationExtent = timelineActivities.reduce((max, activity) => {
+    const offset = getDurationOffsetDays(activity, projectStartDate);
+    return Math.max(max, offset + getActivityDurationDays(activity));
+  }, 1);
+  const totalDurationDays = Math.max(1, Math.ceil(maxDurationExtent));
+  const tickCount = Math.min(8, Math.max(4, Math.ceil(totalDurationDays / 5) + 1));
   const ticks = Array.from({ length: tickCount }, (_, index) => {
-    const date = addDays(minDate, Math.round((daySpan / Math.max(tickCount - 1, 1)) * index));
-    return `<span>${escapeHtml(date.toLocaleDateString("en-US", { month: "short", day: "numeric" }))}</span>`;
+    const day = Math.round((totalDurationDays / Math.max(tickCount - 1, 1)) * index);
+    return `<span>Day ${escapeHtml(day)}</span>`;
   }).join("");
 
   const rows = timelineActivities.slice(0, 30).map((activity) => {
-    const { start, finish } = getGanttActivityDates(activity);
-    const left = Math.max(0, ((start.getTime() - minDate.getTime()) / totalMs) * 100);
-    const width = Math.max(2.5, ((finish.getTime() - start.getTime() + (24 * 60 * 60 * 1000)) / totalMs) * 100);
+    const { finish } = getGanttActivityDates(activity);
+    const offsetDays = getDurationOffsetDays(activity, projectStartDate);
+    const durationDays = getActivityDurationDays(activity);
+    const left = Math.max(0, (offsetDays / totalDurationDays) * 100);
+    const width = Math.max(3, (durationDays / totalDurationDays) * 100);
     const progressWidth = Math.max(0, Math.min(100, activity.progress));
-    const isCritical = activity.status === "Delayed" || progressWidth < 100 && finish < getTodayAtLocalMidnight();
+    const isCritical = activity.status === "Delayed" || (progressWidth < 100 && finish && finish < getTodayAtLocalMidnight());
     return `
       <div class="activities-gantt-row ${isCritical ? "is-critical" : ""}">
-        <div class="activities-gantt-grid-cell">
+        <div class="activities-gantt-grid-cell activities-gantt-activity-cell">
           <span class="activity-wbs-code">${escapeHtml(activity.wbs)}</span>
           <strong>${escapeHtml(activity.id)}</strong>
           <small>${escapeHtml(activity.name)}</small>
         </div>
         <div class="activities-gantt-grid-cell predecessor-cell">${escapeHtml(activity.predecessor)}</div>
+        <div class="activities-gantt-grid-cell duration-cell">
+          <strong>${escapeHtml(formatDurationDays(durationDays))}</strong>
+          <small>PERT ${escapeHtml(formatDurationDays(activity.pertDuration))}</small>
+        </div>
         <div class="activities-gantt-timeline-cell">
           <span class="activities-gantt-bar" style="left:${left}%;width:${Math.min(width, 100 - left)}%">
             <span class="activities-gantt-progress" style="width:${progressWidth}%"></span>
-            <span class="activities-gantt-label">${escapeHtml(activity.progress)}%</span>
+            <span class="activities-gantt-label">${escapeHtml(formatDurationDays(durationDays))} • ${escapeHtml(activity.progress)}%</span>
           </span>
         </div>
-        <div class="activities-gantt-grid-cell pert-cell">${escapeHtml(formatDurationDays(activity.pertDuration))}</div>
       </div>
     `;
   }).join("");
@@ -1572,13 +1603,13 @@ const renderPrimaveraGantt = () => {
   activitiesPlannerGantt.innerHTML = `
     <div class="activities-gantt-toolbar">
       <span>${escapeHtml(timelineActivities.length)} scheduled item${timelineActivities.length === 1 ? "" : "s"}</span>
-      <span>Window: ${escapeHtml(toDisplayDate(minDate))} — ${escapeHtml(toDisplayDate(maxDate))}</span>
+      <span>Duration scale: 0 — ${escapeHtml(totalDurationDays)} day${totalDurationDays === 1 ? "" : "s"}</span>
     </div>
     <div class="activities-gantt-header">
       <span>WBS / Activity</span>
       <span>Predecessor</span>
+      <span>Duration / PERT</span>
       <span class="activities-gantt-scale">${ticks}</span>
-      <span>PERT</span>
     </div>
     <div class="activities-gantt-rows">${rows}</div>
   `;
