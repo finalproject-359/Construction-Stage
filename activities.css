@@ -660,10 +660,10 @@ body.page-activities .activities-planner-panel {
 .activities-gantt-toolbar,
 .activities-gantt-header,
 .activities-gantt-row {
-  min-width: 980px;
+  min-width: 1080px;
   display: grid;
-  grid-template-columns: 250px 130px minmax(360px, 1fr) 96px;
-  align-items: center;
+  grid-template-columns: 270px 150px 130px minmax(420px, 1fr);
+  align-items: stretch;
 }
 
 .activities-gantt-toolbar {
@@ -698,7 +698,23 @@ body.page-activities .activities-planner-panel {
 .activities-gantt-timeline-cell {
   min-height: 54px;
   padding: 11px 12px;
-  border-right: 1px solid #e7edf7;
+  border-right: 1px solid #d9e2ef;
+}
+
+.activities-gantt-header > span:nth-child(3),
+.activities-gantt-row > :nth-child(3) {
+  border-right: 4px solid #9aa8bc;
+  box-shadow: 6px 0 12px rgba(15, 23, 42, 0.08);
+}
+
+.activities-gantt-header > span:nth-child(-n + 3),
+.activities-gantt-row > :nth-child(-n + 3) {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(255, 255, 255, 0.96));
+}
+
+.activities-gantt-header > span:nth-child(4),
+.activities-gantt-timeline-cell {
+  border-left: 0;
 }
 
 .activities-gantt-header > span:last-child,
@@ -715,7 +731,7 @@ body.page-activities .activities-planner-panel {
 
 .activities-gantt-rows {
   display: grid;
-  min-width: 980px;
+  min-width: 1080px;
   border: 1px solid #e5edf8;
   border-top: 0;
   border-radius: 0 0 14px 14px;
@@ -754,9 +770,23 @@ body.page-activities .activities-planner-panel {
 }
 
 .predecessor-cell,
-.pert-cell {
+.duration-cell {
   color: #475467;
   font-size: 0.8rem;
+}
+
+.predecessor-cell {
+  align-content: center;
+  font-family: "Inter", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.duration-cell strong {
+  color: #0b1f3f;
+}
+
+.duration-cell small {
+  color: #667085;
 }
 
 .activities-gantt-timeline-cell {
@@ -770,11 +800,11 @@ body.page-activities .activities-planner-panel {
 .activities-gantt-bar {
   position: absolute;
   top: 50%;
-  height: 24px;
-  min-width: 34px;
+  height: 26px;
+  min-width: 46px;
   overflow: hidden;
   border: 1px solid rgba(29, 78, 216, 0.24);
-  border-radius: 999px;
+  border-radius: 4px;
   background: #dbe7ff;
   box-shadow: 0 8px 16px rgba(47, 85, 255, 0.16);
   transform: translateY(-50%);
@@ -804,7 +834,7 @@ body.page-activities .activities-planner-panel {
   align-items: center;
   justify-content: center;
   color: #0b1f3f;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 900;
 }
 
