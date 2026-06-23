@@ -867,6 +867,8 @@ const state = {
   },
   didHydrateProjectFromUrl: false,
   editingActivityKey: null,
+  ganttDensity: "compact",
+  ganttScale: "duration",
 };
 
 const closeActivityActionMenus = () => {
@@ -1569,6 +1571,17 @@ const renderPrimaveraGantt = () => {
     const day = Math.round((totalDurationDays / Math.max(tickCount - 1, 1)) * index);
     return `<span>Day ${escapeHtml(day)}</span>`;
   }).join("");
+  const todayLeft = todayOffset !== null && todayOffset >= 0 && todayOffset <= totalDurationDays
+    ? Math.max(0, Math.min(100, (todayOffset / totalDurationDays) * 100))
+    : null;
+
+  const activitiesById = new Map(timelineActivities.map((activity) => [String(activity.id).toLowerCase(), activity]));
+  const groupedActivities = timelineActivities.slice(0, 60).reduce((groups, activity) => {
+    const key = getWbsGroupKey(activity.wbs);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(activity);
+    return groups;
+  }, new Map());
 
   const rows = timelineActivities.slice(0, 30).map((activity) => {
     const { finish } = getGanttActivityDates(activity);
@@ -1591,14 +1604,38 @@ const renderPrimaveraGantt = () => {
           <small>PERT ${escapeHtml(formatDurationDays(activity.pertDuration))}</small>
         </div>
         <div class="activities-gantt-timeline-cell">
-          <span class="activities-gantt-bar" style="left:${left}%;width:${Math.min(width, 100 - left)}%">
+          <span class="activities-gantt-baseline" style="left:${left}%;width:${safeWidth}%"></span>
+          <span class="activities-gantt-bar" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}" style="left:${left}%;width:${safeWidth}%">
             <span class="activities-gantt-progress" style="width:${progressWidth}%"></span>
             <span class="activities-gantt-label">${escapeHtml(formatDurationDays(durationDays))} • ${escapeHtml(activity.progress)}%</span>
           </span>
         </div>
       </div>
     `;
-  }).join("");
+  };
+
+  const leftRows = [];
+  const timelineRows = [];
+  groupedActivities.forEach((activities, groupName) => {
+    const groupDuration = activities.reduce((sum, activity) => sum + getActivityDurationDays(activity), 0);
+    leftRows.push(`
+      <div class="activities-wbs-group-row">
+        <strong>▾ WBS ${escapeHtml(groupName)}</strong>
+        <span>${escapeHtml(activities.length)} item${activities.length === 1 ? "" : "s"} • ${escapeHtml(formatDurationDays(groupDuration))}</span>
+      </div>
+    `);
+    timelineRows.push(`
+      <div class="activities-wbs-group-row activities-wbs-group-timeline">
+        <span>${escapeHtml(formatDurationDays(groupDuration))}</span>
+      </div>
+    `);
+
+    activities.forEach((activity) => {
+      const [leftRow, timelineRow] = buildRow(activity).split("\n      <div class=\"activities-gantt-timeline-row");
+      leftRows.push(leftRow);
+      timelineRows.push(`<div class="activities-gantt-timeline-row${timelineRow}`);
+    });
+  });
 
   activitiesPlannerGantt.innerHTML = `
     <div class="activities-gantt-toolbar">
@@ -1611,7 +1648,6 @@ const renderPrimaveraGantt = () => {
       <span>Duration / PERT</span>
       <span class="activities-gantt-scale">${ticks}</span>
     </div>
-    <div class="activities-gantt-rows">${rows}</div>
   `;
 };
 
@@ -1930,6 +1966,29 @@ renderPrimaveraGantt();
 
 if (activitiesPagination) {
   activitiesPagination.addEventListener("click", onPaginationClick);
+}
+
+if (activitiesPlannerGantt) {
+  activitiesPlannerGantt.addEventListener("click", (event) => {
+    const scaleButton = event.target.closest("[data-gantt-scale]");
+    if (scaleButton) {
+      const nextScale = scaleButton.dataset.ganttScale;
+      if (!["duration", "week", "month"].includes(nextScale)) return;
+
+      state.ganttScale = nextScale;
+      renderPrimaveraGantt();
+      return;
+    }
+
+    const densityButton = event.target.closest("[data-gantt-density]");
+    if (!densityButton) return;
+
+    const nextDensity = densityButton.dataset.ganttDensity;
+    if (!["compact", "comfortable"].includes(nextDensity)) return;
+
+    state.ganttDensity = nextDensity;
+    renderPrimaveraGantt();
+  });
 }
 
 if (activitiesAddButton) {
