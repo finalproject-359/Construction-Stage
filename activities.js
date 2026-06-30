@@ -1539,6 +1539,12 @@ const getDurationOffsetDays = (activity, projectStartDate) => {
   return Math.max(0, Math.round((start.getTime() - projectStartDate.getTime()) / (24 * 60 * 60 * 1000)));
 };
 
+const getWbsGroupKey = (wbs) => {
+  const text = String(wbs || "-").trim();
+  if (!text || text === "-") return "Unassigned";
+  return text.split(/[.\-]/).filter(Boolean).slice(0, 2).join(".") || text;
+};
+
 const renderPrimaveraGantt = () => {
   if (!activitiesPlannerGantt) return;
 
@@ -1571,11 +1577,6 @@ const renderPrimaveraGantt = () => {
     const day = Math.round((totalDurationDays / Math.max(tickCount - 1, 1)) * index);
     return `<span>Day ${escapeHtml(day)}</span>`;
   }).join("");
-  const todayLeft = todayOffset !== null && todayOffset >= 0 && todayOffset <= totalDurationDays
-    ? Math.max(0, Math.min(100, (todayOffset / totalDurationDays) * 100))
-    : null;
-
-  const activitiesById = new Map(timelineActivities.map((activity) => [String(activity.id).toLowerCase(), activity]));
   const groupedActivities = timelineActivities.slice(0, 60).reduce((groups, activity) => {
     const key = getWbsGroupKey(activity.wbs);
     if (!groups.has(key)) groups.set(key, []);
@@ -1583,57 +1584,53 @@ const renderPrimaveraGantt = () => {
     return groups;
   }, new Map());
 
-  const rows = timelineActivities.slice(0, 30).map((activity) => {
-    const { finish } = getGanttActivityDates(activity);
-    const offsetDays = getDurationOffsetDays(activity, projectStartDate);
-    const durationDays = getActivityDurationDays(activity);
-    const left = Math.max(0, (offsetDays / totalDurationDays) * 100);
-    const width = Math.max(3, (durationDays / totalDurationDays) * 100);
-    const progressWidth = Math.max(0, Math.min(100, activity.progress));
-    const isCritical = activity.status === "Delayed" || (progressWidth < 100 && finish && finish < getTodayAtLocalMidnight());
-    return `
-      <div class="activities-gantt-row ${isCritical ? "is-critical" : ""}">
-        <div class="activities-gantt-grid-cell activities-gantt-activity-cell">
-          <span class="activity-wbs-code">${escapeHtml(activity.wbs)}</span>
-          <strong>${escapeHtml(activity.id)}</strong>
-          <small>${escapeHtml(activity.name)}</small>
-        </div>
-        <div class="activities-gantt-grid-cell predecessor-cell">${escapeHtml(activity.predecessor)}</div>
-        <div class="activities-gantt-grid-cell duration-cell">
-          <strong>${escapeHtml(formatDurationDays(durationDays))}</strong>
-          <small>PERT ${escapeHtml(formatDurationDays(activity.pertDuration))}</small>
-        </div>
-        <div class="activities-gantt-timeline-cell">
-          <span class="activities-gantt-baseline" style="left:${left}%;width:${safeWidth}%"></span>
-          <span class="activities-gantt-bar" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}" style="left:${left}%;width:${safeWidth}%">
-            <span class="activities-gantt-progress" style="width:${progressWidth}%"></span>
-            <span class="activities-gantt-label">${escapeHtml(formatDurationDays(durationDays))} • ${escapeHtml(activity.progress)}%</span>
-          </span>
-        </div>
-      </div>
-    `;
-  };
-
-  const leftRows = [];
-  const timelineRows = [];
+  const rows = [];
   groupedActivities.forEach((activities, groupName) => {
     const groupDuration = activities.reduce((sum, activity) => sum + getActivityDurationDays(activity), 0);
-    leftRows.push(`
-      <div class="activities-wbs-group-row">
-        <strong>▾ WBS ${escapeHtml(groupName)}</strong>
-        <span>${escapeHtml(activities.length)} item${activities.length === 1 ? "" : "s"} • ${escapeHtml(formatDurationDays(groupDuration))}</span>
-      </div>
-    `);
-    timelineRows.push(`
-      <div class="activities-wbs-group-row activities-wbs-group-timeline">
-        <span>${escapeHtml(formatDurationDays(groupDuration))}</span>
+    rows.push(`
+      <div class="activities-wbs-group-row activities-gantt-row">
+        <div class="activities-gantt-grid-cell activities-gantt-activity-cell">
+          <strong>▾ WBS ${escapeHtml(groupName)}</strong>
+          <small>${escapeHtml(activities.length)} item${activities.length === 1 ? "" : "s"}</small>
+        </div>
+        <div class="activities-gantt-grid-cell predecessor-cell">—</div>
+        <div class="activities-gantt-grid-cell duration-cell"><strong>${escapeHtml(formatDurationDays(groupDuration))}</strong></div>
+        <div class="activities-gantt-timeline-cell"></div>
       </div>
     `);
 
     activities.forEach((activity) => {
-      const [leftRow, timelineRow] = buildRow(activity).split("\n      <div class=\"activities-gantt-timeline-row");
-      leftRows.push(leftRow);
-      timelineRows.push(`<div class="activities-gantt-timeline-row${timelineRow}`);
+      const { finish } = getGanttActivityDates(activity);
+      const offsetDays = getDurationOffsetDays(activity, projectStartDate);
+      const durationDays = getActivityDurationDays(activity);
+      const left = Math.max(0, (offsetDays / totalDurationDays) * 100);
+      const width = Math.max(3, (durationDays / totalDurationDays) * 100);
+      const safeWidth = Math.min(100 - left, width);
+      const progressWidth = Math.max(0, Math.min(100, activity.progress));
+      const isCritical = activity.status === "Delayed" || (progressWidth < 100 && finish && finish < getTodayAtLocalMidnight());
+      const tooltip = `${activity.id} • ${activity.name} • ${formatDurationDays(durationDays)} • ${activity.progress}% complete`;
+
+      rows.push(`
+        <div class="activities-gantt-row is-status-${activity.status.toLowerCase().replace(/\s+/g, "-")} ${isCritical ? "is-critical" : ""}">
+          <div class="activities-gantt-grid-cell activities-gantt-activity-cell">
+            <span class="activity-wbs-code">${escapeHtml(activity.wbs)}</span>
+            <strong>${escapeHtml(activity.id)}</strong>
+            <small>${escapeHtml(activity.name)}</small>
+          </div>
+          <div class="activities-gantt-grid-cell predecessor-cell">${escapeHtml(activity.predecessor)}</div>
+          <div class="activities-gantt-grid-cell duration-cell">
+            <strong>${escapeHtml(formatDurationDays(durationDays))}</strong>
+            <small>PERT ${escapeHtml(formatDurationDays(activity.pertDuration))}</small>
+          </div>
+          <div class="activities-gantt-timeline-cell">
+            <span class="activities-gantt-baseline" style="left:${left}%;width:${safeWidth}%"></span>
+            <span class="activities-gantt-bar" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}" style="left:${left}%;width:${safeWidth}%">
+              <span class="activities-gantt-progress" style="width:${progressWidth}%"></span>
+              <span class="activities-gantt-label">${escapeHtml(formatDurationDays(durationDays))} • ${escapeHtml(activity.progress)}%</span>
+            </span>
+          </div>
+        </div>
+      `);
     });
   });
 
@@ -1647,6 +1644,9 @@ const renderPrimaveraGantt = () => {
       <span>Predecessor</span>
       <span>Duration / PERT</span>
       <span class="activities-gantt-scale">${ticks}</span>
+    </div>
+    <div class="activities-gantt-rows">
+      ${rows.join("")}
     </div>
   `;
 };
